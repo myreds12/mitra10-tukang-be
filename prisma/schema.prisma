@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("MSSQL_URL")
+}
+
+model complaint {
+  id                Int        @id @default(autoincrement())
+  complaint_notes   String     @db.VarChar(200)
+  complaint_channel String     @db.VarChar(45)
+  complaint_date    DateTime   @db.DateTime
+  complaint_status  Int
+  created_at        DateTime   @default(now()) @db.DateTime()
+  updated_at        DateTime   @db.DateTime()
+  deleted_at        DateTime   @db.DateTime()
+  created_by        Int
+  updated_by        Int
+  deleted_by        Int
+  remedial          remedial[]
+}
+
+model complaint_evidence {
+  id                Int       @id @default(autoincrement())
+  remedial_id       Int?
+  evidence_location String    @db.VarChar(250)
+  created_at        DateTime  @default(now()) @db.DateTime()
+  updated_at        DateTime  @db.DateTime()
+  deleted_at        DateTime  @db.DateTime()
+  created_by        Int
+  updated_by        Int
+  deleted_by        Int
+  remedial          remedial? @relation(fields: [remedial_id], references: [id])
+}
+
+model m_members {
+  id            Int        @id @default(autoincrement())
+  full_name     String     @db.VarChar(200)
+  email         String     @db.VarChar(50)
+  password      String     @db.VarChar(45)
+  num_wa        String     @db.VarChar(45)
+  address1      String     @db.VarChar(200)
+  address2      String     @db.VarChar(200)
+  city          String     @db.VarChar(100)
+  zip           String     @db.VarChar(10)
+  province      String     @db.VarChar(100)
+  rating        Int
+  join_date     String     @db.VarChar(50)
+  join_location String     @db.VarChar(100)
+  input_by      String     @db.VarChar(100)
+  input_date    DateTime   @db.DateTime()
+  created_at    DateTime   @default(now()) @db.DateTime()
+  updated_at    DateTime   @db.DateTime()
+  deleted_at    DateTime   @db.DateTime()
+  created_by    Int
+  updated_by    Int
+  deleted_by    Int
+  m_orders      m_orders[]
+}
+
+model m_orders {
+  id              Int        @id @default(autoincrement())
+  payment_type    Int
+  receipt         String     @db.VarChar(45)
+  order_status    Int
+  payment_status  Int
+  store_name      String     @db.VarChar(45)
+  work_type       Int
+  member_id       Int?
+  m_members       m_members? @relation(fields: [member_id], references: [id])
+  full_name       String     @db.VarChar(45)
+  address         String     @db.VarChar(100)
+  project_address String     @db.VarChar(100)
+  req_work_date   DateTime   @db.DateTime()
+  img_location    String     @db.VarChar(45)
+  receipt_number  String     @db.VarChar(45)
+  receipt_date    DateTime   @db.DateTime()
+  entry_date      DateTime   @db.DateTime()
+  entry_by        Int
+  created_at      DateTime   @default(now()) @db.DateTime()
+  updated_at      DateTime   @db.DateTime()
+  deleted_at      DateTime   @db.DateTime()
+  created_by      Int
+  updated_by      Int
+  deleted_by      Int
+}
+
+model m_stores {
+  id         Int       @id @default(autoincrement())
+  store_name String    @db.VarChar(45)
+  address    String    @db.VarChar(45)
+  city       String    @db.VarChar(45)
+  ship_code  String    @db.VarChar(45)
+  province   String    @db.VarChar(45)
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime  @db.DateTime()
+  deleted_at DateTime  @db.DateTime()
+  created_by Int
+  updated_by Int
+  deleted_by Int
+  m_sales    m_sales[]
+}
+
+model m_sales {
+  id           Int       @id @default(autoincrement())
+  stores_id    Int?
+  full_name    String    @db.VarChar(45)
+  nik          String    @db.VarChar(45)
+  bank_name    String    @db.VarChar(45)
+  bank_branch  String    @db.VarChar(45)
+  bank_account String    @db.VarChar(45)
+  account_name String    @db.VarChar(45)
+  created_at   DateTime  @default(now()) @db.DateTime()
+  updated_at   DateTime  @db.DateTime()
+  deleted_at   DateTime  @db.DateTime()
+  created_by   Int
+  updated_by   Int
+  deleted_by   Int
+  m_stores     m_stores? @relation(fields: [stores_id], references: [id])
+}
+
+model m_vendor_info {
+  id            Int      @id @default(autoincrement())
+  company_name  String   @db.VarChar(45)
+  address       String   @db.VarChar(200)
+  phone_number  String   @db.VarChar(30)
+  email_address String   @db.VarChar(100)
+  vendor_status Int
+  created_at    DateTime @default(now()) @db.DateTime()
+  updated_at    DateTime @db.DateTime()
+  deleted_at    DateTime @db.DateTime()
+  created_by    Int
+  updated_by    Int
+  deleted_by    Int
+}
+
+model m_vendor_fin_info {
+  id Int @id @default(autoincrement())
+}
+
+model remedial {
+  id                 Int                  @id @default(autoincrement())
+  complaint_id       Int?
+  remedial_action    String               @db.VarChar(45)
+  ra_date_start      DateTime             @db.DateTime()
+  ra_date_end        DateTime             @db.DateTime()
+  remedial_pict      String               @db.VarChar(45)
+  remedial_status    Int
+  created_at         DateTime             @default(now()) @db.DateTime()
+  updated_at         DateTime             @db.DateTime()
+  deleted_at         DateTime             @db.DateTime()
+  created_by         Int
+  updated_by         Int
+  deleted_by         Int
+  complaint          complaint?           @relation(fields: [complaint_id], references: [id])
+  complaint_evidence complaint_evidence[]
+}
