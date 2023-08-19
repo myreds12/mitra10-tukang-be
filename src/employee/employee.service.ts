@@ -52,7 +52,7 @@ export class EmployeeService {
       });
       const user = await this.dbService.users.create({
         data: {
-          username: `${employee.first_name + employee.last_name}165`,
+          username: `${employee.first_name + employee.last_name}`,
           password: await hash('tukanginwebsite165', 10),
         },
       });
