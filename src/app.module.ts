@@ -18,6 +18,7 @@ import { EmployeeModule } from './employee/employee.module';
 import { SalesModule } from './sales/sales.module';
 import { ItemsModule } from './items/items.module';
 import { VendorModule } from './vendor/vendor.module';
+import { VendorAreaModule } from './vendor_area/vendor_area.module';
 
 
 @Module({
@@ -38,6 +39,7 @@ import { VendorModule } from './vendor/vendor.module';
     SalesModule,
     ItemsModule,
     VendorModule,
+    VendorAreaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
