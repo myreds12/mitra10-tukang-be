@@ -1,0 +1,70 @@
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { CreateLoginDto } from './dto/login.dto';
+import { CreateRegisterDto } from './dto/register.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { compare, hash } from 'bcrypt';
+import { JwtConfig } from 'src/jwt.config';
+import { omit } from 'lodash';
+import { JwtService } from '@nestjs/jwt';
+import { users } from '@prisma/client';
+
+
+
+@Injectable()
+export class AuthService {
+  constructor(private readonly dbService: PrismaService, private jwtService: JwtService,
+  ) { }
+  async register(dto: CreateRegisterDto) {
+    let user = await this.dbService.users.findFirst({
+      where: {
+        username: dto.username
+      }
+    });
+    if (user) {
+      throw new HttpException('User Exists', HttpStatus.BAD_REQUEST);
+    }
+    let createUser = await this.dbService.users.create({
+      data: dto
+    })
+    if (createUser) {
+      return {
+        statusCode: 200,
+        message: 'Register success',
+        data: createUser
+      };
+    }
+    throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
+  }
+  async login(dto: CreateLoginDto) {
+    let user = await this.dbService.users.findFirst({
+      where: { username: dto.username }
+    });
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    let checkPassword = await compare(dto.password, user.password);
+    if (!checkPassword) {
+      throw new HttpException('Credential Incorrect', HttpStatus.UNAUTHORIZED);
+    }
+    return await this.generateJwt(user, JwtConfig.user_secret, JwtConfig.user_expired);
+  }
+
+  async generateJwt(user: users, secret: any, expired = JwtConfig.user_expired) {
+    const { id, username } = user
+    let accessToken = this.jwtService.sign({
+      id: id,
+      username,
+    }, {
+      expiresIn: expired,
+      secret
+    });
+    return {
+      statusCode: 200,
+      accessToken: accessToken,
+      user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at'])
+    };
+  }
+
+}

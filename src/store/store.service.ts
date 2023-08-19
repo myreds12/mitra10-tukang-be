@@ -1,0 +1,119 @@
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { CreateStoreDto } from './dto/create-store.dto';
+import { UpdateStoreDto } from './dto/update-store.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class StoreService {
+  constructor(private readonly dbService: PrismaService) { }
+  async create(dto: CreateStoreDto, user_id: number) {
+    try {
+
+
+      const store = await this.dbService.store.create({
+        data: {
+          store_name: dto.store_name,
+          address: dto.address,
+          city_id: dto.city_id,
+          sip_code: dto.sip_code,
+          created_by: user_id
+        }
+      })
+
+      return {
+        status: HttpStatus.CREATED,
+        message: 'Store Successfully Created'
+      }
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Failed to create"
+      }
+    }
+  }
+
+  async findAll() {
+    try {
+      const store = await this.dbService.store.findMany()
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Successfully get store',
+        data: store
+      }
+    } catch (err) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Failed to Get Store"
+      }
+    }
+  }
+
+  async findOne(id: number) {
+    try {
+      const store = await this.dbService.store.findFirst({
+        where: {
+          id
+        }
+      })
+
+      return {
+        status: HttpStatus.OK,
+        message: "Succesfully find store",
+        data: store
+      }
+    } catch (error) {
+
+    }
+  }
+
+  async update(id: number, dto: UpdateStoreDto, user_id: number) {
+    try {
+      const store = await this.dbService.store.update({
+        where: {
+          id
+        },
+        data: {
+          ...dto,
+          updated_by: user_id,
+          updated_at: new Date()
+        }
+      })
+
+      return {
+        status: HttpStatus.CREATED,
+        message: "Successfully Update Data"
+      }
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Failed to update data"
+      }
+    }
+  }
+
+  async remove(id: number, user_id: number) {
+    try {
+      const store = await this.dbService.store.update({
+        where: {
+          id
+        },
+        data: {
+
+          deleted_by: user_id,
+          deleted_at: new Date()
+        }
+      })
+
+      return {
+        status: HttpStatus.OK,
+        message: "Successfully delete store"
+      }
+    } catch (error) {
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: "Failed to delete store"
+      }
+    }
+  }
+}
