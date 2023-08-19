@@ -221,9 +221,9 @@ model service_type {
   id             Int              @id @default(autoincrement())
   service_type   String           @db.VarChar(45)
   is_active      Boolean          @default(true)
-  created_at     DateTime         @default(now()) @db.DateTime()
-  updated_at     DateTime         @db.DateTime()
-  deleted_at     DateTime         @db.DateTime()
+  created_at     DateTime?        @default(now()) @db.DateTime()
+  updated_at     DateTime?        @db.DateTime()
+  deleted_at     DateTime?        @db.DateTime()
   created_by     Int?
   updated_by     Int?
   deleted_by     Int?
@@ -355,21 +355,21 @@ model vendor {
 }
 
 model vendor_area {
-  id               Int      @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   vendor_id        Int?
   area_serve       Int?
-  default_discount Decimal  @db.Decimal(2, 0)
-  default_markup   String   @db.VarChar(45)
-  default_unit     String   @db.VarChar(45)
-  is_active        Boolean  @default(true)
-  created_at       DateTime @default(now()) @db.DateTime()
-  updated_at       DateTime @db.DateTime()
-  deleted_at       DateTime @db.DateTime()
+  default_discount Decimal   @db.Decimal(2, 0)
+  default_markup   String    @db.VarChar(45)
+  default_unit     String    @db.VarChar(45)
+  is_active        Boolean   @default(true)
+  created_at       DateTime? @default(now()) @db.DateTime()
+  updated_at       DateTime? @db.DateTime()
+  deleted_at       DateTime? @db.DateTime()
   created_by       Int?
   updated_by       Int?
   deleted_by       Int?
-  vendor           vendor?  @relation(fields: [vendor_id], references: [id])
-  store            store?   @relation(fields: [area_serve], references: [id])
+  vendor           vendor?   @relation(fields: [vendor_id], references: [id])
+  store            store?    @relation(fields: [area_serve], references: [id])
 }
 
 model vendor_bank {

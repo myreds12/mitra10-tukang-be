@@ -8,33 +8,45 @@ export class SalesService {
   constructor(private readonly dbService: PrismaService) { }
   async create(createSalesDto: CreateSalesDto, user_id: number) {
     try {
-      const sales = await this.dbService.sales.create({
-        data: {
-          full_name: createSalesDto.account_name,
-          bank_branch: createSalesDto.bank_branch,
-          account_name: createSalesDto.account_name,
-          nik: createSalesDto.nik,
-          users: {
-            connect: {
-              id: user_id
-            }
-          },
-          store: {
-            connect: {
-              id: createSalesDto.store_id
-            }
-          },
-          bank: {
-            connect: {
-              id: createSalesDto.bank_id
-            }
-          }
+      const bank = await this.dbService.bank.findFirst({
+        where: {
+          id: createSalesDto.bank_id
         }
       })
+      if (bank.is_active == true) {
+        const sales = await this.dbService.sales.create({
+          data: {
+            full_name: createSalesDto.account_name,
+            bank_branch: createSalesDto.bank_branch,
+            account_name: createSalesDto.account_name,
+            nik: createSalesDto.nik,
+            users: {
+              connect: {
+                id: user_id
+              }
+            },
+            store: {
+              connect: {
+                id: createSalesDto.store_id
+              }
+            },
+            bank: {
+              connect: {
+                id: createSalesDto.bank_id
+              }
+            }
+          }
+        })
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Create Data'
+        return {
+          status: HttpStatus.CREATED,
+          message: 'Successfully to Create Data'
+        }
+      } else {
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'Bank is not Active'
+        }
       }
     } catch (error) {
       return {
