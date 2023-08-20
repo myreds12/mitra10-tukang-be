@@ -175,8 +175,6 @@ export class TukangService {
         };
       }
     } catch (error) {
-      console.log(error);
-
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to Update Data',

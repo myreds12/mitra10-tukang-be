@@ -22,6 +22,7 @@ import { VendorAreaModule } from './vendor_area/vendor_area.module';
 import { TukangModule } from './tukang/tukang.module';
 import { MemberModule } from './member/member.module';
 import { VendorServiceModule } from './vendor_service/vendor_service.module';
+import { TukangServiceModule } from './tukang_service/tukang_service.module';
 
 
 @Module({
@@ -46,6 +47,7 @@ import { VendorServiceModule } from './vendor_service/vendor_service.module';
     TukangModule,
     MemberModule,
     VendorServiceModule,
+    TukangServiceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
