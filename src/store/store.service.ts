@@ -5,47 +5,48 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(dto: CreateStoreDto, user_id: number) {
     try {
-
-
       const store = await this.dbService.store.create({
         data: {
           store_name: dto.store_name,
           address: dto.address,
           city_id: dto.city_id,
           sip_code: dto.sip_code,
-          created_by: user_id
-        }
-      })
+          created_by: user_id,
+        },
+      });
 
       return {
+        data: {
+          store,
+        },
         status: HttpStatus.CREATED,
-        message: 'Store Successfully Created'
-      }
+        message: 'Store Successfully Created',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed to create"
-      }
+        message: 'Failed to create',
+      };
     }
   }
 
   async findAll() {
     try {
-      const store = await this.dbService.store.findMany()
+      const store = await this.dbService.store.findMany();
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully get store',
-        data: store
-      }
+        data: store,
+      };
     } catch (err) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed to Get Store"
-      }
+        message: 'Failed to Get Store',
+      };
     }
   }
 
@@ -53,42 +54,40 @@ export class StoreService {
     try {
       const store = await this.dbService.store.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: "Succesfully find store",
-        data: store
-      }
-    } catch (error) {
-
-    }
+        message: 'Succesfully find store',
+        data: store,
+      };
+    } catch (error) {}
   }
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {
     try {
       const store = await this.dbService.store.update({
         where: {
-          id
+          id,
         },
         data: {
           ...dto,
           updated_by: user_id,
-          updated_at: new Date()
-        }
-      })
+          updated_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: "Successfully Update Data"
-      }
+        message: 'Successfully Update Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed to update data"
-      }
+        message: 'Failed to update data',
+      };
     }
   }
 
@@ -96,24 +95,23 @@ export class StoreService {
     try {
       const store = await this.dbService.store.update({
         where: {
-          id
+          id,
         },
         data: {
-
           deleted_by: user_id,
-          deleted_at: new Date()
-        }
-      })
+          deleted_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: "Successfully delete store"
-      }
+        message: 'Successfully delete store',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed to delete store"
-      }
+        message: 'Failed to delete store',
+      };
     }
   }
 }

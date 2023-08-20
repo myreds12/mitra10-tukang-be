@@ -2,19 +2,24 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { CreateTukangDto } from './dto/create-tukang.dto';
 import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { hash } from 'bcrypt';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) { }
-  async create(createTukangDto: CreateTukangDto, user_id: number, file: Express.Multer.File) {
+  constructor(private readonly dbService: PrismaService) {}
+  async create(
+    createTukangDto: CreateTukangDto,
+    user_id: number,
+    file: Express.Multer.File,
+  ) {
     try {
       const vendor = await this.dbService.vendor.findFirst({
         where: {
-          id: Number(createTukangDto.vendor_id)
-        }
-      })
+          id: Number(createTukangDto.vendor_id),
+        },
+      });
 
-      const url = `/uploads/tukang/${file.filename}`
+      const url = `/uploads/tukang/${file.filename}`;
 
       if (vendor.is_active == true) {
         const tukang = await this.dbService.tukang.create({
@@ -27,51 +32,73 @@ export class TukangService {
             join_date: new Date(createTukangDto.join_date),
             users: {
               connect: {
-                id: user_id
-              }
+                id: user_id,
+              },
             },
             vendor: {
               connect: {
-                id: Number(createTukangDto.vendor_id)
-              }
-            }
-          }
-        })
+                id: Number(createTukangDto.vendor_id),
+              },
+            },
+          },
+        });
 
+        const user = await this.dbService.users.create({
+          data: {
+            username: `${tukang.full_name}`,
+            password: await hash('tukanginwebsite165', 10),
+          },
+        });
+        const create_user_roles = await this.dbService.user_roles.create({
+          data: {
+            users: {
+              connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
+            },
+            roles: {
+              connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
+            },
+          },
+        });
+        const user_data = await this.dbService.user_roles.findUnique({
+          where: { id: create_user_roles.id },
+          include: { users: true, roles: true },
+        });
         return {
+          data: {
+            tukang,
+            user_data,
+          },
           status: HttpStatus.CREATED,
-          message: 'Successfully to Create Data'
-        }
+          message: 'Successfully to Create Data',
+        };
       } else {
         return {
           statusCode: HttpStatus.BAD_REQUEST,
-          message: 'Vendor is not Active'
-        }
+          message: 'Vendor is not Active',
+        };
       }
     } catch (error) {
-      console.log(error);
-
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data'
-      }
+        message: 'Failed to Create Data',
+      };
     }
   }
 
   async findAll() {
     try {
-      const tukang = await this.dbService.tukang.findMany()
+      const tukang = await this.dbService.tukang.findMany();
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
-        data: tukang
-      }
+        data: tukang,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data'
-      }
+        message: 'Failed to Get Data',
+      };
     }
   }
 
@@ -79,37 +106,42 @@ export class TukangService {
     try {
       const tukang = await this.dbService.tukang.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Find Data',
-        data: tukang
-      }
+        data: tukang,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data'
-      }
+        message: 'Failed to Find Data',
+      };
     }
   }
 
-  async update(id: number, updateTukangDto: UpdateTukangDto, user_id: number, file?: Express.Multer.File) {
+  async update(
+    id: number,
+    updateTukangDto: UpdateTukangDto,
+    user_id: number,
+    file?: Express.Multer.File,
+  ) {
     try {
       const vendor = await this.dbService.vendor.findFirst({
         where: {
-          id: Number(updateTukangDto.vendor_id)
-        }
-      })
+          id: Number(updateTukangDto.vendor_id),
+        },
+      });
 
-      const url = `/uploads/tukang/${file.filename}`
+      const url = `/uploads/tukang/${file.filename}`;
 
       if (vendor.is_active == true) {
         const tukang = await this.dbService.tukang.update({
           where: {
-            id
+            id,
           },
           data: {
             full_name: updateTukangDto.full_name,
@@ -121,60 +153,59 @@ export class TukangService {
             join_date: new Date(updateTukangDto.join_date),
             users: {
               connect: {
-                id: user_id
-              }
+                id: user_id,
+              },
             },
             vendor: {
               connect: {
-                id: Number(updateTukangDto.vendor_id)
-              }
-            }
-          }
-        })
+                id: Number(updateTukangDto.vendor_id),
+              },
+            },
+          },
+        });
 
         return {
           status: HttpStatus.CREATED,
-          message: 'Successfully to Update Data'
-        }
+          message: 'Successfully to Update Data',
+        };
       } else {
         return {
           statusCode: HttpStatus.BAD_REQUEST,
-          message: 'Vendor is not Active'
-        }
+          message: 'Vendor is not Active',
+        };
       }
     } catch (error) {
       console.log(error);
 
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data'
-      }
+        message: 'Failed to Update Data',
+      };
     }
   }
 
   async remove(id: number, user_id: number) {
     try {
-
       const tukang = await this.dbService.tukang.update({
         where: {
-          id
+          id,
         },
         data: {
           is_active: false,
           deleted_at: new Date(),
-          deleted_by: user_id
-        }
-      })
+          deleted_by: user_id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: 'Successfully to Delete Data'
-      }
+        message: 'Successfully to Delete Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data'
-      }
+        message: 'Failed to Delete Data',
+      };
     }
   }
 }

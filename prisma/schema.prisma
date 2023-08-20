@@ -82,25 +82,25 @@ model items {
 }
 
 model members {
-  id              Int      @id @default(autoincrement())
-  full_name       String   @db.VarChar(255)
-  email           String   @unique() @db.VarChar(255)
-  phone_number    String   @db.VarChar(20)
-  whatsapp_number String   @db.VarChar(20)
-  address_1       String   @db.VarChar(255)
-  address_2       String   @db.VarChar(255)
+  id              Int       @id @default(autoincrement())
+  full_name       String    @db.VarChar(255)
+  email           String    @unique() @db.VarChar(255)
+  phone_number    String    @db.VarChar(20)
+  whatsapp_number String    @db.VarChar(20)
+  address_1       String    @db.VarChar(255)
+  address_2       String?   @db.VarChar(255)
   city_id         Int?
-  zip_code        String   @db.VarChar(10)
-  rating          Int
-  join_date       DateTime @db.DateTime()
+  zip_code        String    @db.VarChar(10)
+  rating          Int?
+  join_date       DateTime  @db.DateTime()
   join_location   Int
-  created_at      DateTime @default(now()) @db.DateTime()
-  updated_at      DateTime @db.DateTime()
-  deleted_at      DateTime @db.DateTime()
+  created_at      DateTime  @default(now()) @db.DateTime()
+  updated_at      DateTime? @db.DateTime()
+  deleted_at      DateTime? @db.DateTime()
   created_by      Int?
   updated_by      Int?
   deleted_by      Int?
-  city            city?    @relation(fields: [city_id], references: [id])
+  city            city?     @relation(fields: [city_id], references: [id])
 }
 
 model menus {

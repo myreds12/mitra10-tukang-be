@@ -20,6 +20,7 @@ import { ItemsModule } from './items/items.module';
 import { VendorModule } from './vendor/vendor.module';
 import { VendorAreaModule } from './vendor_area/vendor_area.module';
 import { TukangModule } from './tukang/tukang.module';
+import { MemberModule } from './member/member.module';
 
 
 @Module({
@@ -42,6 +43,7 @@ import { TukangModule } from './tukang/tukang.module';
     VendorModule,
     VendorAreaModule,
     TukangModule,
+    MemberModule,
   ],
   controllers: [AppController],
   providers: [AppService],
