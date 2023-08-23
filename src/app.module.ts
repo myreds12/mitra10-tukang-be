@@ -23,6 +23,12 @@ import { TukangModule } from './tukang/tukang.module';
 import { MemberModule } from './member/member.module';
 import { VendorServiceModule } from './vendor_service/vendor_service.module';
 import { TukangServiceModule } from './tukang_service/tukang_service.module';
+import { VendorBankModule } from './vendor_bank/vendor_bank.module';
+import { VendorDocumentModule } from './vendor_document/vendor_document.module';
+import { RoleMenusModule } from './role_menus/role_menus.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { RoleMenuPermissionsModule } from './role_menu_permissions/role_menu_permissions.module';
+import { UserMenuPermissionsModule } from './user_menu_permissions/user_menu_permissions.module';
 
 
 @Module({
@@ -48,6 +54,12 @@ import { TukangServiceModule } from './tukang_service/tukang_service.module';
     MemberModule,
     VendorServiceModule,
     TukangServiceModule,
+    VendorBankModule,
+    VendorDocumentModule,
+    RoleMenusModule,
+    PermissionsModule,
+    RoleMenuPermissionsModule,
+    UserMenuPermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
