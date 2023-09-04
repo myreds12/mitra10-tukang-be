@@ -8,36 +8,36 @@ import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
 import { users } from '@prisma/client';
 
-
-
 @Injectable()
 export class AuthService {
-  constructor(private readonly dbService: PrismaService, private jwtService: JwtService,
-  ) { }
+  constructor(
+    private readonly dbService: PrismaService,
+    private jwtService: JwtService,
+  ) {}
   async register(dto: CreateRegisterDto) {
     let user = await this.dbService.users.findFirst({
       where: {
-        username: dto.username
-      }
+        username: dto.username,
+      },
     });
     if (user) {
       throw new HttpException('User Exists', HttpStatus.BAD_REQUEST);
     }
     let createUser = await this.dbService.users.create({
-      data: dto
-    })
+      data: dto,
+    });
     if (createUser) {
       return {
         statusCode: 200,
         message: 'Register success',
-        data: createUser
+        data: createUser,
       };
     }
     throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
   }
   async login(dto: CreateLoginDto) {
     let user = await this.dbService.users.findFirst({
-      where: { username: dto.username }
+      where: { username: dto.username },
     });
 
     if (!user) {
@@ -48,23 +48,38 @@ export class AuthService {
     if (!checkPassword) {
       throw new HttpException('Credential Incorrect', HttpStatus.UNAUTHORIZED);
     }
-    return await this.generateJwt(user, JwtConfig.user_secret, JwtConfig.user_expired);
+    return await this.generateJwt(
+      user,
+      JwtConfig.user_secret,
+      JwtConfig.user_expired,
+    );
   }
 
-  async generateJwt(user: users, secret: any, expired = JwtConfig.user_expired) {
-    const { id, username } = user
-    let accessToken = this.jwtService.sign({
-      id: id,
-      username,
-    }, {
-      expiresIn: expired,
-      secret
+  async generateJwt(
+    user: users,
+    secret: any,
+    expired = JwtConfig.user_expired,
+  ) {
+    const { id, username } = user;
+    let accessToken = this.jwtService.sign(
+      {
+        id: id,
+        username,
+      },
+      {
+        expiresIn: expired,
+        secret,
+      },
+    );
+    let menus = await this.dbService.user_menu_permissions.findMany({
+      where: { user_id: user.id },
+      include: { menus: true },
     });
     return {
       statusCode: 200,
       accessToken: accessToken,
-      user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at'])
+      user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
+      menu: menus,
     };
   }
-
 }

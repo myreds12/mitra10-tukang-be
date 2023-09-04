@@ -125,9 +125,10 @@ model permissions {
   name                  String                  @db.VarChar(255)
   is_active             Boolean                 @default(true)
   created_at            DateTime                @default(now()) @db.DateTime()
-  updated_at            DateTime                @db.DateTime()
-  deleted_at            DateTime                @db.DateTime()
+  updated_at            DateTime?               @db.DateTime()
+  deleted_at            DateTime?               @db.DateTime()
   role_menu_permissions role_menu_permissions[]
+  user_menu_permissions user_menu_permissions[]
 }
 
 model positions {
@@ -305,13 +306,15 @@ model users {
 }
 
 model user_menu_permissions {
-  id         Int      @id @default(autoincrement())
-  user_id    Int?
-  menu_id    Int?
-  created_at DateTime @default(now()) @db.DateTime()
-  updated_at DateTime @db.DateTime()
-  users      users?   @relation(fields: [user_id], references: [id])
-  menus      menus?   @relation(fields: [menu_id], references: [id])
+  id            Int          @id @default(autoincrement())
+  user_id       Int?
+  menu_id       Int?
+  created_at    DateTime     @default(now()) @db.DateTime()
+  updated_at    DateTime?    @db.DateTime()
+  users         users?       @relation(fields: [user_id], references: [id])
+  menus         menus?       @relation(fields: [menu_id], references: [id])
+  permissions   permissions? @relation(fields: [permission_id], references: [id])
+  permission_id Int?
 }
 
 model user_roles {

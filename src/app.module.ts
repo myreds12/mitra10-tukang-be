@@ -23,6 +23,8 @@ import { TukangModule } from './tukang/tukang.module';
 import { MemberModule } from './member/member.module';
 import { VendorServiceModule } from './vendor_service/vendor_service.module';
 import { TukangServiceModule } from './tukang_service/tukang_service.module';
+import { PermissionModule } from './permission/permission.module';
+import { UserMenuPermissionModule } from './user_menu_permission/user_menu_permission.module';
 
 
 @Module({
@@ -48,6 +50,8 @@ import { TukangServiceModule } from './tukang_service/tukang_service.module';
     MemberModule,
     VendorServiceModule,
     TukangServiceModule,
+    PermissionModule,
+    UserMenuPermissionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
