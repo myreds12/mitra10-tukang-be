@@ -4,6 +4,6 @@ import { TukangServiceController } from './tukang_service.controller';
 
 @Module({
   controllers: [TukangServiceController],
-  providers: [TukangServiceService]
+  providers: [TukangServiceService],
 })
 export class TukangServiceModule {}

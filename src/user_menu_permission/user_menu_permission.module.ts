@@ -4,6 +4,6 @@ import { UserMenuPermissionController } from './user_menu_permission.controller'
 
 @Module({
   controllers: [UserMenuPermissionController],
-  providers: [UserMenuPermissionService]
+  providers: [UserMenuPermissionService],
 })
 export class UserMenuPermissionModule {}

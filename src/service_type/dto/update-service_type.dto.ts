@@ -1,9 +1,9 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateServiceTypeDto {
-    @ApiProperty()
-    @IsString()
-    @IsOptional()
-    service_type?: string;
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  service_type?: string;
 }

@@ -26,7 +26,6 @@ import { TukangServiceModule } from './tukang_service/tukang_service.module';
 import { PermissionModule } from './permission/permission.module';
 import { UserMenuPermissionModule } from './user_menu_permission/user_menu_permission.module';
 
-
 @Module({
   imports: [
     PrismaModule,
@@ -56,4 +55,4 @@ import { UserMenuPermissionModule } from './user_menu_permission/user_menu_permi
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

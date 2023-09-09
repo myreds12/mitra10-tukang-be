@@ -5,42 +5,42 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class RolesService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createRoleDto: CreateRoleDto, user_id: number) {
     try {
       const roles = await this.dbService.roles.create({
         data: {
           ...createRoleDto,
-          created_by: user_id
-        }
-      })
+          created_by: user_id,
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: "Successfully Create"
-      }
+        message: 'Successfully Create',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create'
-      }
+        message: 'Failed to Create',
+      };
     }
   }
 
   async findAll() {
     try {
-      const roles = await this.dbService.roles.findMany()
+      const roles = await this.dbService.roles.findMany();
 
       return {
         status: HttpStatus.OK,
-        message: "Success Get Data",
-        data: roles
-      }
+        message: 'Success Get Data',
+        data: roles,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data'
-      }
+        message: 'Failed to Get Data',
+      };
     }
   }
 
@@ -48,20 +48,20 @@ export class RolesService {
     try {
       const roles = await this.dbService.roles.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Find Data',
-        data: roles
-      }
+        data: roles,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data'
-      }
+        message: 'Failed to Find Data',
+      };
     }
   }
 
@@ -69,24 +69,24 @@ export class RolesService {
     try {
       const roles = await this.dbService.roles.update({
         where: {
-          id
+          id,
         },
         data: {
           ...updateRoleDto,
           updated_by: user_id,
-          updated_at: new Date()
-        }
-      })
+          updated_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: "Successfully Update Data"
-      }
+        message: 'Successfully Update Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed To Update Data"
-      }
+        message: 'Failed To Update Data',
+      };
     }
   }
 
@@ -94,24 +94,24 @@ export class RolesService {
     try {
       const roles = await this.dbService.roles.update({
         where: {
-          id
+          id,
         },
         data: {
           is_active: false,
           deleted_by: user_id,
-          deleted_at: new Date()
-        }
-      })
+          deleted_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: 'Successfully Deleted Data'
-      }
+        message: 'Successfully Deleted Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete'
-      }
+        message: 'Failed to Delete',
+      };
     }
   }
 }
