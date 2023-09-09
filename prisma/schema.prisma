@@ -473,8 +473,8 @@ model m_order_details {
   item_id      Int
   order_status Int
   unit         String  @db.VarChar(200)
-  unit_price   Float   @db.Money
-  quote_price  Float   @db.Money
+  unit_price   Int
+  quote_price  Int
   quantity     Int
   total        Int
   survey_price Decimal @db.Decimal(32, 2)
