@@ -66,19 +66,20 @@ model employee {
 }
 
 model items {
-  id         Int       @id @default(autoincrement())
-  store_id   Int?
-  item_name  String    @db.VarChar(45)
-  price      String    @db.VarChar(45)
-  unit       String    @db.VarChar(45)
-  discount   String    @db.VarChar(45)
-  created_at DateTime? @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-  store      store?    @relation(fields: [store_id], references: [id])
+  id              Int               @id @default(autoincrement())
+  store_id        Int?
+  item_name       String            @db.VarChar(45)
+  price           String            @db.VarChar(45)
+  unit            String            @db.VarChar(45)
+  discount        String            @db.VarChar(45)
+  created_at      DateTime?         @default(now()) @db.DateTime()
+  updated_at      DateTime?         @db.DateTime()
+  deleted_at      DateTime?         @db.DateTime()
+  created_by      Int?
+  updated_by      Int?
+  deleted_by      Int?
+  store           store?            @relation(fields: [store_id], references: [id])
+  m_order_details m_order_details[]
 }
 
 model members {
@@ -101,6 +102,7 @@ model members {
   updated_by      Int?
   deleted_by      Int?
   city            city?     @relation(fields: [city_id], references: [id])
+  order           orders[]
 }
 
 model menus {
@@ -269,6 +271,7 @@ model tukang {
   vendor         vendor?          @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users          users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang_service tukang_service[]
+  orders         orders[]
 }
 
 model tukang_service {
@@ -303,6 +306,7 @@ model users {
   employee              employee[]
   vendor                vendor[]
   tukang                tukang[]
+  orders                orders[]
 }
 
 model user_menu_permissions {
@@ -355,6 +359,7 @@ model vendor {
   vendor_bank     vendor_bank[]
   vendor_document vendor_document[]
   vendor_service  vendor_service[]
+  orders          orders[]
 }
 
 model vendor_area {
@@ -419,4 +424,70 @@ model vendor_service {
   deleted_by      Int?
   vendor          vendor?       @relation(fields: [vendor_id], references: [id])
   service_type    service_type? @relation(fields: [service_type_id], references: [id])
+}
+
+model status {
+  id          Int      @id @default(autoincrement())
+  category    String
+  description String
+  created_at  DateTime @default(now()) @db.DateTime()
+  updated_at  DateTime
+  order       orders[]
+}
+
+model orders {
+  id                      Int     @id @default(autoincrement())
+  member_id               Int?
+  seles_id                Int?
+  vendor_id               Int?
+  tukang_id               Int?
+  project_address         String
+  project_status_id       Int
+  receipt_number          String  @db.NVarChar(30)
+  receipt_path            String  @db.Text
+  total_estimate_workdays Int     @db.TinyInt
+  payment_type            String  @db.VarChar()
+  grand_total             Decimal @db.Decimal(32, 2)
+  grand_total_comission   Decimal @db.Decimal(32, 2)
+  print_counter           Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  members         members?          @relation(fields: [member_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seles           users?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang          tukang?           @relation(fields: [tukang_id], references: [id])
+  status          status            @relation(fields: [project_status_id], references: [id])
+  m_order_details m_order_details[]
+}
+
+model m_order_details {
+  id           Int     @id @default(autoincrement())
+  order_id     Int
+  item_id      Int
+  order_status Int
+  unit         String  @db.VarChar(200)
+  unit_price   Float   @db.Money
+  quote_price  Float   @db.Money
+  quantity     Int
+  total        Int
+  survey_price Decimal @db.Decimal(32, 2)
+  comission    Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  order orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  item  items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
