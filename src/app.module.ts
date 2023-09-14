@@ -30,7 +30,6 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { RoleMenuPermissionsModule } from './role_menu_permissions/role_menu_permissions.module';
 import { UserMenuPermissionsModule } from './user_menu_permissions/user_menu_permissions.module';
 
-
 @Module({
   imports: [
     PrismaModule,
@@ -64,4 +63,4 @@ import { UserMenuPermissionsModule } from './user_menu_permissions/user_menu_per
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

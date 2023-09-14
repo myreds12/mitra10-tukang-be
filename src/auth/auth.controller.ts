@@ -1,26 +1,31 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard';
 import { TransformPasswordPipe } from './transform-password.pipe';
 
-
 @Controller('auth')
 export class AuthController {
-
   /**
    * Constructor
-   * @param authService 
+   * @param authService
    */
-  constructor(private authService: AuthService) {
-
-  }
+  constructor(private authService: AuthService) {}
 
   /**
    * Register controller
-   * @param dto 
-   * @returns 
+   * @param dto
+   * @returns
    */
   @UsePipes(ValidationPipe, TransformPasswordPipe)
   @HttpCode(200)
@@ -31,8 +36,8 @@ export class AuthController {
 
   /**
    * Login Controller
-   * @param dto 
-   * @returns 
+   * @param dto
+   * @returns
    */
   @HttpCode(200)
   @Post('login')

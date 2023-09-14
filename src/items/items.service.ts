@@ -5,50 +5,50 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class ItemsService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createItemDto: CreateItemDto, user_id: number) {
     try {
       const items = await this.dbService.items.create({
         data: {
           store: {
             connect: {
-              id: createItemDto.store_id
-            }
+              id: createItemDto.store_id,
+            },
           },
           item_name: createItemDto.item_name,
           unit: createItemDto.unit,
           discount: createItemDto.discount,
           price: createItemDto.price,
-          created_by: user_id
-        }
-      })
+          created_by: user_id,
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: 'Successfully to Create Data'
-      }
+        message: 'Successfully to Create Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data'
-      }
+        message: 'Failed to Create Data',
+      };
     }
   }
 
   async findAll() {
     try {
-      const items = await this.dbService.items.findMany()
+      const items = await this.dbService.items.findMany();
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
-        data: items
-      }
+        data: items,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data'
-      }
+        message: 'Failed to Get Data',
+      };
     }
   }
 
@@ -56,20 +56,20 @@ export class ItemsService {
     try {
       const items = await this.dbService.items.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Find Data',
-        data: items
-      }
+        data: items,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data'
-      }
+        message: 'Failed to Find Data',
+      };
     }
   }
 
@@ -77,32 +77,32 @@ export class ItemsService {
     try {
       const items = await this.dbService.items.update({
         where: {
-          id
+          id,
         },
         data: {
           store: {
             connect: {
-              id: updateItemDto.store_id
-            }
+              id: updateItemDto.store_id,
+            },
           },
           item_name: updateItemDto.item_name,
           unit: updateItemDto.unit,
           discount: updateItemDto.discount,
           price: updateItemDto.price,
           updated_by: user_id,
-          updated_at: new Date()
-        }
-      })
+          updated_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: 'Successfully to Update Data'
-      }
+        message: 'Successfully to Update Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data'
-      }
+        message: 'Failed to Update Data',
+      };
     }
   }
 
@@ -110,23 +110,23 @@ export class ItemsService {
     try {
       const items = await this.dbService.items.update({
         where: {
-          id
+          id,
         },
         data: {
           deleted_at: new Date(),
-          deleted_by: user_id
-        }
-      })
+          deleted_by: user_id,
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: 'Successfully to Delete Data'
-      }
+        message: 'Successfully to Delete Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data'
-      }
+        message: 'Failed to Delete Data',
+      };
     }
   }
 }

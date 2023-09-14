@@ -5,14 +5,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createSalesDto: CreateSalesDto, user_id: number) {
     try {
       const bank = await this.dbService.bank.findFirst({
         where: {
-          id: createSalesDto.bank_id
-        }
-      })
+          id: createSalesDto.bank_id,
+        },
+      });
       if (bank.is_active == true) {
         const sales = await this.dbService.sales.create({
           data: {
@@ -22,53 +22,53 @@ export class SalesService {
             nik: createSalesDto.nik,
             users: {
               connect: {
-                id: user_id
-              }
+                id: user_id,
+              },
             },
             store: {
               connect: {
-                id: createSalesDto.store_id
-              }
+                id: createSalesDto.store_id,
+              },
             },
             bank: {
               connect: {
-                id: createSalesDto.bank_id
-              }
-            }
-          }
-        })
+                id: createSalesDto.bank_id,
+              },
+            },
+          },
+        });
 
         return {
           status: HttpStatus.CREATED,
-          message: 'Successfully to Create Data'
-        }
+          message: 'Successfully to Create Data',
+        };
       } else {
         return {
           status: HttpStatus.BAD_REQUEST,
-          message: 'Bank is not Active'
-        }
+          message: 'Bank is not Active',
+        };
       }
     } catch (error) {
       return {
-        status: HttpStatus.BAD_REQUEST
-      }
+        status: HttpStatus.BAD_REQUEST,
+      };
     }
   }
 
   async findAll() {
     try {
-      const sales = await this.dbService.sales.findMany()
+      const sales = await this.dbService.sales.findMany();
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
-        data: sales
-      }
+        data: sales,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data'
-      }
+        message: 'Failed to Get Data',
+      };
     }
   }
 
@@ -76,20 +76,20 @@ export class SalesService {
     try {
       const sales = await this.dbService.sales.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Find Data',
-        data: sales
-      }
+        data: sales,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data'
-      }
+        message: 'Failed to Find Data',
+      };
     }
   }
 
@@ -97,7 +97,7 @@ export class SalesService {
     try {
       const sales = await this.dbService.sales.update({
         where: {
-          id
+          id,
         },
         data: {
           full_name: updateSalesDto.account_name,
@@ -108,31 +108,31 @@ export class SalesService {
           updated_by: user_id,
           users: {
             connect: {
-              id: user_id
-            }
+              id: user_id,
+            },
           },
           store: {
             connect: {
-              id: updateSalesDto.store_id
-            }
+              id: updateSalesDto.store_id,
+            },
           },
           bank: {
             connect: {
-              id: updateSalesDto.bank_id
-            }
-          }
-        }
-      })
+              id: updateSalesDto.bank_id,
+            },
+          },
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Update Data',
-      }
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data'
-      }
+        message: 'Failed to Update Data',
+      };
     }
   }
 
@@ -140,24 +140,24 @@ export class SalesService {
     try {
       const sales = await this.dbService.sales.update({
         where: {
-          id
+          id,
         },
         data: {
           deleted_at: new Date(),
           deleted_by: user_id,
-          is_active: false
-        }
-      })
+          is_active: false,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to delete Data',
-      }
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data'
-      }
+        message: 'Failed to Delete Data',
+      };
     }
   }
 }
