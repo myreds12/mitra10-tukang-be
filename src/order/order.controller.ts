@@ -27,7 +27,6 @@ export class OrderController {
 
   @Post()
   @UseInterceptors(
-    // FileInterceptor('receipt_file'),
     FileInterceptor('receipt_file', {
       storage: diskStorage({
         destination: './uploads/receipt',
