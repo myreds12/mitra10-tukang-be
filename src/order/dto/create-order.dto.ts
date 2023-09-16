@@ -1,7 +1,7 @@
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 export class OrderDetailDto {
   @Type(() => Number)
@@ -37,6 +37,19 @@ export class OrderDetailDto {
   @Type(() => Number)
   @IsOptional()
   created_by?: number | null;
+
+  @Type(() => Number)
+  @IsOptional()
+  updated_by?: number | null;
+
+  @IsOptional()
+  updated_at?: string | null;
+
+  @IsOptional()
+  deleted_by?: number | null;
+
+  @IsOptional()
+  deleted_at?: string | null;
 }
 
 export class CreateOrderDto {
@@ -74,7 +87,7 @@ export class CreateOrderDto {
   total_estimate_workdays: number;
 
   @ApiProperty({ enum: PAYMENT_TYPE })
-  @IsEnum(PAYMENT_TYPE)
+  // @IsEnum(PAYMENT_TYPE)
   payment_type: PAYMENT_TYPE;
 
   @ApiProperty()
