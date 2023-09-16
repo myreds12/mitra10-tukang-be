@@ -13,7 +13,7 @@ export class StoreService {
           store_name: dto.store_name,
           address: dto.address,
           city_id: dto.city_id,
-          zip_code: dto.sip_code,
+          zip_code: dto.zip_code,
           created_by: user_id,
         },
       });

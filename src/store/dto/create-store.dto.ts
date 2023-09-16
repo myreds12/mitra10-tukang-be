@@ -19,7 +19,7 @@ export class CreateStoreDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  sip_code: string;
+  zip_code: string;
 
   @ApiProperty()
   @IsInt()
