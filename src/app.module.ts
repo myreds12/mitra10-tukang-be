@@ -25,6 +25,7 @@ import { VendorServiceModule } from './vendor_service/vendor_service.module';
 import { TukangServiceModule } from './tukang_service/tukang_service.module';
 import { PermissionModule } from './permission/permission.module';
 import { UserMenuPermissionModule } from './user_menu_permission/user_menu_permission.module';
+import { OrderModule } from './order/order.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { UserMenuPermissionModule } from './user_menu_permission/user_menu_permi
     TukangServiceModule,
     PermissionModule,
     UserMenuPermissionModule,
+    OrderModule,
   ],
   controllers: [AppController],
   providers: [AppService],
