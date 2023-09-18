@@ -14,7 +14,7 @@ model bank {
   id          Int           @id @default(autoincrement())
   bank_name   String        @db.VarChar(50)
   is_active   Boolean       @default(true)
-  created_at  DateTime?     @default(now()) @db.DateTime()
+  created_at  DateTime      @default(now()) @db.DateTime()
   updated_at  DateTime?     @db.DateTime()
   deleted_at  DateTime?     @db.DateTime()
   created_by  Int?
@@ -29,8 +29,8 @@ model city {
   province_id Int?
   city_name   String    @db.VarChar(255)
   created_at  DateTime  @default(now()) @db.DateTime()
-  updated_at  DateTime  @db.DateTime()
-  deleted_at  DateTime  @db.DateTime()
+  updated_at  DateTime? @db.DateTime()
+  deleted_at  DateTime? @db.DateTime()
   created_by  Int?
   updated_by  Int?
   deleted_by  Int?
@@ -66,19 +66,20 @@ model employee {
 }
 
 model items {
-  id         Int       @id @default(autoincrement())
-  store_id   Int?
-  item_name  String    @db.VarChar(45)
-  price      String    @db.VarChar(45)
-  unit       String    @db.VarChar(45)
-  discount   String    @db.VarChar(45)
-  created_at DateTime? @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-  store      store?    @relation(fields: [store_id], references: [id])
+  id              Int               @id @default(autoincrement())
+  store_id        Int?
+  item_name       String            @db.VarChar(45)
+  price           String            @db.VarChar(45)
+  unit            String            @db.VarChar(45)
+  discount        String            @db.VarChar(45)
+  created_at      DateTime?         @default(now()) @db.DateTime()
+  updated_at      DateTime?         @db.DateTime()
+  deleted_at      DateTime?         @db.DateTime()
+  created_by      Int?
+  updated_by      Int?
+  deleted_by      Int?
+  store           store?            @relation(fields: [store_id], references: [id])
+  m_order_details m_order_details[]
 }
 
 model members {
@@ -90,9 +91,9 @@ model members {
   address_1       String    @db.VarChar(255)
   address_2       String?   @db.VarChar(255)
   city_id         Int?
-  zip_code        String    @db.VarChar(10)
+  zip_code        String?   @db.VarChar(10)
   rating          Int?
-  join_date       DateTime  @db.DateTime()
+  join_date       DateTime  @default(now()) @db.DateTime()
   join_location   Int
   created_at      DateTime  @default(now()) @db.DateTime()
   updated_at      DateTime? @db.DateTime()
@@ -101,6 +102,7 @@ model members {
   updated_by      Int?
   deleted_by      Int?
   city            city?     @relation(fields: [city_id], references: [id])
+  order           orders[]
 }
 
 model menus {
@@ -145,12 +147,12 @@ model positions {
 }
 
 model province {
-  id            Int      @id @default(autoincrement())
-  province_name Int
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now()) @db.DateTime()
-  updated_at    DateTime @db.DateTime()
-  deleted_at    DateTime @db.DateTime()
+  id            Int       @id @default(autoincrement())
+  province_name String
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.DateTime()
+  updated_at    DateTime? @db.DateTime()
+  deleted_at    DateTime? @db.DateTime()
   created_by    Int?
   updated_by    Int?
   deleted_by    Int?
@@ -161,7 +163,7 @@ model roles {
   id         Int          @id @default(autoincrement())
   name       String       @db.VarChar(255)
   is_active  Boolean      @default(true)
-  created_at DateTime?    @default(now()) @db.DateTime()
+  created_at DateTime     @default(now()) @db.DateTime()
   updated_at DateTime?    @db.DateTime()
   deleted_at DateTime?    @db.DateTime()
   created_by Int?
@@ -177,8 +179,8 @@ model role_menus {
   menu_id               Int?
   is_active             Boolean                 @default(true)
   created_at            DateTime                @default(now()) @db.DateTime()
-  updated_at            DateTime                @db.DateTime()
-  deleted_at            DateTime                @db.DateTime()
+  updated_at            DateTime?               @db.DateTime()
+  deleted_at            DateTime?               @db.DateTime()
   created_by            Int?
   updated_by            Int?
   deleted_by            Int?
@@ -192,7 +194,7 @@ model role_menu_permissions {
   role_menu_id  Int?
   permission_id Int?
   created_at    DateTime     @default(now()) @db.DateTime()
-  updated_at    DateTime     @db.DateTime()
+  updated_at    DateTime?    @db.DateTime()
   role_menus    role_menus?  @relation(fields: [role_menu_id], references: [id])
   permissions   permissions? @relation(fields: [permission_id], references: [id])
 }
@@ -207,7 +209,7 @@ model sales {
   bank_branch  String    @db.VarChar(50)
   account_name String    @db.VarChar(255)
   is_active    Boolean   @default(true)
-  created_at   DateTime? @default(now()) @db.DateTime()
+  created_at   DateTime  @default(now()) @db.DateTime()
   updated_at   DateTime? @db.DateTime()
   deleted_at   DateTime? @db.DateTime()
   created_by   Int?
@@ -222,7 +224,7 @@ model service_type {
   id             Int              @id @default(autoincrement())
   service_type   String           @db.VarChar(45)
   is_active      Boolean          @default(true)
-  created_at     DateTime?        @default(now()) @db.DateTime()
+  created_at     DateTime         @default(now()) @db.DateTime()
   updated_at     DateTime?        @db.DateTime()
   deleted_at     DateTime?        @db.DateTime()
   created_by     Int?
@@ -237,8 +239,8 @@ model store {
   store_name  String        @db.VarChar(45)
   address     String        @db.VarChar(45)
   city_id     Int
-  sip_code    String        @db.VarChar(45)
-  created_at  DateTime?     @default(now()) @db.DateTime()
+  zip_code    String        @db.VarChar(45)
+  created_at  DateTime      @default(now()) @db.DateTime()
   updated_at  DateTime?     @db.DateTime()
   deleted_at  DateTime?     @db.DateTime()
   created_by  Int?
@@ -260,7 +262,7 @@ model tukang {
   email          String           @db.VarChar(45)
   join_date      DateTime?        @db.DateTime()
   is_active      Boolean          @default(true)
-  created_at     DateTime?        @default(now()) @db.DateTime()
+  created_at     DateTime         @default(now()) @db.DateTime()
   updated_at     DateTime?        @db.DateTime()
   deleted_at     DateTime?        @db.DateTime()
   created_by     Int?
@@ -269,6 +271,7 @@ model tukang {
   vendor         vendor?          @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users          users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang_service tukang_service[]
+  orders         orders[]
 }
 
 model tukang_service {
@@ -303,6 +306,7 @@ model users {
   employee              employee[]
   vendor                vendor[]
   tukang                tukang[]
+  orders                orders[]
 }
 
 model user_menu_permissions {
@@ -342,7 +346,7 @@ model vendor {
   join_date       DateTime?         @default(now()) @db.DateTime()
   city_id         Int?
   is_active       Boolean           @default(true)
-  created_at      DateTime?         @default(now()) @db.DateTime()
+  created_at      DateTime          @default(now()) @db.DateTime()
   updated_at      DateTime?         @db.DateTime()
   deleted_at      DateTime?         @db.DateTime()
   created_by      Int?
@@ -355,6 +359,7 @@ model vendor {
   vendor_bank     vendor_bank[]
   vendor_document vendor_document[]
   vendor_service  vendor_service[]
+  orders          orders[]
 }
 
 model vendor_area {
@@ -365,7 +370,7 @@ model vendor_area {
   default_markup   String    @db.VarChar(45)
   default_unit     String    @db.VarChar(45)
   is_active        Boolean   @default(true)
-  created_at       DateTime? @default(now()) @db.DateTime()
+  created_at       DateTime  @default(now()) @db.DateTime()
   updated_at       DateTime? @db.DateTime()
   deleted_at       DateTime? @db.DateTime()
   created_by       Int?
@@ -376,34 +381,34 @@ model vendor_area {
 }
 
 model vendor_bank {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   vendor_id    Int?
   bank_id      Int?
-  account_name String   @db.VarChar(255)
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now()) @db.DateTime()
-  updated_at   DateTime @db.DateTime()
-  deleted_at   DateTime @db.DateTime()
+  account_name String    @db.VarChar(255)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.DateTime()
+  updated_at   DateTime? @db.DateTime()
+  deleted_at   DateTime? @db.DateTime()
   created_by   Int?
   updated_by   Int?
   deleted_by   Int?
-  vendor       vendor?  @relation(fields: [vendor_id], references: [id])
-  bank         bank?    @relation(fields: [bank_id], references: [id])
+  vendor       vendor?   @relation(fields: [vendor_id], references: [id])
+  bank         bank?     @relation(fields: [bank_id], references: [id])
 }
 
 model vendor_document {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   vendor_id     Int?
-  document_name String   @db.VarChar(255)
-  path          String   @db.VarChar(255)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now()) @db.DateTime()
-  updated_at    DateTime @db.DateTime()
-  deleted_at    DateTime @db.DateTime()
+  document_name String    @db.VarChar(255)
+  path          String    @db.VarChar(255)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.DateTime()
+  updated_at    DateTime? @db.DateTime()
+  deleted_at    DateTime? @db.DateTime()
   created_by    Int?
   updated_by    Int?
   deleted_by    Int?
-  vendor        vendor?  @relation(fields: [vendor_id], references: [id])
+  vendor        vendor?   @relation(fields: [vendor_id], references: [id])
 }
 
 model vendor_service {
@@ -419,4 +424,74 @@ model vendor_service {
   deleted_by      Int?
   vendor          vendor?       @relation(fields: [vendor_id], references: [id])
   service_type    service_type? @relation(fields: [service_type_id], references: [id])
+}
+
+model status {
+  id              Int               @id @default(autoincrement())
+  category        String
+  description     String
+  created_at      DateTime          @default(now()) @db.DateTime()
+  updated_at      DateTime?
+  order           orders[]
+  m_order_details m_order_details[]
+}
+
+model orders {
+  id                Int  @id @default(autoincrement())
+  member_id         Int?
+  seles_id          Int?
+  vendor_id         Int?
+  tukang_id         Int?
+  project_status_id Int
+
+  project_address         String
+  receipt_number          String  @db.NVarChar(30)
+  receipt_path            String? @db.Text
+  total_estimate_workdays Int     @db.TinyInt
+  payment_type            String  @db.VarChar(200)
+  grand_total             Decimal @db.Decimal(32, 2)
+  grand_total_comission   Decimal @db.Decimal(32, 2)
+  print_counter           Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  members         members?          @relation(fields: [member_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seles           users?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang          tukang?           @relation(fields: [tukang_id], references: [id])
+  status          status            @relation(fields: [project_status_id], references: [id])
+  m_order_details m_order_details[]
+}
+
+model m_order_details {
+  id              Int @id @default(autoincrement())
+  order_id        Int
+  item_id         Int
+  order_status_id Int
+
+  unit         String @db.VarChar(200)
+  unit_price   Int
+  quote_price  Int
+  quantity     Int
+  total        Int
+  survey_price Int
+  comission    Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  order  orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  item   items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status status @relation(fields: [order_status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

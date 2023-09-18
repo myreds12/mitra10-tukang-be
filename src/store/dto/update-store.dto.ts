@@ -20,7 +20,7 @@ export class UpdateStoreDto {
   @ApiProperty()
   @IsOptional()
   @IsString()
-  sip_code: string;
+  zip_code: string;
 
   @ApiProperty()
   @IsOptional()
