@@ -15,6 +15,7 @@ model bank {
   bank_name   String        @db.VarChar(50)
   is_active   Boolean       @default(true)
   created_at  DateTime      @default(now()) @db.DateTime()
+  created_at  DateTime      @default(now()) @db.DateTime()
   updated_at  DateTime?     @db.DateTime()
   deleted_at  DateTime?     @db.DateTime()
   created_by  Int?
@@ -29,6 +30,8 @@ model city {
   province_id Int?
   city_name   String    @db.VarChar(255)
   created_at  DateTime  @default(now()) @db.DateTime()
+  updated_at  DateTime? @db.DateTime()
+  deleted_at  DateTime? @db.DateTime()
   updated_at  DateTime? @db.DateTime()
   deleted_at  DateTime? @db.DateTime()
   created_by  Int?
@@ -102,7 +105,9 @@ model members {
   address_2       String?   @db.VarChar(255)
   city_id         Int?
   zip_code        String?   @db.VarChar(10)
+  zip_code        String?   @db.VarChar(10)
   rating          Int?
+  join_date       DateTime  @default(now()) @db.DateTime()
   join_date       DateTime  @default(now()) @db.DateTime()
   join_location   Int
   created_at      DateTime  @default(now()) @db.DateTime()
@@ -112,6 +117,7 @@ model members {
   updated_by      Int?
   deleted_by      Int?
   city            city?     @relation(fields: [city_id], references: [id])
+  order           orders[]
   order           orders[]
 }
 
@@ -163,6 +169,12 @@ model province {
   created_at    DateTime  @default(now()) @db.DateTime()
   updated_at    DateTime? @db.DateTime()
   deleted_at    DateTime? @db.DateTime()
+  id            Int       @id @default(autoincrement())
+  province_name String
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.DateTime()
+  updated_at    DateTime? @db.DateTime()
+  deleted_at    DateTime? @db.DateTime()
   created_by    Int?
   updated_by    Int?
   deleted_by    Int?
@@ -173,6 +185,7 @@ model roles {
   id         Int          @id @default(autoincrement())
   name       String       @db.VarChar(255)
   is_active  Boolean      @default(true)
+  created_at DateTime     @default(now()) @db.DateTime()
   created_at DateTime     @default(now()) @db.DateTime()
   updated_at DateTime?    @db.DateTime()
   deleted_at DateTime?    @db.DateTime()
@@ -191,6 +204,8 @@ model role_menus {
   created_at            DateTime                @default(now()) @db.DateTime()
   updated_at            DateTime?               @db.DateTime()
   deleted_at            DateTime?               @db.DateTime()
+  updated_at            DateTime?               @db.DateTime()
+  deleted_at            DateTime?               @db.DateTime()
   created_by            Int?
   updated_by            Int?
   deleted_by            Int?
@@ -204,6 +219,7 @@ model role_menu_permissions {
   role_menu_id  Int?
   permission_id Int?
   created_at    DateTime     @default(now()) @db.DateTime()
+  updated_at    DateTime?    @db.DateTime()
   updated_at    DateTime?    @db.DateTime()
   role_menus    role_menus?  @relation(fields: [role_menu_id], references: [id])
   permissions   permissions? @relation(fields: [permission_id], references: [id])
@@ -220,6 +236,7 @@ model sales {
   account_name String    @db.VarChar(255)
   is_active    Boolean   @default(true)
   created_at   DateTime  @default(now()) @db.DateTime()
+  created_at   DateTime  @default(now()) @db.DateTime()
   updated_at   DateTime? @db.DateTime()
   deleted_at   DateTime? @db.DateTime()
   created_by   Int?
@@ -235,6 +252,7 @@ model service_type {
   service_type   String           @db.VarChar(45)
   is_active      Boolean          @default(true)
   created_at     DateTime         @default(now()) @db.DateTime()
+  created_at     DateTime         @default(now()) @db.DateTime()
   updated_at     DateTime?        @db.DateTime()
   deleted_at     DateTime?        @db.DateTime()
   created_by     Int?
@@ -249,6 +267,8 @@ model store {
   store_name  String        @db.VarChar(45)
   address     String        @db.VarChar(45)
   city_id     Int
+  zip_code    String        @db.VarChar(45)
+  created_at  DateTime      @default(now()) @db.DateTime()
   zip_code    String        @db.VarChar(45)
   created_at  DateTime      @default(now()) @db.DateTime()
   updated_at  DateTime?     @db.DateTime()
@@ -274,6 +294,7 @@ model tukang {
   join_date      DateTime?        @db.DateTime()
   is_active      Boolean          @default(true)
   created_at     DateTime         @default(now()) @db.DateTime()
+  created_at     DateTime         @default(now()) @db.DateTime()
   updated_at     DateTime?        @db.DateTime()
   deleted_at     DateTime?        @db.DateTime()
   created_by     Int?
@@ -282,6 +303,7 @@ model tukang {
   vendor         vendor?          @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users          users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang_service tukang_service[]
+  orders         orders[]
   orders         orders[]
 }
 
@@ -317,6 +339,7 @@ model users {
   employee              employee[]
   vendor                vendor[]
   tukang                tukang[]
+  orders                orders[]
   orders                orders[]
 }
 
@@ -358,6 +381,7 @@ model vendor {
   city_id         Int?
   is_active       Boolean           @default(true)
   created_at      DateTime          @default(now()) @db.DateTime()
+  created_at      DateTime          @default(now()) @db.DateTime()
   updated_at      DateTime?         @db.DateTime()
   deleted_at      DateTime?         @db.DateTime()
   created_by      Int?
@@ -371,6 +395,7 @@ model vendor {
   vendor_document vendor_document[]
   vendor_service  vendor_service[]
   orders          orders[]
+  orders          orders[]
 }
 
 model vendor_area {
@@ -381,6 +406,7 @@ model vendor_area {
   default_markup   String    @db.VarChar(45)
   default_unit     String    @db.VarChar(45)
   is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now()) @db.DateTime()
   created_at       DateTime  @default(now()) @db.DateTime()
   updated_at       DateTime? @db.DateTime()
   deleted_at       DateTime? @db.DateTime()
@@ -393,8 +419,14 @@ model vendor_area {
 
 model vendor_bank {
   id           Int       @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   vendor_id    Int?
   bank_id      Int?
+  account_name String    @db.VarChar(255)
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now()) @db.DateTime()
+  updated_at   DateTime? @db.DateTime()
+  deleted_at   DateTime? @db.DateTime()
   account_name String    @db.VarChar(255)
   is_active    Boolean   @default(true)
   created_at   DateTime  @default(now()) @db.DateTime()
@@ -405,11 +437,20 @@ model vendor_bank {
   deleted_by   Int?
   vendor       vendor?   @relation(fields: [vendor_id], references: [id])
   bank         bank?     @relation(fields: [bank_id], references: [id])
+  vendor       vendor?   @relation(fields: [vendor_id], references: [id])
+  bank         bank?     @relation(fields: [bank_id], references: [id])
 }
 
 model vendor_document {
   id            Int       @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   vendor_id     Int?
+  document_name String    @db.VarChar(255)
+  path          String    @db.VarChar(255)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.DateTime()
+  updated_at    DateTime? @db.DateTime()
+  deleted_at    DateTime? @db.DateTime()
   document_name String    @db.VarChar(255)
   path          String    @db.VarChar(255)
   is_active     Boolean   @default(true)
@@ -419,6 +460,7 @@ model vendor_document {
   created_by    Int?
   updated_by    Int?
   deleted_by    Int?
+  vendor        vendor?   @relation(fields: [vendor_id], references: [id])
   vendor        vendor?   @relation(fields: [vendor_id], references: [id])
 }
 
