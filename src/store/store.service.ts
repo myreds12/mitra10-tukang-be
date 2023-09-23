@@ -5,7 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const store = await this.dbService.store.create({
@@ -13,7 +13,7 @@ export class StoreService {
           store_name: dto.store_name,
           address: dto.address,
           city_id: dto.city_id,
-          sip_code: dto.sip_code,
+          zip_code: dto.zip_code,
           created_by: user_id,
         },
       });
@@ -63,7 +63,7 @@ export class StoreService {
         message: 'Succesfully find store',
         data: store,
       };
-    } catch (error) {}
+    } catch (error) { }
   }
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {

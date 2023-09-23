@@ -13,7 +13,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
   async register(dto: CreateRegisterDto) {
     let user = await this.dbService.users.findFirst({
       where: {
@@ -44,6 +44,7 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
+
     let checkPassword = await compare(dto.password, user.password);
     if (!checkPassword) {
       throw new HttpException('Credential Incorrect', HttpStatus.UNAUTHORIZED);
@@ -73,13 +74,31 @@ export class AuthService {
     );
     let menus = await this.dbService.user_menu_permissions.findMany({
       where: { user_id: user.id },
-      include: { menus: true },
+      include: {
+        menus: true,
+      },
     });
+
+    const roles = await this.dbService.user_roles.findMany({
+      where: {
+        user_id: user.id
+      },
+      include: {
+        roles: {
+          select: {
+            name: true
+          }
+        }
+      },
+    })
+
+
     return {
       statusCode: 200,
       accessToken: accessToken,
       user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
       menu: menus,
+      roles: roles
     };
   }
 }

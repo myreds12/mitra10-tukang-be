@@ -8,7 +8,7 @@ import { connect } from 'http2';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
       let full_name = createEmployeeDto.first_name;
