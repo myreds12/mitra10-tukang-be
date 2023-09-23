@@ -228,6 +228,7 @@ model sales {
   store        store?    @relation(fields: [store_id], references: [id])
   users        users?    @relation(fields: [user_id], references: [id])
   bank         bank?     @relation(fields: [bank_id], references: [id])
+  orders       orders[]
 }
 
 model service_type {
@@ -317,7 +318,6 @@ model users {
   employee              employee[]
   vendor                vendor[]
   tukang                tukang[]
-  orders                orders[]
 }
 
 model user_menu_permissions {
@@ -475,7 +475,7 @@ model orders {
   deleted_at DateTime? @db.DateTime()
 
   members         members?          @relation(fields: [member_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  seles           users?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales           sales?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang          tukang?           @relation(fields: [tukang_id], references: [id])
   status          status            @relation(fields: [project_status_id], references: [id])
@@ -491,11 +491,11 @@ model m_order_details {
   order_status_id Int
 
   unit         String  @db.VarChar(200)
-  unit_price   Decimal @db.Decimal(2, 0)
-  quote_price  Decimal @db.Decimal(2, 0)
-  quantity     Decimal @db.Decimal(2, 0)
+  unit_price   Decimal @db.Decimal(32, 2)
+  quote_price  Decimal @db.Decimal(32, 2)
+  quantity     Decimal @db.Decimal(32, 2)
   total        Int
-  survey_price Decimal @db.Decimal(2, 0)
+  survey_price Decimal @db.Decimal(32, 2)
   comission    Int
 
   created_by Int?

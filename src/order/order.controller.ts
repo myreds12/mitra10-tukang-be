@@ -26,7 +26,7 @@ import { QueryParamsDto } from './dto/query-params.dto';
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @Post('/create')
   @UseInterceptors(
@@ -48,6 +48,7 @@ export class OrderController {
     @Request() req,
   ) {
     try {
+      console.log(createOrderDto);
 
       const order = await this.orderService.create(
         createOrderDto,
