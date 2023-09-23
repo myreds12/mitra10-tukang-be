@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDecimal, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -17,18 +17,22 @@ export class OrderDetailDto {
   unit: string;
 
   @Type(() => Number)
+  @IsDecimal({ decimal_digits: '2' })
   unit_price: number;
 
   @Type(() => Number)
+  @IsDecimal({ decimal_digits: '2' })
   quote_price: number;
 
   @Type(() => Number)
+  @IsDecimal({ decimal_digits: '2' })
   quantity: number;
 
   @Type(() => Number)
   total: number;
 
   @Type(() => Number)
+  @IsDecimal({ decimal_digits: '2' })
   survey_price: number;
 
   @Type(() => Number)
@@ -56,6 +60,14 @@ export class CreateOrderDto {
   @ApiProperty()
   @Type(() => Number)
   member_id: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  category_id: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  store_id: number;
 
   @ApiProperty()
   @Type(() => Number)

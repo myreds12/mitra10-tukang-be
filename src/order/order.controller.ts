@@ -23,12 +23,12 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { QueryParamsDto } from './dto/query-params.dto';
 
-@Controller('order')
+@Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderService: OrderService) { }
 
-  @Post()
+  @Post('/create')
   @UseInterceptors(
     FileInterceptor('receipt_file', {
       storage: diskStorage({
@@ -48,7 +48,6 @@ export class OrderController {
     @Request() req,
   ) {
     try {
-      console.log(createOrderDto);
 
       const order = await this.orderService.create(
         createOrderDto,
@@ -62,7 +61,7 @@ export class OrderController {
         data: order,
       };
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
 
       return {
         status: HttpStatus.BAD_REQUEST,

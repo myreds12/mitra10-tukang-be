@@ -5,15 +5,17 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from './dto/query-params.dto';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
     file: Express.Multer.File,
   ) {
+    // TO DO: ERROR LINE 105
     const { id: user_id } = user;
     let filePath = null;
     if (file) {
@@ -23,11 +25,22 @@ export class OrderService {
       return { ...item, id: null, created_by: user_id };
     });
 
+
     const orderConnection = {
       members: {
         connect: {
           id: createOrderDto.member_id,
         },
+      },
+      categories: {
+        connect: {
+          id: createOrderDto.category_id
+        }
+      },
+      store: {
+        connect: {
+          id: createOrderDto.store_id
+        }
       },
       seles: {
         connect: {
@@ -54,8 +67,8 @@ export class OrderService {
       project_address: createOrderDto.project_address,
       receipt_number: createOrderDto.receipt_number,
       receipt_path: filePath ?? '',
-      total_estimate_workdays: createOrderDto.total_estimate_workdays,
-      grand_total: createOrderDto.grand_total,
+      total_estimate_workdays: Number(createOrderDto.total_estimate_workdays),
+      grand_total: Number(createOrderDto.grand_total),
       grand_total_comission: createOrderDto.grand_total_comission,
       created_by: user_id,
       payment_type: PAYMENT_TYPE.GRATIS,
@@ -84,7 +97,6 @@ export class OrderService {
   }
 
   async findAll(queryParams: QueryParamsDto) {
-    console.log(queryParams);
 
     // DO SEARCH AND PAGINATION LOGIC ...
 

@@ -17,7 +17,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 @Controller('employee')
 @UseGuards(JwtAuthGuard)
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) {}
+  constructor(private readonly employeeService: EmployeeService) { }
 
   @Post('/create')
   create(@Body() createEmployeeDto: CreateEmployeeDto, @Request() req) {

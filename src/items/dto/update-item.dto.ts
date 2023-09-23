@@ -1,29 +1,26 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger"
 
-export class UpdateItemDto {
-  @ApiProperty()
-  @IsNumber()
-  @IsNotEmpty()
-  store_id: number;
+export class UpdateDataDto {
+  unit: Unit[]
+  price: Prices[]
+  items: Items[]
+}
 
+class Unit {
   @ApiProperty()
-  @IsString()
-  @IsString()
-  item_name: string;
+  unit_name: string
+}
 
+class Prices {
   @ApiProperty()
-  @IsString()
-  @IsString()
-  price: string;
+  periodic_start: Date
+  periodic_end: Date
+  nominal_discount: string
+  price: number
 
-  @ApiProperty()
-  @IsString()
-  @IsString()
-  unit: string;
+}
 
+class Items {
   @ApiProperty()
-  @IsString()
-  @IsString()
-  discount: string;
+  item_name: string
 }
