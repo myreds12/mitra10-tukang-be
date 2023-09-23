@@ -32,6 +32,8 @@ import { UserMenuPermissionsModule } from './user_menu_permissions/user_menu_per
 import { OrderModule } from './order/order.module';
 import { EventLoggerModule } from './event-logger/event-logger.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { CategoriesModule } from './categories/categories.module';
+import { StatusModule } from './status/status.module';
 
 @Module({
   imports: [
@@ -79,6 +81,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       // disable throwing uncaughtException if an error event is emitted and it has no listeners
       ignoreErrors: false,
     }),
+    CategoriesModule,
+    StatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],
