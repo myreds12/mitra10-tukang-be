@@ -9,7 +9,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
@@ -22,9 +22,8 @@ export class OrderService {
       filePath = file.filename;
     }
     const order_details = createOrderDto.order_details.map((item) => {
-      return { ...item, id: null, created_by: user_id };
+      return { ...item, created_by: user_id };
     });
-
 
     const orderConnection = {
       members: {
@@ -34,17 +33,17 @@ export class OrderService {
       },
       categories: {
         connect: {
-          id: createOrderDto.category_id
-        }
+          id: createOrderDto.category_id,
+        },
       },
       store: {
         connect: {
-          id: createOrderDto.store_id
-        }
+          id: createOrderDto.store_id,
+        },
       },
-      seles: {
+      sales: {
         connect: {
-          id: createOrderDto.seles_id,
+          id: createOrderDto.sales_id,
         },
       },
       vendor: {
@@ -59,7 +58,7 @@ export class OrderService {
       },
       status: {
         connect: {
-          id: createOrderDto.project_status_id,
+          id: createOrderDto.project_status_id ?? 3,
         },
       },
     };
@@ -67,9 +66,9 @@ export class OrderService {
       project_address: createOrderDto.project_address,
       receipt_number: createOrderDto.receipt_number,
       receipt_path: filePath ?? '',
-      total_estimate_workdays: Number(createOrderDto.total_estimate_workdays),
-      grand_total: Number(createOrderDto.grand_total),
-      grand_total_comission: createOrderDto.grand_total_comission,
+      total_estimate_workdays: createOrderDto.total_estimate_workdays,
+      grand_total: createOrderDto.grand_total.toFixed(2),
+      grand_total_comission: createOrderDto.grand_total_comission.toFixed(2),
       created_by: user_id,
       payment_type: PAYMENT_TYPE.GRATIS,
       print_counter: 0,
@@ -86,6 +85,8 @@ export class OrderService {
       },
     };
 
+    console.log(orderConnection, orderData, ordersOptions);
+
     const [{ id: order_id }] = await this.dbService.$transaction([
       this.dbService.orders.create(ordersOptions),
     ]);
@@ -97,7 +98,6 @@ export class OrderService {
   }
 
   async findAll(queryParams: QueryParamsDto) {
-
     // DO SEARCH AND PAGINATION LOGIC ...
 
     const orders = await this.dbService.orders.findMany();
