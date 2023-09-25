@@ -7,7 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
+  Req,
   Res,
   HttpStatus,
   Query,
@@ -15,19 +15,30 @@ import {
 import { ItemsService } from './items.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { DataDto } from './dto/create-item.dto';
-import { UpdateDataDto } from './dto/update-item.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { response } from 'express';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
+import { users } from '@prisma/client';
+import { UpdateItemDto } from './dto/update-item.dto';
 
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 @Controller('items')
 @UseGuards(JwtAuthGuard)
 export class ItemsController {
   constructor(private readonly itemsService: ItemsService) {}
 
   @Post()
-  async create(@Body() dataDto: DataDto, @Request() req, @Res() response) {
+  async create(
+    @Body() dataDto: DataDto,
+    @Req() request: UserRequest,
+    @Res() response: IExpressResponse,
+  ) {
     try {
-      const user_id = req.user.id;
+      const user_id = request.user.id;
       const items = await this.itemsService.create(dataDto, user_id);
       return response.status(201).json({
         status: HttpStatus.CREATED,
@@ -46,7 +57,10 @@ export class ItemsController {
   }
 
   @Get('/')
-  async findAll(@Query() queryParamsDto: QueryParamsDto) {
+  async findAll(
+    @Query() queryParamsDto: QueryParamsDto,
+    @Res() response: IExpressResponse,
+  ) {
     try {
       const items = await this.itemsService.findAll(queryParamsDto);
 
@@ -65,7 +79,7 @@ export class ItemsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Res() response: IExpressResponse) {
     try {
       const items = await this.itemsService.findOne(+id);
 
@@ -86,12 +100,12 @@ export class ItemsController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() UpdateDataDto: UpdateDataDto,
-    @Request() req,
-    @Res() response,
+    @Body() UpdateDataDto: UpdateItemDto,
+    @Req() request: UserRequest,
+    @Res() response: IExpressResponse,
   ) {
     try {
-      const user_id = req.user.id;
+      const user_id = request.user.id;
       const items = await this.itemsService.update(+id, UpdateDataDto, user_id);
       return response.status(200).json({
         status: HttpStatus.OK,
@@ -110,9 +124,13 @@ export class ItemsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Request() req) {
+  async remove(
+    @Param('id') id: string,
+    @Req() request: UserRequest,
+    @Res() response: IExpressResponse,
+  ) {
     try {
-      const user_id = req.user.id;
+      const user_id = request.user.id;
       const items = await this.itemsService.remove(+id, user_id);
       return response.status(200).json({
         status: HttpStatus.OK,

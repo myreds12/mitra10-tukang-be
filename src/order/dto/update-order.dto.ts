@@ -1,12 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsEmpty,
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsEnum,
-} from 'class-validator';
+import { IsEmpty, IsString, IsOptional, IsNumber } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 
 export class OrderDetailDto {

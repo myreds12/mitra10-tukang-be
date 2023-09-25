@@ -1,5 +1,5 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
-import { UpdateDataDto } from './dto/update-item.dto';
+import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { DataDto } from './dto/create-item.dto';
@@ -87,7 +87,7 @@ export class ItemsService {
     });
   }
 
-  async update(id: number, UpdateDataDto: UpdateDataDto, user_id: number) {
+  async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
     const price = UpdateDataDto.prices.map((item) => {
       return {
         where: {
