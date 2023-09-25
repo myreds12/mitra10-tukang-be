@@ -13,6 +13,7 @@ import {
   UploadedFile,
   Query,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -46,6 +47,7 @@ export class OrderController {
     @UploadedFile() receipt_file: Express.Multer.File,
     @Body() createOrderDto: CreateOrderDto,
     @Request() req,
+    @Res() response,
   ) {
     try {
       console.log(createOrderDto);
@@ -56,19 +58,19 @@ export class OrderController {
         receipt_file,
       );
 
-      return {
+      return response.status(201).json({
         status: HttpStatus.CREATED,
         messages: 'Order Created.',
         data: order,
-      };
+      });
     } catch (error) {
       console.log(error);
 
-      return {
+      return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         messages: error.message,
         stack: error,
-      };
+      });
     }
   }
 

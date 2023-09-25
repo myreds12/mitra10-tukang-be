@@ -1,26 +1,18 @@
-import { ApiProperty } from "@nestjs/swagger"
+import { ApiProperty } from '@nestjs/swagger';
 
 export class DataDto {
-  unit: Unit[]
-  price: Prices[]
-  items: Items[]
-}
-
-class Unit {
   @ApiProperty()
-  unit_name: string
+  item_name: string;
+  category_name: string;
+  prices: Prices[];
 }
-
 class Prices {
   @ApiProperty()
-  periodic_start: Date
-  periodic_end: Date
-  nominal_discount: string
-  price: number
-
-}
-
-class Items {
-  @ApiProperty()
-  item_name: string
+  unit_id: number;
+  store_id: number;
+  periodic_start: string;
+  periodic_end: string;
+  nominal_discount: string;
+  price: number;
+  created_by?: number;
 }

@@ -70,7 +70,7 @@ export class OrderService {
       grand_total: createOrderDto.grand_total.toFixed(2),
       grand_total_comission: createOrderDto.grand_total_comission.toFixed(2),
       created_by: user_id,
-      payment_type: PAYMENT_TYPE.GRATIS,
+      payment_type: createOrderDto.payment_type,
       print_counter: 0,
     };
     const ordersOptions: Prisma.ordersCreateArgs = {
@@ -99,8 +99,43 @@ export class OrderService {
 
   async findAll(queryParams: QueryParamsDto) {
     // DO SEARCH AND PAGINATION LOGIC ...
-
-    const orders = await this.dbService.orders.findMany();
+    const { limit, page, skip, search, status } = queryParams;
+    const orders = await this.dbService.orders.findMany({
+      skip: skip ?? 0,
+      take: limit,
+      where: {
+        OR: [
+          {
+            receipt_number: {
+              contains: search,
+            },
+          },
+          {
+            members: {
+              full_name: {
+                contains: search,
+              },
+            },
+          },
+          {
+            status: {
+              category: {
+                contains: status,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        members: true,
+        sales: true,
+        status: true,
+        vendor: true,
+        store: true,
+        categories: true,
+        tukang: true,
+      },
+    });
 
     return orders;
   }

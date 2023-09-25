@@ -13,9 +13,9 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
   async register(dto: CreateRegisterDto) {
-    let user = await this.dbService.users.findFirst({
+    const user = await this.dbService.users.findFirst({
       where: {
         username: dto.username,
       },
@@ -23,7 +23,7 @@ export class AuthService {
     if (user) {
       throw new HttpException('User Exists', HttpStatus.BAD_REQUEST);
     }
-    let createUser = await this.dbService.users.create({
+    const createUser = await this.dbService.users.create({
       data: dto,
     });
     if (createUser) {
@@ -36,7 +36,7 @@ export class AuthService {
     throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
   }
   async login(dto: CreateLoginDto) {
-    let user = await this.dbService.users.findFirst({
+    const user = await this.dbService.users.findFirst({
       where: { username: dto.username },
     });
 
@@ -44,8 +44,7 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-
-    let checkPassword = await compare(dto.password, user.password);
+    const checkPassword = await compare(dto.password, user.password);
     if (!checkPassword) {
       throw new HttpException('Credential Incorrect', HttpStatus.UNAUTHORIZED);
     }
@@ -62,7 +61,7 @@ export class AuthService {
     expired = JwtConfig.user_expired,
   ) {
     const { id, username } = user;
-    let accessToken = this.jwtService.sign(
+    const accessToken = this.jwtService.sign(
       {
         id: id,
         username,
@@ -72,7 +71,7 @@ export class AuthService {
         secret,
       },
     );
-    let menus = await this.dbService.user_menu_permissions.findMany({
+    const menus = await this.dbService.user_menu_permissions.findMany({
       where: { user_id: user.id },
       include: {
         menus: true,
@@ -81,24 +80,23 @@ export class AuthService {
 
     const roles = await this.dbService.user_roles.findMany({
       where: {
-        user_id: user.id
+        user_id: user.id,
       },
       include: {
         roles: {
           select: {
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
-    })
-
+    });
 
     return {
       statusCode: 200,
       accessToken: accessToken,
       user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
       menu: menus,
-      roles: roles
+      roles: roles,
     };
   }
 }

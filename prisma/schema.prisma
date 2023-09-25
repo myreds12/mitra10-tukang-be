@@ -67,17 +67,14 @@ model employee {
 
 model items {
   id              Int               @id @default(autoincrement())
-  store_id        Int?
-  unit_id         Int
   item_name       String            @db.VarChar(45)
+  category_name   String
   created_at      DateTime?         @default(now()) @db.DateTime()
   updated_at      DateTime?         @db.DateTime()
   deleted_at      DateTime?         @db.DateTime()
   created_by      Int?
   updated_by      Int?
   deleted_by      Int?
-  store           store?            @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  units           units             @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   m_order_details m_order_details[]
   prices          prices[]
 }
@@ -258,7 +255,7 @@ model store {
   updated_by  Int?
   deleted_by  Int?
   sales       sales[]
-  items       items[]
+  prices       prices[]
   vendor_area vendor_area[]
   employee    employee[]
   orders      orders[]
@@ -515,6 +512,7 @@ model prices {
   id               Int      @id @default(autoincrement())
   item_id          Int
   unit_id          Int
+  store_id        Int?
   periodic_start   DateTime
   periodic_end     DateTime
   nominal_discount String   @db.VarChar(50)
@@ -529,6 +527,7 @@ model prices {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
+  store           store?            @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   units units @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   items items @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -546,7 +545,6 @@ model units {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
   prices     prices[]
-  items      items[]
 }
 
 model categories {

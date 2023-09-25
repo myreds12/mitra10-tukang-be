@@ -15,7 +15,7 @@ export class TukangService {
     try {
       const vendor = await this.dbService.vendor.findFirst({
         where: {
-          id: Number(createTukangDto.vendor_id),
+          id: createTukangDto.vendor_id,
         },
       });
 
@@ -29,7 +29,7 @@ export class TukangService {
             ktp_number: createTukangDto.ktp_number,
             ktp_path: url,
             created_by: user_id,
-            join_date: new Date(createTukangDto.join_date),
+            join_date: createTukangDto.join_date,
             users: {
               connect: {
                 id: user_id,
@@ -37,7 +37,7 @@ export class TukangService {
             },
             vendor: {
               connect: {
-                id: Number(createTukangDto.vendor_id),
+                id: createTukangDto.vendor_id,
               },
             },
           },

@@ -11,4 +11,8 @@ export class QueryParamsDto {
 
   @Type(() => Number)
   skip?: number;
+
+  date_from?: string;
+  date_to?: string;
+  status?: string;
 }

@@ -23,22 +23,18 @@ export class OrderDetailDto {
   unit: string;
 
   @Type(() => Number)
-  // @IsDecimal({ decimal_digits: '2' })
   unit_price: number;
 
   @Type(() => Number)
-  // @IsDecimal({ decimal_digits: '2' })
   quote_price: number;
 
   @Type(() => Number)
-  // @IsDecimal({ decimal_digits: '2' })
   quantity: number;
 
   @Type(() => Number)
   total: number;
 
   @Type(() => Number)
-  // @IsDecimal({ decimal_digits: '2' })
   survey_price: number;
 
   @Type(() => Number)
