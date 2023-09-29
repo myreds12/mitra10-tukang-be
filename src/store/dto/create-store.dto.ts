@@ -21,16 +21,4 @@ export class CreateStoreDto {
   @IsNotEmpty()
   zip_code: string;
 
-  @ApiProperty()
-  @IsInt()
-  created_by: number;
-
-  @ApiProperty()
-  @IsInt()
-  updated_by: number;
-
-  @ApiProperty()
-  @IsOptional()
-  @IsInt()
-  deleted_by: number;
 }

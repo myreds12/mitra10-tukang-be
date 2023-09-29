@@ -38,7 +38,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
   }),
 )
 export class TukangController {
-  constructor(private readonly tukangService: TukangService) {}
+  constructor(private readonly tukangService: TukangService) { }
 
   @Post('/create')
   create(
@@ -46,6 +46,8 @@ export class TukangController {
     @Request() req,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    console.log('parss');
+
     console.log(file);
 
     const user_id = req.user.id;

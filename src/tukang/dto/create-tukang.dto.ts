@@ -10,7 +10,6 @@ import {
 
 export class CreateTukangDto {
   @ApiProperty()
-  @IsInt()
   @IsOptional()
   vendor_id?: number;
 

@@ -6,7 +6,7 @@ import { hash } from 'bcrypt';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     createTukangDto: CreateTukangDto,
     user_id: number,
@@ -15,7 +15,7 @@ export class TukangService {
     try {
       const vendor = await this.dbService.vendor.findFirst({
         where: {
-          id: createTukangDto.vendor_id,
+          id: Number(createTukangDto.vendor_id),
         },
       });
 
@@ -29,7 +29,7 @@ export class TukangService {
             ktp_number: createTukangDto.ktp_number,
             ktp_path: url,
             created_by: user_id,
-            join_date: createTukangDto.join_date,
+            join_date: new Date(createTukangDto.join_date),
             users: {
               connect: {
                 id: user_id,
@@ -37,7 +37,7 @@ export class TukangService {
             },
             vendor: {
               connect: {
-                id: createTukangDto.vendor_id,
+                id: Number(createTukangDto.vendor_id),
               },
             },
           },
@@ -55,7 +55,7 @@ export class TukangService {
               connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
             },
             roles: {
-              connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
+              connect: { id: 4 }, // Assuming 1 is the ID of the role you're connecting
             },
           },
         });
@@ -78,6 +78,8 @@ export class TukangService {
         };
       }
     } catch (error) {
+      console.log(error);
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to Create Data',

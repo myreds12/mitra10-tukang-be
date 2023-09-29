@@ -34,6 +34,9 @@ import { EventLoggerModule } from './event-logger/event-logger.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CategoriesModule } from './categories/categories.module';
 import { StatusModule } from './status/status.module';
+import { WorkOrdersModule } from './work_orders/work_orders.module';
+import { QuotationModule } from './quotation/quotation.module';
+import { ComplaintsModule } from './complaints/complaints.module';
 
 @Module({
   imports: [
@@ -83,6 +86,9 @@ import { StatusModule } from './status/status.module';
     }),
     CategoriesModule,
     StatusModule,
+    WorkOrdersModule,
+    QuotationModule,
+    ComplaintsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

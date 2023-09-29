@@ -14,12 +14,6 @@ export class StatusService {
         data: {
           description: createStatusDto.description,
           category: createStatusDto.category,
-          order: {
-            connect: { id: createStatusDto.order_id }
-          },
-          m_order_details: {
-            connect: { id: createStatusDto.order_detail_id }
-          },
         }
       })
       return {
@@ -27,9 +21,11 @@ export class StatusService {
         message: "Success Create Status"
       }
     } catch (error) {
+      console.log(error);
+
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed To Delete Data"
+        message: "Failed To Create Data"
       }
     }
   }

@@ -5,7 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(createSalesDto: CreateSalesDto, user_id: number) {
     try {
       const bank = await this.dbService.bank.findFirst({
@@ -13,6 +13,8 @@ export class SalesService {
           id: createSalesDto.bank_id,
         },
       });
+
+
       if (bank.is_active == true) {
         const sales = await this.dbService.sales.create({
           data: {
@@ -49,8 +51,11 @@ export class SalesService {
         };
       }
     } catch (error) {
+      console.log(error);
+
       return {
         status: HttpStatus.BAD_REQUEST,
+        message: error.message
       };
     }
   }
