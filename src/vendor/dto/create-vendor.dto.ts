@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsNotEmpty, IsString } from 'class-validator';
+import { IsDate, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateVendorDto {
   @ApiProperty()
@@ -22,13 +22,14 @@ export class CreateVendorDto {
   @IsString()
   email_address: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsDate()
-  join_date: Date;
+  // @ApiProperty()
+  // @IsNotEmpty()
+  // @IsDate()
+  // join_date: string;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
+  @IsOptional()
   city_id?: number;
 }

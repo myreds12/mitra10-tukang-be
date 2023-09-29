@@ -17,7 +17,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 @Controller('bank')
 @UseGuards(JwtAuthGuard)
 export class BankController {
-  constructor(private readonly bankService: BankService) {}
+  constructor(private readonly bankService: BankService) { }
 
   @Post('/create')
   create(@Body() createBankDto: CreateBankDto, @Request() req) {

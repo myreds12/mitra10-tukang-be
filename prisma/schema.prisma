@@ -281,6 +281,7 @@ model tukang {
   users          users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang_service tukang_service[]
   orders         orders[]
+  work_orders    work_orders[]
 }
 
 model tukang_service {
@@ -368,6 +369,7 @@ model vendor {
   vendor_document vendor_document[]
   vendor_service  vendor_service[]
   orders          orders[]
+  work_orders     work_orders[]
 }
 
 model vendor_area {
@@ -480,6 +482,7 @@ model orders {
   store           store             @relation(fields: [store_id], references: [id])
   m_order_details m_order_details[]
   complaints      complaints[]
+  work_orders     work_orders[]
 }
 
 model m_order_details {
@@ -562,25 +565,24 @@ model categories {
   orders     orders[]
 }
 
-
 // TODO: QUOTATION
-// model quotation {
-//   id Int @id @default(autoincrement())
+model quotation {
+  id Int @id @default(autoincrement())
 
-//   description        String   @db.Text()
-//   quotation_number       String
-//   quotation_date     DateTime @db.Date()
-//   quotation_validity DateTime @db.Date()
-//   complaint_status   Int
+  description        String   @db.Text()
+  quotation_number   String
+  quotation_date     DateTime @db.Date()
+  quotation_validity DateTime @db.Date()
+  complaint_status   Int
 
-//   created_by Int?
-//   updated_by Int?
-//   deleted_by Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
-//   created_at DateTime  @default(now()) @db.DateTime()
-//   updated_at DateTime? @db.DateTime()
-//   deleted_at DateTime? @db.DateTime()
-// }
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+}
 
 model complaints {
   id Int @id @default(autoincrement())
@@ -661,23 +663,29 @@ model remedial_evidences {
 }
 
 model work_orders {
-  id Int @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
+  order_id  Int
+  tukang_id Int
+  vebdor_id Int
 
-  order_id          Int
-  request_work_time DateTime @db.DateTime()
-  survey_date       DateTime @db.Date()
-  work_start_date   DateTime @db.Date()
-  work_end_date     DateTime @db.Date()
+  worker_order_status Int
+  complaint_status    Int
+  request_work_time   DateTime @db.DateTime()
+  survey_date         DateTime @db.Date()
+  work_start_date     DateTime @db.Date()
+  work_end_date       DateTime @db.Date()
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-
+  created_at     DateTime         @default(now()) @db.DateTime()
+  updated_at     DateTime?        @db.DateTime()
+  deleted_at     DateTime?        @db.DateTime()
+  order          orders           @relation(fields: [order_id], references: [id])
   work_evidences work_evidences[]
+  tukang         tukang           @relation(fields: [tukang_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor         vendor           @relation(fields: [vebdor_id], references: [id])
 }
 
 model work_evidences {

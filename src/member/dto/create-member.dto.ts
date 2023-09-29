@@ -41,11 +41,9 @@ export class CreateMemberDto {
   @IsNotEmpty()
   zip_code: string;
 
-  @IsInt()
   rating?: number;
 
-  @IsDate()
-  join_date: Date;
+  join_date: string;
 
   @IsInt()
   join_location: number;
