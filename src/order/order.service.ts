@@ -5,7 +5,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from './dto/query-params.dto';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class OrderService {

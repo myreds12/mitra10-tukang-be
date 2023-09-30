@@ -6,13 +6,10 @@ import {
   Patch,
   Param,
   Delete,
-  UsePipes,
   Request,
   UseInterceptors,
-  UploadedFiles,
   UseGuards,
   UploadedFile,
-  ValidationPipe,
 } from '@nestjs/common';
 import { TukangService } from './tukang.service';
 import { CreateTukangDto } from './dto/create-tukang.dto';
@@ -38,7 +35,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
   }),
 )
 export class TukangController {
-  constructor(private readonly tukangService: TukangService) { }
+  constructor(private readonly tukangService: TukangService) {}
 
   @Post('/create')
   create(

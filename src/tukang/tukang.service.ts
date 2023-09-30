@@ -6,7 +6,7 @@ import { hash } from 'bcrypt';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createTukangDto: CreateTukangDto,
     user_id: number,
@@ -22,6 +22,31 @@ export class TukangService {
       const url = `/uploads/tukang/${file.filename}`;
 
       if (vendor.is_active == true) {
+        const user = await this.dbService.users.create({
+          data: {
+            username: `${createTukangDto.full_name}`,
+            password: await hash('tukanginwebsite165', 10),
+          },
+        });
+        const tukang_roles = await this.dbService.roles.findFirst({
+          where: {
+            name: {
+              contains: 'tukang',
+            },
+          },
+        });
+
+        const create_user_roles = await this.dbService.user_roles.create({
+          data: {
+            users: {
+              connect: { id: user.id },
+            },
+            roles: {
+              connect: { id: tukang_roles.id },
+            },
+          },
+        });
+
         const tukang = await this.dbService.tukang.create({
           data: {
             full_name: createTukangDto.full_name,
@@ -32,30 +57,13 @@ export class TukangService {
             join_date: new Date(createTukangDto.join_date),
             users: {
               connect: {
-                id: user_id,
+                id: user.id,
               },
             },
             vendor: {
               connect: {
                 id: Number(createTukangDto.vendor_id),
               },
-            },
-          },
-        });
-
-        const user = await this.dbService.users.create({
-          data: {
-            username: `${tukang.full_name}`,
-            password: await hash('tukanginwebsite165', 10),
-          },
-        });
-        const create_user_roles = await this.dbService.user_roles.create({
-          data: {
-            users: {
-              connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
-            },
-            roles: {
-              connect: { id: 4 }, // Assuming 1 is the ID of the role you're connecting
             },
           },
         });
