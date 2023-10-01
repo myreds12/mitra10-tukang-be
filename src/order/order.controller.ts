@@ -7,22 +7,29 @@ import {
   Param,
   Delete,
   HttpStatus,
-  Request,
   UseGuards,
   UseInterceptors,
   UploadedFile,
   Query,
   ParseIntPipe,
+  Req,
   Res,
 } from '@nestjs/common';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
+import { users } from '@prisma/client';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
+
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -30,35 +37,21 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post('/create')
-  @UseInterceptors(
-    FileInterceptor('receipt_file', {
-      storage: diskStorage({
-        destination: './uploads/receipt',
-        filename(req, file, callback) {
-          const uniqueSuffix = Math.round(Math.random() + 1e9);
-          const extension = extname(file.originalname);
-          const filename = `${uniqueSuffix}${extension}`;
-          callback(null, filename);
-        },
-      }),
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('receipt_file', 5))
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
     @Body() createOrderDto: CreateOrderDto,
-    @Request() req,
-    @Res() response,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
   ) {
     try {
-      console.log(createOrderDto);
-
       const order = await this.orderService.create(
         createOrderDto,
         req.user,
         receipt_file,
       );
 
-      return response.status(201).json({
+      return res.status(201).json({
         status: HttpStatus.CREATED,
         messages: 'Order Created.',
         data: order,
@@ -66,7 +59,7 @@ export class OrderController {
     } catch (error) {
       console.log(error);
 
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         messages: error.message,
         stack: error,
@@ -115,52 +108,37 @@ export class OrderController {
     }
   }
 
-  // TODO: UPDATE LOGIC
   @Patch(':id')
-  @UseInterceptors(
-    FileInterceptor('receipt_file', {
-      storage: diskStorage({
-        destination: './uploads/receipt',
-        filename(req, file, callback) {
-          const uniqueSuffix = Math.round(Math.random() + 1e9);
-          const extension = extname(file.originalname);
-          const filename = `${uniqueSuffix}${extension}`;
-          callback(null, filename);
-        },
-      }),
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('receipt_file', 5))
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateOrderDto: UpdateOrderDto,
-    @Request() req,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
   ) {
     try {
-      console.log(id, updateOrderDto, req.user);
-
       const order = await this.orderService.update(
         id,
         updateOrderDto,
         req.user,
       );
 
-      return {
+      return res.status(200).json({
         status: HttpStatus.OK,
         messages: 'Order Updated.',
         data: order,
-      };
+      });
     } catch (error) {
       console.log(error.message);
 
-      return {
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         messages: error.message,
         stack: error,
-      };
+      });
     }
   }
 
-  // TODO: DELETE LOGIC
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.orderService.remove(+id);

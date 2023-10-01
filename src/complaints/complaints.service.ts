@@ -3,7 +3,7 @@ import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { Prisma, complaint_evidence } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ComplaintsService {
@@ -95,7 +95,7 @@ export class ComplaintsService {
   }
 
   async remove(id: number, user_id: number) {
-    const complaint = await this.dbService.complaints.update({
+    await this.dbService.complaints.update({
       where: {
         id,
       },
