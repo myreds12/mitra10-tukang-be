@@ -31,9 +31,10 @@ export class ComplaintsService {
       skip: skip,
       take: limit,
       where: {
-        complaint_channel: {
-          contains: search ?? null
-        }
+        AND: [
+          status ? { complaint_status: { equals: Number(status) } } : null,
+          search ? { complaint_channel: { contains: search } } : null,
+        ].filter((condition) => condition !== null),
       }
     })
 

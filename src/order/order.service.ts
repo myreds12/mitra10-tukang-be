@@ -8,7 +8,7 @@ import { QueryParamsDto } from './dto/query-params.dto';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
@@ -143,6 +143,15 @@ export class OrderService {
     const orders = await this.dbService.orders.findFirst({
       where: {
         id,
+      },
+      include: {
+        members: true,
+        sales: true,
+        status: true,
+        vendor: true,
+        store: true,
+        categories: true,
+        tukang: true,
       },
     });
 
