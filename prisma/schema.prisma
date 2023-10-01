@@ -610,7 +610,7 @@ model complaint_evidence {
   id Int @id @default(autoincrement())
 
   complaint_id      Int
-  evidance_location String @db.Text()
+  evidence_location String @db.Text()
 
   created_by Int?
   updated_by Int?

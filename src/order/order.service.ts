@@ -8,7 +8,7 @@ import { QueryParamsDto } from './dto/query-params.dto';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
