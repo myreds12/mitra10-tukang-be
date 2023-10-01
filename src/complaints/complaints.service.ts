@@ -7,7 +7,7 @@ import { Prisma, complaint_evidence } from '@prisma/client';
 
 @Injectable()
 export class ComplaintsService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -73,23 +73,46 @@ export class ComplaintsService {
 
   async update(
     id: number,
-    updateComplaintDto: UpdateComplaintDto,
+    updateConplainDto: UpdateComplaintDto,
     user_id: number,
+    complaint_evidences: Array<Express.Multer.File>,
   ) {
-    const complaint = await this.dbService.complaints.update({
-      where: {
-        id,
+    const evidences: Array<Prisma.complaint_evidenceUpdateInput> =
+      complaint_evidences.map((file) => ({
+        evidence_location: file.filename,
+        created_by: user_id,
+      }));
+
+    const complaintData: Prisma.complaintsUpdateInput = {
+      orders: {
+        connect: {
+          id: updateConplainDto.order_id,
+        },
       },
-      data: {
-        order_id: updateComplaintDto.order_id,
-        description: updateComplaintDto.description,
-        complaint_channel: updateComplaintDto.complaint_channel,
-        complaint_date: new Date(updateComplaintDto.complaint_date),
-        complaint_status: updateComplaintDto.complaint_status,
-        updated_at: new Date(),
-        updated_by: user_id,
+      description: updateConplainDto.description,
+      complaint_channel: updateConplainDto.complaint_channel,
+      complaint_date: new Date(updateConplainDto.complaint_date),
+      complaint_status: updateConplainDto.complaint_status,
+      created_by: user_id,
+
+      complaint_evidence: {
+        updateMany: {
+          where: {
+            complaint_id: id
+          },
+          data: evidences
+        },
       },
-    });
+    };
+
+    const [complaint] = await this.dbService.$transaction([
+      this.dbService.complaints.update({
+        where: {
+          id: id
+        },
+        data: complaintData,
+      }),
+    ]);
 
     return complaint;
   }
