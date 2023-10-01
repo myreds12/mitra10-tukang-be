@@ -33,7 +33,7 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('complaints')
 export class ComplaintsController {
-  constructor(private readonly complaintsService: ComplaintsService) {}
+  constructor(private readonly complaintsService: ComplaintsService) { }
 
   @Post()
   @UseInterceptors(FilesInterceptor('complaint_evidences'))
@@ -117,6 +117,7 @@ export class ComplaintsController {
       const complaint = await this.complaintsService.update(
         +id,
         updateComplaintDto,
+        response,
         user_id,
       );
       return res.status(200).json({
