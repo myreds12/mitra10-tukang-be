@@ -40,7 +40,7 @@ export class WorkOrdersService {
     }
 
     async findAll(queryParamsDto: QueryParamsDto) {
-        const { skip, limit, search, date_from, date_to } = queryParamsDto
+        const { skip, take: limit, search, date_from, date_to } = queryParamsDto
         const work_orders = await this.dbService.work_orders.findMany({
             skip: skip,
             take: limit,

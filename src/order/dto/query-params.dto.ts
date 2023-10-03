@@ -2,15 +2,15 @@ import { Type } from 'class-transformer';
 
 export class QueryParamsDto {
   @Type(() => Number)
-  limit?: number;
+  take?: number = 10;
 
   search?: string;
 
   @Type(() => Number)
-  page?: number;
+  page?: number = 1;
 
   @Type(() => Number)
-  skip?: number;
+  skip?: number = 0;
 
   date_from?: string;
   date_to?: string;

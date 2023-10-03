@@ -3,7 +3,7 @@ import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, complaints } from '@prisma/client';
 
 @Injectable()
 export class ComplaintsService {
@@ -50,16 +50,29 @@ export class ComplaintsService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { limit, skip, search, status } = query;
-    const complaint = await this.dbService.complaints.findMany({
-      skip: skip,
-      take: limit,
-      where: {
-        AND: [
-          status ? { complaint_status: { equals: Number(status) } } : null,
-          // search ? { complaint_channel: { contains: search } } : null,
-        ].filter((condition) => condition !== null),
-      },
+    const { take, page, search, status, date_from, date_to } = query;
+    const skip = page * take - take;
+
+    const where: Prisma.complaintsWhereInput = {
+      AND: [
+        status ? { complaint_status: { equals: Number(status) } } : null,
+        search ? { complaint_channels: { name: { equals: search } } } : null,
+        date_from && date_to
+          ? {
+              complaint_date: {
+                gte: new Date(date_from),
+                lte: new Date(date_to),
+              },
+            }
+          : null,
+      ].filter((condition) => condition !== null),
+    };
+    console.log(where);
+
+    const complaint: complaints[] = await this.dbService.complaints.findMany({
+      take,
+      skip,
+      where,
     });
 
     return complaint;

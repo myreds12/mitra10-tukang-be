@@ -23,7 +23,7 @@ export class QuotationService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    const { limit, skip, search, status } = queryParamsDto
+    const { take: limit, skip, search, status } = queryParamsDto
     const quotation = await this.dbService.quotation.findMany({
       where: {
         description: {

@@ -98,33 +98,59 @@ export class OrderService {
 
   async findAll(queryParams: QueryParamsDto) {
     // DO SEARCH AND PAGINATION LOGIC ...
-    const { limit, page, skip, search, status } = queryParams;
+    const { take, page, search, status, date_from, date_to } = queryParams;
+    const skip = page * take - take;
+
+    // const where: Prisma.ordersWhereInput = {
+    //   OR: [
+    //     search ? { receipt_number: { contains: search } } : null,
+    //     search ? { members: { full_name: { contains: search } } } : null,
+    //     status ? { status: { category: { contains: status } } } : null,
+    //   ].filter((condition) => condition !== null),
+    //   AND: [
+    //     date_from && date_to
+    //       ? {
+    //           created_at: {
+    //             gte: new Date(date_from),
+    //             lte: new Date(date_to),
+    //           },
+    //         }
+    //       : null,
+    //   ].filter((condition) => condition !== null),
+    // };
+
+    const where: Prisma.ordersWhereInput = {
+      AND: [
+        ...(search
+          ? [
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
+          : []),
+        ...(status ? [{ status: { category: { contains: status } } }] : []),
+        ...(date_from && date_to
+          ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
+                },
+              },
+            ]
+          : []),
+      ].filter(Boolean),
+    };
+
+    console.log(where);
+
     const orders = await this.dbService.orders.findMany({
-      skip: skip ?? 0,
-      take: limit,
-      where: {
-        OR: [
-          {
-            receipt_number: {
-              contains: search,
-            },
-          },
-          {
-            members: {
-              full_name: {
-                contains: search,
-              },
-            },
-          },
-          {
-            status: {
-              category: {
-                contains: status,
-              },
-            },
-          },
-        ],
-      },
+      skip,
+      take,
+      where,
       include: {
         members: true,
         sales: true,
