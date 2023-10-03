@@ -33,7 +33,7 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('complaints')
 export class ComplaintsController {
-  constructor(private readonly complaintsService: ComplaintsService) { }
+  constructor(private readonly complaintsService: ComplaintsService) {}
 
   @Post()
   @UseInterceptors(FilesInterceptor('complaint_evidences'))
@@ -106,7 +106,9 @@ export class ComplaintsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(FilesInterceptor('complaint_evidences'))
   async update(
+    @UploadedFiles() complaint_evidences: Array<Express.Multer.File>,
     @Param('id') id: string,
     @Body() updateComplaintDto: UpdateComplaintDto,
     @Req() req: UserRequest,
@@ -117,8 +119,8 @@ export class ComplaintsController {
       const complaint = await this.complaintsService.update(
         +id,
         updateComplaintDto,
-        response,
         user_id,
+        complaint_evidences,
       );
       return res.status(200).json({
         status: HttpStatus.OK,

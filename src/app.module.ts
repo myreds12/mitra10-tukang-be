@@ -3,9 +3,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule } from '@nestjs/jwt';
-import { JwtConfig } from './jwt.config';
 import { StoreModule } from './store/store.module';
 import { RolesModule } from './roles/roles.module';
 import { PositionsModule } from './positions/positions.module';
@@ -37,7 +34,6 @@ import { StatusModule } from './status/status.module';
 import { WorkOrdersModule } from './work_orders/work_orders.module';
 import { QuotationModule } from './quotation/quotation.module';
 import { ComplaintsModule } from './complaints/complaints.module';
-import { ComplaintEvidenceModule } from './complaint-evidence/complaint-evidence.module';
 
 @Module({
   imports: [
@@ -90,9 +86,8 @@ import { ComplaintEvidenceModule } from './complaint-evidence/complaint-evidence
     WorkOrdersModule,
     QuotationModule,
     ComplaintsModule,
-    ComplaintEvidenceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

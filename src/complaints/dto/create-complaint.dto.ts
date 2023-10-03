@@ -6,7 +6,10 @@ export class CreateComplaintDto {
   order_id: number;
 
   description: string;
-  complaint_channel: string;
+
+  @Type(() => Number)
+  complaint_channel: number;
+
   complaint_date: string;
 
   @Type(() => Number)

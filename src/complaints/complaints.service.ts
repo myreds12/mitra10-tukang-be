@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ComplaintsService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -25,8 +25,12 @@ export class ComplaintsService {
           id: createComplaintDto.order_id,
         },
       },
+      complaint_channels: {
+        connect: {
+          id: createComplaintDto.complaint_channel,
+        },
+      },
       description: createComplaintDto.description,
-      complaint_channel: createComplaintDto.complaint_channel,
       complaint_date: new Date(createComplaintDto.complaint_date),
       complaint_status: createComplaintDto.complaint_status,
       created_by: user_id,
@@ -53,7 +57,7 @@ export class ComplaintsService {
       where: {
         AND: [
           status ? { complaint_status: { equals: Number(status) } } : null,
-          search ? { complaint_channel: { contains: search } } : null,
+          // search ? { complaint_channel: { contains: search } } : null,
         ].filter((condition) => condition !== null),
       },
     });
@@ -89,8 +93,12 @@ export class ComplaintsService {
           id: updateConplainDto.order_id,
         },
       },
+      complaint_channels: {
+        connect: {
+          id: updateConplainDto.complaint_channel,
+        },
+      },
       description: updateConplainDto.description,
-      complaint_channel: updateConplainDto.complaint_channel,
       complaint_date: new Date(updateConplainDto.complaint_date),
       complaint_status: updateConplainDto.complaint_status,
       created_by: user_id,
@@ -98,9 +106,9 @@ export class ComplaintsService {
       complaint_evidence: {
         updateMany: {
           where: {
-            complaint_id: id
+            complaint_id: id,
           },
-          data: evidences
+          data: evidences,
         },
       },
     };
@@ -108,7 +116,7 @@ export class ComplaintsService {
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.update({
         where: {
-          id: id
+          id: id,
         },
         data: complaintData,
       }),
