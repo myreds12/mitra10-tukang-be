@@ -36,7 +36,7 @@ interface UserRequest extends IExpressRequest {
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @Post('/create')
+  @Post('/')
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
@@ -67,7 +67,7 @@ export class OrderController {
     }
   }
 
-  @Get()
+  @Get('/')
   async findAll(@Query() query: QueryParamsDto) {
     try {
       const orders = await this.orderService.findAll(query);
