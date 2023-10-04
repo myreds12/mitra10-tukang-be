@@ -34,6 +34,7 @@ import { StatusModule } from './status/status.module';
 import { WorkOrdersModule } from './work_orders/work_orders.module';
 import { QuotationModule } from './quotation/quotation.module';
 import { ComplaintsModule } from './complaints/complaints.module';
+import { ComplaintChannelsModule } from './complaint_channels/complaint_channels.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { ComplaintsModule } from './complaints/complaints.module';
     WorkOrdersModule,
     QuotationModule,
     ComplaintsModule,
+    ComplaintChannelsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
