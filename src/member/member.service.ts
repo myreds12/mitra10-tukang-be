@@ -6,7 +6,7 @@ import { hash } from 'bcrypt';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
 
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
@@ -35,7 +35,6 @@ export class MemberService {
             password: await hash('tukanginwebsite165', 10),
           },
         });
-
 
         const create_user_roles = await this.dbService.user_roles.create({
           data: {
