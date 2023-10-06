@@ -34,7 +34,11 @@ import { StatusModule } from './status/status.module';
 import { WorkOrdersModule } from './work_orders/work_orders.module';
 import { QuotationModule } from './quotation/quotation.module';
 import { ComplaintsModule } from './complaints/complaints.module';
+<<<<<<< HEAD
+import { ComplaintChannelModule } from './complaint_channel/complaint_channel.module';
+=======
 import { ComplaintChannelsModule } from './complaint_channels/complaint_channels.module';
+>>>>>>> e5b6aef08d11020b7d2cd882a491470b2bea7752
 
 @Module({
   imports: [
@@ -87,9 +91,13 @@ import { ComplaintChannelsModule } from './complaint_channels/complaint_channels
     WorkOrdersModule,
     QuotationModule,
     ComplaintsModule,
+<<<<<<< HEAD
+    ComplaintChannelModule,
+=======
     ComplaintChannelsModule,
+>>>>>>> e5b6aef08d11020b7d2cd882a491470b2bea7752
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
