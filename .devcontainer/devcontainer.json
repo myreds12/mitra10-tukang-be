@@ -1,0 +1,30 @@
+// https://aka.ms/devcontainer.json
+{
+	"name": "TUKANG API 🐋",
+	"dockerComposeFile": [
+		"../../docker-compose.yml"
+	],
+	"service": "backend",
+	// "runServices": [ "database" ],
+	"workspaceFolder": "/usr/src/app",
+	// "shutdownAction": "none",
+  // // "remoteUser": "1000",
+  // // "postCreateCommand": "chown -R 1000:1000 /var/www/html"
+  // // "forwardPorts": [],
+  // // "runServices": [],
+  // // "shutdownAction": "none",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"prisma.prisma",
+				"gruntfuggly.todo-tree",
+				"esbenp.prettier-vscode",
+				"eamodio.gitlens",
+				"yoavbls.pretty-ts-errors"
+			],
+			"settings": {
+				"terminal.integrated.shellIntegration.enabled": true
+			}
+		}
+	}
+}
