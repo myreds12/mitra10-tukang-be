@@ -14,14 +14,17 @@ export class OrderService {
     user: users,
     file: Express.Multer.File,
   ) {
-    // TO DO: ERROR LINE 105
+    const filePath = file ? file.filename : '';
     const { id: user_id } = user;
-    let filePath = null;
-    if (file) {
-      filePath = file.filename;
-    }
+    let grand_total = 0;
+    let grand_total_comission = 0;
+
     const order_details = createOrderDto.order_details.map((item) => {
-      return { ...item, created_by: user_id };
+      const total = item.unit_price * item.quantity + item.quote_price;
+      grand_total += total;
+      grand_total_comission += item.comission;
+
+      return { ...item, created_by: user_id, order_status_id: 1, total };
     });
 
     const orderConnection = {
@@ -61,13 +64,14 @@ export class OrderService {
         },
       },
     };
+
     const orderData = {
       project_address: createOrderDto.project_address,
       receipt_number: createOrderDto.receipt_number,
       receipt_path: filePath ?? '',
       total_estimate_workdays: createOrderDto.total_estimate_workdays,
-      grand_total: createOrderDto.grand_total.toFixed(2),
-      grand_total_comission: createOrderDto.grand_total_comission.toFixed(2),
+      grand_total: grand_total.toFixed(2),
+      grand_total_comission: grand_total_comission.toFixed(2),
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
       print_counter: 0,
@@ -178,10 +182,44 @@ export class OrderService {
         store: true,
         categories: true,
         tukang: true,
+        m_order_details: {
+          select: {
+            id: true,
+            order_id: true,
+            item_id: true,
+            order_status_id: true,
+            unit: true,
+            unit_price: true,
+            quote_price: true,
+            quantity: true,
+            total: true,
+            survey_price: true,
+            comission: true,
+            created_by: true,
+            updated_by: true,
+            created_at: true,
+            updated_at: true,
+            status: {
+              select: {
+                category: true,
+                description: true,
+              },
+            },
+          },
+        },
+        complaints: true,
+        work_orders: true,
       },
     });
 
-    return orders;
+    const data = {
+      ...orders,
+    };
+
+    data['order_details'] = data.m_order_details;
+    delete data.m_order_details;
+
+    return data;
   }
 
   async update(id: number, updateOrderDto: UpdateOrderDto, user: users) {

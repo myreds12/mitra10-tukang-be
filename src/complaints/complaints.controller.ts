@@ -35,7 +35,7 @@ interface UserRequest extends IExpressRequest {
 export class ComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
-  @Post()
+  @Post('/')
   @UseInterceptors(FilesInterceptor('complaint_evidences'))
   async create(
     @UploadedFiles() complaint_evidences: Array<Express.Multer.File>,
@@ -66,8 +66,11 @@ export class ComplaintsController {
     }
   }
 
-  @Get()
-  async findAll(@Query() query: QueryParamsDto, @Res() response) {
+  @Get('/')
+  async findAll(
+    @Query() query: QueryParamsDto,
+    @Res() response: IExpressResponse,
+  ) {
     try {
       const complaint = await this.complaintsService.findAll(query);
       return response.status(200).json({
