@@ -565,7 +565,6 @@ model categories {
   orders     orders[]
 }
 
-// TODO: QUOTATION
 model quotation {
   id Int @id @default(autoincrement())
 
