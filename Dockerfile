@@ -4,6 +4,9 @@
 
 FROM node:18-alpine AS development
 
+RUN apk add --update \
+  git
+
 # Create app directory
 WORKDIR /usr/src/app
 
