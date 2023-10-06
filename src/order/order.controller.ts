@@ -34,7 +34,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @Post('/')
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
@@ -45,11 +45,10 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-
       const order = await this.orderService.create(
-        receipt_file,
         createOrderDto,
         req.user,
+        receipt_file,
       );
 
       return res.status(201).json({
