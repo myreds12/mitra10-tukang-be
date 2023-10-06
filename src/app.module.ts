@@ -100,4 +100,4 @@ import { ComplaintChannelsModule } from './complaint_channels/complaint_channels
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
