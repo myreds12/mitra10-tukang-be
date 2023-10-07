@@ -12,7 +12,7 @@ import {
 import { VendorAreaService } from './vendor_area.service';
 import { CreateVendorAreaDto } from './dto/create-vendor_area.dto';
 import { UpdateVendorAreaDto } from './dto/update-vendor_area.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('vendor-area')
 @UseGuards(JwtAuthGuard)

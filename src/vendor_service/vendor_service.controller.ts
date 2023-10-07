@@ -12,7 +12,7 @@ import {
 import { VendorServiceService } from './vendor_service.service';
 import { CreateVendorServiceDto } from './dto/create-vendor_service.dto';
 import { UpdateVendorServiceDto } from './dto/update-vendor_service.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('vendor-service')

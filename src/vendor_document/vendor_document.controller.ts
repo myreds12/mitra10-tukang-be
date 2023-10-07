@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, 
 import { VendorDocumentService } from './vendor_document.service';
 import { CreateVendorDocumentDto } from './dto/create-vendor_document.dto';
 import { UpdateVendorDocumentDto } from './dto/update-vendor_document.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';

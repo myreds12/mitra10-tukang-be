@@ -12,7 +12,7 @@ import {
 import { ServiceTypeService } from './service_type.service';
 import { CreateServiceTypeDto } from './dto/create-service_type.dto';
 import { UpdateServiceTypeDto } from './dto/update-service_type.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('service-type')
 @UseGuards(JwtAuthGuard)

@@ -23,9 +23,11 @@ import { users } from '@prisma/client';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
+import { CheckPermissions } from 'src/auth/decorator/permission.decorator';
+import { PermissionAction } from 'src/auth/factory/casl-ability.factory';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -38,6 +40,7 @@ export class OrderController {
 
   @Post('/')
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
+  @CheckPermissions([PermissionAction.CREATE, 'orders'])
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
     @Body() createOrderDto: CreateOrderDto,

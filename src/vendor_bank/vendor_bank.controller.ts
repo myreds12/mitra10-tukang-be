@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request }
 import { VendorBankService } from './vendor_bank.service';
 import { CreateVendorBankDto } from './dto/create-vendor_bank.dto';
 import { UpdateVendorBankDto } from './dto/update-vendor_bank.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('vendor-bank')

@@ -12,7 +12,7 @@ import {
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sale.dto';
 import { UpdateSalesDto } from './dto/update-sale.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('sales')
 @UseGuards(JwtAuthGuard)

@@ -135,7 +135,7 @@ export class OrderService {
               },
             ]
           : []),
-        ...(status ? [{ status: { category: { contains: status } } }] : []),
+        ...(status ? [{ status: { id: { equals: status } } }] : []),
         ...(date_from && date_to
           ? [
               {

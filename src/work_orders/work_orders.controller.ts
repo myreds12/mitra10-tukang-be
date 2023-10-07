@@ -1,6 +1,6 @@
 import { Body, Controller, HttpStatus, Param, Post, Query, Request, Res, UseGuards, Get, Patch, Delete } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateWorkOrderDto } from './dto/create.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { response } from 'express';

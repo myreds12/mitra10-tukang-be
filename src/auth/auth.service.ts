@@ -7,6 +7,7 @@ import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, users } from '@prisma/client';
+import { PermissionAction } from './factory/casl-ability.factory';
 
 @Injectable()
 export class AuthService {
@@ -39,7 +40,9 @@ export class AuthService {
     const user = await this.dbService.users.findFirst({
       where: { username: dto.username },
       include: {
-        roles: true,
+        roles: {
+          select: { name: true },
+        },
       },
     });
 
@@ -63,8 +66,7 @@ export class AuthService {
     expired = JwtConfig.user_expired,
   ) {
     const { id, username } = user;
-    console.log(user);
-    
+
     const accessToken = this.jwtService.sign(
       {
         id: id,
@@ -75,68 +77,53 @@ export class AuthService {
         secret,
       },
     );
-    // const menus = await this.dbService.user_menu_permissions.findMany({
-    //   where: { user_id: user.id },
-    //   include: {
-    //     menus: true,
-    //   },
-    // });
-
-    // const roles = await this.dbService.user_roles.findMany({
-    //   where: {
-    //     user_id: user.id,
-    //   },
-    //   include: {
-    //     roles: {
-    //       select: {
-    //         name: true,
-    //       },
-    //     },
-    //   },
-    // });
+    const role = '';
+    const permission = '';
 
     return {
       statusCode: 200,
       accessToken: accessToken,
-      user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
+      user: omit(user, [
+        'password',
+        'roles',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+      ]),
       // menu: menus,
-      // roles: roles,
+      role,
+      permission,
     };
   }
   async getUserPermission(user: users) {
-    const userData = this.dbService.users.findFirst({
+    const userData = await this.dbService.users.findUnique({
       where: {
         id: user.id,
       },
-      // select: {
-      //   username: true,
-      //   user_roles: {
-      //     select: {
-      //       user_id: true,
-      //       role_id: true,
-      //       roles: {
-      //         select: {
-      //           name: true,
-      //           role_menus: {
-      //             select: {
-      //               menu_id: true,
-      //               role_id: true,
-      //               menus: {
-      //                 select: {
-      //                   title: true,
-      //                   url: true,
-      //                   icon: true,
-      //                 },
-      //               },
-      //             },
-      //           },
-      //         },
-      //       },
-      //     },
-      //   },
-      // },
+      include: {
+        roles: {
+          select: {
+            name: true,
+            role_permissions: {
+              select: {
+                role_id: true,
+                permissions: {
+                  include: {
+                    menus: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
-    return userData;
+    const permissions = userData.roles.role_permissions.map((x) => ({
+      ...x.permissions,
+      name: PermissionAction[x.permissions.name.toUpperCase()],
+    }));
+
+    return permissions;
   }
 }

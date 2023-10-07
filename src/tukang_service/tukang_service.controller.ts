@@ -12,7 +12,7 @@ import {
 import { TukangServiceService } from './tukang_service.service';
 import { CreateTukangServiceDto } from './dto/create-tukang_service.dto';
 import { UpdateTukangServiceDto } from './dto/update-tukang_service.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tukang-service')

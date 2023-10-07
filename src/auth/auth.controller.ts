@@ -16,7 +16,7 @@ import {
 import { AuthService } from './auth.service';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
-import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { TransformPasswordPipe } from './transform-password.pipe';
 import { users } from '@prisma/client';
 
