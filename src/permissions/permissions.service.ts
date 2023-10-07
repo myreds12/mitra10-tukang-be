@@ -5,41 +5,42 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class PermissionsService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createPermissionDto: CreatePermissionDto) {
     try {
       const permissions = await this.dbService.permissions.create({
         data: {
-          ...createPermissionDto
-        }
-      })
+          ...createPermissionDto,
+          menu_id: 1,
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: 'Successfully to Create Data'
-      }
+        message: 'Successfully to Create Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data'
-      }
+        message: 'Failed to Create Data',
+      };
     }
   }
 
   async findAll() {
     try {
-      const permissions = await this.dbService.permissions.findMany()
+      const permissions = await this.dbService.permissions.findMany();
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
-        data: permissions
-      }
+        data: permissions,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data'
-      }
+        message: 'Failed to Get Data',
+      };
     }
   }
 
@@ -47,20 +48,20 @@ export class PermissionsService {
     try {
       const permissions = await this.dbService.permissions.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Find Data',
-        data: permissions
-      }
+        data: permissions,
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data'
-      }
+        message: 'Failed to Find Data',
+      };
     }
   }
 
@@ -68,23 +69,23 @@ export class PermissionsService {
     try {
       const permissions = await this.dbService.permissions.update({
         where: {
-          id
+          id,
         },
         data: {
           name: updatePermissionDto.name,
-          updated_at: new Date()
-        }
-      })
+          updated_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.CREATED,
-        message: 'Successfully to Update Data'
-      }
+        message: 'Successfully to Update Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data'
-      }
+        message: 'Failed to Update Data',
+      };
     }
   }
 
@@ -92,23 +93,23 @@ export class PermissionsService {
     try {
       const permissions = await this.dbService.permissions.update({
         where: {
-          id
+          id,
         },
         data: {
           is_active: false,
-          deleted_at: new Date()
-        }
-      })
+          deleted_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: 'Successfully to Delete Data'
-      }
+        message: 'Successfully to Delete Data',
+      };
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data'
-      }
+        message: 'Failed to Delete Data',
+      };
     }
   }
 }

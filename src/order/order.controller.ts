@@ -19,25 +19,31 @@ import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
-import { users } from '@prisma/client';
+import { Prisma, menus, users } from '@prisma/client';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
+import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
+// import { PermissionAction } from 'src/casl/factory/casl-ability.factory';
+import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
+import { PermissionAction } from 'src/casl/enum/permission-action.enum';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
-
-@Controller('orders')
-@UseGuards(JwtAuthGuard)
+const menuName = 'orders';
+@Controller(menuName)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @Post('/')
-  @UseInterceptors(FilesInterceptor('receipt_file', 5))
+  @CheckPermissions([PermissionAction.CREATE, menuName])
+  @UseInterceptors(FileInterceptor('receipt_file'))
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
     @Body() createOrderDto: CreateOrderDto,
@@ -68,6 +74,7 @@ export class OrderController {
   }
 
   @Get('/')
+  @CheckPermissions([PermissionAction.READ, menuName])
   async findAll(@Query() query: QueryParamsDto) {
     try {
       const orders = await this.orderService.findAll(query);
@@ -75,7 +82,6 @@ export class OrderController {
         status: HttpStatus.OK,
         messages: 'Ok',
         data: orders,
-        query,
       };
     } catch (error) {
       console.log(error.message);
@@ -89,6 +95,7 @@ export class OrderController {
   }
 
   @Get(':id')
+  @CheckPermissions([PermissionAction.READ, menuName])
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const order = await this.orderService.findOne(id);
@@ -109,6 +116,7 @@ export class OrderController {
   }
 
   @Patch(':id')
+  @CheckPermissions([PermissionAction.UPDATE, menuName])
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -140,6 +148,7 @@ export class OrderController {
   }
 
   @Delete(':id')
+  @CheckPermissions([PermissionAction.DELETE, menuName])
   remove(@Param('id') id: string) {
     return this.orderService.remove(+id);
   }

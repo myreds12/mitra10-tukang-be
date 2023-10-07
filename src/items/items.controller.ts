@@ -13,7 +13,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ItemsService } from './items.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { DataDto } from './dto/create-item.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import {

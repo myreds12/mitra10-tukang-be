@@ -7,12 +7,12 @@
 	"service": "backend",
 	// "runServices": [ "database" ],
 	"workspaceFolder": "/usr/src/app",
-	// "shutdownAction": "none",
-        "remoteUser": "0",
-  // // "postCreateCommand": "chown -R 1000:1000 /var/www/html"
-  // // "forwardPorts": [],
-  // // "runServices": [],
-  // // "shutdownAction": "none",
+	"shutdownAction": "none",
+  "remoteUser": "0",
+  // "postCreateCommand": "chown -R 1000:1000 /var/www/html"
+  // "forwardPorts": [],
+  // "runServices": [],
+  // "shutdownAction": "none",
 	"customizations": {
 		"vscode": {
 			"extensions": [

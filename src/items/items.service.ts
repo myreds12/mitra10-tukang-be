@@ -37,6 +37,7 @@ export class ItemsService {
         },
       },
     };
+    console.log(items, item_data, prices);
 
     const [{ id: items_id }] = await this.dbService.$transaction([
       this.dbService.items.create(items),

@@ -33,28 +33,29 @@ export class MemberService {
           data: {
             username: member.full_name,
             password: await hash('tukanginwebsite165', 10),
+            role_id: 7
           },
         });
 
-        const create_user_roles = await this.dbService.user_roles.create({
-          data: {
-            users: {
-              connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
-            },
-            roles: {
-              connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
-            },
-          },
-        });
-        const user_data = await this.dbService.user_roles.findUnique({
-          where: { id: create_user_roles.id },
-          include: { users: true, roles: true },
-        });
+        // const create_user_roles = await this.dbService.user_roles.create({
+        //   data: {
+        //     users: {
+        //       connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
+        //     },
+        //     roles: {
+        //       connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
+        //     },
+        //   },
+        // });
+        // const user_data = await this.dbService.user_roles.findUnique({
+        //   where: { id: create_user_roles.id },
+        //   include: { users: true, roles: true },
+        // });
 
         return {
           data: {
             member,
-            user_data,
+            user,
           },
           status: HttpStatus.CREATED,
           message: 'Successfully Create Data',

@@ -113,31 +113,19 @@ model members {
 }
 
 model menus {
-  id                    Int                     @id @default(autoincrement())
-  title                 String                  @db.VarChar(50)
-  url                   String                  @db.VarChar(255)
-  icon                  String                  @db.VarChar(50)
-  parent_id             Int
-  is_active             Boolean                 @default(true)
-  created_at            DateTime?               @default(now()) @db.DateTime()
-  updated_at            DateTime?               @db.DateTime()
-  deleted_at            DateTime?               @db.DateTime()
-  created_by            Int?
-  updated_by            Int?
-  deleted_by            Int?
-  role_menus            role_menus[]
-  user_menu_permissions user_menu_permissions[]
-}
-
-model permissions {
-  id                    Int                     @id @default(autoincrement())
-  name                  String                  @db.VarChar(255)
-  is_active             Boolean                 @default(true)
-  created_at            DateTime                @default(now()) @db.DateTime()
-  updated_at            DateTime?               @db.DateTime()
-  deleted_at            DateTime?               @db.DateTime()
-  role_menu_permissions role_menu_permissions[]
-  user_menu_permissions user_menu_permissions[]
+  id          Int           @id @default(autoincrement())
+  title       String        @db.VarChar(50)
+  url         String        @db.VarChar(255)
+  icon        String        @db.VarChar(50)
+  parent_id   Int?
+  is_active   Boolean       @default(true)
+  created_at  DateTime?     @default(now()) @db.DateTime()
+  updated_at  DateTime?     @db.DateTime()
+  deleted_at  DateTime?     @db.DateTime()
+  created_by  Int?
+  updated_by  Int?
+  deleted_by  Int?
+  permissions permissions[]
 }
 
 model positions {
@@ -167,43 +155,67 @@ model province {
 }
 
 model roles {
-  id         Int          @id @default(autoincrement())
-  name       String       @db.VarChar(255)
-  is_active  Boolean      @default(true)
-  created_at DateTime     @default(now()) @db.DateTime()
-  updated_at DateTime?    @db.DateTime()
-  deleted_at DateTime?    @db.DateTime()
+  id               Int                @id @default(autoincrement())
+  name             String             @db.VarChar(255)
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.DateTime()
+  updated_at       DateTime?          @db.DateTime()
+  deleted_at       DateTime?          @db.DateTime()
+  created_by       Int?
+  updated_by       Int?
+  deleted_by       Int?
+  role_permissions role_permissions[]
+  users            users[]
+}
+
+model permissions {
+  id        Int     @id @default(autoincrement())
+  name      String  @db.VarChar(255)
+  is_active Boolean @default(true)
+  menu_id   Int
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  menus            menus              @relation(fields: [menu_id], references: [id])
+  role_permissions role_permissions[]
+}
+
+model role_permissions {
+  id Int @id @default(autoincrement())
+
+  role_id       Int
+  permission_id Int
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  roles       roles       @relation(fields: [role_id], references: [id])
+  permissions permissions @relation(fields: [permission_id], references: [id])
+}
+
+model users {
+  id        Int     @id @default(autoincrement())
+  username  String  @db.VarChar(255)
+  password  String  @db.VarChar(255)
+  is_active Boolean @default(true)
+  role_id   Int
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
   created_by Int?
   updated_by Int?
   deleted_by Int?
-  user_roles user_roles[]
-  role_menus role_menus[]
-}
 
-model role_menus {
-  id                    Int                     @id @default(autoincrement())
-  role_id               Int?
-  menu_id               Int?
-  is_active             Boolean                 @default(true)
-  created_at            DateTime                @default(now()) @db.DateTime()
-  updated_at            DateTime?               @db.DateTime()
-  deleted_at            DateTime?               @db.DateTime()
-  created_by            Int?
-  updated_by            Int?
-  deleted_by            Int?
-  roles                 roles?                  @relation(fields: [role_id], references: [id])
-  menus                 menus?                  @relation(fields: [menu_id], references: [id])
-  role_menu_permissions role_menu_permissions[]
-}
-
-model role_menu_permissions {
-  id            Int          @id @default(autoincrement())
-  role_menu_id  Int?
-  permission_id Int?
-  created_at    DateTime     @default(now()) @db.DateTime()
-  updated_at    DateTime?    @db.DateTime()
-  role_menus    role_menus?  @relation(fields: [role_menu_id], references: [id])
-  permissions   permissions? @relation(fields: [permission_id], references: [id])
+  roles    roles      @relation(fields: [role_id], references: [id])
+  sales    sales[]
+  employee employee[]
+  vendor   vendor[]
+  tukang   tukang[]
 }
 
 model sales {
@@ -297,52 +309,6 @@ model tukang_service {
   deleted_by      Int?
   tukang          tukang?       @relation(fields: [tukang_id], references: [id])
   service_type    service_type? @relation(fields: [service_type_id], references: [id])
-}
-
-model users {
-  id                    Int                     @id @default(autoincrement())
-  username              String                  @db.VarChar(255)
-  password              String                  @db.VarChar(255)
-  is_active             Boolean                 @default(true)
-  created_at            DateTime                @default(now()) @db.DateTime()
-  updated_at            DateTime?               @db.DateTime()
-  deleted_at            DateTime?               @db.DateTime()
-  created_by            Int?
-  updated_by            Int?
-  deleted_by            Int?
-  sales                 sales[]
-  user_roles            user_roles[]
-  user_menu_permissions user_menu_permissions[]
-  employee              employee[]
-  vendor                vendor[]
-  tukang                tukang[]
-}
-
-model user_menu_permissions {
-  id            Int          @id @default(autoincrement())
-  user_id       Int?
-  menu_id       Int?
-  created_at    DateTime     @default(now()) @db.DateTime()
-  updated_at    DateTime?    @db.DateTime()
-  users         users?       @relation(fields: [user_id], references: [id])
-  menus         menus?       @relation(fields: [menu_id], references: [id])
-  permissions   permissions? @relation(fields: [permission_id], references: [id])
-  permission_id Int?
-}
-
-model user_roles {
-  id         Int       @id @default(autoincrement())
-  user_id    Int?
-  role_id    Int?
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-  users      users?    @relation(fields: [user_id], references: [id])
-  roles      roles?    @relation(fields: [role_id], references: [id])
 }
 
 model vendor {
@@ -448,16 +414,16 @@ model status {
 
 model orders {
   id                Int  @id @default(autoincrement())
-  member_id         Int?
-  seles_id          Int?
+  member_id         Int
+  seles_id          Int
+  store_id          Int
+  project_status_id Int
   vendor_id         Int?
   tukang_id         Int?
-  project_status_id Int
-  category_id       Int
-  store_id          Int
+  category_id       Int?
 
   project_address         String
-  receipt_number          String  @db.NVarChar(30)
+  receipt_number          String? @db.NVarChar(30)
   receipt_path            String? @db.Text
   total_estimate_workdays Int     @db.TinyInt
   payment_type            String  @db.VarChar(200)
@@ -477,9 +443,9 @@ model orders {
   sales           sales?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang          tukang?           @relation(fields: [tukang_id], references: [id])
-  status          status            @relation(fields: [project_status_id], references: [id])
-  categories      categories        @relation(fields: [category_id], references: [id])
-  store           store             @relation(fields: [store_id], references: [id])
+  status          status?            @relation(fields: [project_status_id], references: [id])
+  categories      categories?        @relation(fields: [category_id], references: [id])
+  store           store?             @relation(fields: [store_id], references: [id])
   m_order_details m_order_details[]
   complaints      complaints[]
   work_orders     work_orders[]
@@ -683,10 +649,10 @@ model work_orders {
   id        Int @id @default(autoincrement())
   order_id  Int
   tukang_id Int
-  vebdor_id Int
+  vendor_id Int
 
   worker_order_status Int
-  complaint_status    Int
+  complaint_status    Int?
   request_work_time   DateTime @db.DateTime()
   survey_date         DateTime @db.Date()
   work_start_date     DateTime @db.Date()
@@ -702,7 +668,7 @@ model work_orders {
   order          orders           @relation(fields: [order_id], references: [id])
   work_evidences work_evidences[]
   tukang         tukang           @relation(fields: [tukang_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  vendor         vendor           @relation(fields: [vebdor_id], references: [id])
+  vendor         vendor           @relation(fields: [vendor_id], references: [id])
 }
 
 model work_evidences {

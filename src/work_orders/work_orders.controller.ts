@@ -1,5 +1,6 @@
 import { Body, Controller, HttpStatus, Param, Post, Query, Request, Res, UseGuards, Get, Patch, Delete, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse

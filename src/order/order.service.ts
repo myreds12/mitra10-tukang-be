@@ -11,7 +11,8 @@ import { StatusService } from 'src/status/status.service';
 export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
-    private readonly statusService: StatusService) { }
+    private readonly statusService: StatusService,
+  ) {}
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
@@ -126,32 +127,34 @@ export class OrderService {
     //   ].filter((condition) => condition !== null),
     // };
 
-    const status_data = await this.statusService.findAll(queryParams)
+    const status_data = await this.statusService.findAll(queryParams);
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
           : []),
         ...(status ? [{ status: { id: { equals: status } } }] : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(date_to),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
     };
+
+    console.log(where);
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -168,7 +171,9 @@ export class OrderService {
       },
     });
 
-    return { orders, status_data };
+    console.log(orders);
+
+    return orders;
   }
 
   async findOne(id: number) {

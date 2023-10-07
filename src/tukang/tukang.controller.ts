@@ -17,7 +17,7 @@ import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('tukang')
 @UseGuards(JwtAuthGuard)
