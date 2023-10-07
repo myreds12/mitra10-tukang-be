@@ -8,7 +8,6 @@ import {
   PERMISSION_CHECKER_KEY,
   RequiredPermission,
 } from '../decorator/permission.decorator';
-
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(

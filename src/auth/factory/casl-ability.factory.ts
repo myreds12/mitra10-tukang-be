@@ -1,12 +1,4 @@
-import {
-  Ability,
-  AnyAbility,
-  CreateAbility,
-  MongoAbility,
-  MongoQuery,
-  Subject,
-  createMongoAbility,
-} from '@casl/ability';
+import { MongoAbility, createMongoAbility } from '@casl/ability';
 import { Injectable } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 import { users } from '@prisma/client';
@@ -25,6 +17,7 @@ interface CaslPermission {
   // but in CASL they are called "subject"
   subject: string;
 }
+
 @Injectable()
 export class CaslAbilityFactory {
   constructor(private authService: AuthService) {}

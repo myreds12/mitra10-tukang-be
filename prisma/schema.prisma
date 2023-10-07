@@ -414,13 +414,13 @@ model status {
 
 model orders {
   id                Int  @id @default(autoincrement())
-  member_id         Int?
-  seles_id          Int?
+  member_id         Int
+  seles_id          Int
+  store_id          Int
+  project_status_id Int
   vendor_id         Int?
   tukang_id         Int?
-  project_status_id Int?
   category_id       Int?
-  store_id          Int?
 
   project_address         String
   receipt_number          String? @db.NVarChar(30)

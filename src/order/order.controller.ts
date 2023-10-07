@@ -14,6 +14,7 @@ import {
   ParseIntPipe,
   Req,
   Res,
+  Injectable,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -28,6 +29,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
 import { CheckPermissions } from 'src/auth/decorator/permission.decorator';
 import { PermissionAction } from 'src/auth/factory/casl-ability.factory';
+import { PermissionsGuard } from 'src/auth/guards/permission.guard';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -36,11 +38,12 @@ interface UserRequest extends IExpressRequest {
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
   @Post('/')
+  // @UseGuards(PermissionsGuard)
+  // @CheckPermissions([PermissionAction.CREATE, 'test'])
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
-  @CheckPermissions([PermissionAction.CREATE, 'orders'])
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
     @Body() createOrderDto: CreateOrderDto,
@@ -78,7 +81,6 @@ export class OrderController {
         status: HttpStatus.OK,
         messages: 'Ok',
         data: orders,
-        query,
       };
     } catch (error) {
       console.log(error.message);

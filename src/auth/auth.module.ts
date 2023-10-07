@@ -6,6 +6,8 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { JwtConfig } from 'src/jwt.config';
 import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CaslAbilityFactory } from './factory/casl-ability.factory';
+import { PermissionsGuard } from './guards/permission.guard';
 
 @Module({
   imports: [
@@ -22,6 +24,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtService, PrismaService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtService,
+    PrismaService,
+  ],
+  exports: [AuthService],
 })
 export class AuthModule {}

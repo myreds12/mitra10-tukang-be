@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { compare, hash } from 'bcrypt';
+import { compare } from 'bcrypt';
 import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
@@ -110,12 +110,7 @@ export class AuthService {
     return {
       statusCode: 200,
       accessToken: accessToken,
-      user: omit(user, [
-        'password',
-        'created_at',
-        'updated_at',
-        'deleted_at',
-      ]),
+      user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
       // menu: menus,
       role,
       permission,

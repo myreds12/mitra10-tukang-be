@@ -160,6 +160,8 @@ export class OrderService {
       ].filter(Boolean),
     };
 
+    console.log(where);
+
     const orders = await this.dbService.orders.findMany({
       skip,
       take,
@@ -175,7 +177,9 @@ export class OrderService {
       },
     });
 
-    return { orders, status_data };
+    console.log(orders);
+
+    return orders;
   }
 
   async findOne(id: number) {
