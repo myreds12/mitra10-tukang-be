@@ -8,4 +8,8 @@ export type RequiredPermission = [PermissionAction, PermissionObjectType];
 export const PERMISSION_CHECKER_KEY = 'permission_checker_key';
 export const CheckPermissions = (
   ...params: RequiredPermission[]
-): CustomDecorator<string> => SetMetadata(PERMISSION_CHECKER_KEY, params);
+): CustomDecorator<string> => {
+  console.log(params);
+  
+  return SetMetadata(PERMISSION_CHECKER_KEY, params);
+};

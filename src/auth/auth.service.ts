@@ -15,6 +15,7 @@ export class AuthService {
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
   ) {}
+
   async register(dto: CreateRegisterDto) {
     const user = await this.dbService.users.findFirst({
       where: {
@@ -36,6 +37,7 @@ export class AuthService {
     }
     throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
   }
+
   async login(dto: CreateLoginDto) {
     const user = await this.dbService.users.findFirst({
       where: { username: dto.username },
@@ -60,6 +62,31 @@ export class AuthService {
       JwtConfig.user_expired,
     );
   }
+
+  async getUser(where: Prisma.usersWhereInput, include?: Prisma.usersInclude) {
+    return this.dbService.users.findFirst({
+      where,
+      include: {
+        ...include,
+        roles: {
+          select: {
+            name: true,
+            role_permissions: {
+              select: {
+                role_id: true,
+                permissions: {
+                  include: {
+                    menus: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async generateJwt(
     user: users,
     secret: any,
@@ -85,7 +112,6 @@ export class AuthService {
       accessToken: accessToken,
       user: omit(user, [
         'password',
-        'roles',
         'created_at',
         'updated_at',
         'deleted_at',
@@ -95,29 +121,32 @@ export class AuthService {
       permission,
     };
   }
+
   async getUserPermission(user: users) {
-    const userData = await this.dbService.users.findUnique({
-      where: {
-        id: user.id,
-      },
-      include: {
-        roles: {
-          select: {
-            name: true,
-            role_permissions: {
-              select: {
-                role_id: true,
-                permissions: {
-                  include: {
-                    menus: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    const userData = await this.getUser({ id: user.id });
+
+    // const userData = await this.dbService.users.findFirst({
+    //   where: {
+    //     id: user.id,
+    //   },
+    //   include: {
+    //     roles: {
+    //       select: {
+    //         name: true,
+    //         role_permissions: {
+    //           select: {
+    //             role_id: true,
+    //             permissions: {
+    //               include: {
+    //                 menus: true,
+    //               },
+    //             },
+    //           },
+    //         },
+    //       },
+    //     },
+    //   },
+    // });
 
     const permissions = userData.roles.role_permissions.map((x) => ({
       ...x.permissions,

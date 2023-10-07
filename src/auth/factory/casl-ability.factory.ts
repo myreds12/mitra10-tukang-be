@@ -9,7 +9,7 @@ import {
 } from '@casl/ability';
 import { Injectable } from '@nestjs/common';
 import { AuthService } from '../auth.service';
-import { permissions, users } from '@prisma/client';
+import { users } from '@prisma/client';
 export enum PermissionAction {
   MANAGE = 'manage',
   CREATE = 'create',
@@ -32,7 +32,7 @@ export class CaslAbilityFactory {
     const dbPermissions = await this.authService.getUserPermission(user);
     const caslPermissions: CaslPermission[] = dbPermissions.map((p) => ({
       action: p.name,
-      subject: p.menus.title,
+      subject: p.menus.title.toLowerCase(),
     }));
 
     return createMongoAbility<AppAbility>(caslPermissions);
