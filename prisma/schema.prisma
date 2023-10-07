@@ -99,7 +99,7 @@ model members {
   address_2       String?   @db.VarChar(255)
   city_id         Int?
   zip_code        String?   @db.VarChar(10)
-  rating          Int?
+  rating          Int?      @default(0)
   join_date       DateTime  @default(now()) @db.DateTime()
   join_location   Int
   created_at      DateTime  @default(now()) @db.DateTime()
@@ -113,18 +113,24 @@ model members {
 }
 
 model menus {
-  id          Int           @id @default(autoincrement())
-  title       String        @db.VarChar(50)
-  url         String        @db.VarChar(255)
-  icon        String        @db.VarChar(50)
-  parent_id   Int?
-  is_active   Boolean       @default(true)
-  created_at  DateTime?     @default(now()) @db.DateTime()
-  updated_at  DateTime?     @db.DateTime()
-  deleted_at  DateTime?     @db.DateTime()
-  created_by  Int?
-  updated_by  Int?
-  deleted_by  Int?
+  id        Int    @id @default(autoincrement())
+  parent_id Int?
+  parent    menus? @relation("ChildMenus", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  title     String  @db.VarChar(50)
+  url       String  @db.VarChar(255)
+  icon      String  @db.VarChar(50)
+  is_active Boolean @default(true)
+
+  created_at DateTime? @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  childMenus menus[] @relation("ChildMenus") // Define the reverse relation for self-referencing
+
   permissions permissions[]
 }
 
@@ -443,9 +449,9 @@ model orders {
   sales           sales?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang          tukang?           @relation(fields: [tukang_id], references: [id])
-  status          status?            @relation(fields: [project_status_id], references: [id])
-  categories      categories?        @relation(fields: [category_id], references: [id])
-  store           store?             @relation(fields: [store_id], references: [id])
+  status          status?           @relation(fields: [project_status_id], references: [id])
+  categories      categories?       @relation(fields: [category_id], references: [id])
+  store           store?            @relation(fields: [store_id], references: [id])
   m_order_details m_order_details[]
   complaints      complaints[]
   work_orders     work_orders[]
