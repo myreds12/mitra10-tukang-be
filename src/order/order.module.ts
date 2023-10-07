@@ -4,10 +4,18 @@ import { OrderController } from './order.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { APP_GUARD } from '@nestjs/core';
+import { PermissionsGuard } from 'src/auth/guards/permission.guard';
 
 @Module({
   controllers: [OrderController],
-  providers: [OrderService],
+  providers: [
+    OrderService,
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: PermissionsGuard,
+    // },
+  ],
   imports: [
     MulterModule.register({
       storage: diskStorage({
