@@ -4,6 +4,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { connect } from 'http2';
 import { HttpStatus } from '@nestjs/common';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 @Injectable()
 export class StatusService {
   constructor(private readonly dbService: PrismaService) { }
@@ -30,16 +31,29 @@ export class StatusService {
     }
   }
 
-  async findAll() {
+  async findAll(query: QueryParamsDto) {
     try {
-      const status = await this.dbService.status.findMany({})
+      const { status, skip, take } = query;
+
+      const data = await this.dbService.status.findMany({
+        skip: skip,
+        take: take,
+        where: {
+          id: {
+            equals: status ?? null
+          }
+        }
+      })
+
 
       return {
         status: HttpStatus.OK,
         message: 'Get All Data',
-        data: status
+        data: data
       }
     } catch (err) {
+      console.log(err);
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get Data'
