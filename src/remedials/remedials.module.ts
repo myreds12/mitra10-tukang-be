@@ -1,20 +1,17 @@
 import { Module } from '@nestjs/common';
-import { ComplaintsService } from './complaints.service';
-import { ComplaintsController } from './complaints.controller';
+import { RemedialsService } from './remedials.service';
+import { RemedialsController } from './remedials.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
 @Module({
-  controllers: [ComplaintsController],
-  providers: [ComplaintsService],
+  controllers: [RemedialsController],
+  providers: [RemedialsService],
   imports: [
     MulterModule.register({
-      limits: {
-        files: 5,
-      },
       storage: diskStorage({
-        destination: './uploads/complaints',
+        destination: './uploads/remedials',
         filename(req, file, callback) {
           const uniqueSuffix = Math.round(Math.random() + 1e9);
           const extension = extname(file.originalname);
@@ -23,6 +20,6 @@ import { extname } from 'path';
         },
       }),
     }),
-  ],
+  ]
 })
-export class ComplaintsModule { }
+export class RemedialsModule { }

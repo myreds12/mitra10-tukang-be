@@ -483,6 +483,7 @@ model orders {
   m_order_details m_order_details[]
   complaints      complaints[]
   work_orders     work_orders[]
+  invoices        invoices[]
 }
 
 model m_order_details {
@@ -646,8 +647,8 @@ model remedials {
   remedial_action String
   ra_date_start   DateTime @db.Date()
   ra_date_end     DateTime @db.Date()
-  remedial_pic    Int
-  remedial_status Int
+  remedial_pic    Int?
+  remedial_status Int?
 
   created_by Int?
   updated_by Int?
@@ -657,7 +658,7 @@ model remedials {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  complaints         complaints           @relation(fields: [complaint_id], references: [id])
+  complaints         complaints?          @relation(fields: [complaint_id], references: [id])
   remedial_evidences remedial_evidences[]
 }
 
@@ -737,4 +738,5 @@ model invoices {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
+  order      orders    @relation(fields: [order_id], references: [id])
 }

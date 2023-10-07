@@ -1,31 +1,40 @@
-import { Body, Controller, HttpStatus, Param, Post, Query, Request, Res, UseGuards, Get, Patch, Delete } from '@nestjs/common';
+import { Body, Controller, HttpStatus, Param, Post, Query, Request, Res, UseGuards, Get, Patch, Delete, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse
+} from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { CreateWorkOrderDto } from './dto/create.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { response } from 'express';
 import { UpdateWorkOrderDto } from './dto/update.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { users } from '@prisma/client';
 
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) { }
   @Post()
-  async create(@Body() dataDto: CreateWorkOrderDto, @Request() req, @Res() response) {
+  @UseInterceptors(FilesInterceptor('work_evidences', 5))
+  async create(@Body() dataDto: CreateWorkOrderDto, @Request() req: UserRequest, @UploadedFiles() work_evidences: Express.Multer.File[], @Res() res: IExpressResponse) {
     try {
-      const user_id = req.user.id
       const work_orders = await this.workOrdersService.create(
         dataDto,
-        user_id
+        req.user,
+        work_evidences
       )
 
-      return response.status(201).json({
+      return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Work Order Created',
         data: work_orders
       })
     } catch (error) {
-      console.log(error);
 
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
@@ -36,7 +45,7 @@ export class WorkOrdersController {
   }
 
   @Get()
-  async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
+  async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
       const work_orders = await this.workOrdersService.findAll(
         queryParamsDto
@@ -57,19 +66,19 @@ export class WorkOrdersController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number, @Res() response) {
+  async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
     try {
       const work_orders = await this.workOrdersService.findOne(
         id
       )
 
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Find Work Order',
         data: work_orders
       })
     } catch (error) {
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Find',
         stack: error
@@ -78,22 +87,22 @@ export class WorkOrdersController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: number, @Body() dataDto: UpdateWorkOrderDto, @Request() req, @Res() response) {
+  async update(@Param('id') id: number, @Body() dataDto: UpdateWorkOrderDto, @Request() req: UserRequest, @UploadedFiles() work_evidences: Express.Multer.File[], @Res() res: IExpressResponse) {
     try {
-      const user_id = req.user.id
       const work_orders = await this.workOrdersService.update(
         id,
         dataDto,
-        user_id
+        req.user,
+        work_evidences
       )
 
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Work Order Updated',
         data: work_orders
       })
     } catch (error) {
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',
         stack: error
@@ -103,7 +112,7 @@ export class WorkOrdersController {
 
 
   @Delete(':id')
-  async delete(@Param('id') id: number, @Request() req, @Res() response) {
+  async delete(@Param('id') id: number, @Request() req, @Res() res: IExpressResponse) {
     try {
       const user_id = req.user.id;
 
@@ -112,13 +121,13 @@ export class WorkOrdersController {
         user_id
       )
 
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Work Order Deleted',
         data: work_orders
       })
     } catch (error) {
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Delete',
         stack: error

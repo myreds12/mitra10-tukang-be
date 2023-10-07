@@ -35,6 +35,8 @@ import { WorkOrdersModule } from './work_orders/work_orders.module';
 import { QuotationModule } from './quotation/quotation.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { ComplaintChannelsModule } from './complaint_channels/complaint_channels.module';
+import { RemedialsModule } from './remedials/remedials.module';
+import { InvoicesModule } from './invoices/invoices.module';
 
 @Module({
   imports: [
@@ -88,6 +90,8 @@ import { ComplaintChannelsModule } from './complaint_channels/complaint_channels
     QuotationModule,
     ComplaintsModule,
     ComplaintChannelsModule,
+    RemedialsModule,
+    InvoicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
