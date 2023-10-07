@@ -7,7 +7,8 @@ import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, users } from '@prisma/client';
-import { PermissionAction } from './factory/casl-ability.factory';
+import { PermissionAction } from 'src/casl/enum/permission-action.enum';
+// import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()
 export class AuthService {

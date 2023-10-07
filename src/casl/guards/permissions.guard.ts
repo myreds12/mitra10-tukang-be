@@ -8,6 +8,7 @@ import {
   PERMISSION_CHECKER_KEY,
   RequiredPermission,
 } from '../decorator/permission.decorator';
+
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(
@@ -16,8 +17,6 @@ export class PermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    console.log(this.reflector);
-
     const requiredPermissions =
       this.reflector.get<RequiredPermission[]>(
         PERMISSION_CHECKER_KEY,
@@ -26,8 +25,6 @@ export class PermissionsGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
     const ability = await this.abilityFactory.createForUser(user);
-
-    console.log(ability);
 
     return requiredPermissions.every((permission) =>
       this.isAllowed(ability, permission),

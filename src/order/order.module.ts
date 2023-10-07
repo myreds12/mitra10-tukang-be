@@ -8,13 +8,7 @@ import { StatusModule } from 'src/status/status.module';
 
 @Module({
   controllers: [OrderController],
-  providers: [
-    OrderService,
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: PermissionsGuard,
-    // },
-  ],
+  providers: [OrderService],
   imports: [
     StatusModule,
     MulterModule.register({
@@ -30,4 +24,4 @@ import { StatusModule } from 'src/status/status.module';
     }),
   ],
 })
-export class OrderModule { }
+export class OrderModule {}

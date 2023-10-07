@@ -1,14 +1,9 @@
 import { MongoAbility, createMongoAbility } from '@casl/ability';
 import { Injectable } from '@nestjs/common';
-import { AuthService } from '../auth.service';
+import { AuthService } from '../../auth/auth.service';
 import { users } from '@prisma/client';
-export enum PermissionAction {
-  MANAGE = 'manage',
-  CREATE = 'create',
-  READ = 'read',
-  UPDATE = 'update',
-  DELETE = 'delete',
-}
+import { PermissionAction } from '../enum/permission-action.enum';
+
 export type PermissionObjectType = any;
 export type AppAbility = MongoAbility<[PermissionAction, PermissionObjectType]>;
 interface CaslPermission {
@@ -21,6 +16,7 @@ interface CaslPermission {
 @Injectable()
 export class CaslAbilityFactory {
   constructor(private authService: AuthService) {}
+
   async createForUser(user: users): Promise<AppAbility> {
     const dbPermissions = await this.authService.getUserPermission(user);
     const caslPermissions: CaslPermission[] = dbPermissions.map((p) => ({
