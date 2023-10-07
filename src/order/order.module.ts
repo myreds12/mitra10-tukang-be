@@ -4,6 +4,7 @@ import { OrderController } from './order.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { StatusModule } from 'src/status/status.module';
 import { APP_GUARD } from '@nestjs/core';
 import { PermissionsGuard } from 'src/auth/guards/permission.guard';
 
@@ -17,6 +18,7 @@ import { PermissionsGuard } from 'src/auth/guards/permission.guard';
     // },
   ],
   imports: [
+    StatusModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/receipt',
@@ -30,4 +32,4 @@ import { PermissionsGuard } from 'src/auth/guards/permission.guard';
     }),
   ],
 })
-export class OrderModule {}
+export class OrderModule { }
