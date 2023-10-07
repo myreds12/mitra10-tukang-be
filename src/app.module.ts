@@ -22,10 +22,7 @@ import { VendorServiceModule } from './vendor_service/vendor_service.module';
 import { TukangServiceModule } from './tukang_service/tukang_service.module';
 import { VendorBankModule } from './vendor_bank/vendor_bank.module';
 import { VendorDocumentModule } from './vendor_document/vendor_document.module';
-import { RoleMenusModule } from './role_menus/role_menus.module';
 import { PermissionsModule } from './permissions/permissions.module';
-import { RoleMenuPermissionsModule } from './role_menu_permissions/role_menu_permissions.module';
-import { UserMenuPermissionsModule } from './user_menu_permissions/user_menu_permissions.module';
 import { OrderModule } from './order/order.module';
 import { EventLoggerModule } from './event-logger/event-logger.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -61,10 +58,7 @@ import { ComplaintChannelsModule } from './complaint_channels/complaint_channels
     TukangServiceModule,
     VendorBankModule,
     VendorDocumentModule,
-    RoleMenusModule,
     PermissionsModule,
-    RoleMenuPermissionsModule,
-    UserMenuPermissionsModule,
     OrderModule,
     EventLoggerModule,
     EventEmitterModule.forRoot({

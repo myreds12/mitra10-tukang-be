@@ -22,12 +22,6 @@ export class TukangService {
       const url = `/uploads/tukang/${file.filename}`;
 
       if (vendor.is_active == true) {
-        const user = await this.dbService.users.create({
-          data: {
-            username: `${createTukangDto.full_name}`,
-            password: await hash('tukanginwebsite165', 10),
-          },
-        });
         const tukang_roles = await this.dbService.roles.findFirst({
           where: {
             name: {
@@ -36,16 +30,24 @@ export class TukangService {
           },
         });
 
-        const create_user_roles = await this.dbService.user_roles.create({
+        const user = await this.dbService.users.create({
           data: {
-            users: {
-              connect: { id: user.id },
-            },
-            roles: {
-              connect: { id: tukang_roles.id },
-            },
+            username: `${createTukangDto.full_name}`,
+            password: await hash('tukanginwebsite165', 10),
+            role_id: tukang_roles.id,
           },
         });
+
+        // const create_user_roles = await this.dbService.user_roles.create({
+        //   data: {
+        //     users: {
+        //       connect: { id: user.id },
+        //     },
+        //     roles: {
+        //       connect: { id: tukang_roles.id },
+        //     },
+        //   },
+        // });
 
         const tukang = await this.dbService.tukang.create({
           data: {
@@ -67,14 +69,13 @@ export class TukangService {
             },
           },
         });
-        const user_data = await this.dbService.user_roles.findUnique({
-          where: { id: create_user_roles.id },
-          include: { users: true, roles: true },
-        });
+        // const user_data = await this.dbService.user_roles.findUnique({
+        //   where: { id: create_user_roles.id },
+        //   include: { users: true, roles: true },
+        // });
         return {
           data: {
             tukang,
-            user_data,
           },
           status: HttpStatus.CREATED,
           message: 'Successfully to Create Data',

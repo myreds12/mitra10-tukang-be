@@ -4,29 +4,29 @@ import {
   Get,
   HttpCode,
   Post,
+  Req,
   UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
 import { AuthService } from './auth.service';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard';
 import { TransformPasswordPipe } from './transform-password.pipe';
+import { users } from '@prisma/client';
 
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 @Controller('auth')
 export class AuthController {
-  /**
-   * Constructor
-   * @param authService
-   */
   constructor(private authService: AuthService) {}
 
-  /**
-   * Register controller
-   * @param dto
-   * @returns
-   */
   @UsePipes(ValidationPipe, TransformPasswordPipe)
   @HttpCode(200)
   @Post('register')
@@ -34,14 +34,15 @@ export class AuthController {
     return await this.authService.register(dto);
   }
 
-  /**
-   * Login Controller
-   * @param dto
-   * @returns
-   */
   @HttpCode(200)
   @Post('login')
   async login(@Body() dto: CreateLoginDto) {
     return await this.authService.login(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('permission')
+  async getUserPermission(@Req() req: UserRequest) {
+    return this.authService.getUserPermission(req.user);
   }
 }

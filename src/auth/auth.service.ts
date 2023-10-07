@@ -6,7 +6,7 @@ import { compare, hash } from 'bcrypt';
 import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
-import { users } from '@prisma/client';
+import { Prisma, users } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +24,7 @@ export class AuthService {
       throw new HttpException('User Exists', HttpStatus.BAD_REQUEST);
     }
     const createUser = await this.dbService.users.create({
-      data: dto,
+      data: { ...dto, role_id: 2 },
     });
     if (createUser) {
       return {
@@ -38,6 +38,9 @@ export class AuthService {
   async login(dto: CreateLoginDto) {
     const user = await this.dbService.users.findFirst({
       where: { username: dto.username },
+      include: {
+        roles: true,
+      },
     });
 
     if (!user) {
@@ -54,13 +57,14 @@ export class AuthService {
       JwtConfig.user_expired,
     );
   }
-
   async generateJwt(
     user: users,
     secret: any,
     expired = JwtConfig.user_expired,
   ) {
     const { id, username } = user;
+    console.log(user);
+    
     const accessToken = this.jwtService.sign(
       {
         id: id,
@@ -71,32 +75,68 @@ export class AuthService {
         secret,
       },
     );
-    const menus = await this.dbService.user_menu_permissions.findMany({
-      where: { user_id: user.id },
-      include: {
-        menus: true,
-      },
-    });
+    // const menus = await this.dbService.user_menu_permissions.findMany({
+    //   where: { user_id: user.id },
+    //   include: {
+    //     menus: true,
+    //   },
+    // });
 
-    const roles = await this.dbService.user_roles.findMany({
-      where: {
-        user_id: user.id,
-      },
-      include: {
-        roles: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
+    // const roles = await this.dbService.user_roles.findMany({
+    //   where: {
+    //     user_id: user.id,
+    //   },
+    //   include: {
+    //     roles: {
+    //       select: {
+    //         name: true,
+    //       },
+    //     },
+    //   },
+    // });
 
     return {
       statusCode: 200,
       accessToken: accessToken,
       user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
-      menu: menus,
-      roles: roles,
+      // menu: menus,
+      // roles: roles,
     };
+  }
+  async getUserPermission(user: users) {
+    const userData = this.dbService.users.findFirst({
+      where: {
+        id: user.id,
+      },
+      // select: {
+      //   username: true,
+      //   user_roles: {
+      //     select: {
+      //       user_id: true,
+      //       role_id: true,
+      //       roles: {
+      //         select: {
+      //           name: true,
+      //           role_menus: {
+      //             select: {
+      //               menu_id: true,
+      //               role_id: true,
+      //               menus: {
+      //                 select: {
+      //                   title: true,
+      //                   url: true,
+      //                   icon: true,
+      //                 },
+      //               },
+      //             },
+      //           },
+      //         },
+      //       },
+      //     },
+      //   },
+      // },
+    });
+
+    return userData;
   }
 }
