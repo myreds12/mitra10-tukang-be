@@ -418,12 +418,12 @@ model orders {
   seles_id          Int?
   vendor_id         Int?
   tukang_id         Int?
-  project_status_id Int
-  category_id       Int
-  store_id          Int
+  project_status_id Int?
+  category_id       Int?
+  store_id          Int?
 
   project_address         String
-  receipt_number          String  @db.NVarChar(30)
+  receipt_number          String? @db.NVarChar(30)
   receipt_path            String? @db.Text
   total_estimate_workdays Int     @db.TinyInt
   payment_type            String  @db.VarChar(200)
@@ -443,9 +443,9 @@ model orders {
   sales           sales?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang          tukang?           @relation(fields: [tukang_id], references: [id])
-  status          status            @relation(fields: [project_status_id], references: [id])
-  categories      categories        @relation(fields: [category_id], references: [id])
-  store           store             @relation(fields: [store_id], references: [id])
+  status          status?            @relation(fields: [project_status_id], references: [id])
+  categories      categories?        @relation(fields: [category_id], references: [id])
+  store           store?             @relation(fields: [store_id], references: [id])
   m_order_details m_order_details[]
   complaints      complaints[]
   work_orders     work_orders[]
@@ -648,10 +648,10 @@ model work_orders {
   id        Int @id @default(autoincrement())
   order_id  Int
   tukang_id Int
-  vebdor_id Int
+  vendor_id Int
 
   worker_order_status Int
-  complaint_status    Int
+  complaint_status    Int?
   request_work_time   DateTime @db.DateTime()
   survey_date         DateTime @db.Date()
   work_start_date     DateTime @db.Date()
@@ -667,7 +667,7 @@ model work_orders {
   order          orders           @relation(fields: [order_id], references: [id])
   work_evidences work_evidences[]
   tukang         tukang           @relation(fields: [tukang_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  vendor         vendor           @relation(fields: [vebdor_id], references: [id])
+  vendor         vendor           @relation(fields: [vendor_id], references: [id])
 }
 
 model work_evidences {
