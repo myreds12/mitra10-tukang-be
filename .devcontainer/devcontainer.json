@@ -8,7 +8,7 @@
 	// "runServices": [ "database" ],
 	"workspaceFolder": "/usr/src/app",
 	// "shutdownAction": "none",
-  // // "remoteUser": "1000",
+        "remoteUser": "0",
   // // "postCreateCommand": "chown -R 1000:1000 /var/www/html"
   // // "forwardPorts": [],
   // // "runServices": [],
