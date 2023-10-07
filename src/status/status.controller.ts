@@ -8,16 +8,18 @@ import {
   Delete,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { StatusService } from './status.service';
 import { CreateStatusDto } from './dto/create-status.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('status')
 export class StatusController {
-  constructor(private readonly statusService: StatusService) {}
+  constructor(private readonly statusService: StatusService) { }
 
   @Post()
   create(@Body() createStatusDto: CreateStatusDto, @Req() req) {
@@ -26,8 +28,8 @@ export class StatusController {
   }
 
   @Get()
-  findAll() {
-    return this.statusService.findAll();
+  findAll(@Query() query: QueryParamsDto) {
+    return this.statusService.findAll(query);
   }
 
   @Get(':id')
