@@ -4,11 +4,13 @@ import { OrderController } from './order.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { StatusModule } from 'src/status/status.module';
 
 @Module({
   controllers: [OrderController],
   providers: [OrderService],
   imports: [
+    StatusModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/receipt',
@@ -22,4 +24,4 @@ import { extname } from 'path';
     }),
   ],
 })
-export class OrderModule {}
+export class OrderModule { }

@@ -5,10 +5,13 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from './dto/query-params.dto';
+import { StatusService } from 'src/status/status.service';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly statusService: StatusService) { }
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
@@ -123,33 +126,32 @@ export class OrderService {
     //   ].filter((condition) => condition !== null),
     // };
 
+    const status_data = await this.statusService.findAll(queryParams)
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { members: { full_name: { contains: search } } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { receipt_number: { contains: search } },
+                { members: { full_name: { contains: search } } },
+              ],
+            },
+          ]
           : []),
-        ...(status ? [{ status: { category: { contains: status } } }] : []),
+        ...(status ? [{ status: { id: { equals: status } } }] : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(date_to),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
     };
-
-    console.log(where);
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -166,7 +168,7 @@ export class OrderService {
       },
     });
 
-    return orders;
+    return { orders, status_data };
   }
 
   async findOne(id: number) {

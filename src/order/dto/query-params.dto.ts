@@ -14,5 +14,6 @@ export class QueryParamsDto {
 
   date_from?: string;
   date_to?: string;
-  status?: string;
+  @Type(() => Number)
+  status?: number;
 }

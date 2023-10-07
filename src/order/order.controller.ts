@@ -34,7 +34,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(private readonly orderService: OrderService) { }
 
   @Post('/')
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
