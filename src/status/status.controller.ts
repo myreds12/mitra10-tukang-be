@@ -37,7 +37,7 @@ export class StatusController {
     return this.statusService.findOne(+id);
   }
 
-  @Patch(':id')
+  @Post(':id')
   update(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateStatusDto,

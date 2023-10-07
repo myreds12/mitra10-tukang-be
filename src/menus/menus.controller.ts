@@ -57,7 +57,7 @@ export class MenusController {
     return this.menusService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateMenuDto: UpdateMenuDto,

@@ -35,7 +35,7 @@ export class BankController {
     return this.bankService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateBankDto: UpdateBankDto,

@@ -35,7 +35,7 @@ export class PositionsController {
     return this.positionsService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updatePositionDto: UpdatePositionDto,

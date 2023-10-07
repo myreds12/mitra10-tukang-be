@@ -61,7 +61,7 @@ export class TukangController {
     return this.tukangService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateTukangDto: UpdateTukangDto,

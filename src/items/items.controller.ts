@@ -97,7 +97,7 @@ export class ItemsController {
     }
   }
 
-  @Patch(':id')
+  @Post(':id')
   async update(
     @Param('id') id: string,
     @Body() UpdateDataDto: UpdateItemDto,

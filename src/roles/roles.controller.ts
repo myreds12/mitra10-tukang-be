@@ -35,7 +35,7 @@ export class RolesController {
     return this.rolesService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto,

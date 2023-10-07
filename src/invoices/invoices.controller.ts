@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, 
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse
@@ -75,7 +75,7 @@ export class InvoicesController {
     }
   }
 
-  @Patch(':id')
+  @Post(':id')
   async update(@Param('id') id: string, @Body() updateInvoiceDto: UpdateInvoiceDto, @Request() req: UserRequest, @Res() res: IExpressResponse) {
     try {
       const invoice = await this.invoicesService.update(+id, updateInvoiceDto, req.user);

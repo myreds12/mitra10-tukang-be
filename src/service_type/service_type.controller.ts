@@ -35,7 +35,7 @@ export class ServiceTypeController {
     return this.serviceTypeService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateServiceTypeDto: UpdateServiceTypeDto,

@@ -41,7 +41,7 @@ export class VendorDocumentController {
     return this.vendorDocumentService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(@Param('id') id: string, @Body() updateVendorDocumentDto: UpdateVendorDocumentDto, @Request() req, @UploadedFile() file: Express.Multer.File) {
     const user_id = req.user.id
     return this.vendorDocumentService.update(+id, updateVendorDocumentDto, user_id, file);

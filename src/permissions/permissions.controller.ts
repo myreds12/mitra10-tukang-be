@@ -22,7 +22,7 @@ export class PermissionsController {
     return this.permissionsService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(@Param('id') id: string, @Body() updatePermissionDto: UpdatePermissionDto) {
     return this.permissionsService.update(+id, updatePermissionDto);
   }

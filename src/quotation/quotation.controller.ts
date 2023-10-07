@@ -75,7 +75,7 @@ export class QuotationController {
     }
   }
 
-  @Patch(':id')
+  @Post(':id')
   async update(@Param('id') id: string, @Body() updateQuotationDto: UpdateQuotationDto, @Request() req, @Res() response) {
     try {
       const user_id = req.user.id

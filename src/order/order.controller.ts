@@ -27,10 +27,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
 import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
-// import { PermissionAction } from 'src/casl/factory/casl-ability.factory';
 import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
 import { PermissionAction } from 'src/casl/enum/permission-action.enum';
-import { PrismaService } from 'src/prisma/prisma.service';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -42,7 +40,10 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post('/')
-  @CheckPermissions([PermissionAction.CREATE, menuName])
+  @CheckPermissions(
+    // [PermissionAction.MANAGE, menuName],
+    [PermissionAction.CREATE, menuName],
+  )
   @UseInterceptors(FileInterceptor('receipt_file'))
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
@@ -115,7 +116,7 @@ export class OrderController {
     }
   }
 
-  @Patch(':id')
+  @Post(':id')
   @CheckPermissions([PermissionAction.UPDATE, menuName])
   @UseInterceptors(FilesInterceptor('receipt_file', 5))
   async update(

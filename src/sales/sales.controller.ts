@@ -35,7 +35,7 @@ export class SalesController {
     return this.salesService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateSaleDto: UpdateSalesDto,

@@ -35,7 +35,7 @@ export class MemberController {
     return this.memberService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateMemberDto: UpdateMemberDto,

@@ -6,7 +6,7 @@ import {
 import { RemedialsService } from './remedials.service';
 import { CreateRemedialDto } from './dto/create-remedial.dto';
 import { UpdateRemedialDto } from './dto/update-remedial.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { users } from '@prisma/client';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -82,7 +82,7 @@ export class RemedialsController {
     }
   }
 
-  @Patch(':id')
+  @Post(':id')
   @UseInterceptors(
     FileInterceptor('remedial_evidence', {
       storage: diskStorage({

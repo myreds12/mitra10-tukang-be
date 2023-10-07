@@ -35,7 +35,7 @@ export class VendorServiceController {
     return this.vendorServiceService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateVendorServiceDto: UpdateVendorServiceDto,

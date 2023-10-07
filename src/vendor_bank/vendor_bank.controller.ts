@@ -25,7 +25,7 @@ export class VendorBankController {
     return this.vendorBankService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(@Param('id') id: string, @Body() updateVendorBankDto: UpdateVendorBankDto, @Request() req) {
     const user_id = req.user.id
     return this.vendorBankService.update(+id, updateVendorBankDto, user_id);

@@ -108,7 +108,7 @@ export class ComplaintsController {
     }
   }
 
-  @Patch(':id')
+  @Post(':id')
   @UseInterceptors(FilesInterceptor('complaint_evidences'))
   async update(
     @UploadedFiles() complaint_evidences: Array<Express.Multer.File>,

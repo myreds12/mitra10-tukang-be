@@ -35,7 +35,7 @@ export class VendorAreaController {
     return this.vendorAreaService.findOne(+id);
   }
 
-  @Patch('/update/:id')
+  @Post('/update/:id')
   update(
     @Param('id') id: string,
     @Body() updateVendorAreaDto: UpdateVendorAreaDto,
