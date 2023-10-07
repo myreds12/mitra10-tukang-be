@@ -72,8 +72,7 @@ export class CreateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
-  category_id: number;
+  category_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
@@ -87,28 +86,25 @@ export class CreateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
-  vendor_id: number;
+  vendor_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
-  tukang_id: number;
+  tukang_id?: number;
 
   @ApiProperty()
   project_address: string;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
-  project_status_id: number;
+  project_status_id?: number;
 
   @ApiProperty()
-  @IsEitherRequired('receipt_file')
-  receipt_number: string;
+  // @IsEitherRequired('receipt_file')
+  receipt_number?: string;
 
   @ApiProperty({ type: 'string', format: 'binary' })
-  @IsEitherRequired('receipt_number')
+  // @IsEitherRequired('receipt_number')
   receipt_file: Express.Multer.File;
 
   @ApiProperty()
