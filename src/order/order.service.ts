@@ -5,10 +5,13 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from './dto/query-params.dto';
+import { StatusService } from 'src/status/status.service';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly statusService: StatusService) { }
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
@@ -27,47 +30,53 @@ export class OrderService {
       return { ...item, created_by: user_id, order_status_id: 1, total };
     });
 
-    const orderConnection = {
-      members: {
-        connect: {
-          id: createOrderDto.member_id,
+    const orderConnection = Object.fromEntries(
+      Object.entries({
+        members: {
+          connect: {
+            id: createOrderDto.member_id,
+          },
         },
-      },
-      categories: {
-        connect: {
-          id: createOrderDto.category_id,
+        store: {
+          connect: {
+            id: createOrderDto.store_id,
+          },
         },
-      },
-      store: {
-        connect: {
-          id: createOrderDto.store_id,
+        status: {
+          connect: {
+            id: 1,
+          },
         },
-      },
-      sales: {
-        connect: {
-          id: createOrderDto.sales_id,
+        categories: {
+          connect: {
+            id: 1,
+          },
         },
-      },
-      vendor: {
-        connect: {
-          id: createOrderDto.vendor_id,
+        sales: {
+          connect: {
+            id: createOrderDto.sales_id,
+          },
         },
-      },
-      tukang: {
-        connect: {
-          id: createOrderDto.tukang_id,
-        },
-      },
-      status: {
-        connect: {
-          id: createOrderDto.project_status_id ?? 3,
-        },
-      },
-    };
+        vendor: createOrderDto.vendor_id
+          ? {
+              connect: {
+                id: createOrderDto.vendor_id,
+              },
+            }
+          : undefined,
+        tukang: createOrderDto.tukang_id
+          ? {
+              connect: {
+                id: createOrderDto.tukang_id,
+              },
+            }
+          : undefined,
+      }).filter(([key, value]) => value !== undefined),
+    );
 
     const orderData = {
       project_address: createOrderDto.project_address,
-      receipt_number: createOrderDto.receipt_number,
+      receipt_number: createOrderDto?.receipt_number,
       receipt_path: filePath ?? '',
       total_estimate_workdays: createOrderDto.total_estimate_workdays,
       grand_total: grand_total.toFixed(2),
@@ -123,33 +132,32 @@ export class OrderService {
     //   ].filter((condition) => condition !== null),
     // };
 
+    const status_data = await this.statusService.findAll(queryParams)
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { members: { full_name: { contains: search } } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { receipt_number: { contains: search } },
+                { members: { full_name: { contains: search } } },
+              ],
+            },
+          ]
           : []),
         ...(status ? [{ status: { id: { equals: status } } }] : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(date_to),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
     };
-
-    console.log(where);
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -166,7 +174,7 @@ export class OrderService {
       },
     });
 
-    return orders;
+    return { orders, status_data };
   }
 
   async findOne(id: number) {
