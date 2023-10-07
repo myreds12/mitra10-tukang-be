@@ -82,12 +82,12 @@ export class UpdateOrderDto {
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  vendor_id: number;
+  vendor_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  tukang_id: number;
+  tukang_id?: number;
 
   @ApiProperty()
   project_address: string;

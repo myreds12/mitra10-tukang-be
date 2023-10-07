@@ -11,4 +11,5 @@ export class CreateWorkOrderDto {
     complaint_status: number;
     work_start_date: string;
     work_end_date: string;
+    work_evidences: Array<Express.Multer.File>;
 }

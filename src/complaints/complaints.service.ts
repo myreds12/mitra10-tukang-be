@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, complaints } from '@prisma/client';
+import { StatusService } from 'src/status/status.service';
 
 @Injectable()
 export class ComplaintsService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+  ) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -55,15 +58,15 @@ export class ComplaintsService {
 
     const where: Prisma.complaintsWhereInput = {
       AND: [
-        status ? { complaint_status: { equals: Number(status) } } : null,
-        search ? { complaint_channels: { name: { equals: search } } } : null,
+        status ? { complaint_status: { equals: status } } : null,
+        search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
-              complaint_date: {
-                gte: new Date(date_from),
-                lte: new Date(date_to),
-              },
-            }
+            complaint_date: {
+              gte: new Date(date_from),
+              lte: new Date(date_to),
+            },
+          }
           : null,
       ].filter((condition) => condition !== null),
     };
@@ -83,6 +86,10 @@ export class ComplaintsService {
       where: {
         id,
       },
+      include: {
+        complaint_channels: true,
+        complaint_evidence: true
+      }
     });
 
     return complaint;
@@ -94,10 +101,28 @@ export class ComplaintsService {
     user_id: number,
     complaint_evidences: Array<Express.Multer.File>,
   ) {
+    const complaints = await this.dbService.complaints.findFirst({
+      where: {
+        id
+      },
+      include: {
+        orders: true
+      }
+    })
+
+    if (complaints.orders.project_status_id == 1 /* <= FILL WITH STATUS COMPLAINT */ && updateConplainDto.complaint_status != 2) {
+      return new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST)
+    }
+
+    if (complaints.orders.project_status_id == 2 /* <= FILL WITH STATUS INVESTIGATED */ && updateConplainDto.complaint_status != 3 || 4 /*FILL WITH STATUS ACCEPTED OR REJECTED*/) {
+      return new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST)
+    }
+
     const evidences: Array<Prisma.complaint_evidenceUpdateInput> =
       complaint_evidences.map((file) => ({
         evidence_location: file.filename,
-        created_by: user_id,
+        updated_at: new Date(),
+        updated_by: user_id
       }));
 
     const complaintData: Prisma.complaintsUpdateInput = {

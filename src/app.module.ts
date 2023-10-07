@@ -32,9 +32,9 @@ import { WorkOrdersModule } from './work_orders/work_orders.module';
 import { QuotationModule } from './quotation/quotation.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { ComplaintChannelsModule } from './complaint_channels/complaint_channels.module';
-import { CaslAbilityFactory } from './casl/factory/casl-ability.factory';
-import { PermissionsGuard } from './casl/guards/permissions.guard';
 import { CaslModule } from './casl/casl.module';
+import { RemedialsModule } from './remedials/remedials.module';
+import { InvoicesModule } from './invoices/invoices.module';
 
 @Module({
   imports: [
@@ -86,6 +86,8 @@ import { CaslModule } from './casl/casl.module';
     ComplaintsModule,
     ComplaintChannelsModule,
     CaslModule,
+    RemedialsModule,
+    InvoicesModule
   ],
   controllers: [AppController],
   providers: [AppService],

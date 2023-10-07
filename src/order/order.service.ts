@@ -31,53 +31,47 @@ export class OrderService {
       return { ...item, created_by: user_id, order_status_id: 1, total };
     });
 
-    const orderConnection = Object.fromEntries(
-      Object.entries({
-        members: {
-          connect: {
-            id: createOrderDto.member_id,
-          },
+    const orderConnection = {
+      members: {
+        connect: {
+          id: createOrderDto.member_id,
         },
-        store: {
-          connect: {
-            id: createOrderDto.store_id,
-          },
+      },
+      categories: {
+        connect: {
+          id: createOrderDto.category_id,
         },
-        status: {
-          connect: {
-            id: 1,
-          },
+      },
+      store: {
+        connect: {
+          id: createOrderDto.store_id,
         },
-        categories: {
-          connect: {
-            id: 1,
-          },
+      },
+      sales: {
+        connect: {
+          id: createOrderDto.sales_id,
         },
-        sales: {
-          connect: {
-            id: createOrderDto.sales_id,
-          },
+      },
+      vendor: {
+        connect: {
+          id: createOrderDto.vendor_id,
         },
-        vendor: createOrderDto.vendor_id
-          ? {
-              connect: {
-                id: createOrderDto.vendor_id,
-              },
-            }
-          : undefined,
-        tukang: createOrderDto.tukang_id
-          ? {
-              connect: {
-                id: createOrderDto.tukang_id,
-              },
-            }
-          : undefined,
-      }).filter(([key, value]) => value !== undefined),
-    );
+      },
+      tukang: {
+        connect: {
+          id: createOrderDto.tukang_id,
+        },
+      },
+      status: {
+        connect: {
+          id: createOrderDto.project_status_id ?? 3,
+        },
+      },
+    };
 
     const orderData = {
       project_address: createOrderDto.project_address,
-      receipt_number: createOrderDto?.receipt_number,
+      receipt_number: createOrderDto.receipt_number,
       receipt_path: filePath ?? '',
       total_estimate_workdays: createOrderDto.total_estimate_workdays,
       grand_total: grand_total.toFixed(2),
