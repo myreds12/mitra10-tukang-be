@@ -5,12 +5,13 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { StatusModule } from 'src/status/status.module';
+import { StatusService } from 'src/status/status.service';
 
 @Module({
   controllers: [OrderController],
-  providers: [OrderService],
+  providers: [OrderService, StatusService],
+  exports: [OrderService],
   imports: [
-    StatusModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/receipt',

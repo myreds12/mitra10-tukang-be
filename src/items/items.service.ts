@@ -57,10 +57,11 @@ export class ItemsService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    const { search, take: limit, page, skip } = queryParamsDto;
+    const { search, take, page, skip } = queryParamsDto;
+
     const items = await this.dbService.items.findMany({
       skip: skip ?? 0,
-      take: page,
+      take: take > 0 ? take : undefined,
       where: {
         item_name: {
           contains: search,

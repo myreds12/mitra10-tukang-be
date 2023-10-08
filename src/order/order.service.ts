@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -23,51 +27,78 @@ export class OrderService {
     let grand_total = 0;
     let grand_total_comission = 0;
 
-    const order_details = createOrderDto.order_details.map((item) => {
-      const total = item.unit_price * item.quantity + item.quote_price;
-      grand_total += total;
-      grand_total_comission += item.comission;
-
-      return { ...item, created_by: user_id, order_status_id: 1, total };
+    const BOOKED_STATUS = await this.dbService.status.findFirst({
+      where: {
+        category: {
+          equals: 'book',
+        },
+      },
     });
 
-    const orderConnection = {
-      members: {
-        connect: {
-          id: createOrderDto.member_id,
+    if (createOrderDto.payment_type === PAYMENT_TYPE.SURVEY) {
+      grand_total += 99000;
+    }
+
+    const order_details = createOrderDto.order_details.map((item) => {
+      let total = 0;
+
+      if (createOrderDto.payment_type !== PAYMENT_TYPE.GRATIS) {
+        total = item.unit_price * item.quantity + item.quote_price;
+        grand_total += total;
+        grand_total_comission += item.comission;
+      }
+
+      return {
+        ...item,
+        created_by: user_id,
+        order_status_id: BOOKED_STATUS.id,
+        total,
+      };
+    });
+
+    const orderConnection = Object.fromEntries(
+      Object.entries({
+        members: {
+          connect: {
+            id: createOrderDto.member_id,
+          },
         },
-      },
-      categories: {
-        connect: {
-          id: createOrderDto.category_id,
+        store: {
+          connect: {
+            id: createOrderDto.store_id,
+          },
         },
-      },
-      store: {
-        connect: {
-          id: createOrderDto.store_id,
+        status: {
+          connect: {
+            id: BOOKED_STATUS.id,
+          },
         },
-      },
-      sales: {
-        connect: {
-          id: createOrderDto.sales_id,
+        categories: {
+          connect: {
+            id: 1,
+          },
         },
-      },
-      vendor: {
-        connect: {
-          id: createOrderDto.vendor_id,
+        sales: {
+          connect: {
+            id: createOrderDto.sales_id,
+          },
         },
-      },
-      tukang: {
-        connect: {
-          id: createOrderDto.tukang_id,
-        },
-      },
-      status: {
-        connect: {
-          id: createOrderDto.project_status_id ?? 3,
-        },
-      },
-    };
+        vendor: createOrderDto.vendor_id
+          ? {
+              connect: {
+                id: createOrderDto.vendor_id,
+              },
+            }
+          : undefined,
+        tukang: createOrderDto.tukang_id
+          ? {
+              connect: {
+                id: createOrderDto.tukang_id,
+              },
+            }
+          : undefined,
+      }).filter(([key, value]) => value !== undefined),
+    );
 
     const orderData = {
       project_address: createOrderDto.project_address,
@@ -91,8 +122,6 @@ export class OrderService {
         },
       },
     };
-
-    console.log(orderConnection, orderData, ordersOptions);
 
     const [{ id: order_id }] = await this.dbService.$transaction([
       this.dbService.orders.create(ordersOptions),
@@ -127,7 +156,6 @@ export class OrderService {
     //   ].filter((condition) => condition !== null),
     // };
 
-    const status_data = await this.statusService.findAll(queryParams);
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(search
@@ -146,32 +174,81 @@ export class OrderService {
               {
                 created_at: {
                   gte: new Date(date_from),
-                  lte: new Date(date_to),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
               },
             ]
           : []),
       ].filter(Boolean),
     };
-
-    console.log(where);
+    console.log(where, new Date(date_from), new Date(date_to));
 
     const orders = await this.dbService.orders.findMany({
       skip,
       take,
       where,
-      include: {
+      select: {
+        id: true,
+        member_id: true,
         members: true,
+        seles_id: true,
         sales: true,
-        status: true,
-        vendor: true,
+        store_id: true,
         store: true,
-        categories: true,
+        project_status_id: true,
+        status: true,
+        vendor_id: true,
+        vendor: true,
+        tukang_id: true,
         tukang: true,
+        category_id: true,
+        categories: true,
+        project_address: true,
+        receipt_number: true,
+        receipt_path: true,
+        total_estimate_workdays: true,
+        payment_type: true,
+        grand_total: true,
+        grand_total_comission: true,
+        print_counter: true,
+        created_by: true,
+        updated_by: true,
+        created_at: true,
+        updated_at: true,
+        m_order_details: {
+          select: {
+            id: true,
+            order_id: true,
+            item_id: true,
+            item: {
+              select: {
+                id: true,
+                item_name: true,
+                category_name: true,
+              },
+            },
+            order_status_id: true,
+            status: {
+              select: {
+                category: true,
+                description: true,
+              },
+            },
+            unit: true,
+            unit_price: true,
+            quote_price: true,
+            quantity: true,
+            total: true,
+            survey_price: true,
+            comission: true,
+            created_by: true,
+            updated_by: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
       },
     });
-
-    console.log(orders);
 
     return orders;
   }
@@ -230,47 +307,128 @@ export class OrderService {
   }
 
   async update(id: number, updateOrderDto: UpdateOrderDto, user: users) {
-    const { id: user_id } = user;
-    const orderDetailsUpdateData = updateOrderDto.order_details.map((item) => {
-      return {
+    const { id: user_id, role_id } = user;
+    const order = await this.dbService.orders.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        status: true,
+      },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+    // if (
+    //   (updateOrderDto.receipt_file || !updateOrderDto.receipt_number) ||
+    //   (!updateOrderDto.receipt_file || updateOrderDto.receipt_number)
+    // ) {
+    //   throw new BadRequestException(
+    //     'Either Receipt Number and Files should be filled.',
+    //   );
+    // }
+
+    const searchStatusInput = updateOrderDto.project_status_id
+      ? await this.dbService.status.findFirst({
+          where: {
+            id: updateOrderDto.project_status_id,
+          },
+        })
+      : null;
+
+    let projectStatusDefault = order.status;
+
+    if (
+      searchStatusInput &&
+      searchStatusInput.category === 'BOOKED' &&
+      order.status.category === 'BOOK'
+    ) {
+      projectStatusDefault = searchStatusInput;
+    }
+
+    if (
+      searchStatusInput &&
+      searchStatusInput.category === 'SURVEYREQ' &&
+      order.status.category === 'BOOKED'
+    ) {
+      projectStatusDefault = searchStatusInput;
+    }
+
+    if (
+      searchStatusInput &&
+      searchStatusInput.category === 'SURVEYSTART' &&
+      order.status.category === 'SURVEYREQ'
+    ) {
+      projectStatusDefault = searchStatusInput;
+    }
+
+    const orderDetailsUpdateData = updateOrderDto.order_details
+      .filter((x) => Boolean(x.id))
+      .map((item) => ({
         where: {
           id: item.id,
         },
         data: {
-          item_id: item.item_id,
-          order_status_id: item.order_status_id,
-          unit: item.unit,
-          unit_price: item.unit_price,
-          quote_price: item.quote_price,
-          quantity: item.quantity,
-          total: item.total,
-          survey_price: item.survey_price,
-          comission: item.comission,
+          item_id: item?.item_id,
+          order_status_id: projectStatusDefault.id,
+          unit: item?.unit,
+          unit_price: item?.unit_price,
+          quote_price: item?.quote_price,
+          quantity: item?.quantity,
+          total: item?.total,
+          survey_price: item?.survey_price,
+          comission: item?.comission,
           updated_by: user_id,
           updated_at: new Date(),
         },
-      };
-    });
-    const orderUpdateData = {
-      project_address: updateOrderDto.project_address,
-      receipt_number: updateOrderDto.receipt_number,
-      total_estimate_workdays: updateOrderDto.total_estimate_workdays,
-      grand_total: updateOrderDto.grand_total,
-      grand_total_comission: updateOrderDto.grand_total_comission,
-      updated_by: user_id,
-      payment_type: PAYMENT_TYPE.GRATIS,
-      print_counter: 0,
+      }));
+
+    const orderDetailsNew = {
+      data: updateOrderDto.order_details
+        .filter((x) => !Boolean(x.id))
+        .map((item) => ({
+          item_id: item?.item_id,
+          order_status_id: projectStatusDefault.id,
+          unit: item?.unit,
+          unit_price: item?.unit_price,
+          quote_price: item?.quote_price,
+          quantity: item?.quantity,
+          total: item?.total,
+          survey_price: item?.survey_price,
+          comission: item?.comission,
+          created_by: user_id,
+          updated_by: user_id,
+          updated_at: new Date(),
+        })),
     };
+
+    const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
+      member_id: updateOrderDto?.member_id,
+      seles_id: updateOrderDto?.seles_id,
+      store_id: updateOrderDto?.store_id,
+      project_address: updateOrderDto?.project_address,
+      receipt_number: updateOrderDto?.receipt_number,
+      total_estimate_workdays: updateOrderDto?.total_estimate_workdays,
+      grand_total: updateOrderDto?.grand_total,
+      grand_total_comission: updateOrderDto?.grand_total_comission,
+      updated_by: user_id,
+      payment_type: updateOrderDto?.payment_type,
+      print_counter: 0,
+      updated_at: new Date(),
+    };
+    console.log(orderDetailsUpdateData, orderDetailsNew, orderUpdateData);
 
     const [orderQuery] = await this.dbService.$transaction([
       this.dbService.orders.update({
         where: {
-          id,
+          id: order.id,
         },
         data: {
           ...orderUpdateData,
           m_order_details: {
             update: orderDetailsUpdateData,
+            createMany: orderDetailsNew.data.length
+              ? orderDetailsNew
+              : undefined,
           },
         },
       }),

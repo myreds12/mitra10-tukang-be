@@ -71,56 +71,71 @@ export class OrderDetailDto {
 export class UpdateOrderDto {
   @ApiProperty()
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  member_id: number;
+  member_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  seles_id: number;
+  @IsOptional()
+  seles_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
+  @IsOptional()
   vendor_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
+  @IsOptional()
   tukang_id?: number;
 
   @ApiProperty()
-  project_address: string;
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  store_id?: number;
+
+  @ApiProperty()
+  project_address?: string;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  project_status_id: number;
+  @IsOptional()
+  project_status_id?: number;
 
   @ApiProperty()
-  receipt_number: string;
+  receipt_number?: string;
 
   @ApiProperty({ type: 'string', format: 'binary' })
-  receipt_file: Express.Multer.File;
+  receipt_file?: Express.Multer.File;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  total_estimate_workdays: number;
+  @IsOptional()
+  total_estimate_workdays?: number;
 
   @ApiProperty({ enum: PAYMENT_TYPE })
   // @IsEnum(PAYMENT_TYPE)
-  payment_type: PAYMENT_TYPE;
+  @IsOptional()
+  payment_type?: PAYMENT_TYPE;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  grand_total: number;
+  @IsOptional()
+  grand_total?: number;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  grand_total_comission: number;
+  @IsOptional()
+  grand_total_comission?: number;
 
   @ApiProperty({ type: [OrderDetailDto] }) // This represents an array of OrderDetailDto
   @Type(() => OrderDetailDto)
