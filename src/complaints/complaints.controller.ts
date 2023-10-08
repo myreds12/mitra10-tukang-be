@@ -131,9 +131,11 @@ export class ComplaintsController {
         data: complaint,
       });
     } catch (error) {
+      console.log(error);
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
+        message: error?.message ?? 'Error While Update',
         stack: error,
       });
     }

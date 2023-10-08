@@ -4,11 +4,15 @@ import { ComplaintsController } from './complaints.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { OrderModule } from 'src/order/order.module';
+import { OrderService } from 'src/order/order.service';
+import { StatusService } from 'src/status/status.service';
 
 @Module({
   controllers: [ComplaintsController],
   providers: [ComplaintsService],
   imports: [
+    OrderModule,
     MulterModule.register({
       limits: {
         files: 5,
@@ -25,4 +29,4 @@ import { extname } from 'path';
     }),
   ],
 })
-export class ComplaintsModule { }
+export class ComplaintsModule {}

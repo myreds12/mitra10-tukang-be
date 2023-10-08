@@ -416,6 +416,7 @@ model status {
   updated_at      DateTime?
   order           orders[]
   m_order_details m_order_details[]
+  complaints      complaints[]
 }
 
 model orders {
@@ -590,6 +591,7 @@ model complaints {
   deleted_at DateTime? @db.DateTime()
 
   orders             orders               @relation(fields: [order_id], references: [id])
+  status             status?               @relation(fields: [complaint_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
   complaint_evidence complaint_evidence[]
   remedials          remedials[]
   complaint_channels complaint_channels?  @relation(fields: [complaint_channel], references: [id])
