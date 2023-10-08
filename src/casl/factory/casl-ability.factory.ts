@@ -24,6 +24,9 @@ export class CaslAbilityFactory {
       subject: p.menus.title.toLowerCase(),
     }));
 
+    console.log(caslPermissions);
+    
+
     return createMongoAbility<AppAbility>(caslPermissions);
   }
 }

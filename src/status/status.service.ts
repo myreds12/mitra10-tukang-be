@@ -40,7 +40,7 @@ export class StatusService {
         take: take,
         where: {
           id: {
-            equals: status ?? null
+            equals: status ?? undefined
           }
         }
       })
