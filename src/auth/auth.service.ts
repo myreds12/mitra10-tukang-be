@@ -46,6 +46,23 @@ export class AuthService {
         roles: {
           select: { name: true },
         },
+        employee: {
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true,
+            gender: true,
+            phone_number: true,
+            nik: true,
+            whatsapp_number: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+              },
+            },
+          },
+        },
       },
     });
 
