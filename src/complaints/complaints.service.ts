@@ -67,7 +67,7 @@ export class ComplaintsService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to } = query;
+    const { take, page, search, status, date_from, date_to, order_by } = query;
     const skip = page * take - take;
 
     const where: Prisma.complaintsWhereInput = {
@@ -90,6 +90,9 @@ export class ComplaintsService {
       take,
       skip,
       where,
+      orderBy: {
+        created_at: order_by,
+      },
       include: {
         complaint_channels: true,
         status: true,
@@ -140,29 +143,6 @@ export class ComplaintsService {
         orders: true,
       },
     });
-    // console.log('1');
-    // console.log(
-    //   updateConplainDto.complaint_status,
-    //   complaints.orders.project_status_id,
-    //   updateConplainDto.complaint_status,
-    //   Boolean(
-    //     updateConplainDto?.complaint_status &&
-    //       complaints.orders.project_status_id === 1 &&
-    //       updateConplainDto.complaint_status !== 2,
-    //   ),
-    // );
-
-    // console.log('2');
-    // console.log(
-    //   updateConplainDto.complaint_status,
-    //   complaints.orders.project_status_id,
-    //   updateConplainDto.complaint_status,
-    //   Boolean(
-    //     updateConplainDto?.complaint_status &&
-    //       complaints.orders.project_status_id === 2 &&
-    //       updateConplainDto.complaint_status != 3,
-    //   ),
-    // );
 
     if (
       Boolean(
@@ -251,5 +231,16 @@ export class ComplaintsService {
         deleted_by: user_id,
       },
     });
+  }
+
+  async getCode() {
+    const complaints = await this.dbService.complaints.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 1,
+    });
+
+    return complaints[0] || null;
   }
 }
