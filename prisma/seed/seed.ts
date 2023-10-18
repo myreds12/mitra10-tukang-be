@@ -5,6 +5,8 @@ import { ItemsSeed } from './items-seed';
 import { UsersSeed } from './users-seed';
 import { PermissionSeed } from './permission-seed';
 import { MembersSeed } from './members-seed';
+import { PositionSeed } from './position-seed';
+import { StoreSeed } from './store-seed';
 
 const prisma = new PrismaClient();
 
@@ -15,6 +17,8 @@ async function main() {
   await UsersSeed();
   await PermissionSeed();
   await MembersSeed();
+  await PositionSeed();
+  await StoreSeed();
 }
 
 main()

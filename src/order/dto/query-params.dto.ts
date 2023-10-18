@@ -16,4 +16,6 @@ export class QueryParamsDto {
   date_to?: string;
   @Type(() => Number)
   status?: number;
+
+  order_by: 'asc' | 'desc' = 'asc';
 }

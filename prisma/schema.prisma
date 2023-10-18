@@ -43,7 +43,7 @@ model employee {
   id              Int        @id @default(autoincrement())
   position_id     Int?
   store_id        Int?
-  user_id         Int?
+  user_id         Int?       @unique
   first_name      String     @db.VarChar(50)
   middle_name     String?    @db.VarChar(50)
   last_name       String     @db.VarChar(50)
@@ -219,7 +219,7 @@ model users {
 
   roles    roles      @relation(fields: [role_id], references: [id])
   sales    sales[]
-  employee employee[]
+  employee employee?
   vendor   vendor[]
   tukang   tukang[]
 }
@@ -591,7 +591,7 @@ model complaints {
   deleted_at DateTime? @db.DateTime()
 
   orders             orders               @relation(fields: [order_id], references: [id])
-  status             status?               @relation(fields: [complaint_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status             status?              @relation(fields: [complaint_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
   complaint_evidence complaint_evidence[]
   remedials          remedials[]
   complaint_channels complaint_channels?  @relation(fields: [complaint_channel], references: [id])

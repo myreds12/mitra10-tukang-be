@@ -181,7 +181,6 @@ export class OrderService {
           : []),
       ].filter(Boolean),
     };
-    console.log(where, new Date(date_from), new Date(date_to));
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -361,6 +360,8 @@ export class OrderService {
       projectStatusDefault = searchStatusInput;
     }
 
+    console.log(projectStatusDefault);
+
     const orderDetailsUpdateData = updateOrderDto.order_details
       .filter((x) => Boolean(x.id))
       .map((item) => ({
@@ -412,6 +413,7 @@ export class OrderService {
       grand_total_comission: updateOrderDto?.grand_total_comission,
       updated_by: user_id,
       payment_type: updateOrderDto?.payment_type,
+      project_status_id: projectStatusDefault.id,
       print_counter: 0,
       updated_at: new Date(),
     };

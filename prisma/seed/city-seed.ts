@@ -2,28 +2,25 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 export async function RolesSeed() {
-  await prisma.roles.createMany({
+  await prisma.city.createMany({
     data: [
       {
-        name: 'Store CS',
+        city_name: 'BOGOR',
       },
       {
-        name: 'Store Staff',
+        city_name: 'JAKARTA',
       },
       {
-        name: 'Admin HO',
+        city_name: 'BANDUNG',
       },
       {
-        name: 'Tukang',
+        city_name: 'SURABAYA',
       },
       {
-        name: 'Admin Vendor',
+        city_name: 'JOGJAKARTA',
       },
       {
-        name: 'Employee',
-      },
-      {
-        name: 'Member',
+        city_name: 'SOLO',
       },
     ],
   });

@@ -35,6 +35,27 @@ interface UserRequest extends IExpressRequest {
 export class ComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
+  @Get('next-code')
+  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
+    try {
+      const code = await this.complaintsService.getCode();
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Complaint code pulled',
+        data: { code: code.id },
+      });
+    } catch (error) {
+      console.error(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While pulling complaint code',
+        stack: error,
+      });
+    }
+  }
+
   @Post('/')
   @UseInterceptors(FilesInterceptor('complaint_evidences'))
   async create(
