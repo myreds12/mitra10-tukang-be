@@ -35,6 +35,7 @@ import { ComplaintChannelsModule } from './complaint_channels/complaint_channels
 import { CaslModule } from './casl/casl.module';
 import { RemedialsModule } from './remedials/remedials.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -87,7 +88,8 @@ import { InvoicesModule } from './invoices/invoices.module';
     ComplaintChannelsModule,
     CaslModule,
     RemedialsModule,
-    InvoicesModule
+    InvoicesModule,
+    ReportsModule
   ],
   controllers: [AppController],
   providers: [AppService],

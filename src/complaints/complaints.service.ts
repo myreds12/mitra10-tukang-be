@@ -11,7 +11,7 @@ export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-  ) {}
+  ) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -68,19 +68,18 @@ export class ComplaintsService {
 
   async findAll(query: QueryParamsDto) {
     const { take, page, search, status, date_from, date_to } = query;
-    const skip = page * take - take;
-
+    const skip = (page - 1) * take;
     const where: Prisma.complaintsWhereInput = {
       AND: [
         status ? { complaint_status: { equals: status } } : null,
         search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
-              complaint_date: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            complaint_date: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : null,
       ].filter((condition) => Boolean(condition)),
     };
@@ -167,8 +166,8 @@ export class ComplaintsService {
     if (
       Boolean(
         updateConplainDto.complaint_status &&
-          complaints.orders.project_status_id === 1 &&
-          updateConplainDto.complaint_status !== 2,
+        complaints.orders.project_status_id === 1 &&
+        updateConplainDto.complaint_status !== 2,
       )
     ) {
       throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
@@ -177,8 +176,8 @@ export class ComplaintsService {
     if (
       Boolean(
         updateConplainDto?.complaint_status &&
-          complaints.orders.project_status_id === 2 &&
-          updateConplainDto.complaint_status !== 3,
+        complaints.orders.project_status_id === 2 &&
+        updateConplainDto.complaint_status !== 3,
       )
     ) {
       throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
@@ -193,17 +192,17 @@ export class ComplaintsService {
 
     const orderConn = updateConplainDto.order_id
       ? {
-          connect: {
-            id: updateConplainDto.order_id,
-          },
-        }
+        connect: {
+          id: updateConplainDto.order_id,
+        },
+      }
       : undefined;
     const complaint_channelsConn = updateConplainDto.complaint_channel
       ? {
-          connect: {
-            id: updateConplainDto.complaint_channel,
-          },
-        }
+        connect: {
+          id: updateConplainDto.complaint_channel,
+        },
+      }
       : undefined;
 
     const complaintData: Prisma.complaintsUpdateInput = Object.fromEntries(
@@ -218,13 +217,13 @@ export class ComplaintsService {
         updated_by: user_id,
         complaint_evidence: evidences.length
           ? {
-              updateMany: {
-                where: {
-                  complaint_id: id,
-                },
-                data: evidences,
+            updateMany: {
+              where: {
+                complaint_id: id,
               },
-            }
+              data: evidences,
+            },
+          }
           : undefined,
       }).filter(([key, value]) => value !== undefined),
     );
