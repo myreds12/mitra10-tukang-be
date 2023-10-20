@@ -11,7 +11,7 @@ export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-  ) {}
+  ) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -78,11 +78,11 @@ export class ComplaintsService {
         search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
-              complaint_date: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            complaint_date: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : null,
       ].filter((condition) => Boolean(condition)),
     };
@@ -202,13 +202,13 @@ export class ComplaintsService {
         updated_by: user_id,
         complaint_evidence: evidences.length
           ? {
-              updateMany: {
-                where: {
-                  complaint_id: id,
-                },
-                data: evidences,
+            updateMany: {
+              where: {
+                complaint_id: id,
               },
-            }
+              data: evidences,
+            },
+          }
           : undefined,
       }).filter(([key, value]) => value !== undefined),
     );
