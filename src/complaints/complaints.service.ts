@@ -17,6 +17,8 @@ export class ComplaintsService {
     user_id: number,
     complaint_evidences: Array<Express.Multer.File>,
   ) {
+    console.log('createComplaintDto', createComplaintDto);
+
     const evidences: Array<Prisma.complaint_evidenceCreateManyComplaintsInput> =
       complaint_evidences.map((file) => ({
         evidence_location: file.filename,
@@ -104,7 +106,7 @@ export class ComplaintsService {
             status: true,
             vendor: true,
             tukang: true,
-            categories: true,
+            // categories: true,
 
             m_order_details: true,
           },
@@ -131,7 +133,7 @@ export class ComplaintsService {
 
   async update(
     id: number,
-    updateConplainDto: UpdateComplaintDto,
+    updateComplaintDto: UpdateComplaintDto,
     user_id: number,
     complaint_evidences: Array<Express.Multer.File>,
   ) {
@@ -144,11 +146,13 @@ export class ComplaintsService {
       },
     });
 
+    console.log('updateComplaintDto', updateComplaintDto);
+
     if (
       Boolean(
-        updateConplainDto.complaint_status &&
+        updateComplaintDto.complaint_status &&
           complaints.orders.project_status_id === 1 &&
-          updateConplainDto.complaint_status !== 2,
+          updateComplaintDto.complaint_status !== 2,
       )
     ) {
       throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
@@ -156,9 +160,9 @@ export class ComplaintsService {
 
     if (
       Boolean(
-        updateConplainDto?.complaint_status &&
+        updateComplaintDto?.complaint_status &&
           complaints.orders.project_status_id === 2 &&
-          updateConplainDto.complaint_status !== 3,
+          updateComplaintDto.complaint_status !== 3,
       )
     ) {
       throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
@@ -171,17 +175,17 @@ export class ComplaintsService {
         updated_by: user_id,
       }));
 
-    const orderConn = updateConplainDto.order_id
+    const orderConn = updateComplaintDto.order_id
       ? {
           connect: {
-            id: updateConplainDto.order_id,
+            id: updateComplaintDto.order_id,
           },
         }
       : undefined;
-    const complaint_channelsConn = updateConplainDto.complaint_channel
+    const complaint_channelsConn = updateComplaintDto.complaint_channel
       ? {
           connect: {
-            id: updateConplainDto.complaint_channel,
+            id: updateComplaintDto.complaint_channel,
           },
         }
       : undefined;
@@ -190,11 +194,11 @@ export class ComplaintsService {
       Object.entries({
         orders: orderConn,
         complaint_channels: complaint_channelsConn,
-        description: updateConplainDto.description ?? undefined,
-        complaint_date: updateConplainDto.complaint_date
-          ? new Date(updateConplainDto.complaint_date)
+        description: updateComplaintDto.description ?? undefined,
+        complaint_date: updateComplaintDto.complaint_date
+          ? new Date(updateComplaintDto.complaint_date)
           : undefined,
-        complaint_status: updateConplainDto?.complaint_status,
+        complaint_status: updateComplaintDto?.complaint_status,
         updated_by: user_id,
         complaint_evidence: evidences.length
           ? {

@@ -44,10 +44,10 @@ import { InvoicesModule } from './invoices/invoices.module';
     RolesModule,
     PositionsModule,
     MenusModule,
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-    }),
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, '..', 'uploads'), // Specify the root directory for serving static files
+    //   // serveRoot: '/uploads', // URL path where static files will be served
+    // }),
     ServiceTypeModule,
     BankModule,
     EmployeeModule,
@@ -87,7 +87,7 @@ import { InvoicesModule } from './invoices/invoices.module';
     ComplaintChannelsModule,
     CaslModule,
     RemedialsModule,
-    InvoicesModule
+    InvoicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

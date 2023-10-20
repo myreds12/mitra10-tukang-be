@@ -7,7 +7,7 @@ import { HttpStatus } from '@nestjs/common';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 @Injectable()
 export class StatusService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
 
   async create(createStatusDto: CreateStatusDto, user_id) {
     try {
@@ -15,19 +15,19 @@ export class StatusService {
         data: {
           description: createStatusDto.description,
           category: createStatusDto.category,
-        }
-      })
+        },
+      });
       return {
         status: HttpStatus.OK,
-        message: "Success Create Status"
-      }
+        message: 'Success Create Status',
+      };
     } catch (error) {
       console.log(error);
 
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: "Failed To Create Data"
-      }
+        message: 'Failed To Create Data',
+      };
     }
   }
 
@@ -37,49 +37,48 @@ export class StatusService {
 
       const data = await this.dbService.status.findMany({
         skip: skip,
-        take: take,
+        take: take > 0 ? take : undefined,
+
         where: {
           id: {
-            equals: status ?? undefined
-          }
-        }
-      })
-
+            equals: status ?? undefined,
+          },
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Get All Data',
-        data: data
-      }
+        data: data,
+      };
     } catch (err) {
       console.log(err);
 
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get Data'
-      }
+        message: 'Error While Get Data',
+      };
     }
-
   }
 
   async findOne(id: number) {
     try {
       const status = await this.dbService.status.findFirst({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Find One Data',
-        data: status
-      }
+        data: status,
+      };
     } catch (err) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Find Data'
-      }
+        message: 'Error While Find Data',
+      };
     }
   }
 
@@ -87,24 +86,23 @@ export class StatusService {
     try {
       await this.dbService.status.update({
         where: {
-          id
+          id,
         },
         data: {
           ...updateStatusDto,
-          updated_at: new Date()
-        }
-      })
+          updated_at: new Date(),
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: 'Update Data'
-      }
-
+        message: 'Update Data',
+      };
     } catch (err) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update'
-      }
+        message: 'Error While Update',
+      };
     }
   }
 
@@ -112,19 +110,19 @@ export class StatusService {
     try {
       await this.dbService.status.delete({
         where: {
-          id
-        }
-      })
+          id,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
-        message: 'Delete Data'
-      }
+        message: 'Delete Data',
+      };
     } catch (err) {
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Delete'
-      }
+        message: 'Error While Delete',
+      };
     }
   }
 }

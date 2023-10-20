@@ -13,13 +13,12 @@ import { extname } from 'path';
       storage: diskStorage({
         destination: './uploads/remedials',
         filename(req, file, callback) {
-          const uniqueSuffix = Math.round(Math.random() + 1e9);
-          const extension = extname(file.originalname);
-          const filename = `${uniqueSuffix}${extension}`;
+          const uniqueSuffix = `${Date.now()}_${file.originalname}`;
+          const filename = `${uniqueSuffix}`;
           callback(null, filename);
         },
       }),
     }),
-  ]
+  ],
 })
-export class RemedialsModule { }
+export class RemedialsModule {}

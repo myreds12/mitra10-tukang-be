@@ -96,6 +96,9 @@ export class CreateOrderDto {
   project_address: string;
 
   @ApiProperty()
+  project_number: string;
+
+  @ApiProperty()
   @Type(() => Number)
   project_status_id?: number;
 

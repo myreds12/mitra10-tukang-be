@@ -2,10 +2,11 @@ import { Injectable, HttpStatus } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const store = await this.dbService.store.create({
@@ -33,21 +34,15 @@ export class StoreService {
     }
   }
 
-  async findAll() {
-    try {
-      const store = await this.dbService.store.findMany();
+  async findAll(query: QueryParamsDto) {
+    const { take, page, search, status, date_from, date_to, order_by } = query;
+    const skip = page * take - take;
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully get store',
-        data: store,
-      };
-    } catch (err) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Store',
-      };
-    }
+    const store = await this.dbService.store.findMany({
+      take: undefined,
+    });
+
+    return store;
   }
 
   async findOne(id: number) {
@@ -63,7 +58,7 @@ export class StoreService {
         message: 'Succesfully find store',
         data: store,
       };
-    } catch (error) { }
+    } catch (error) {}
   }
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {

@@ -39,11 +39,32 @@ const menuName = 'orders';
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
+  @Post(':id/counter')
+  async counter(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const order = await this.orderService.counter(id);
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        messages: 'Order Updated.',
+        data: order,
+      });
+    } catch (error) {
+      console.log(error.message);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      });
+    }
+  }
+
   @Post('/')
-  @CheckPermissions(
-    // [PermissionAction.MANAGE, menuName],
-    [PermissionAction.CREATE, menuName],
-  )
+  @CheckPermissions([PermissionAction.CREATE, menuName])
   @UseInterceptors(FileInterceptor('receipt_file'))
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
@@ -118,8 +139,9 @@ export class OrderController {
 
   @Post(':id')
   @CheckPermissions([PermissionAction.UPDATE, menuName])
-  @UseInterceptors(FilesInterceptor('receipt_file', 5))
+  @UseInterceptors(FileInterceptor('receipt_file'))
   async update(
+    @UploadedFile() receipt_file: Express.Multer.File,
     @Param('id', ParseIntPipe) id: number,
     @Body() updateOrderDto: UpdateOrderDto,
     @Req() req: UserRequest,
@@ -130,6 +152,7 @@ export class OrderController {
         id,
         updateOrderDto,
         req.user,
+        receipt_file,
       );
 
       return res.status(200).json({

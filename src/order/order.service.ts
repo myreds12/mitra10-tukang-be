@@ -73,11 +73,11 @@ export class OrderService {
             id: BOOKED_STATUS.id,
           },
         },
-        categories: {
-          connect: {
-            id: 1,
-          },
-        },
+        // categories: {
+        //   connect: {
+        //     id: 1,
+        //   },
+        // },
         sales: {
           connect: {
             id: createOrderDto.sales_id,
@@ -102,6 +102,7 @@ export class OrderService {
 
     const orderData = {
       project_address: createOrderDto.project_address,
+      project_number: createOrderDto.project_number,
       receipt_number: createOrderDto.receipt_number,
       receipt_path: filePath ?? '',
       total_estimate_workdays: createOrderDto.total_estimate_workdays,
@@ -184,7 +185,7 @@ export class OrderService {
 
     const orders = await this.dbService.orders.findMany({
       skip,
-      take,
+      take: take > 0 ? take : undefined,
       where,
       select: {
         id: true,
@@ -200,8 +201,8 @@ export class OrderService {
         vendor: true,
         tukang_id: true,
         tukang: true,
-        category_id: true,
-        categories: true,
+        // category_id: true,
+        // categories: true,
         project_address: true,
         receipt_number: true,
         receipt_path: true,
@@ -263,7 +264,7 @@ export class OrderService {
         status: true,
         vendor: true,
         store: true,
-        categories: true,
+        // categories: true,
         tukang: true,
         m_order_details: {
           select: {
@@ -305,8 +306,14 @@ export class OrderService {
     return data;
   }
 
-  async update(id: number, updateOrderDto: UpdateOrderDto, user: users) {
+  async update(
+    id: number,
+    updateOrderDto: UpdateOrderDto,
+    user: users,
+    file: Express.Multer.File,
+  ) {
     const { id: user_id, role_id } = user;
+    const filePath = file ? file.filename : undefined;
     const order = await this.dbService.orders.findFirst({
       where: {
         id,
@@ -316,15 +323,9 @@ export class OrderService {
       },
     });
 
+    console.log(filePath);
+
     if (!order) throw new NotFoundException('Order not found');
-    // if (
-    //   (updateOrderDto.receipt_file || !updateOrderDto.receipt_number) ||
-    //   (!updateOrderDto.receipt_file || updateOrderDto.receipt_number)
-    // ) {
-    //   throw new BadRequestException(
-    //     'Either Receipt Number and Files should be filled.',
-    //   );
-    // }
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
@@ -408,6 +409,7 @@ export class OrderService {
       store_id: updateOrderDto?.store_id,
       project_address: updateOrderDto?.project_address,
       receipt_number: updateOrderDto?.receipt_number,
+      receipt_path: filePath,
       total_estimate_workdays: updateOrderDto?.total_estimate_workdays,
       grand_total: updateOrderDto?.grand_total,
       grand_total_comission: updateOrderDto?.grand_total_comission,
@@ -440,5 +442,26 @@ export class OrderService {
 
   async remove(id: number) {
     return `This action removes a #${id} order`;
+  }
+
+  async counter(id: number) {
+    const order = await this.dbService.orders.findFirst({
+      where: {
+        id,
+      },
+    });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    this.dbService.$transaction([
+      this.dbService.orders.update({
+        where: {
+          id,
+        },
+        data: {
+          print_counter: order.print_counter + 1,
+        },
+      }),
+    ]);
   }
 }

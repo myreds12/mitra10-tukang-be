@@ -39,11 +39,13 @@ export class ComplaintsController {
   async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
     try {
       const code = await this.complaintsService.getCode();
+      let nextCode = 1;
+      if (code) nextCode = code.id;
 
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Complaint code pulled',
-        data: { code: code.id },
+        data: { code: nextCode },
       });
     } catch (error) {
       console.error(error);
