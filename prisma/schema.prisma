@@ -217,7 +217,7 @@ model users {
   updated_by Int?
   deleted_by Int?
 
-  roles    roles      @relation(fields: [role_id], references: [id])
+  roles    roles     @relation(fields: [role_id], references: [id])
   sales    sales[]
   employee employee?
   vendor   vendor[]
@@ -430,6 +430,7 @@ model orders {
   // category_id       Int?
 
   project_address         String
+  project_number          String  @default("0")
   receipt_number          String? @db.NVarChar(30)
   receipt_path            String? @db.Text
   total_estimate_workdays Int     @db.TinyInt
