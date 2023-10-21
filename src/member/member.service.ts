@@ -19,12 +19,12 @@ export class MemberService {
             full_name: createMemberDto.full_name,
             email: createMemberDto.email,
             address_1: createMemberDto.address_1,
-            join_date: new Date(createMemberDto.join_date),
+            join_date: createMemberDto.join_date ? new Date(createMemberDto.join_date) : new Date(),
             phone_number: createMemberDto.phone_number,
             whatsapp_number: createMemberDto.whatsapp_number,
             zip_code: createMemberDto.zip_code,
             //join location diisi dengan store id
-            join_location: createMemberDto.join_location,
+            join_location: createMemberDto.join_location ? createMemberDto.join_location : null,
             created_by: user_id,
           },
         });
@@ -98,7 +98,17 @@ export class MemberService {
     try {
       const member = await this.dbService.members.findFirst({
         where: { id: id },
+        include: {
+          order: {
+            include: {
+              complaints: true,
+              invoices: true
+            }
+          }
+        }
       });
+      console.log(member);
+      
 
       return {
         data: { member },

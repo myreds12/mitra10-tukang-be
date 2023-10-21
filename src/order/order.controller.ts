@@ -39,7 +39,6 @@ const menuName = 'orders';
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-
   @Post(':id/counter')
   async counter(
     @Param('id', ParseIntPipe) id: number,
@@ -100,11 +99,16 @@ export class OrderController {
   @CheckPermissions([PermissionAction.READ, menuName])
   async findAll(@Query() query: QueryParamsDto) {
     try {
-      const orders = await this.orderService.findAll(query);
+      const { data, page, take, countTotal } = await this.orderService.findAll(
+        query,
+      );
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
-        data: orders,
+        data,
+        page,
+        take,
+        total: countTotal,
       };
     } catch (error) {
       console.log(error.message);
@@ -177,6 +181,4 @@ export class OrderController {
   remove(@Param('id') id: string) {
     return this.orderService.remove(+id);
   }
-
-  
 }

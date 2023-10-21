@@ -43,7 +43,11 @@ export class OrderService {
     const order_details = createOrderDto.order_details.map((item) => {
       let total = 0;
 
-      if (createOrderDto.payment_type !== PAYMENT_TYPE.GRATIS) {
+      if (
+        [PAYMENT_TYPE.GRATIS, PAYMENT_TYPE.SURVEY].includes(
+          createOrderDto.payment_type,
+        )
+      ) {
         total = item.unit_price * item.quantity + item.quote_price;
         grand_total += total;
         grand_total_comission += item.comission;
@@ -139,6 +143,7 @@ export class OrderService {
     // DO SEARCH AND PAGINATION LOGIC ...
     const { take, page, search, status, date_from, date_to } = queryParams;
     const skip = page * take - take;
+    const countTotal = await this.dbService.orders.count();
 
     // const where: Prisma.ordersWhereInput = {
     //   OR: [
@@ -251,7 +256,7 @@ export class OrderService {
       },
     });
 
-    return orders;
+    return { data: orders, countTotal, page, take };
   }
 
   async findOne(id: number) {
@@ -362,7 +367,7 @@ export class OrderService {
       projectStatusDefault = searchStatusInput;
     }
 
-    console.log(projectStatusDefault);
+    console.log(projectStatusDefault, updateOrderDto.order_details);
 
     const orderDetailsUpdateData = updateOrderDto.order_details
       .filter((x) => Boolean(x.id))

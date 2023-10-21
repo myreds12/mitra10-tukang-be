@@ -11,7 +11,7 @@ export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-  ) { }
+  ) {}
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -78,18 +78,18 @@ export class ComplaintsService {
         search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
-            complaint_date: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              complaint_date: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : null,
       ].filter((condition) => Boolean(condition)),
     };
     console.log(where);
 
     const complaint: complaints[] = await this.dbService.complaints.findMany({
-      take,
+      take: take <= 0 ? undefined : take,
       skip,
       where,
       orderBy: {
@@ -148,31 +148,36 @@ export class ComplaintsService {
 
     console.log('updateComplaintDto', updateComplaintDto);
 
-    if (
-      Boolean(
-        updateComplaintDto.complaint_status &&
-          complaints.orders.project_status_id === 1 &&
-          updateComplaintDto.complaint_status !== 2,
-      )
-    ) {
-      throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
-    }
+    // if (
+    //   Boolean(
+    //     updateComplaintDto.complaint_status &&
+    //       complaints.orders.project_status_id === 1 &&
+    //       updateComplaintDto.complaint_status !== 2,
+    //   )
+    // ) {
+    //   throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
+    // }
 
-    if (
-      Boolean(
-        updateComplaintDto?.complaint_status &&
-          complaints.orders.project_status_id === 2 &&
-          updateComplaintDto.complaint_status !== 3,
-      )
-    ) {
-      throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
-    }
+    // if (
+    //   Boolean(
+    //     updateComplaintDto?.complaint_status &&
+    //       complaints.orders.project_status_id === 2 &&
+    //       updateComplaintDto.complaint_status !== 3,
+    //   )
+    // ) {
+    //   throw new HttpException('Cannot Change Status', HttpStatus.BAD_REQUEST);
+    // }
 
-    const evidences: Array<Prisma.complaint_evidenceUpdateInput> =
+    await this.dbService.complaint_evidence.deleteMany({
+      where: {
+        complaint_id: id
+      }
+    })
+
+    const evidences =
       complaint_evidences.map((file) => ({
         evidence_location: file.filename,
-        updated_at: new Date(),
-        updated_by: user_id,
+        created_by: user_id,
       }));
 
     const orderConn = updateComplaintDto.order_id
@@ -202,16 +207,14 @@ export class ComplaintsService {
         updated_by: user_id,
         complaint_evidence: evidences.length
           ? {
-            updateMany: {
-              where: {
-                complaint_id: id,
+              createMany: {
+                data: evidences,
               },
-              data: evidences,
-            },
-          }
+            }
           : undefined,
       }).filter(([key, value]) => value !== undefined),
     );
+    console.log('complaintData', complaintData);
 
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.update({

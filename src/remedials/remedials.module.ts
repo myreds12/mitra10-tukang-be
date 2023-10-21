@@ -13,8 +13,8 @@ import { extname } from 'path';
       storage: diskStorage({
         destination: './uploads/remedials',
         filename(req, file, callback) {
-          const uniqueSuffix = `${Date.now()}_${file.originalname}`;
-          const filename = `${uniqueSuffix}`;
+          const uniqueSuffix = `${Date.now()}`;
+          const filename = `${uniqueSuffix}${extname(file.originalname)}`;
           callback(null, filename);
         },
       }),

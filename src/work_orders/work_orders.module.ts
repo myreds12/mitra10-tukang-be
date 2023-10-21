@@ -12,9 +12,8 @@ import { extname } from 'path';
     storage: diskStorage({
       destination: './uploads/work-orders',
       filename(req, file, callback) {
-        const uniqueSuffix = Math.round(Math.random() + 1e9);
-        const extension = extname(file.originalname);
-        const filename = `${uniqueSuffix}${extension}`;
+        const uniqueSuffix = `${Date.now()}`;
+        const filename = `${uniqueSuffix}${extname(file.originalname)}`;
         callback(null, filename);
       },
     }),

@@ -3,164 +3,258 @@ import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { Prisma, users } from '@prisma/client';
+import { UpdateOrderDto } from 'src/order/dto/update-order.dto';
 @Injectable()
 export class VendorService {
   constructor(private readonly dbService: PrismaService) {}
-  async create(createVendorDto: CreateVendorDto, user_id: number) {
-    try {
-      const vendor = await this.dbService.vendor.create({
-        data: {
-          address: createVendorDto.address,
-          company_name: createVendorDto.company_name,
-          email_address: createVendorDto.email_address,
-          phone_number: createVendorDto.phone_number,
-          // city: {
-          //   connect: {
-          //     id: createVendorDto.city_id,
-          //   },
-          // },
-          users: {
-            connect: {
-              id: user_id,
-            },
-          },
-          join_date: new Date(),
-          created_by: user_id,
-        },
-      });
-      const user = await this.dbService.users.create({
-        data: {
-          username: `${vendor.company_name}`,
-          password: await hash('tukanginwebsite165', 10),
-          role_id: 5
-        },
-      });
-      // const create_user_roles = await this.dbService.user_roles.create({
-      //   data: {
-      //     users: {
-      //       connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
-      //     },
-      //     roles: {
-      //       connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
-      //     },
-      //   },
-      // });
-      // const user_data = await this.dbService.user_roles.findUnique({
-      //   where: { id: create_user_roles.id },
-      //   include: { users: true, roles: true },
-      // });
-      return {
-        data: {
-          vendor: vendor,
-          user_data: user,
-        },
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Create Data',
-      };
-    } catch (error) {
-      console.log(error);
+  async create(
+    files: VendorFiles,
+    createVendorDto: CreateVendorDto,
+    user: users,
+  ) {
+    const { id: user_id } = user;
 
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data',
-      };
-    }
+    const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> =
+      Object.entries(files).map((file) => {
+        console.log(file, typeof file[1]);
+ 
+        if (file[1].length) {
+          const newFile = file[1].map((item) => ({
+            document_name: file[0],
+            path: item.filename,
+            created_by: user_id,
+          }));
+ 
+          return newFile;
+        }
+      });
+
+    console.log(vendorFiles, vendorFiles.flat());
+
+    const connection = Object.fromEntries(
+      Object.entries({
+        users: {
+          connect: {
+            id: user_id,
+          },
+        },
+        ...(createVendorDto.city_id
+          ? [
+              {
+                city: {
+                  connect: {
+                    id: createVendorDto.city_id,
+                  },
+                },
+              },
+            ]
+          : undefined),
+      }).filter(([key, value]) => value !== undefined),
+    );
+
+    const vendorData: Prisma.vendorCreateInput = {
+      ...connection,
+      address: createVendorDto.address,
+      company_name: createVendorDto.company_name,
+      email_address: createVendorDto.email_address,
+      phone_number: createVendorDto.phone_number,
+      join_date: createVendorDto.join_date
+        ? new Date(createVendorDto.join_date)
+        : null,
+      created_by: user_id,
+      vendor_document: {
+        createMany: {
+          data: vendorFiles.flat(),
+        },
+      },
+    };
+    const users = await this.dbService.users.create({
+      data: {
+        username: `${vendorData.company_name}`,
+        password: await hash('password', 10),
+        role_id: 5,
+      },
+    });
+    const [vendor] = await this.dbService.$transaction([
+      this.dbService.vendor.create({
+        data: vendorData,
+      }),
+    ]);
+
+    return { vendor, users };
   }
 
-  async findAll() {
-    try {
-      const vendor = await this.dbService.vendor.findMany();
+  async findAll(query: QueryParamsDto) {
+    const { take, page, search, status, date_from, date_to } = query;
+    const skip = page * take - take;
+    const countTotal = await this.dbService.vendor.count();
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Get Data',
-        data: vendor,
-      };
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data',
-      };
-    }
+    const where: Prisma.vendorWhereInput = {
+      AND: [
+        ...(search
+          ? [
+              {
+                OR: [
+                  { phone_number: { contains: search } },
+                  { email_address: { contains: search } },
+                  { company_name: { contains: search } },
+                ],
+              },
+            ]
+          : []),
+        ...(date_from && date_to
+          ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+          : []),
+      ].filter(Boolean),
+    };
+    const vendor = await this.dbService.vendor.findMany({
+      where,
+      skip,
+      take: take <= 0 ? undefined : take,
+      include: {
+        city: true,
+        orders: true,
+        tukang: true,
+        vendor_area: true,
+        vendor_bank: true,
+        vendor_document: true,
+        vendor_service: true,
+        work_orders: true,
+      },
+    });
+
+    return { data: vendor, countTotal, page, take };
   }
 
   async findOne(id: number) {
-    try {
-      const vendor = await this.dbService.vendor.findFirst({
-        where: {
-          id,
-        },
-      });
+    const vendor = await this.dbService.vendor.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        city: true,
+        orders: true,
+        tukang: true,
+        vendor_area: true,
+        vendor_bank: true,
+        vendor_document: true,
+        vendor_service: true,
+        work_orders: true,
+      },
+    });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Find Data',
-        data: vendor,
-      };
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data',
-      };
-    }
+    return vendor;
   }
 
-  async update(id: number, updateVendorDto: UpdateVendorDto, user_id: number) {
-    try {
-      const vendor = await this.dbService.vendor.update({
-        where: {
-          id,
+  async update(id: number, files: VendorFiles, updateVendorDto: UpdateVendorDto, user: users) {
+    const { id: user_id } = user;
+    // const vendor = await this.dbService.vendor.update({
+    //   where: {
+    //     id,
+    //   },
+    //   data: {
+    //     address: updateVendorDto.address,
+    //     company_name: updateVendorDto.company_name,
+    //     email_address: updateVendorDto.email_address,
+    //     phone_number: updateVendorDto.phone_number,
+    //     users: {
+    //       connect: {
+    //         id: user_id,
+    //       },
+    //     },
+    //     join_date: new Date(updateVendorDto.join_date),
+    //     updated_by: user_id,
+    //     updated_at: new Date(),
+    //   },
+    // });
+    await this.dbService.vendor_document.deleteMany({
+      where : {
+        vendor_id : id
+      }
+    })
+    const vendorFiles: Prisma.vendor_documentCreateManyInput[]  = 
+      Object.entries(files).map((file) => {
+        if(file[1].length){
+          const updateFile = file[1].map((item) => ({
+            document_name: file[0],
+            path: item.filename,
+            created_by: user_id,
+          }));
+          return updateFile;
+        }
+      })
+    const connection = Object.fromEntries(
+      Object.entries({
+        users: {
+          connect: {
+            id: user_id
+          }
         },
-        data: {
-          address: updateVendorDto.address,
-          company_name: updateVendorDto.company_name,
-          email_address: updateVendorDto.email_address,
-          phone_number: updateVendorDto.phone_number,
-          users: {
-            connect: {
-              id: user_id,
-            },
-          },
-          join_date: new Date(updateVendorDto.join_date),
-          updated_by: user_id,
-          updated_at: new Date(),
-        },
-      });
+        ...(updateVendorDto.city_id
+          ?[
+            {
+              city: {
+                connect: {
+                  id: updateVendorDto.city_id
+                }
+              }
+            }
+          ]
+          : undefined)
+      }).filter(([key, value]) => value !== undefined)
+    )
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Update Data',
-      };
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data',
-      };
+    const vendorData : Prisma.vendorUpdateInput = {
+      ...connection,
+      address: updateVendorDto.address,
+      company_name: updateVendorDto.company_name,
+      email_address: updateVendorDto.email_address,
+      phone_number: updateVendorDto.phone_number,
+      join_date: updateVendorDto.join_date 
+        ? new Date(updateVendorDto.join_date) : null,
+        updated_by: user_id,
+        vendor_document: {
+          createMany: {
+            data: vendorFiles.flat()
+          }
+        }
     }
+
+    console.log(vendorData);
+    
+
+    const [vendor] = await this.dbService.$transaction([
+      this.dbService.vendor.update({
+        where: {
+          id
+        },
+        data: vendorData
+      })
+    ])
+    return vendor;
   }
 
-  async remove(id: number, user_id: number) {
-    try {
-      const vendor = await this.dbService.vendor.update({
-        where: {
-          id,
-        },
-        data: {
-          deleted_at: new Date(),
-          is_active: false,
-          deleted_by: user_id,
-        },
-      });
-
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Delete Data',
-      };
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data',
-      };
-    }
+  async remove(id: number, user: users) {
+    const { id: user_id } = user;
+    const vendor = await this.dbService.vendor.update({
+      where: {
+        id,
+      },
+      data: {
+        deleted_at: new Date(),
+        is_active: false,
+        deleted_by: user_id,
+      },
+    });
+    return vendor;
   }
 }

@@ -9,7 +9,6 @@ import {
 } from 'class-validator';
 
 export class CreateMemberDto {
-  @IsString()
   @IsNotEmpty()
   full_name: string;
 
@@ -17,36 +16,25 @@ export class CreateMemberDto {
   @IsNotEmpty()
   email: string;
 
-  @IsString()
-  @IsNotEmpty()
   phone_number: string;
 
-  @IsString()
-  @IsNotEmpty()
   whatsapp_number: string;
 
-  @IsString()
-  @IsNotEmpty()
   address_1: string;
 
-  @IsString()
-  @IsOptional()
   address_2?: string;
 
   @IsInt()
   @IsOptional()
   city_id?: number;
 
-  @IsString()
-  @IsNotEmpty()
   zip_code: string;
 
   rating?: number;
 
-  join_date: string;
+  join_date?: string;
 
-  @IsInt()
-  join_location: number;
+  join_location?: number;
 
   // Other fields can be added here
 

@@ -20,8 +20,8 @@ import { StatusService } from 'src/status/status.service';
       storage: diskStorage({
         destination: './uploads/complaints',
         filename(req, file, callback) {
-          const uniqueSuffix = `${Date.now()}_${file.originalname}`;
-          const filename = `${uniqueSuffix}`;
+          const uniqueSuffix = `${Date.now()}`;
+          const filename = `${uniqueSuffix}${extname(file.originalname)}`;
           callback(null, filename);
         },
       }),

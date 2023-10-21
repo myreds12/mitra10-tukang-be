@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsDate,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateVendorDto {
   @ApiProperty()
@@ -12,24 +18,43 @@ export class CreateVendorDto {
   @IsString()
   address: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
   @IsString()
   phone_number: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
+  @IsEmail()
   email_address: string;
 
-  // @ApiProperty()
-  // @IsNotEmpty()
-  // @IsDate()
-  // join_date: string;
+  @IsOptional()
+  @IsDate()
+  join_date?: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
   @IsOptional()
   city_id?: number;
+
+  @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
+  vendor_document: Array<Express.Multer.File>;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  npwp_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  ktp_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  compro_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  surat_permohonan_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  pks_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  suip_file?: Array<Express.Multer.File> | Express.Multer.File;
 }

@@ -101,7 +101,7 @@ model members {
   zip_code        String?   @db.VarChar(10)
   rating          Int?      @default(0)
   join_date       DateTime  @default(now()) @db.DateTime()
-  join_location   Int
+  join_location   Int?
   created_at      DateTime  @default(now()) @db.DateTime()
   updated_at      DateTime? @db.DateTime()
   deleted_at      DateTime? @db.DateTime()
@@ -417,6 +417,7 @@ model status {
   order           orders[]
   m_order_details m_order_details[]
   complaints      complaints[]
+  work_orders     work_orders[]
 }
 
 model orders {
@@ -661,7 +662,6 @@ model work_orders {
   vendor_id Int
 
   worker_order_status Int
-  complaint_status    Int?
   request_work_time   DateTime @db.DateTime()
   survey_date         DateTime @db.Date()
   work_start_date     DateTime @db.Date()
@@ -674,6 +674,7 @@ model work_orders {
   created_at     DateTime         @default(now()) @db.DateTime()
   updated_at     DateTime?        @db.DateTime()
   deleted_at     DateTime?        @db.DateTime()
+  status         status?           @relation(fields: [worker_order_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
   order          orders           @relation(fields: [order_id], references: [id])
   work_evidences work_evidences[]
   tukang         tukang           @relation(fields: [tukang_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
