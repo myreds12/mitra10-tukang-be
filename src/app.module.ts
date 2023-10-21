@@ -36,6 +36,7 @@ import { CaslModule } from './casl/casl.module';
 import { RemedialsModule } from './remedials/remedials.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ReportsModule } from './reports/reports.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -89,7 +90,8 @@ import { ReportsModule } from './reports/reports.module';
     CaslModule,
     RemedialsModule,
     InvoicesModule,
-    ReportsModule
+    ReportsModule,
+    ScheduleModule.forRoot()
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -10,6 +10,7 @@ import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from './dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class OrderService {
@@ -464,41 +465,39 @@ export class OrderService {
       }),
     ]);
   }
-
-  async checkStatus(){
-    const  status = await this.dbService.status.findFirst({
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async checkStatus() {
+    const status = await this.dbService.status.findFirst({
       where: {
-        category:{
-          contains: 'BOOK'
-        }
-      }
+        category: {
+          contains: 'BOOK',
+        },
+      },
     });
     const statusUnpaid = await this.dbService.status.findFirst({
       where: {
         category: {
-          contains: 'UNPAID'
-        }
-      }
+          contains: 'UNPAID',
+        },
+      },
     });
     const date = new Date();
-    const thirdDateTime =  new Date(date.setDate(date.getDate() - 3));
+    const thirdDateTime = new Date(date.setDate(date.getDate() - 3));
     const orders = await this.dbService.orders.updateMany({
       where: {
         status: {
-          id: status.id
+          id: status.id,
         },
         created_at: {
           lt: thirdDateTime,
-        }
+        },
       },
       data: {
-        project_status_id: statusUnpaid.id
-      }
+        project_status_id: statusUnpaid.id,
+      },
     });
     console.log(orders, thirdDateTime);
-    
-    
+
     return orders;
-    
   }
 }
