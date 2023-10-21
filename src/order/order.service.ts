@@ -309,8 +309,8 @@ export class OrderService {
   async update(
     id: number,
     updateOrderDto: UpdateOrderDto,
-    user: users,
-    file: Express.Multer.File,
+    user?: users,
+    file?: Express.Multer.File,
   ) {
     const { id: user_id, role_id } = user;
     const filePath = file ? file.filename : undefined;
@@ -463,5 +463,42 @@ export class OrderService {
         },
       }),
     ]);
+  }
+
+  async checkStatus(){
+    const  status = await this.dbService.status.findFirst({
+      where: {
+        category:{
+          contains: 'BOOK'
+        }
+      }
+    });
+    const statusUnpaid = await this.dbService.status.findFirst({
+      where: {
+        category: {
+          contains: 'UNPAID'
+        }
+      }
+    });
+    const date = new Date();
+    const thirdDateTime =  new Date(date.setDate(date.getDate() - 3));
+    const orders = await this.dbService.orders.updateMany({
+      where: {
+        status: {
+          id: status.id
+        },
+        created_at: {
+          lt: thirdDateTime,
+        }
+      },
+      data: {
+        project_status_id: statusUnpaid.id
+      }
+    });
+    console.log(orders, thirdDateTime);
+    
+    
+    return orders;
+    
   }
 }
