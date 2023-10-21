@@ -40,7 +40,7 @@ export class ComplaintsController {
     try {
       const code = await this.complaintsService.getCode();
       let nextCode = 1;
-      if (code) nextCode = code.id;
+      if (code) nextCode = code.id + 1;
 
       return res.status(200).json({
         status: HttpStatus.OK,

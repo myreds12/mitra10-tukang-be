@@ -7,6 +7,7 @@ import { PermissionSeed } from './permission-seed';
 import { MembersSeed } from './members-seed';
 import { PositionSeed } from './position-seed';
 import { StoreSeed } from './store-seed';
+import { ServiceTypeSeed } from './service-type';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +20,7 @@ async function main() {
   await MembersSeed();
   await PositionSeed();
   await StoreSeed();
+  await ServiceTypeSeed();
 }
 
 main()

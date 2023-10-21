@@ -15,12 +15,9 @@ import { EmployeeModule } from './employee/employee.module';
 import { SalesModule } from './sales/sales.module';
 import { ItemsModule } from './items/items.module';
 import { VendorModule } from './vendor/vendor.module';
-import { VendorAreaModule } from './vendor_area/vendor_area.module';
 import { TukangModule } from './tukang/tukang.module';
 import { MemberModule } from './member/member.module';
-import { VendorServiceModule } from './vendor_service/vendor_service.module';
 import { TukangServiceModule } from './tukang_service/tukang_service.module';
-import { VendorBankModule } from './vendor_bank/vendor_bank.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { OrderModule } from './order/order.module';
 import { EventLoggerModule } from './event-logger/event-logger.module';
@@ -36,6 +33,7 @@ import { RemedialsModule } from './remedials/remedials.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CityModule } from './city/city.module';
 
 @Module({
   imports: [
@@ -45,38 +43,25 @@ import { ScheduleModule } from '@nestjs/schedule';
     RolesModule,
     PositionsModule,
     MenusModule,
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, '..', 'uploads'), // Specify the root directory for serving static files
-    //   // serveRoot: '/uploads', // URL path where static files will be served
-    // }),
     ServiceTypeModule,
     BankModule,
     EmployeeModule,
     SalesModule,
     ItemsModule,
     VendorModule,
-    VendorAreaModule,
     TukangModule,
     MemberModule,
-    VendorServiceModule,
     TukangServiceModule,
-    VendorBankModule,
     PermissionsModule,
     OrderModule,
     EventLoggerModule,
     EventEmitterModule.forRoot({
       wildcard: true,
-      // the delimiter used to segment namespaces
       delimiter: '.',
-      // set this to `true` if you want to emit the newListener event
       newListener: false,
-      // set this to `true` if you want to emit the removeListener event
       removeListener: false,
-      // the maximum amount of listeners that can be assigned to an event
       maxListeners: 10,
-      // show event name in memory leak message when more than maximum amount of listeners is assigned
       verboseMemoryLeak: false,
-      // disable throwing uncaughtException if an error event is emitted and it has no listeners
       ignoreErrors: false,
     }),
     CategoriesModule,
@@ -89,10 +74,12 @@ import { ScheduleModule } from '@nestjs/schedule';
     RemedialsModule,
     InvoicesModule,
     ReportsModule,
-    ScheduleModule.forRoot()
+    ScheduleModule.forRoot(),
+    CityModule
   ],
   controllers: [AppController],
   providers: [AppService],
+  // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
 })
 export class AppModule {}

@@ -16,6 +16,7 @@ import {
   ParseIntPipe,
   UploadedFiles,
   UseInterceptors,
+  Req,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -37,6 +38,7 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 export class VendorController {
   constructor(private readonly vendorService: VendorService) {}
+
   @Post('/')
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -123,7 +125,7 @@ export class VendorController {
     }
   }
 
-  @Patch('/:id')
+  @Post('/:id')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'vendor_document', maxCount: 5 },
@@ -185,6 +187,24 @@ export class VendorController {
         messages: error.message,
         stack: error,
       });
+    }
+  }
+
+  @Get('next-code')
+  async nextCode(@Req() req: IExpressRequest, @Res() res: IExpressResponse){
+    try{
+      const vendor = await this.vendorService.nextCode()
+      let nextCode ;
+      if(vendor) nextCode = vendor.id + 1;
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Next Code',
+        data: {
+          code: nextCode
+        }
+      })
+    }catch(error){
+
     }
   }
 }

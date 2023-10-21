@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsDate,
   IsEmail,
@@ -29,7 +30,26 @@ export class CreateVendorDto {
   join_date?: string;
 
   @IsOptional()
-  city_id?: number;
+  @ApiProperty({ type: [Number] })
+  @Type(() => Number)
+  city_id?: number[];
+
+  @ApiProperty({ type: [Number] })
+  @Type(() => Number)
+  service_type_id: number[];
+
+  @Type(() => Number)
+  bank_id: number;
+
+  pic_name: string;
+
+  markup: string;
+
+  discount: string;
+
+  account_name: string;
+
+  account_number: string;
 
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   vendor_document: Array<Express.Multer.File>;
@@ -38,9 +58,13 @@ export class CreateVendorDto {
   @IsOptional()
   npwp_file?: Array<Express.Multer.File> | Express.Multer.File;
 
+  npwp_number?: string;
+
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   ktp_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  ktp_number?: string;
 
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()

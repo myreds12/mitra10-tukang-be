@@ -15,51 +15,59 @@ export class VendorService {
     user: users,
   ) {
     const { id: user_id } = user;
+    console.log(createVendorDto);
 
     const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> =
       Object.entries(files).map((file) => {
-        console.log(file, typeof file[1]);
- 
         if (file[1].length) {
           const newFile = file[1].map((item) => ({
             document_name: file[0],
             path: item.filename,
             created_by: user_id,
           }));
- 
+
           return newFile;
         }
       });
 
-    console.log(vendorFiles, vendorFiles.flat());
+    const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
+      createVendorDto.city_id.map((city_id) => ({
+        city_id,
+        default_discount: createVendorDto.discount,
+        default_markup: createVendorDto.markup,
+        created_by: user_id,
+      }));
 
-    const connection = Object.fromEntries(
-      Object.entries({
-        users: {
-          connect: {
-            id: user_id,
-          },
+    const vendorBankData: Prisma.vendor_bankCreateInput = {
+      account_name: createVendorDto.account_name,
+      account_number: createVendorDto.account_number,
+      bank: {
+        connect: {
+          id: createVendorDto.bank_id,
         },
-        ...(createVendorDto.city_id
-          ? [
-              {
-                city: {
-                  connect: {
-                    id: createVendorDto.city_id,
-                  },
-                },
-              },
-            ]
-          : undefined),
-      }).filter(([key, value]) => value !== undefined),
-    );
+      },
+      created_by: user_id,
+    };
+
+    const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
+      createVendorDto.service_type_id.map((item) => {
+        return {
+          service_type_id: item,
+        };
+      });
 
     const vendorData: Prisma.vendorCreateInput = {
-      ...connection,
+      users: {
+        connect: {
+          id: user_id,
+        },
+      },
       address: createVendorDto.address,
       company_name: createVendorDto.company_name,
       email_address: createVendorDto.email_address,
       phone_number: createVendorDto.phone_number,
+      ktp_number: createVendorDto.ktp_number,
+      npwp_number: createVendorDto.npwp_number,
       join_date: createVendorDto.join_date
         ? new Date(createVendorDto.join_date)
         : null,
@@ -69,14 +77,29 @@ export class VendorService {
           data: vendorFiles.flat(),
         },
       },
+      vendor_area: {
+        createMany: {
+          data: vendorAreaData,
+        },
+      },
+      vendor_bank: {
+        create: vendorBankData,
+      },
+      vendor_service: {
+        createMany: {
+          data: vendorServiceData,
+        },
+      },
     };
+
     const users = await this.dbService.users.create({
       data: {
-        username: `${vendorData.company_name}`,
+        username: `${createVendorDto.pic_name}`,
         password: await hash('password', 10),
         role_id: 5,
       },
     });
+
     const [vendor] = await this.dbService.$transaction([
       this.dbService.vendor.create({
         data: vendorData,
@@ -121,7 +144,6 @@ export class VendorService {
       skip,
       take: take <= 0 ? undefined : take,
       include: {
-        city: true,
         orders: true,
         tukang: true,
         vendor_area: true,
@@ -141,7 +163,6 @@ export class VendorService {
         id,
       },
       include: {
-        city: true,
         orders: true,
         tukang: true,
         vendor_area: true,
@@ -155,72 +176,65 @@ export class VendorService {
     return vendor;
   }
 
-  async update(id: number, files: VendorFiles, updateVendorDto: UpdateVendorDto, user: users) {
+  async update(
+    id: number,
+    files: VendorFiles,
+    updateVendorDto: UpdateVendorDto,
+    user: users,
+  ) {
     const { id: user_id } = user;
     await this.dbService.vendor_document.deleteMany({
-      where : {
-        vendor_id : id
-      }
-    })
-    const vendorFiles: Prisma.vendor_documentCreateManyInput[]  = 
-      Object.entries(files).map((file) => {
-        if(file[1].length){
-          const updateFile = file[1].map((item) => ({
-            document_name: file[0],
-            path: item.filename,
-            created_by: user_id,
-          }));
-          return updateFile;
-        }
-      })
-    const connection = Object.fromEntries(
-      Object.entries({
-        users: {
-          connect: {
-            id: user_id
-          }
-        },
-        ...(updateVendorDto.city_id
-          ?[
-            {
-              city: {
-                connect: {
-                  id: updateVendorDto.city_id
-                }
-              }
-            }
-          ]
-          : undefined)
-      }).filter(([key, value]) => value !== undefined)
-    )
+      where: {
+        vendor_id: id,
+      },
+    });
 
-    const vendorData : Prisma.vendorUpdateInput = {
-      ...connection,
+    const vendorFiles: Prisma.vendor_documentCreateManyInput[] = Object.entries(
+      files,
+    ).map((file) => {
+      if (file[1].length) {
+        const updateFile = file[1].map((item) => ({
+          document_name: file[0],
+          path: item.filename,
+          created_by: user_id,
+        }));
+        return updateFile;
+      }
+    });
+
+    const vendorData: Prisma.vendorUpdateInput = {
+      users: {
+        connect: {
+          id: user_id,
+        },
+      },
       address: updateVendorDto.address,
       company_name: updateVendorDto.company_name,
       email_address: updateVendorDto.email_address,
       phone_number: updateVendorDto.phone_number,
-      join_date: updateVendorDto.join_date 
-        ? new Date(updateVendorDto.join_date) : null,
-        updated_by: user_id,
-        vendor_document: {
-          createMany: {
-            data: vendorFiles.flat()
-          }
-        }
-    }
+      ktp_number: updateVendorDto.ktp_number,
+      npwp_number: updateVendorDto.npwp_number,
+      join_date: updateVendorDto.join_date
+        ? new Date(updateVendorDto.join_date)
+        : null,
+      updated_by: user_id,
+      vendor_document: {
+        createMany: {
+          data: vendorFiles.flat(),
+        },
+      },
+    };
 
     console.log(vendorData);
-    
 
     const [vendor] = await this.dbService.$transaction([
       this.dbService.vendor.update({
         where: {
-          id
+          id,
         },
-        data: vendorData
-      })
-    ])
+        data: vendorData,
+      }),
+    ]);
     return vendor;
   }
 
@@ -237,5 +251,16 @@ export class VendorService {
       },
     });
     return vendor;
+  }
+
+  async nextCode(){
+    const vendor = await this.dbService.vendor.findMany({
+      orderBy: {
+        id: 'desc'
+      },
+      take: 1
+    })
+    
+    return vendor[0] || null;
   }
 }

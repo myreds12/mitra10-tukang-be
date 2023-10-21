@@ -22,9 +22,13 @@ export class UpdateVendorDto {
   @IsOptional()
   npwp_file?: Array<Express.Multer.File> | Express.Multer.File;
 
+  npwp_number?: string;
+
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   ktp_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  ktp_number?: string;
 
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()

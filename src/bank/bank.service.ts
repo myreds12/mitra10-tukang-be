@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class BankService {
@@ -27,14 +28,28 @@ export class BankService {
     }
   }
 
-  async findAll() {
+  async findAll(query: QueryParamsDto) {
     try {
-      const banks = await this.dbService.bank.findMany();
+      const {take, page,  search } = query;
+      const skip = page * take - take;
+      const countTotal = await this.dbService.bank.count()
+      const banks = await this.dbService.bank.findMany({
+        skip,
+        take: take <= 0 ? undefined : take,
+        where:{ 
+          bank_name: {
+            contains: search ? search : undefined
+          }
+        }
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
         data: banks,
+        countTotal,
+        page,
+        take
       };
     } catch (error) {
       return {

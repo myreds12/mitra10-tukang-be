@@ -2,6 +2,7 @@ import { Injectable, HttpStatus } from '@nestjs/common';
 import { CreateServiceTypeDto } from './dto/create-service_type.dto';
 import { UpdateServiceTypeDto } from './dto/update-service_type.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class ServiceTypeService {
@@ -27,14 +28,28 @@ export class ServiceTypeService {
     }
   }
 
-  async findAll() {
+  async findAll(query: QueryParamsDto) {
     try {
-      const service_type = await this.dbService.service_type.findMany();
+      const {take, page,  search } = query;
+      const skip = page * take - take;
+      const countTotal = await this.dbService.service_type.count();
+      const service_type = await this.dbService.service_type.findMany({
+        skip,
+        take : take <= 0 ? undefined : take,
+        where: {
+          service_type: {
+            contains: search ? search : undefined
+          }
+        } 
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
         data: service_type,
+        total: countTotal,
+        page,
+        take
       };
     } catch (error) {
       return {

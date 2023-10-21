@@ -8,11 +8,13 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { BankService } from './bank.service';
 import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Controller('bank')
 @UseGuards(JwtAuthGuard)
@@ -25,9 +27,9 @@ export class BankController {
     return this.bankService.create(createBankDto, user_id);
   }
 
-  @Get('/get')
-  findAll() {
-    return this.bankService.findAll();
+  @Get()
+  findAll(@Query() query: QueryParamsDto) {
+    return this.bankService.findAll(query);
   }
 
   @Get('/find/:id')
