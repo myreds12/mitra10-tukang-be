@@ -15,11 +15,10 @@ export class TukangService {
     try {
       const vendor = await this.dbService.vendor.findFirst({
         where: {
-          id: Number(createTukangDto.vendor_id),
+          id: createTukangDto.vendor_id,
         },
       });
 
-      const url = `/uploads/tukang/${file.filename}`;
 
       if (vendor.is_active == true) {
         const tukang_roles = await this.dbService.roles.findFirst({
@@ -33,28 +32,18 @@ export class TukangService {
         const user = await this.dbService.users.create({
           data: {
             username: `${createTukangDto.full_name}`,
-            password: await hash('tukanginwebsite165', 10),
+            password: await hash('password', 10),
             role_id: tukang_roles.id,
           },
         });
-
-        // const create_user_roles = await this.dbService.user_roles.create({
-        //   data: {
-        //     users: {
-        //       connect: { id: user.id },
-        //     },
-        //     roles: {
-        //       connect: { id: tukang_roles.id },
-        //     },
-        //   },
-        // });
+        
 
         const tukang = await this.dbService.tukang.create({
           data: {
             full_name: createTukangDto.full_name,
             email: createTukangDto.email,
             ktp_number: createTukangDto.ktp_number,
-            ktp_path: url,
+            ktp_path: file.filename,
             created_by: user_id,
             join_date: new Date(createTukangDto.join_date),
             users: {

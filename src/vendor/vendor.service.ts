@@ -157,25 +157,6 @@ export class VendorService {
 
   async update(id: number, files: VendorFiles, updateVendorDto: UpdateVendorDto, user: users) {
     const { id: user_id } = user;
-    // const vendor = await this.dbService.vendor.update({
-    //   where: {
-    //     id,
-    //   },
-    //   data: {
-    //     address: updateVendorDto.address,
-    //     company_name: updateVendorDto.company_name,
-    //     email_address: updateVendorDto.email_address,
-    //     phone_number: updateVendorDto.phone_number,
-    //     users: {
-    //       connect: {
-    //         id: user_id,
-    //       },
-    //     },
-    //     join_date: new Date(updateVendorDto.join_date),
-    //     updated_by: user_id,
-    //     updated_at: new Date(),
-    //   },
-    // });
     await this.dbService.vendor_document.deleteMany({
       where : {
         vendor_id : id
