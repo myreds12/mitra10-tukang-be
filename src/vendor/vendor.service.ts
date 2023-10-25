@@ -8,7 +8,7 @@ import { Prisma, users } from '@prisma/client';
 import { UpdateOrderDto } from 'src/order/dto/update-order.dto';
 @Injectable()
 export class VendorService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     files: VendorFiles,
     createVendorDto: CreateVendorDto,
@@ -118,24 +118,24 @@ export class VendorService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { phone_number: { contains: search } },
-                  { email_address: { contains: search } },
-                  { company_name: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { phone_number: { contains: search } },
+                { email_address: { contains: search } },
+                { company_name: { contains: search } },
+              ],
+            },
+          ]
           : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
     };
@@ -146,12 +146,24 @@ export class VendorService {
       include: {
         orders: true,
         tukang: true,
-        vendor_area: true,
-        vendor_bank: true,
+        vendor_area: {
+          include: {
+            city: true
+          }
+        },
+        vendor_bank: {
+          include: {
+            bank: true
+          }
+        },
         vendor_document: true,
-        vendor_service: true,
+        vendor_service: {
+          include: {
+            service_type: true
+          }
+        },
         work_orders: true,
-      },
+      }
     });
 
     return { data: vendor, countTotal, page, take };
@@ -165,10 +177,22 @@ export class VendorService {
       include: {
         orders: true,
         tukang: true,
-        vendor_area: true,
-        vendor_bank: true,
+        vendor_area: {
+          include: {
+            city: true
+          }
+        },
+        vendor_bank: {
+          include: {
+            bank: true
+          }
+        },
         vendor_document: true,
-        vendor_service: true,
+        vendor_service: {
+          include: {
+            service_type: true
+          }
+        },
         work_orders: true,
       },
     });
@@ -253,14 +277,14 @@ export class VendorService {
     return vendor;
   }
 
-  async nextCode(){
+  async nextCode() {
     const vendor = await this.dbService.vendor.findMany({
       orderBy: {
         id: 'desc'
       },
       take: 1
     })
-    
+
     return vendor[0] || null;
   }
 }
