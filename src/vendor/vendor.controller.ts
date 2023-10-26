@@ -39,6 +39,28 @@ interface UserRequest extends IExpressRequest {
 export class VendorController {
   constructor(private readonly vendorService: VendorService) {}
 
+  @Get('next-code')
+  async nextCode(@Req() req: IExpressRequest, @Res() res: IExpressResponse) {
+    try {
+      const vendor = await this.vendorService.nextCode();
+      let nextCode;
+      if (vendor) nextCode = vendor.id + 1;
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Next Code',
+        data: {
+          code: nextCode,
+        },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
   @Post('/')
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -105,7 +127,7 @@ export class VendorController {
     }
   }
 
-  @Get('/find/:id')
+  @Get('/:id')
   async findOne(@Param('id', ParseIntPipe) id: string) {
     try {
       const vendor = await this.vendorService.findOne(+id);
@@ -190,21 +212,5 @@ export class VendorController {
     }
   }
 
-  @Get('next-code')
-  async nextCode(@Req() req: IExpressRequest, @Res() res: IExpressResponse){
-    try{
-      const vendor = await this.vendorService.nextCode()
-      let nextCode ;
-      if(vendor) nextCode = vendor.id + 1;
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Next Code',
-        data: {
-          code: nextCode
-        }
-      })
-    }catch(error){
-
-    }
-  }
+  
 }
