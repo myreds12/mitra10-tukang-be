@@ -26,7 +26,6 @@ export class CreateVendorDto {
   email_address: string;
 
   @IsOptional()
-  @IsDate()
   join_date?: string;
 
   @IsOptional()

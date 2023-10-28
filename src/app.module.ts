@@ -34,6 +34,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CityModule } from './city/city.module';
+import { RefundModule } from './refund/refund.module';
 
 @Module({
   imports: [
@@ -75,7 +76,8 @@ import { CityModule } from './city/city.module';
     InvoicesModule,
     ReportsModule,
     ScheduleModule.forRoot(),
-    CityModule
+    CityModule,
+    RefundModule
   ],
   controllers: [AppController],
   providers: [AppService],

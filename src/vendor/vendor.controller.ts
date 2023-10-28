@@ -90,6 +90,7 @@ export class VendorController {
         status: HttpStatus.CREATED,
         messages: 'Vendor Created.',
         data: vendor,
+        user: users
       });
     } catch (error) {
       console.log(error);

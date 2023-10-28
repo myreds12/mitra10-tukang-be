@@ -261,14 +261,14 @@ model service_type {
 }
 
 model store {
-  id         Int        @id @default(autoincrement())
-  store_name String     @db.VarChar(45)
-  address    String     @db.VarChar(45)
+  id         Int         @id @default(autoincrement())
+  store_name String      @db.VarChar(45)
+  address    String      @db.VarChar(45)
   city_id    Int
-  zip_code   String     @db.VarChar(45)
-  created_at DateTime   @default(now()) @db.DateTime()
-  updated_at DateTime?  @db.DateTime()
-  deleted_at DateTime?  @db.DateTime()
+  zip_code   String      @db.VarChar(45)
+  created_at DateTime    @default(now()) @db.DateTime()
+  updated_at DateTime?   @db.DateTime()
+  deleted_at DateTime?   @db.DateTime()
   created_by Int?
   updated_by Int?
   deleted_by Int?
@@ -276,44 +276,74 @@ model store {
   prices     prices[]
   employee   employee[]
   orders     orders[]
+  quotation  quotation[]
 }
 
 model tukang {
-  id             Int              @id @default(autoincrement())
-  vendor_id      Int?
-  user_id        Int?
-  full_name      String           @db.VarChar(45)
-  ktp_number     String           @db.VarChar(45)
-  ktp_path       String           @db.VarChar(45)
-  email          String           @db.VarChar(45)
-  join_date      DateTime?        @db.DateTime()
-  is_active      Boolean          @default(true)
-  created_at     DateTime         @default(now()) @db.DateTime()
-  updated_at     DateTime?        @db.DateTime()
-  deleted_at     DateTime?        @db.DateTime()
-  created_by     Int?
-  updated_by     Int?
-  deleted_by     Int?
-  vendor         vendor?          @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users          users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tukang_service tukang_service[]
-  orders         orders[]
-  work_orders    work_orders[]
+  id        Int  @id @default(autoincrement())
+  vendor_id Int?
+  user_id   Int?
+
+  full_name    String    @db.VarChar(45)
+  address      String    @db.VarChar(45)
+  phone_number String    @db.VarChar(45)
+  ktp_number   String    @db.VarChar(45)
+  email        String    @db.VarChar(45)
+  bod          DateTime  @db.DateTime()
+  join_date    DateTime? @default(now()) @db.DateTime()
+  is_active    Boolean   @default(true)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang_service  tukang_service[]
+  orders          orders[]
+  work_orders     work_orders[]
+  tukang_document tukang_document[]
+}
+
+model tukang_document {
+  id        Int @id @default(autoincrement())
+  tukang_id Int
+
+  document_name String @db.VarChar(255)
+  path          String @db.VarChar(255)
+
+  is_active Boolean @default(true)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  tukang tukang @relation(fields: [tukang_id], references: [id])
 }
 
 model tukang_service {
-  id              Int           @id @default(autoincrement())
+  id              Int  @id @default(autoincrement())
   tukang_id       Int?
   service_type_id Int?
-  is_active       Boolean       @default(true)
-  created_at      DateTime      @default(now()) @db.DateTime()
-  updated_at      DateTime?     @db.DateTime()
-  deleted_at      DateTime?     @db.DateTime()
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
-  tukang          tukang?       @relation(fields: [tukang_id], references: [id])
-  service_type    service_type? @relation(fields: [service_type_id], references: [id])
+
+  is_active Boolean @default(true)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by   Int?
+  updated_by   Int?
+  deleted_by   Int?
+  tukang       tukang?       @relation(fields: [tukang_id], references: [id])
+  service_type service_type? @relation(fields: [service_type_id], references: [id])
 }
 
 model vendor {
@@ -420,6 +450,9 @@ model status {
   m_order_details m_order_details[]
   complaints      complaints[]
   work_orders     work_orders[]
+  quotation       quotation[]
+  remedials       remedials[]
+  refund          refund[]
 }
 
 model orders {
@@ -461,6 +494,8 @@ model orders {
   complaints      complaints[]
   work_orders     work_orders[]
   invoices        invoices[]
+  quotation       quotation[]
+  refund          refund[]
 }
 
 model m_order_details {
@@ -546,11 +581,33 @@ model categories {
 model quotation {
   id Int @id @default(autoincrement())
 
+  store_id Int @db.Int
+  order_id Int @db.Int
+
   description        String   @db.Text()
   quotation_number   String
   quotation_date     DateTime @db.Date()
   quotation_validity DateTime @db.Date()
-  complaint_status   Int
+  quotation_status   Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at      DateTime          @default(now()) @db.DateTime()
+  updated_at      DateTime?         @db.DateTime()
+  deleted_at      DateTime?         @db.DateTime()
+  store           store             @relation(fields: [store_id], references: [id])
+  order           orders            @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status          status            @relation(fields: [quotation_status], references: [id])
+  quotation_files quotation_files[]
+}
+
+model quotation_files {
+  id Int @id @default(autoincrement())
+
+  quotation_id Int
+  path         String @db.Text()
 
   created_by Int?
   updated_by Int?
@@ -559,6 +616,8 @@ model quotation {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
+
+  quotation quotation @relation(fields: [quotation_id], references: [id])
 }
 
 model complaint_channels {
@@ -636,7 +695,8 @@ model remedials {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  complaints         complaints?          @relation(fields: [complaint_id], references: [id])
+  complaints         complaints?          @relation(fields: [complaint_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status             status?              @relation(fields: [remedial_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
   remedial_evidences remedial_evidences[]
 }
 
@@ -717,4 +777,30 @@ model invoices {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
   order      orders    @relation(fields: [order_id], references: [id])
+}
+
+model refund {
+  id Int @id @default(autoincrement())
+
+  order_id      Int
+  refund_status Int
+
+  notes           String   @db.Text()
+  reason          String   @db.Text()
+  approval_number String   @db.VarChar(45)
+  voucher         String?  @db.VarChar(45)
+  penalty_nominal Decimal? @db.Decimal(32, 2)
+  date_approve    DateTime @db.DateTime
+  date_of_filing  DateTime @db.DateTime
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  orders orders  @relation(fields: [order_id], references: [id])
+  status status? @relation(fields: [refund_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

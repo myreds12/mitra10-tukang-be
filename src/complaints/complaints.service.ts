@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -97,6 +102,8 @@ export class ComplaintsService {
       },
       include: {
         complaint_channels: true,
+        complaint_evidence: true,
+        remedials: true,
         status: true,
         orders: {
           include: {
@@ -125,6 +132,21 @@ export class ComplaintsService {
       include: {
         complaint_channels: true,
         complaint_evidence: true,
+        remedials: true,
+        status: true,
+        orders: {
+          include: {
+            members: true,
+            sales: true,
+            store: true,
+            status: true,
+            vendor: true,
+            tukang: true,
+            // categories: true,
+
+            m_order_details: true,
+          },
+        },
       },
     });
 
@@ -170,15 +192,14 @@ export class ComplaintsService {
 
     await this.dbService.complaint_evidence.deleteMany({
       where: {
-        complaint_id: id
-      }
-    })
+        complaint_id: id,
+      },
+    });
 
-    const evidences =
-      complaint_evidences.map((file) => ({
-        evidence_location: file.filename,
-        created_by: user_id,
-      }));
+    const evidences = complaint_evidences.map((file) => ({
+      evidence_location: file.filename,
+      created_by: user_id,
+    }));
 
     const orderConn = updateComplaintDto.order_id
       ? {
@@ -249,5 +270,34 @@ export class ComplaintsService {
     });
 
     return complaints[0] || null;
+  }
+
+  async setStatus(id: number, status_id: number) {
+    const complaint = await this.dbService.complaints.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        status: true,
+      },
+    });
+
+    if (!["DRAFTED", "INVESTIGATE", "INVESTIGATED"].includes(complaint.status.category))
+      throw new BadRequestException('Cannot Change Status');
+
+    const data = await this.dbService.complaints.update({
+      where: {
+        id,
+      },
+      data: {
+        status: {
+          connect: {
+            id: status_id,
+          },
+        },
+      },
+    });
+
+    return data;
   }
 }

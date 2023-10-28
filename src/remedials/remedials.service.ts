@@ -38,11 +38,15 @@ export class RemedialsService {
           id: createRemedialDto.complaint_id,
         },
       },
+      status: createRemedialDto.remedial_status ? {
+        connect: {
+          id: createRemedialDto.remedial_status
+        }
+      } : undefined,
       remedial_action: createRemedialDto.remedial_action,
       remedial_pic: createRemedialDto.remedial_pic,
       ra_date_start: new Date(createRemedialDto.ra_date_start),
       ra_date_end: new Date(createRemedialDto.ra_date_end),
-      remedial_status: createRemedialDto.remedial_status ?? null,
     };
 
     const remedial_options: Prisma.remedialsCreateArgs = {
@@ -145,11 +149,15 @@ export class RemedialsService {
             id: updateRemedialDto.complaint_id,
           },
         },
+        status: updateRemedialDto.remedial_status ? {
+          connect: {
+            id: updateRemedialDto.remedial_status
+          }
+        } : undefined,
         remedial_action: updateRemedialDto.remedial_action,
         remedial_pic: updateRemedialDto.remedial_pic,
         ra_date_start: new Date(updateRemedialDto.ra_date_start),
         ra_date_end: new Date(updateRemedialDto.ra_date_end),
-        remedial_status: updateRemedialDto.remedial_status ?? null,
       };
 
       const remedial_options: Prisma.remedialsUpdateArgs = {

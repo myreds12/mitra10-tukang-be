@@ -1,0 +1,128 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Req,
+  Res,
+  HttpStatus,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { RefundService } from './refund.service';
+import { CreateRefundDto } from './dto/create-refund.dto';
+import { UpdateRefundDto } from './dto/update-refund.dto';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
+import { users } from '@prisma/client';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
+
+@UseGuards(JwtAuthGuard)
+@Controller('refund')
+export class RefundController {
+  constructor(private readonly refundService: RefundService) {}
+
+  @Post()
+  async create(
+    @Body() createRefundDto: CreateRefundDto,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const user = req.user;
+      const refund = await this.refundService.create(createRefundDto, user);
+      return res.status(201).json({
+        status: HttpStatus.CREATED,
+        message: 'Refund Created',
+        data: refund,
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Create',
+        stack: error,
+      });
+    }
+  }
+
+  @Get()
+  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
+    try {
+      const { data, total, skip, page, take } =
+        await this.refundService.findAll(query);
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Refund',
+        data,
+        total,
+        skip,
+        page,
+        take
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
+    try{
+      const refund = await this.refundService.findOne(id);
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Refund',
+        data: refund
+      })
+    }catch(error){
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  @Post(':id')
+  async update(@Param('id') id: number, @Body() updateRefundDto: UpdateRefundDto,  @Req() req: UserRequest,
+  @Res() res: IExpressResponse,) {
+    try{
+      const user = req.user;
+      const refund = await this.refundService.update(id, updateRefundDto, user)
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Refund Updated',
+        data: refund,
+      });
+    }catch(error){
+      console.log(error);
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.refundService.remove(+id);
+  }
+}

@@ -10,14 +10,26 @@ import {
   UseInterceptors,
   UseGuards,
   UploadedFile,
+  Res,
+  HttpStatus,
+  Query,
+  UploadedFiles,
 } from '@nestjs/common';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
 import { TukangService } from './tukang.service';
 import { CreateTukangDto } from './dto/create-tukang.dto';
 import { UpdateTukangDto } from './dto/update-tukang.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { users } from '@prisma/client';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 
 @Controller('tukang')
 @UseGuards(JwtAuthGuard)
@@ -25,42 +37,125 @@ export class TukangController {
   constructor(private readonly tukangService: TukangService) {}
 
   @Post()
-  create(
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'vendor_document', maxCount: 5 },
+      { name: 'npwp_file', maxCount: 1 },
+      { name: 'ktp_file', maxCount: 1 },
+    ]),
+  )
+  async create(
     @Body() createTukangDto: CreateTukangDto,
-    @Request() req,
-    @UploadedFile() file: Express.Multer.File,
+    @Request() req: UserRequest,
+    @UploadedFiles() files: TukangFiles,
+    @Res() res: IExpressResponse,
   ) {
-    
-    const user_id = req.user.id;
-    return this.tukangService.create(createTukangDto, user_id, file);
-  }
+    try {
+      const user = req.user;
+      const { tukang, userData } = await this.tukangService.create(
+        createTukangDto,
+        user,
+        files,
+      );
 
-  @Get('/get')
-  findAll() {
-    return this.tukangService.findAll();
-  }
-
-  @Get('/find/:id')
-  findOne(@Param('id') id: string) {
-    return this.tukangService.findOne(+id);
-  }
-
-  @Post('/update/:id')
-  update(
-    @Param('id') id: string,
-    @Body() updateTukangDto: UpdateTukangDto,
-    @Request() req,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
-    const user_id = req.user.id;
-    if (file) {
-      return this.tukangService.update(+id, updateTukangDto, user_id, file);
-    } else {
-      return this.tukangService.update(+id, updateTukangDto, user_id);
+      return res.status(200).json({
+        status: HttpStatus.CREATED,
+        message: 'Tukang Created',
+        data: tukang,
+        user: userData,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Create',
+        stack: error,
+      });
     }
   }
 
-  @Delete('/delete/:id')
+  @Get('/')
+  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
+    try {
+      const { data, countTotal, page, skip, take } =
+        await this.tukangService.findAll(query);
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Data',
+        data,
+        total: countTotal,
+        page,
+        skip,
+        take,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  @Get('/:id')
+  async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
+    try {
+      const tukang = await this.tukangService.findOne(id);
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Data',
+        data: tukang,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  @Post('/:id')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'vendor_document', maxCount: 5 },
+      { name: 'npwp_file', maxCount: 1 },
+      { name: 'ktp_file', maxCount: 1 },
+    ]),
+  )
+  async update(
+    @Param('id') id: number,
+    @Body() updateTukangDto: UpdateTukangDto,
+    @Request() req: UserRequest,
+    @UploadedFiles() files?: TukangFiles,
+    // @Res() res: IExpressResponse,
+  ) {
+    try {
+      const user = req.user;
+      const tukang = await this.tukangService.update(
+        id,
+        updateTukangDto,
+        user,
+        files,
+      );
+
+      return {
+        status: HttpStatus.OK,
+        message: 'Tukang Updated',
+        data: tukang,
+      };
+    } catch (error) {
+      console.log(error);
+      
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Update',
+        stack: error,
+      };
+    }
+  }
+
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.tukangService.remove(+id, user_id);

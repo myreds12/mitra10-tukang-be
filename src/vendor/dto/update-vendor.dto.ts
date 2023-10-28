@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsDate, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateVendorDto {
@@ -45,4 +46,36 @@ export class UpdateVendorDto {
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   suip_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  vendor_bank?: VendorBank[];
+
+  vendor_area?: VendorArea[];
+
+  vendor_service?: VendorService[]; 
+}
+
+class VendorBank{
+  id: number;
+
+  @Type(() => Number)
+  bank_id: number;
+
+}
+
+class VendorArea {
+  id: number;
+
+  @Type(() => Number)
+  city_id: number;
+
+  default_discount: string;
+  default_markup: string;
+  default_unit?: string;
+}
+
+class VendorService{
+  id: number;
+
+  @Type(() => Number)
+  service_type_id: number
 }

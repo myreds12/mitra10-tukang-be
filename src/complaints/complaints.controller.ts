@@ -58,6 +58,29 @@ export class ComplaintsController {
     }
   }
 
+  @Post(':id/set-status/:status_id')
+  async setStatus(
+    @Param('id') id: number,
+    @Param('status_id') status_id: number,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const setStatus = await this.complaintsService.setStatus(id, status_id);
+      return res.status(200).json({
+        status: HttpStatus.CREATED,
+        message: 'Status Changed',
+        data: setStatus,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error While Set Status',
+        stack: error?.name ?? error,
+      });
+    }
+  }
+
   @Post('/')
   @UseInterceptors(FilesInterceptor('complaint_evidences'))
   async create(

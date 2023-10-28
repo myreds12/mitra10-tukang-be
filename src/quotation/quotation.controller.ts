@@ -1,117 +1,193 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Request, Res, HttpStatus, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Request,
+  Res,
+  HttpStatus,
+  Query,
+  UseGuards,
+  UploadedFiles,
+  UseInterceptors,
+  Req,
+} from '@nestjs/common';
 import { QuotationService } from './quotation.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { response } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
+import { users } from '@prisma/client';
+
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('quotation')
 export class QuotationController {
-  constructor(private readonly quotationService: QuotationService) { }
+  constructor(private readonly quotationService: QuotationService) {}
+
+  @Get('next-code')
+  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
+    try {
+      const code = await this.quotationService.getCode();
+      let nextCode = 1;
+      if (code) nextCode = code.id + 1;
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Complaint code pulled',
+        data: { code: nextCode },
+      });
+    } catch (error) {
+      console.error(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While pulling complaint code',
+        stack: error,
+      });
+    }
+  }
 
   @Post()
-  async create(@Body() createQuotationDto: CreateQuotationDto, @Request() req, @Res() response) {
+  @UseInterceptors(FilesInterceptor('quotation_files'))
+  async create(
+    @Body() createQuotationDto: CreateQuotationDto,
+    @Request() req,
+    @UploadedFiles() quotation_files: Express.Multer.File[],
+    @Res() response,
+  ) {
     try {
-      const user_id = req.user.id
-      const quotation = await this.quotationService.create(createQuotationDto, user_id);
+      const user = req.user;
+      const quotation = await this.quotationService.create(
+        createQuotationDto,
+        user,
+        quotation_files,
+      );
 
       return response.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Quotation Created',
-        data: quotation
-      })
+        data: quotation,
+      });
     } catch (error) {
       console.log(error);
 
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Create',
-        stack: error
-      })
+        stack: error,
+      });
     }
-
   }
 
   @Get()
   async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
     try {
-      const quotation = await this.quotationService.findAll(queryParamsDto);
+      const {data, page, skip, take, countTotal} = await this.quotationService.findAll(queryParamsDto);
 
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Quotation',
-        data: quotation
-      })
+        data,
+        total: countTotal,
+        page,
+        take,
+        skip
+      });
     } catch (error) {
+      console.log(error);
+      
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
-        stack: error
-      })
+        stack: error,
+      });
     }
-
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @Res() res: IExpressResponse) {
     try {
       const quotation = await this.quotationService.findOne(+id);
 
-
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Find Quotation',
-        data: quotation
-      })
-
+        data: quotation,
+      });
     } catch (error) {
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Find',
-        stack: error
-      })
+        stack: error,
+      });
     }
   }
 
   @Post(':id')
-  async update(@Param('id') id: string, @Body() updateQuotationDto: UpdateQuotationDto, @Request() req, @Res() response) {
+  @UseInterceptors(FilesInterceptor('quotation_files'))
+  async update(
+    @Param('id') id: string,
+    @Body() updateQuotationDto: UpdateQuotationDto,
+    @Request() req,
+    @UploadedFiles() quotation_files: Express.Multer.File[],
+    @Res() response,
+  ) {
     try {
-      const user_id = req.user.id
-      const quotation = await this.quotationService.update(+id, updateQuotationDto, user_id);
+      const user = req.user;
+      const quotation = await this.quotationService.update(
+        +id,
+        updateQuotationDto,
+        user,
+        quotation_files,
+      );
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Quotation Updated',
-        data: quotation
-      })
+        data: quotation,
+      });
     } catch (error) {
+      console.log(error);
 
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',
-        stack: error
-      })
+        stack: error,
+      });
     }
   }
+
+  
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req, @Res() response) {
     try {
-      const user_id = req.user.id
+      const user_id = req.user.id;
       const quotation = await this.quotationService.remove(+id, user_id);
 
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Quotation Deleted',
-        data: quotation
-      })
+        data: quotation,
+      });
     } catch (error) {
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',
-        stack: error
-      })
+        stack: error,
+      });
     }
   }
 }

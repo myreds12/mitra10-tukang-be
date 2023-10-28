@@ -44,7 +44,7 @@ export class OrderService {
       let total = 0;
 
       if (
-        [PAYMENT_TYPE.GRATIS, PAYMENT_TYPE.SURVEY].includes(
+        [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
           createOrderDto.payment_type,
         )
       ) {
@@ -141,7 +141,8 @@ export class OrderService {
 
   async findAll(queryParams: QueryParamsDto) {
     // DO SEARCH AND PAGINATION LOGIC ...
-    const { take, page, search, status, date_from, date_to } = queryParams;
+    const { take, page, search, status, date_from, date_to, order_by } =
+      queryParams;
     const skip = page * take - take;
     const countTotal = await this.dbService.orders.count();
 
@@ -193,6 +194,9 @@ export class OrderService {
       skip,
       take: take > 0 ? take : undefined,
       where,
+      orderBy: {
+        created_at: order_by,
+      },
       select: {
         id: true,
         member_id: true,

@@ -11,17 +11,40 @@ import {
 
 export class CreateTukangDto {
   @ApiProperty()
-  @IsOptional()
+  
+  full_name: string;
+  
+  ktp_number: string;
+
+  phone_number: string;
+
+  address: string;
+  
+  email: string;
+
+  username: string;
+
+  password: string;
+
   @Type(() => Number)
   vendor_id?: number;
 
-  full_name: string;
+  @Type(() => Number)
+  service_type_id: number[];
 
-  ktp_number: string;
+  join_date?: string;
 
-  email: string;
+  bod: string;
 
-  join_date?: Date;
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  tukang_document?: Express.Multer.File[] | Express.Multer.File;
+  
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  ktp_file?: Express.Multer.File[] | Express.Multer.File;
 
-  file: Express.Multer.File;
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
+  npwp_file?: Express.Multer.File[] | Express.Multer.File;
 }
