@@ -26,16 +26,17 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
-import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
-import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
-import { PermissionAction } from 'src/casl/enum/permission-action.enum';
+// import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
+// import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
+// import { PermissionAction } from 'src/casl/enum/permission-action.enum';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
 const menuName = 'orders';
 @Controller(menuName)
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
@@ -64,7 +65,7 @@ export class OrderController {
   }
 
   @Post('/')
-  @CheckPermissions([PermissionAction.CREATE, menuName])
+  // @CheckPermissions([PermissionAction.CREATE, menuName])
   @UseInterceptors(FileInterceptor('receipt_file'))
   async create(
     @UploadedFile() receipt_file: Express.Multer.File,
@@ -96,7 +97,7 @@ export class OrderController {
   }
 
   @Get('/')
-  @CheckPermissions([PermissionAction.READ, menuName])
+  // @CheckPermissions([PermissionAction.READ, menuName])
   async findAll(@Query() query: QueryParamsDto) {
     try {
       const { data, page, take, countTotal } = await this.orderService.findAll(
@@ -122,7 +123,7 @@ export class OrderController {
   }
 
   @Get(':id')
-  @CheckPermissions([PermissionAction.READ, menuName])
+  // @CheckPermissions([PermissionAction.READ, menuName])
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const order = await this.orderService.findOne(id);
@@ -143,7 +144,7 @@ export class OrderController {
   }
 
   @Post(':id')
-  @CheckPermissions([PermissionAction.UPDATE, menuName])
+  // @CheckPermissions([PermissionAction.UPDATE, menuName])
   @UseInterceptors(FileInterceptor('receipt_file'))
   async update(
     @UploadedFile() receipt_file: Express.Multer.File,
@@ -177,7 +178,7 @@ export class OrderController {
   }
 
   @Delete(':id')
-  @CheckPermissions([PermissionAction.DELETE, menuName])
+  // @CheckPermissions([PermissionAction.DELETE, menuName])
   remove(@Param('id') id: string) {
     return this.orderService.remove(+id);
   }
