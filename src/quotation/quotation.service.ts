@@ -7,7 +7,7 @@ import { Prisma, users } from '@prisma/client';
 
 @Injectable()
 export class QuotationService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
 
   //TODO: FILE UPLOAD => DONE
   // TODOL SYNC WITH TABLE NEEDS => DONE
@@ -76,22 +76,22 @@ export class QuotationService {
         status ? { quotation_status: { equals: status } } : null,
         ...(search
           ? [
-              {
-                OR: [
-                  { order: { vendor: { company_name: { contains: search } } } },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { order: { vendor: { company_name: { contains: search } } } },
+                { store: { store_name: { contains: search } } },
+                { quotation_number: { contains: search } },
+              ],
+            },
+          ]
           : []),
         date_from && date_to
           ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : null,
       ].filter((condition) => Boolean(condition)),
       deleted_at: null
@@ -102,9 +102,10 @@ export class QuotationService {
       take: take <= 0 ? undefined : take,
       include: {
         quotation_files: true,
-        order:  {
+        order: {
           include: {
             m_order_details: true,
+            vendor: true,
             members: true
           }
         },
@@ -133,7 +134,8 @@ export class QuotationService {
         order: {
           include: {
             m_order_details: true,
-            members: true
+            members: true,
+            vendor: true
           }
         },
         status: true,
@@ -166,26 +168,26 @@ export class QuotationService {
 
     const orderConn = updateQuotationDto.order_id
       ? {
-          connect: {
-            id: updateQuotationDto.order_id,
-          },
-        }
+        connect: {
+          id: updateQuotationDto.order_id,
+        },
+      }
       : undefined;
 
     const storeConn = updateQuotationDto.store_id
       ? {
-          connect: {
-            id: updateQuotationDto.store_id,
-          },
-        }
+        connect: {
+          id: updateQuotationDto.store_id,
+        },
+      }
       : undefined;
 
     const statusConn = updateQuotationDto.quotation_status
       ? {
-          connect: {
-            id: updateQuotationDto.quotation_status,
-          },
-        }
+        connect: {
+          id: updateQuotationDto.quotation_status,
+        },
+      }
       : undefined;
 
     const quotation_data: Prisma.quotationUpdateInput = Object.fromEntries(
@@ -204,10 +206,10 @@ export class QuotationService {
         updated_by: user_id,
         quotation_files: quotation_files.length
           ? {
-              createMany: {
-                data: evidence,
-              },
-            }
+            createMany: {
+              data: evidence,
+            },
+          }
           : undefined,
       }).filter(([key, value]) => value != undefined),
     );

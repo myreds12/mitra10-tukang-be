@@ -9,7 +9,7 @@ import { contains } from 'class-validator';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     createTukangDto: CreateTukangDto,
     user: users,
@@ -103,34 +103,35 @@ export class TukangService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { address: { contains: search } },
-                  { email: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { full_name: { contains: search } },
-                  { ktp_number: { contains: search } },
-                  { vendor: { company_name: { contains: search } } },
-                  {
-                    tukang_service: {
-                      every: {
-                        service_type: { service_type: { contains: search } },
-                      },
+            {
+              OR: [
+                { address: { contains: search } },
+                { email: { contains: search } },
+                { phone_number: { contains: search } },
+                { full_name: { contains: search } },
+                { ktp_number: { contains: search } },
+                { vendor: { company_name: { contains: search } } },
+                {
+                  tukang_service: {
+                    every: {
+                      service_type: { service_type: { contains: search } },
                     },
                   },
-                ],
-              },
-            ]
+                },
+              ],
+            },
+          ]
           : []),
         date_from && date_to
           ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : undefined,
       ],
+      deleted_at: null
     };
 
     const tukang = await this.dbService.tukang.findMany({
@@ -140,7 +141,11 @@ export class TukangService {
       include: {
         users: true,
         vendor: true,
-        tukang_service: true,
+        tukang_service: {
+          include: {
+            service_type: true
+          }
+        },
         tukang_document: true,
       },
     });
@@ -153,6 +158,16 @@ export class TukangService {
       const tukang = await this.dbService.tukang.findFirst({
         where: {
           id,
+        },
+        include: {
+          users: true,
+          vendor: true,
+          tukang_service: {
+            include: {
+              service_type: true
+            }
+          },
+          tukang_document: true,
         },
       });
 
@@ -288,5 +303,16 @@ export class TukangService {
         message: 'Failed to Delete Data',
       };
     }
+  }
+
+  async getCode() {
+    const complaints = await this.dbService.tukang.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 1,
+    });
+
+    return complaints[0] || null;
   }
 }

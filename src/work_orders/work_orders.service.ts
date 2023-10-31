@@ -7,12 +7,12 @@ import { Prisma, users } from '@prisma/client';
 
 @Injectable()
 export class WorkOrdersService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
 
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
-    work_evidences: Array<Express.Multer.File>,
+    work_evidences?: Array<Express.Multer.File>,
   ) {
     const { id: user_id } = user;
     const evidences: Array<Prisma.work_evidencesCreateManyWork_ordersInput> =
@@ -20,6 +20,16 @@ export class WorkOrdersService {
         evidence_location: evidences.filename,
         created_by: user_id,
       }));
+
+    const workOrderDetails: Prisma.work_order_detailsCreateManyWork_ordersInput[] =
+      dataDto.work_order_details.map((item) => {
+        return {
+          tukang_id: +item.tukang_id,
+          created_by: user_id,
+        };
+      });
+
+    // return console.log(tukangConn);
 
     const work_order_data: Prisma.work_ordersCreateArgs = {
       data: {
@@ -37,11 +47,6 @@ export class WorkOrdersService {
             id: dataDto.order_id,
           },
         },
-        tukang: {
-          connect: {
-            id: dataDto.tukang_id,
-          },
-        },
         vendor: {
           connect: {
             id: dataDto.vendor_id,
@@ -49,12 +54,17 @@ export class WorkOrdersService {
         },
         work_evidences: {
           createMany: {
-            data: evidences,
+            data: evidences ? evidences : null,
+          },
+        },
+        work_order_details: {
+          createMany: {
+            data: workOrderDetails,
           },
         },
       },
     };
-    const orders = await this.dbService.orders.update({
+    await this.dbService.orders.update({
       where: {
         id: dataDto.order_id,
       },
@@ -70,27 +80,55 @@ export class WorkOrdersService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    const { skip, take, search, date_from, date_to } = queryParamsDto;
+    const { page, take, search, date_from, date_to, status, order_by } = queryParamsDto;
+    const skip = page * take - take;
+    const total = await this.dbService.work_orders.count();
+    const where: Prisma.work_ordersWhereInput = {
+      AND: [
+        ...(search
+          ? [
+            {
+              OR: [
+                { request_work_time: { equals: new Date(search) } },
+                { survey_date: { equals: new Date(search) } },
+                { work_start_date: { equals: new Date(search) } },
+                { work_end_date: { equals: new Date(search) } },
+              ],
+            },
+          ]
+          : []),
+        ...(status ? [{ status: { id: { equals: status } } }] : []),
+        date_from && date_to
+          ? {
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
+          : undefined
+      ].filter(Boolean),
+      deleted_at: null
+    };
     const work_orders = await this.dbService.work_orders.findMany({
-      skip: skip,
-      take: take,
-      where: {
-        request_work_time: {
-          gte: new Date(search) ?? undefined,
-        },
-        survey_date: {
-          gte: new Date(search) ?? undefined,
-        },
+      skip,
+      take: take <= 0 ? undefined : take,
+      where,
+      orderBy: {
+        created_at: order_by
       },
       include: {
         order: true,
-        tukang: true,
+        work_order_details: {
+          include: {
+            tukang: true,
+          },
+        },
         vendor: true,
         work_evidences: true,
       },
     });
 
-    return work_orders;
+    return { data: work_orders, skip, page, take, total };
   }
 
   async findOne(id: number) {
@@ -100,7 +138,11 @@ export class WorkOrdersService {
       },
       include: {
         order: true,
-        tukang: true,
+        work_order_details: {
+          include: {
+            tukang: true,
+          },
+        },
         vendor: true,
         work_evidences: true,
       },
@@ -142,11 +184,6 @@ export class WorkOrdersService {
             id: dataDto.order_id,
           },
         },
-        tukang: {
-          connect: {
-            id: dataDto.tukang_id,
-          },
-        },
         vendor: {
           connect: {
             id: dataDto.vendor_id,
@@ -171,7 +208,7 @@ export class WorkOrdersService {
   }
 
   async delete(id: number, user_id: number) {
-    const work_orders = await this.dbService.work_orders.update({
+    await this.dbService.work_orders.update({
       where: {
         id,
       },

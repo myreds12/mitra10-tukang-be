@@ -33,7 +33,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) {}
+  constructor(private readonly workOrdersService: WorkOrdersService) { }
   @Post()
   @UseInterceptors(FilesInterceptor('work_evidences', 5))
   async create(
@@ -55,6 +55,8 @@ export class WorkOrdersController {
         data: work_orders,
       });
     } catch (error) {
+      console.log(error);
+
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message,
@@ -69,14 +71,20 @@ export class WorkOrdersController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const work_orders = await this.workOrdersService.findAll(queryParamsDto);
+      const { data, skip, page, take, total } = await this.workOrdersService.findAll(queryParamsDto);
 
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Work Order',
-        data: work_orders,
+        data,
+        total,
+        page,
+        take,
+        skip
       });
     } catch (error) {
+      console.log(error);
+
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',

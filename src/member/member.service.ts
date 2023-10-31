@@ -6,72 +6,66 @@ import { hash } from 'bcrypt';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
 
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
       const email_check = await this.dbService.members.findFirst({
         where: { email: createMemberDto.email },
       });
-      if (!email_check) {
-        const member = await this.dbService.members.create({
-          data: {
-            full_name: createMemberDto.full_name,
-            email: createMemberDto.email,
-            address_1: createMemberDto.address_1,
-            join_date: createMemberDto.join_date ? new Date(createMemberDto.join_date) : new Date(),
-            phone_number: createMemberDto.phone_number,
-            whatsapp_number: createMemberDto.whatsapp_number,
-            zip_code: createMemberDto.zip_code,
-            //join location diisi dengan store id
-            join_location: createMemberDto.join_location ? createMemberDto.join_location : null,
-            created_by: user_id,
-          },
-        });
+      if (email_check) throw new Error('Email already exist!');
+      const member = await this.dbService.members.create({
+        data: {
+          full_name: createMemberDto.full_name,
+          email: createMemberDto.email,
+          address_1: createMemberDto.address_1,
+          join_date: createMemberDto.join_date ? new Date(createMemberDto.join_date) : new Date(),
+          phone_number: createMemberDto.phone_number,
+          whatsapp_number: createMemberDto.whatsapp_number,
+          zip_code: createMemberDto.zip_code,
+          //join location diisi dengan store id
+          join_location: createMemberDto.join_location ? createMemberDto.join_location : null,
+          created_by: user_id,
+        },
+      });
 
-        const user = await this.dbService.users.create({
-          data: {
-            username: member.full_name,
-            password: await hash('tukanginwebsite165', 10),
-            role_id: 7
-          },
-        });
+      const user = await this.dbService.users.create({
+        data: {
+          username: member.full_name,
+          password: await hash('tukanginwebsite165', 10),
+          role_id: 7
+        },
+      });
 
-        // const create_user_roles = await this.dbService.user_roles.create({
-        //   data: {
-        //     users: {
-        //       connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
-        //     },
-        //     roles: {
-        //       connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
-        //     },
-        //   },
-        // });
-        // const user_data = await this.dbService.user_roles.findUnique({
-        //   where: { id: create_user_roles.id },
-        //   include: { users: true, roles: true },
-        // });
+      // const create_user_roles = await this.dbService.user_roles.create({
+      //   data: {
+      //     users: {
+      //       connect: { id: user.id }, // Assuming user_id is the ID of the user you're connecting
+      //     },
+      //     roles: {
+      //       connect: { id: 1 }, // Assuming 1 is the ID of the role you're connecting
+      //     },
+      //   },
+      // });
+      // const user_data = await this.dbService.user_roles.findUnique({
+      //   where: { id: create_user_roles.id },
+      //   include: { users: true, roles: true },
+      // });
 
-        return {
-          data: {
-            member,
-            user,
-          },
-          status: HttpStatus.CREATED,
-          message: 'Successfully Create Data',
-        };
-      } else {
-        return {
-          status: HttpStatus.BAD_REQUEST,
-          message: 'Email already exist!',
-        };
-      }
+      return {
+        data: {
+          member,
+          user,
+        },
+        status: HttpStatus.CREATED,
+        message: 'Successfully Create Data',
+      };
     } catch (error) {
       console.log(error);
 
       return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data',
+        message: error.message ?? 'Failed to Create Data',
       };
     }
   }
@@ -108,7 +102,7 @@ export class MemberService {
         }
       });
       console.log(member);
-      
+
 
       return {
         data: { member },

@@ -34,7 +34,30 @@ interface UserRequest extends IExpressRequest {
 @Controller('tukang')
 @UseGuards(JwtAuthGuard)
 export class TukangController {
-  constructor(private readonly tukangService: TukangService) {}
+  constructor(private readonly tukangService: TukangService) { }
+
+  @Get('next-code')
+  async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {
+    try {
+      const code = await this.tukangService.getCode();
+      let nextCode = 1;
+      if (code) nextCode = code.id + 1;
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Complaint code pulled',
+        data: { code: nextCode },
+      });
+    } catch (error) {
+      console.error(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While pulling complaint code',
+        stack: error,
+      });
+    }
+  }
 
   @Post()
   @UseInterceptors(
@@ -146,7 +169,7 @@ export class TukangController {
       };
     } catch (error) {
       console.log(error);
-      
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',

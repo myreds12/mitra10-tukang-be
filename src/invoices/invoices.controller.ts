@@ -29,6 +29,8 @@ export class InvoicesController {
         data: invoice
       })
     } catch (error) {
+      console.log(error);
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Create',
