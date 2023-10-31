@@ -201,8 +201,7 @@ export class VendorController {
       const vendor = await this.vendorService.remove(+id, req.user);
       return res.status(200).json({
         status: HttpStatus.OK,
-        message: 'Vendor Created',
-        data: vendor,
+        message: 'Vendor Deleted',
       });
     } catch (error) {
       return res.status(400).json({

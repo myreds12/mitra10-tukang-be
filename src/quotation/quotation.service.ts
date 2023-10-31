@@ -94,6 +94,7 @@ export class QuotationService {
             }
           : null,
       ].filter((condition) => Boolean(condition)),
+      deleted_at: null
     };
     const quotation = await this.dbService.quotation.findMany({
       where,
@@ -125,6 +126,7 @@ export class QuotationService {
     const quotation = await this.dbService.quotation.findFirst({
       where: {
         id,
+        deleted_at: null
       },
       include: {
         quotation_files: true,

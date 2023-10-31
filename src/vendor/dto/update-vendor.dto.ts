@@ -1,6 +1,55 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDate, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsDate,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+
+class VendorBank {
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  id: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @Type(() => Number)
+  bank_id: number;
+
+  account_name: string;
+  account_number: string;
+}
+
+class VendorArea {
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  id: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @Type(() => Number)
+  city_id: number;
+
+  default_discount: string;
+  default_markup: string;
+  default_unit?: string;
+}
+
+class VendorService {
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  id: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @Type(() => Number)
+  service_type_id: number;
+}
 
 export class UpdateVendorDto {
   @ApiProperty()
@@ -47,35 +96,15 @@ export class UpdateVendorDto {
   @IsOptional()
   suip_file?: Array<Express.Multer.File> | Express.Multer.File;
 
-  vendor_bank?: VendorBank[];
+  @ApiProperty({ type: VendorBank }) // This represents a VendorBank
+  @Type(() => VendorBank)
+  vendor_bank?: VendorBank;
 
+  @ApiProperty({ type: [VendorArea] }) // This represents an array of VendorArea
+  @Type(() => VendorArea)
   vendor_area?: VendorArea[];
 
-  vendor_service?: VendorService[]; 
-}
-
-class VendorBank{
-  id: number;
-
-  @Type(() => Number)
-  bank_id: number;
-
-}
-
-class VendorArea {
-  id: number;
-
-  @Type(() => Number)
-  city_id: number;
-
-  default_discount: string;
-  default_markup: string;
-  default_unit?: string;
-}
-
-class VendorService{
-  id: number;
-
-  @Type(() => Number)
-  service_type_id: number
+  @ApiProperty({ type: [VendorService] }) // This represents an array of VendorService
+  @Type(() => VendorService)
+  vendor_service?: VendorService[];
 }

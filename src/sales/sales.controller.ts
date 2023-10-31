@@ -19,23 +19,23 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
-  @Post('/create')
+  @Post()
   create(@Body() createSaleDto: CreateSalesDto, @Request() req) {
     const user_id = req.user.id;
     return this.salesService.create(createSaleDto, user_id);
   }
 
-  @Get('/get')
+  @Get()
   findAll() {
     return this.salesService.findAll();
   }
 
-  @Get('/find/:id')
+  @Get('/:id')
   findOne(@Param('id') id: string) {
     return this.salesService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateSaleDto: UpdateSalesDto,
@@ -45,7 +45,7 @@ export class SalesController {
     return this.salesService.update(+id, updateSaleDto, user_id);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.salesService.remove(+id, user_id);

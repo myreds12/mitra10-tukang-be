@@ -137,6 +137,7 @@ export class VendorService {
             ]
           : []),
       ].filter(Boolean),
+      deleted_at: null,
     };
     const vendor = await this.dbService.vendor.findMany({
       where,
@@ -173,6 +174,7 @@ export class VendorService {
     const vendor = await this.dbService.vendor.findFirst({
       where: {
         id,
+        deleted_at: null,
       },
       include: {
         orders: true,
@@ -208,6 +210,7 @@ export class VendorService {
     user: users,
   ) {
     const { id: user_id } = user;
+    console.log(updateVendorDto);
 
     const vendorFiles: Prisma.vendor_documentCreateManyInput[] = Object.entries(
       files,
@@ -221,6 +224,7 @@ export class VendorService {
         return updateFile;
       }
     });
+    console.log(updateVendorDto.vendor_service);
 
     const updateVendorService = updateVendorDto.vendor_service
       .filter((x) => Boolean(x.id))
@@ -233,6 +237,7 @@ export class VendorService {
           },
         };
       });
+    console.log('updateVendorService', updateVendorService);
 
     const newVendorService = {
       data: updateVendorDto.vendor_service
@@ -242,54 +247,38 @@ export class VendorService {
           created_by: user_id,
         })),
     };
+    console.log('newVendorService', newVendorService);
 
     const updateVendorArea = updateVendorDto.vendor_area
-    .filter((x) => Boolean(x.id))
-    .map(({ id, city_id, default_discount, default_markup, default_unit }) => {
-      return {
-        where: { id },
-        data: {
-          city_id,
-          default_discount,
-          default_markup,
-          default_unit,
-          updated_by: user_id,
+      .filter((x) => Boolean(x.id))
+      .map(
+        ({ id, city_id, default_discount, default_markup, default_unit }) => {
+          return {
+            where: { id },
+            data: {
+              city_id,
+              default_discount,
+              default_markup,
+              default_unit,
+              updated_by: user_id,
+            },
+          };
         },
-      };
-    });
+      );
+    console.log('updateVendorArea', updateVendorArea);
 
-    const newVendorArea  = {
+    const newVendorArea = {
       data: updateVendorDto.vendor_area
-      .filter((x) => !Boolean(x.id))
+        .filter((x) => !Boolean(x.id))
         .map(({ city_id, default_discount, default_markup, default_unit }) => ({
           city_id,
           default_discount,
           default_markup,
           default_unit,
           created_by: user_id,
-        }))
-    }
-
-    const updateVendorBank = updateVendorDto.vendor_bank
-    .filter((x) => Boolean(x.id))
-    .map(({ id, bank_id }) => {
-      return {
-        where: { id },
-        data: {
-          bank_id,
-          updated_by: user_id,
-        },
-      };
-    });
-
-    const newVendorBank  = {
-      data: updateVendorDto.vendor_bank
-      .filter((x) => !Boolean(x.id))
-        .map(({ bank_id }) => ({
-          bank_id,
-          created_by: user_id,
-        }))
-    }
+        })),
+    };
+    console.log('newVendorArea', newVendorArea);
 
     const vendorData: Prisma.vendorUpdateInput = {
       users: {
@@ -307,35 +296,67 @@ export class VendorService {
         ? new Date(updateVendorDto.join_date)
         : null,
       updated_by: user_id,
+      vendor_bank: {
+        update: {
+          where: {
+            id: updateVendorDto.vendor_bank.id,
+          },
+          data: {
+            bank_id: updateVendorDto.vendor_bank.bank_id,
+            account_name: updateVendorDto?.vendor_bank.account_name,
+            account_number: updateVendorDto?.vendor_bank.account_number,
+          },
+        },
+      },
       vendor_document: {
         createMany: {
           data: vendorFiles.flat(),
         },
       },
       vendor_area: {
-        update: updateVendorArea,
-        createMany: newVendorArea
+        update: updateVendorArea.length ? updateVendorArea : undefined,
+        createMany: newVendorArea.data.length ? newVendorArea : undefined,
       },
-      vendor_bank: {
-        update: updateVendorBank,
-      }
+      vendor_service: {
+        update: updateVendorService.length ? updateVendorService : undefined,
+        createMany: newVendorService.data.length ? newVendorService : undefined,
+      },
     };
 
-    console.log(vendorData);
-
-    const [vendor] = await this.dbService.$transaction([
-      this.dbService.vendor_document.deleteMany({
-        where: {
-          vendor_id: id,
-        },
-      }),
-      this.dbService.vendor.update({
-        where: {
-          id,
-        },
-        data: vendorData,
-      }),
-    ]);
+    const [syncArea, syncService, syncDocument, vendor] =
+      await this.dbService.$transaction([
+        this.dbService.vendor_area.deleteMany({
+          where: {
+            vendor_id: id,
+            NOT: updateVendorDto.vendor_area.map((item) => {
+              return {
+                city_id: item.city_id,
+              };
+            }),
+          },
+        }),
+        this.dbService.vendor_service.deleteMany({
+          where: {
+            vendor_id: id,
+            NOT: updateVendorDto.vendor_service.map((item) => {
+              return {
+                service_type_id: item.service_type_id,
+              };
+            }),
+          },
+        }),
+        this.dbService.vendor_document.deleteMany({
+          where: {
+            vendor_id: id,
+          },
+        }),
+        this.dbService.vendor.update({
+          where: {
+            id,
+          },
+          data: vendorData,
+        }),
+      ]);
     return vendor;
   }
 
@@ -349,6 +370,54 @@ export class VendorService {
         deleted_at: new Date(),
         is_active: false,
         deleted_by: user_id,
+        vendor_area: {
+          updateMany: {
+            where: {
+              vendor_id: id,
+            },
+            data: {
+              deleted_by: user_id,
+              deleted_at: new Date(),
+              is_active: false,
+            },
+          },
+        },
+        vendor_document: {
+          updateMany: {
+            where: {
+              vendor_id: id,
+            },
+            data: {
+              deleted_by: user_id,
+              deleted_at: new Date(),
+              is_active: false,
+            },
+          },
+        },
+        vendor_service: {
+          updateMany: {
+            where: {
+              vendor_id: id,
+            },
+            data: {
+              deleted_by: user_id,
+              deleted_at: new Date(),
+              is_active: false,
+            },
+          },
+        },
+        vendor_bank: {
+          updateMany: {
+            where: {
+              vendor_id: id,
+            },
+            data: {
+              deleted_by: user_id,
+              deleted_at: new Date(),
+              is_active: false,
+            },
+          },
+        },
       },
     });
     return vendor;

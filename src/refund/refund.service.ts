@@ -73,6 +73,7 @@ export class RefundService {
             ]
           : []),
       ].filter(Boolean),
+      deleted_at: null
     };
 
     const refund = await this.dbService.refund.findMany({
@@ -83,7 +84,19 @@ export class RefundService {
         created_at: order_by,
       },
       include: {
-        orders: true,
+        orders: {
+          include: {
+            members: true,
+            store: true,
+            m_order_details: {
+              include: {
+                item: true
+              }
+            },
+            sales: true,
+            status: true
+          }
+        },
         status: true,
       },
     });
@@ -95,9 +108,22 @@ export class RefundService {
     const refund = await this.dbService.refund.findFirst({
       where: {
         id,
+        deleted_at: null
       },
       include: {
-        orders: true,
+        orders: {
+          include: {
+            members: true,
+            store: true,
+            m_order_details: {
+              include: {
+                item: true
+              }
+            },
+            sales: true,
+            status: true
+          }
+        },
         status: true,
       },
     });
@@ -145,7 +171,7 @@ export class RefundService {
     return refund;
   }
 
-  remove(id: number) {
+  async remove(id: number) {
     return `This action removes a #${id} refund`;
   }
 }

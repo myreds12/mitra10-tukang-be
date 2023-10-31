@@ -18,6 +18,7 @@ export class OrderService {
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
   ) {}
+
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
@@ -78,11 +79,6 @@ export class OrderService {
             id: BOOKED_STATUS.id,
           },
         },
-        // categories: {
-        //   connect: {
-        //     id: 1,
-        //   },
-        // },
         sales: {
           connect: {
             id: createOrderDto.sales_id,
@@ -146,24 +142,6 @@ export class OrderService {
     const skip = page * take - take;
     const countTotal = await this.dbService.orders.count();
 
-    // const where: Prisma.ordersWhereInput = {
-    //   OR: [
-    //     search ? { receipt_number: { contains: search } } : null,
-    //     search ? { members: { full_name: { contains: search } } } : null,
-    //     status ? { status: { category: { contains: status } } } : null,
-    //   ].filter((condition) => condition !== null),
-    //   AND: [
-    //     date_from && date_to
-    //       ? {
-    //           created_at: {
-    //             gte: new Date(date_from),
-    //             lte: new Date(date_to),
-    //           },
-    //         }
-    //       : null,
-    //   ].filter((condition) => condition !== null),
-    // };
-
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(search
@@ -188,6 +166,7 @@ export class OrderService {
             ]
           : []),
       ].filter(Boolean),
+      deleted_at: null
     };
 
     const orders = await this.dbService.orders.findMany({
@@ -267,6 +246,7 @@ export class OrderService {
     const orders = await this.dbService.orders.findFirst({
       where: {
         id,
+        deleted_at: null
       },
       include: {
         members: true,
@@ -431,7 +411,17 @@ export class OrderService {
     };
     console.log(orderDetailsUpdateData, orderDetailsNew, orderUpdateData);
 
-    const [orderQuery] = await this.dbService.$transaction([
+    const [syncDetails, orderQuery] = await this.dbService.$transaction([
+      this.dbService.m_order_details.deleteMany({
+        where: {
+          order_id: id,
+          NOT: updateOrderDto.order_details.map((item) => {
+            return {
+              id: item.id,
+            };
+          }),
+        },
+      }),
       this.dbService.orders.update({
         where: {
           id: order.id,
@@ -439,7 +429,9 @@ export class OrderService {
         data: {
           ...orderUpdateData,
           m_order_details: {
-            update: orderDetailsUpdateData,
+            update: orderDetailsUpdateData.length
+              ? orderDetailsUpdateData
+              : undefined,
             createMany: orderDetailsNew.data.length
               ? orderDetailsNew
               : undefined,
@@ -474,6 +466,7 @@ export class OrderService {
       }),
     ]);
   }
+  
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkStatus() {
     const status = await this.dbService.status.findFirst({
