@@ -8,19 +8,29 @@ import { MembersSeed } from './members-seed';
 import { PositionSeed } from './position-seed';
 import { StoreSeed } from './store-seed';
 import { ServiceTypeSeed } from './service-type';
+import { StatusSeed } from './status-seed';
+import { BankSeed } from './bank.seed';
+import { CitySeed } from './city-seed';
+import { UnitSeed } from './unit.seed';
+import { ComplaintChannelSeed } from './complaint-channels.seed';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  await RolesSeed();
-  await MenusSeed();
+  // await RolesSeed();
+  // await MenusSeed();
   await ItemsSeed();
-  await UsersSeed();
-  await PermissionSeed();
-  await MembersSeed();
-  await PositionSeed();
-  await StoreSeed();
-  await ServiceTypeSeed();
+  // await UsersSeed();
+  // await PermissionSeed();
+  // await MembersSeed();
+  // await PositionSeed();
+  // await StoreSeed();
+  // await ServiceTypeSeed();
+  // await StatusSeed();
+  // await BankSeed();
+  // await CitySeed();
+  // await UnitSeed();
+  // await ComplaintChannelSeed();
 }
 
 main()

@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-export async function RolesSeed() {
+export async function CitySeed() {
   await prisma.city.createMany({
     data: [
       {
