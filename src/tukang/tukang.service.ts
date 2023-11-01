@@ -5,7 +5,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
 import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { contains } from 'class-validator';
 
 @Injectable()
 export class TukangService {
@@ -38,12 +37,14 @@ export class TukangService {
     });
 
     const tukangServiceTypes: Prisma.tukang_serviceCreateManyTukangInput[] =
-      createTukangDto.service_types.map((item) => {
-        return {
-          service_type_id: item.service_type_id,
-          created_by: user_id,
-        };
-      });
+      createTukangDto.service_types
+        ? createTukangDto.service_types.map((item) => {
+            return {
+              service_type_id: item.service_type_id,
+              created_by: user_id,
+            };
+          })
+        : undefined;
 
     const userData = await this.dbService.users.create({
       data: {
@@ -78,11 +79,15 @@ export class TukangService {
           data: tukangFiles.flat(),
         },
       },
-      tukang_service: {
-        createMany: {
-          data: tukangServiceTypes,
-        },
-      },
+      ...(tukangServiceTypes
+        ? {
+            tukang_service: {
+              createMany: {
+                data: tukangServiceTypes,
+              },
+            },
+          }
+        : undefined),
     };
 
     const [tukang] = await this.dbService.$transaction([

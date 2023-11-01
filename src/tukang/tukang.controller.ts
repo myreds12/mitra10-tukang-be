@@ -78,10 +78,10 @@ export class TukangController {
       const user = req.user;
 
       // Cek di dTO ada updateTukangDto?.service_types
-      if (!createTukangDto.service_types)
-        throw new BadRequestException('Service type cannot be null.');
-      if (!createTukangDto.service_types.length)
-        throw new BadRequestException('Service type should be an one or many.');
+      // if (!createTukangDto.service_types)
+      //   throw new BadRequestException('Service type cannot be null.');
+      // if (!createTukangDto.service_types.length)
+      //   throw new BadRequestException('Service type should be an one or many.');
 
       const { tukang, userData } = await this.tukangService.create(
         createTukangDto,

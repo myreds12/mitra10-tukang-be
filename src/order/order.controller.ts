@@ -14,6 +14,7 @@ import {
   ParseIntPipe,
   Req,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -74,6 +75,12 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
+      // Cek di dTO ada updateTukangDto?.service_types
+      if (!createOrderDto.order_details)
+        throw new BadRequestException('Order Details cannot be null.');
+      if (!createOrderDto.order_details.length)
+        throw new BadRequestException('Order Details should be an one or many.');
+
       const order = await this.orderService.create(
         createOrderDto,
         req.user,
