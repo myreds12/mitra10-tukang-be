@@ -7,8 +7,6 @@ import { StoreModule } from './store/store.module';
 import { RolesModule } from './roles/roles.module';
 import { PositionsModule } from './positions/positions.module';
 import { MenusModule } from './menus/menus.module';
-import { join } from 'path';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { ServiceTypeModule } from './service_type/service_type.module';
 import { BankModule } from './bank/bank.module';
 import { EmployeeModule } from './employee/employee.module';
@@ -17,7 +15,6 @@ import { ItemsModule } from './items/items.module';
 import { VendorModule } from './vendor/vendor.module';
 import { TukangModule } from './tukang/tukang.module';
 import { MemberModule } from './member/member.module';
-import { TukangServiceModule } from './tukang_service/tukang_service.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { OrderModule } from './order/order.module';
 import { EventLoggerModule } from './event-logger/event-logger.module';
@@ -52,7 +49,6 @@ import { RefundModule } from './refund/refund.module';
     VendorModule,
     TukangModule,
     MemberModule,
-    TukangServiceModule,
     PermissionsModule,
     OrderModule,
     EventLoggerModule,
@@ -77,7 +73,7 @@ import { RefundModule } from './refund/refund.module';
     ReportsModule,
     ScheduleModule.forRoot(),
     CityModule,
-    RefundModule
+    RefundModule,
   ],
   controllers: [AppController],
   providers: [AppService],
