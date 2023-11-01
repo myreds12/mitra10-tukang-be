@@ -19,23 +19,23 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
 
-  @Post('/create')
+  @Post('/')
   create(@Body() createMemberDto: CreateMemberDto, @Req() req) {
     const user_id = req.user.id;
     return this.memberService.create(createMemberDto, user_id);
   }
 
-  @Get('/data')
+  @Get('/')
   findAll() {
     return this.memberService.findAll();
   }
 
-  @Get('/data/:id')
+  @Get('/id')
   findOne(@Param('id') id: string) {
     return this.memberService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateMemberDto: UpdateMemberDto,
@@ -45,7 +45,7 @@ export class MemberController {
     return this.memberService.update(+id, updateMemberDto, user_id);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Req() req) {
     const user_id = req.user.id;
     return this.memberService.remove(+id, user_id);

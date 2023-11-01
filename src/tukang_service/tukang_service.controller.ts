@@ -19,23 +19,23 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class TukangServiceController {
   constructor(private readonly tukangServiceService: TukangServiceService) {}
 
-  @Post('/create')
+  @Post('/')
   create(@Body() createTukangServiceDto: CreateTukangServiceDto, @Req() req) {
     const user_id = req.user.id;
     return this.tukangServiceService.create(createTukangServiceDto, user_id);
   }
 
-  @Get('/data')
+  @Get('/')
   findAll() {
     return this.tukangServiceService.findAll();
   }
 
-  @Get('/data/:id')
+  @Get('/id')
   findOne(@Param('id') id: string) {
     return this.tukangServiceService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateTukangServiceDto: UpdateTukangServiceDto,
@@ -49,7 +49,7 @@ export class TukangServiceController {
     );
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Req() req) {
     const user_id = req.user.id;
     return this.tukangServiceService.remove(+id, user_id);

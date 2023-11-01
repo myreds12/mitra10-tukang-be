@@ -21,7 +21,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 export class BankController {
   constructor(private readonly bankService: BankService) { }
 
-  @Post('/create')
+  @Post('/')
   create(@Body() createBankDto: CreateBankDto, @Request() req) {
     const user_id = req.user.id;
     return this.bankService.create(createBankDto, user_id);
@@ -37,7 +37,7 @@ export class BankController {
     return this.bankService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateBankDto: UpdateBankDto,
@@ -47,7 +47,7 @@ export class BankController {
     return this.bankService.update(+id, updateBankDto, user_id);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.bankService.remove(+id, user_id);

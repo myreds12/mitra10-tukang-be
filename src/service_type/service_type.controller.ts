@@ -21,7 +21,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 export class ServiceTypeController {
   constructor(private readonly serviceTypeService: ServiceTypeService) {}
 
-  @Post('/create')
+  @Post('/')
   create(@Body() createServiceTypeDto: CreateServiceTypeDto, @Request() req) {
     const user_id = req.user.id;
     return this.serviceTypeService.create(createServiceTypeDto, user_id);
@@ -37,7 +37,7 @@ export class ServiceTypeController {
     return this.serviceTypeService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateServiceTypeDto: UpdateServiceTypeDto,
@@ -47,7 +47,7 @@ export class ServiceTypeController {
     return this.serviceTypeService.update(+id, updateServiceTypeDto, user_id);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.serviceTypeService.remove(+id, user_id);

@@ -17,7 +17,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) { }
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -86,17 +86,17 @@ export class OrderService {
         },
         vendor: createOrderDto.vendor_id
           ? {
-            connect: {
-              id: createOrderDto.vendor_id,
-            },
-          }
+              connect: {
+                id: createOrderDto.vendor_id,
+              },
+            }
           : undefined,
         tukang: createOrderDto.tukang_id
           ? {
-            connect: {
-              id: createOrderDto.tukang_id,
-            },
-          }
+              connect: {
+                id: createOrderDto.tukang_id,
+              },
+            }
           : undefined,
       }).filter(([key, value]) => value !== undefined),
     );
@@ -146,27 +146,27 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
           : []),
         ...(status ? [{ status: { id: { equals: status } } }] : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
-      deleted_at: null
+      deleted_at: null,
     };
 
     const orders = await this.dbService.orders.findMany({
@@ -246,7 +246,7 @@ export class OrderService {
     const orders = await this.dbService.orders.findFirst({
       where: {
         id,
-        deleted_at: null
+        deleted_at: null,
       },
       include: {
         members: true,
@@ -260,13 +260,13 @@ export class OrderService {
           select: {
             id: true,
             order_id: true,
-            // item_id: true,
+            item_id: true,
             item: {
               select: {
                 id: true,
                 category_name: true,
-                prices: true
-              }
+                prices: true,
+              },
             },
             order_status_id: true,
             unit: true,
@@ -326,10 +326,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-        where: {
-          id: updateOrderDto.project_status_id,
-        },
-      })
+          where: {
+            id: updateOrderDto.project_status_id,
+          },
+        })
       : null;
 
     let projectStatusDefault = order.status;
@@ -422,11 +422,11 @@ export class OrderService {
       this.dbService.m_order_details.deleteMany({
         where: {
           order_id: id,
-          NOT: updateOrderDto.order_details.map((item) => {
-            return {
-              id: item.id,
-            };
-          }),
+          id: {
+            notIn: updateOrderDto.order_details.map((item) => {
+              return item.id;
+            }),
+          },
         },
       }),
       this.dbService.orders.update({
