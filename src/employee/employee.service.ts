@@ -5,10 +5,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
 import { createApiPropertyDecorator } from '@nestjs/swagger/dist/decorators/api-property.decorator';
 import { connect } from 'http2';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
       let full_name = createEmployeeDto.first_name;
@@ -54,7 +55,7 @@ export class EmployeeService {
         data: {
           username: `${employee.first_name + employee.last_name}`,
           password: await hash('tukanginwebsite165', 10),
-          role_id: 6
+          role_id: 6,
         },
       });
       // const create_user_roles = await this.dbService.user_roles.create({
@@ -89,7 +90,14 @@ export class EmployeeService {
 
   async findAll() {
     try {
-      const employee = await this.dbService.employee.findMany();
+      const include: Prisma.employeeInclude = {
+        positions: true,
+        store: true,
+      };
+
+      const employee = await this.dbService.employee.findMany({
+        include,
+      });
 
       return {
         status: HttpStatus.OK,

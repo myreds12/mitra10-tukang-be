@@ -320,7 +320,6 @@ export class OrderService {
       },
     });
 
-    console.log(filePath);
 
     if (!order) throw new NotFoundException('Order not found');
 
@@ -404,6 +403,7 @@ export class OrderService {
       member_id: updateOrderDto?.member_id,
       seles_id: updateOrderDto?.seles_id,
       store_id: updateOrderDto?.store_id,
+      vendor_id: updateOrderDto?.vendor_id,
       project_address: updateOrderDto?.project_address,
       receipt_number: updateOrderDto?.receipt_number,
       receipt_path: filePath,
