@@ -37,10 +37,10 @@ export class TukangService {
       },
     });
 
-    const tukangService: Prisma.tukang_serviceCreateManyInput[] =
-      createTukangDto.service_type_id.map((item) => {
+    const tukangServiceTypes: Prisma.tukang_serviceCreateManyTukangInput[] =
+      createTukangDto.service_types.map((item) => {
         return {
-          service_type_id: item,
+          service_type_id: item.service_type_id,
           created_by: user_id,
         };
       });
@@ -80,7 +80,7 @@ export class TukangService {
       },
       tukang_service: {
         createMany: {
-          data: tukangService,
+          data: tukangServiceTypes,
         },
       },
     };
@@ -206,7 +206,7 @@ export class TukangService {
       });
     console.log(updateTukangDto.service_types);
 
-    const updateTukangServiceType = updateTukangDto.service_types
+    const updateTukangServiceType = updateTukangDto?.service_types
       .filter((x) => Boolean(x.id))
       .map(({ id, service_type_id }) => {
         return {

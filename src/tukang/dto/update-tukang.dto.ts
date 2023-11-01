@@ -9,16 +9,8 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { ServiceType } from './service-type.class.interface';
 
-class ServiceType {
-  @Type(() => Number)
-  @IsOptional()
-  id?: number;
-
-  @Type(() => Number)
-  @IsNumber()
-  service_type_id: number;
-}
 export class UpdateTukangDto {
   @ApiProperty()
   full_name?: string;

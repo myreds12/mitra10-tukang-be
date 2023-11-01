@@ -14,6 +14,7 @@ import {
   HttpStatus,
   Query,
   UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -34,7 +35,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('tukang')
 @UseGuards(JwtAuthGuard)
 export class TukangController {
-  constructor(private readonly tukangService: TukangService) { }
+  constructor(private readonly tukangService: TukangService) {}
 
   @Get('next-code')
   async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {
@@ -75,6 +76,13 @@ export class TukangController {
   ) {
     try {
       const user = req.user;
+
+      // Cek di dTO ada updateTukangDto?.service_types
+      if (!createTukangDto.service_types)
+        throw new BadRequestException('Service type cannot be null.');
+      if (!createTukangDto.service_types.length)
+        throw new BadRequestException('Service type should be an one or many.');
+
       const { tukang, userData } = await this.tukangService.create(
         createTukangDto,
         user,
@@ -155,6 +163,13 @@ export class TukangController {
   ) {
     try {
       const user = req.user;
+
+      // Cek di dTO ada updateTukangDto?.service_types
+      if (!updateTukangDto.service_types)
+        throw new BadRequestException('Service type cannot be null.');
+      if (!updateTukangDto.service_types.length)
+        throw new BadRequestException('Service type should be an one or many.');
+
       const tukang = await this.tukangService.update(
         id,
         updateTukangDto,

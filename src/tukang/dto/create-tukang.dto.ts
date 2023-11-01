@@ -8,18 +8,18 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { ServiceType } from './service-type.class.interface';
 
 export class CreateTukangDto {
   @ApiProperty()
-  
   full_name: string;
-  
+
   ktp_number: string;
 
   phone_number: string;
 
   address: string;
-  
+
   email: string;
 
   username: string;
@@ -29,8 +29,9 @@ export class CreateTukangDto {
   @Type(() => Number)
   vendor_id?: number;
 
-  @Type(() => Number)
-  service_type_id: number[];
+  @ApiProperty({ type: [ServiceType] }) // This represents an array of VendorService
+  @Type(() => ServiceType)
+  service_types?: ServiceType[];
 
   join_date?: string;
 
@@ -39,7 +40,7 @@ export class CreateTukangDto {
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   tukang_document?: Express.Multer.File[] | Express.Multer.File;
-  
+
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   ktp_file?: Express.Multer.File[] | Express.Multer.File;
