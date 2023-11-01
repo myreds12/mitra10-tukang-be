@@ -90,7 +90,7 @@ export class VendorController {
         status: HttpStatus.CREATED,
         messages: 'Vendor Created.',
         data: vendor,
-        user: users
+        user: users,
       });
     } catch (error) {
       console.log(error);
@@ -181,7 +181,7 @@ export class VendorController {
         data: order,
       });
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
 
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
@@ -211,6 +211,4 @@ export class VendorController {
       });
     }
   }
-
-  
 }

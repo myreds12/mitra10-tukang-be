@@ -7,21 +7,23 @@ import { Prisma, users } from '@prisma/client';
 
 @Injectable()
 export class QuotationService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
 
   //TODO: FILE UPLOAD => DONE
   // TODOL SYNC WITH TABLE NEEDS => DONE
   async create(
     createQuotationDto: CreateQuotationDto,
     user: users,
-    quotaion_files: Express.Multer.File[],
+    quotaion_files?: Express.Multer.File[],
   ) {
     const { id: user_id } = user;
     const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
-      quotaion_files.map((item) => ({
-        path: item.filename,
-        created_by: user_id,
-      }));
+      quotaion_files
+        ? quotaion_files.map((item) => ({
+            path: item.filename,
+            created_by: user_id,
+          }))
+        : undefined;
 
     const quotation_data = {
       order: {
@@ -76,25 +78,25 @@ export class QuotationService {
         status ? { quotation_status: { equals: status } } : null,
         ...(search
           ? [
-            {
-              OR: [
-                { order: { vendor: { company_name: { contains: search } } } },
-                { store: { store_name: { contains: search } } },
-                { quotation_number: { contains: search } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { order: { vendor: { company_name: { contains: search } } } },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
           : []),
         date_from && date_to
           ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : null,
       ].filter((condition) => Boolean(condition)),
-      deleted_at: null
+      deleted_at: null,
     };
     const quotation = await this.dbService.quotation.findMany({
       where,
@@ -106,8 +108,8 @@ export class QuotationService {
           include: {
             m_order_details: true,
             vendor: true,
-            members: true
-          }
+            members: true,
+          },
         },
         status: true,
         store: true,
@@ -127,7 +129,7 @@ export class QuotationService {
     const quotation = await this.dbService.quotation.findFirst({
       where: {
         id,
-        deleted_at: null
+        deleted_at: null,
       },
       include: {
         quotation_files: true,
@@ -135,8 +137,8 @@ export class QuotationService {
           include: {
             m_order_details: true,
             members: true,
-            vendor: true
-          }
+            vendor: true,
+          },
         },
         status: true,
         store: true,
@@ -168,26 +170,26 @@ export class QuotationService {
 
     const orderConn = updateQuotationDto.order_id
       ? {
-        connect: {
-          id: updateQuotationDto.order_id,
-        },
-      }
+          connect: {
+            id: updateQuotationDto.order_id,
+          },
+        }
       : undefined;
 
     const storeConn = updateQuotationDto.store_id
       ? {
-        connect: {
-          id: updateQuotationDto.store_id,
-        },
-      }
+          connect: {
+            id: updateQuotationDto.store_id,
+          },
+        }
       : undefined;
 
     const statusConn = updateQuotationDto.quotation_status
       ? {
-        connect: {
-          id: updateQuotationDto.quotation_status,
-        },
-      }
+          connect: {
+            id: updateQuotationDto.quotation_status,
+          },
+        }
       : undefined;
 
     const quotation_data: Prisma.quotationUpdateInput = Object.fromEntries(
@@ -206,10 +208,10 @@ export class QuotationService {
         updated_by: user_id,
         quotation_files: quotation_files.length
           ? {
-            createMany: {
-              data: evidence,
-            },
-          }
+              createMany: {
+                data: evidence,
+              },
+            }
           : undefined,
       }).filter(([key, value]) => value != undefined),
     );

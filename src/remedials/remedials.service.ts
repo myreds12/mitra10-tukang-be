@@ -25,10 +25,12 @@ export class RemedialsService {
     });
 
     const evidences: Array<Prisma.remedial_evidencesCreateManyRemedialsInput> =
-      remedial_evidences.map((evidence) => ({
-        evidence_location: evidence.filename,
-        created_by: user_id,
-      }));
+      remedial_evidences
+        ? remedial_evidences.map((evidence) => ({
+            evidence_location: evidence.filename,
+            created_by: user_id,
+          }))
+        : undefined;
 
     console.log(evidences, remedial_evidences);
 
@@ -38,11 +40,13 @@ export class RemedialsService {
           id: createRemedialDto.complaint_id,
         },
       },
-      status: createRemedialDto.remedial_status ? {
-        connect: {
-          id: createRemedialDto.remedial_status
-        }
-      } : undefined,
+      status: createRemedialDto.remedial_status
+        ? {
+            connect: {
+              id: createRemedialDto.remedial_status,
+            },
+          }
+        : undefined,
       remedial_action: createRemedialDto.remedial_action,
       remedial_pic: createRemedialDto.remedial_pic,
       ra_date_start: new Date(createRemedialDto.ra_date_start),
@@ -52,11 +56,15 @@ export class RemedialsService {
     const remedial_options: Prisma.remedialsCreateArgs = {
       data: {
         ...remedial_data,
-        remedial_evidences: {
-          createMany: {
-            data: evidences,
-          },
-        },
+        ...(remedial_evidences
+          ? {
+              remedial_evidences: {
+                createMany: {
+                  data: evidences,
+                },
+              },
+            }
+          : undefined),
       },
     };
 
@@ -138,10 +146,12 @@ export class RemedialsService {
       complaint.orders.project_status_id == 3 /* FILL WITH STATUS ACCEPTED*/
     ) {
       const evidences: Array<Prisma.remedial_evidencesCreateManyRemedialsInput> =
-        remedial_evidences.map((evidence) => ({
-          evidence_location: evidence.filename,
-          created_by: user_id,
-        }));
+        remedial_evidences
+          ? remedial_evidences.map((evidence) => ({
+              evidence_location: evidence.filename,
+              created_by: user_id,
+            }))
+          : undefined;
 
       const remedial_data = {
         complaints: {
@@ -149,11 +159,13 @@ export class RemedialsService {
             id: updateRemedialDto.complaint_id,
           },
         },
-        status: updateRemedialDto.remedial_status ? {
-          connect: {
-            id: updateRemedialDto.remedial_status
-          }
-        } : undefined,
+        status: updateRemedialDto.remedial_status
+          ? {
+              connect: {
+                id: updateRemedialDto.remedial_status,
+              },
+            }
+          : undefined,
         remedial_action: updateRemedialDto.remedial_action,
         remedial_pic: updateRemedialDto.remedial_pic,
         ra_date_start: new Date(updateRemedialDto.ra_date_start),
@@ -166,14 +178,18 @@ export class RemedialsService {
         },
         data: {
           ...remedial_data,
-          remedial_evidences: {
-            updateMany: {
-              where: {
-                remedial_id: id,
-              },
-              data: evidences,
-            },
-          },
+          ...(remedial_evidences
+            ? {
+                remedial_evidences: {
+                  updateMany: {
+                    where: {
+                      remedial_id: id,
+                    },
+                    data: evidences,
+                  },
+                },
+              }
+            : undefined),
         },
       };
 
