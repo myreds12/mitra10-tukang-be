@@ -19,23 +19,23 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class PositionsController {
   constructor(private readonly positionsService: PositionsService) {}
 
-  @Post('/create')
+  @Post('/')
   create(@Body() createPositionDto: CreatePositionDto, @Request() req) {
     const user_id = req.user.id;
     return this.positionsService.create(createPositionDto, user_id);
   }
 
-  @Get('/get')
+  @Get('/')
   findAll() {
     return this.positionsService.findAll();
   }
 
-  @Get('/find/:id')
+  @Get('/:id')
   findOne(@Param('id') id: string) {
     return this.positionsService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updatePositionDto: UpdatePositionDto,
@@ -45,7 +45,7 @@ export class PositionsController {
     return this.positionsService.update(+id, updatePositionDto, user_id);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.positionsService.remove(+id, user_id);

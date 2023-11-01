@@ -37,7 +37,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class MenusController {
   constructor(private readonly menusService: MenusService) {}
 
-  @Post('/create')
+  @Post('/')
   create(
     @Body() createMenuDto: CreateMenuDto,
     @Request() req,
@@ -47,17 +47,17 @@ export class MenusController {
     return this.menusService.create(createMenuDto, user_id, file);
   }
 
-  @Get('/get')
+  @Get('/')
   findAll() {
     return this.menusService.findAll();
   }
 
-  @Get('/find/:id')
+  @Get('/:id')
   findOne(@Param('id') id: string) {
     return this.menusService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateMenuDto: UpdateMenuDto,
@@ -68,7 +68,7 @@ export class MenusController {
     return this.menusService.update(+id, updateMenuDto, user_id, file);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.menusService.remove(+id, user_id);

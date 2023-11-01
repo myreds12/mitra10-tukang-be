@@ -300,12 +300,12 @@ model tukang {
   updated_by Int?
   deleted_by Int?
 
-  vendor             vendor?              @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users              users?               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tukang_service     tukang_service[]
-  orders             orders[]
-  tukang_document    tukang_document[]
-  work_order_details work_order_details[]
+  vendor            vendor?             @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang_service    tukang_service[]
+  orders            orders[]
+  tukang_document   tukang_document[]
+  work_order_tukang work_order_tukang[]
 }
 
 model tukang_document {
@@ -726,26 +726,26 @@ model work_orders {
   vendor_id Int
 
   worker_order_status Int
-  request_work_time   DateTime @db.DateTime()
-  survey_date         DateTime @db.Date()
-  work_start_date     DateTime @db.Date()
-  work_end_date       DateTime @db.Date()
+  request_work_time   DateTime? @default(now()) @db.DateTime()
+  survey_date         DateTime  @db.Date()
+  work_start_date     DateTime  @db.Date()
+  work_end_date       DateTime  @db.Date()
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
-  created_at         DateTime             @default(now()) @db.DateTime()
-  updated_at         DateTime?            @db.DateTime()
-  deleted_at         DateTime?            @db.DateTime()
-  status             status?              @relation(fields: [worker_order_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  order              orders               @relation(fields: [order_id], references: [id])
-  work_evidences     work_evidences[]
-  vendor             vendor               @relation(fields: [vendor_id], references: [id])
-  work_order_details work_order_details[]
+  created_at           DateTime               @default(now()) @db.DateTime()
+  updated_at           DateTime?              @db.DateTime()
+  deleted_at           DateTime?              @db.DateTime()
+  status               status?                @relation(fields: [worker_order_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  order                orders                 @relation(fields: [order_id], references: [id])
+  work_order_evidences work_order_evidences[]
+  vendor               vendor                 @relation(fields: [vendor_id], references: [id])
+  work_order_tukang    work_order_tukang[]
 }
 
-model work_order_details {
+model work_order_tukang {
   id            Int @id @default(autoincrement())
   work_order_id Int
   tukang_id     Int
@@ -762,7 +762,7 @@ model work_order_details {
   tukang      tukang      @relation(fields: [tukang_id], references: [id])
 }
 
-model work_evidences {
+model work_order_evidences {
   id Int @id @default(autoincrement())
 
   work_order_id     Int

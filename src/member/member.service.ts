@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, BadRequestException } from '@nestjs/common';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -13,7 +13,7 @@ export class MemberService {
       const email_check = await this.dbService.members.findFirst({
         where: { email: createMemberDto.email },
       });
-      if (email_check) throw new Error('Email already exist!');
+      if (email_check) throw new BadRequestException('Email already exist!');
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,

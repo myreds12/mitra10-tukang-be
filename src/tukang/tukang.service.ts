@@ -9,7 +9,7 @@ import { contains } from 'class-validator';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createTukangDto: CreateTukangDto,
     user: users,
@@ -103,35 +103,35 @@ export class TukangService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { address: { contains: search } },
-                { email: { contains: search } },
-                { phone_number: { contains: search } },
-                { full_name: { contains: search } },
-                { ktp_number: { contains: search } },
-                { vendor: { company_name: { contains: search } } },
-                {
-                  tukang_service: {
-                    every: {
-                      service_type: { service_type: { contains: search } },
+              {
+                OR: [
+                  { address: { contains: search } },
+                  { email: { contains: search } },
+                  { phone_number: { contains: search } },
+                  { full_name: { contains: search } },
+                  { ktp_number: { contains: search } },
+                  { vendor: { company_name: { contains: search } } },
+                  {
+                    tukang_service: {
+                      every: {
+                        service_type: { service_type: { contains: search } },
+                      },
                     },
                   },
-                },
-              ],
-            },
-          ]
+                ],
+              },
+            ]
           : []),
         date_from && date_to
           ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : undefined,
       ],
-      deleted_at: null
+      deleted_at: null,
     };
 
     const tukang = await this.dbService.tukang.findMany({
@@ -143,8 +143,8 @@ export class TukangService {
         vendor: true,
         tukang_service: {
           include: {
-            service_type: true
-          }
+            service_type: true,
+          },
         },
         tukang_document: true,
       },
@@ -164,8 +164,8 @@ export class TukangService {
           vendor: true,
           tukang_service: {
             include: {
-              service_type: true
-            }
+              service_type: true,
+            },
           },
           tukang_document: true,
         },
@@ -204,6 +204,7 @@ export class TukangService {
           return newFile;
         }
       });
+    console.log(updateTukangDto.service_types);
 
     const updateTukangServiceType = updateTukangDto.service_types
       .filter((x) => Boolean(x.id))
@@ -225,6 +226,7 @@ export class TukangService {
           created_by: user_id,
         })),
     };
+    console.log(updateTukangServiceType, newTukangServiceType);
 
     const tukangUpdate: Prisma.tukangUpdateInput = {
       vendor: {

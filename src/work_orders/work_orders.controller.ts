@@ -33,20 +33,20 @@ interface UserRequest extends IExpressRequest {
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) { }
+  constructor(private readonly workOrdersService: WorkOrdersService) {}
   @Post()
-  @UseInterceptors(FilesInterceptor('work_evidences', 5))
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
   async create(
     @Body() dataDto: CreateWorkOrderDto,
     @Request() req: UserRequest,
-    @UploadedFiles() work_evidences: Express.Multer.File[],
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
     @Res() res: IExpressResponse,
   ) {
     try {
       const work_orders = await this.workOrdersService.create(
         dataDto,
         req.user,
-        work_evidences,
+        work_order_evidences,
       );
 
       return res.status(201).json({
@@ -71,7 +71,8 @@ export class WorkOrdersController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { data, skip, page, take, total } = await this.workOrdersService.findAll(queryParamsDto);
+      const { data, skip, page, take, total } =
+        await this.workOrdersService.findAll(queryParamsDto);
 
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -80,7 +81,7 @@ export class WorkOrdersController {
         total,
         page,
         take,
-        skip
+        skip,
       });
     } catch (error) {
       console.log(error);

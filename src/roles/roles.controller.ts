@@ -19,23 +19,23 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
-  @Post('/create')
+  @Post('/')
   create(@Body() createRoleDto: CreateRoleDto, @Request() req) {
     const user_id = req.user.id;
     return this.rolesService.create(createRoleDto, user_id);
   }
 
-  @Get('/get')
+  @Get('/')
   findAll() {
     return this.rolesService.findAll();
   }
 
-  @Get('/find/:id')
+  @Get('/:id')
   findOne(@Param('id') id: string) {
     return this.rolesService.findOne(+id);
   }
 
-  @Post('/update/:id')
+  @Post('/:id')
   update(
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto,
@@ -45,7 +45,7 @@ export class RolesController {
     return this.rolesService.update(+id, updateRoleDto, user_id);
   }
 
-  @Delete('/delete/:id')
+  @Delete('/:id')
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.rolesService.remove(+id, user_id);
