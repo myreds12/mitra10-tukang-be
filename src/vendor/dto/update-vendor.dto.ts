@@ -34,7 +34,9 @@ class VendorArea {
   @Type(() => Number)
   city_id: number;
 
+  @IsNotEmpty()
   default_discount: string;
+  @IsNotEmpty()
   default_markup: string;
   default_unit?: string;
 }
@@ -43,7 +45,7 @@ class VendorService {
   @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  id: number;
+  id?: number;
 
   @ApiProperty()
   @IsNumber()

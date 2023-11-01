@@ -33,9 +33,10 @@ export class CreateVendorDto {
   @Type(() => Number)
   city_id?: number[];
 
+  @IsOptional()
   @ApiProperty({ type: [Number] })
   @Type(() => Number)
-  service_type_id: number[];
+  service_type_id?: number[];
 
   @Type(() => Number)
   bank_id: number;

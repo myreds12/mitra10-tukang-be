@@ -30,12 +30,14 @@ export class VendorService {
       });
 
     const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
-      createVendorDto.city_id.map((city_id) => ({
-        city_id,
-        default_discount: createVendorDto.discount,
-        default_markup: createVendorDto.markup,
-        created_by: user_id,
-      }));
+      createVendorDto.city_id
+        ? createVendorDto.city_id.map((city_id) => ({
+            city_id,
+            default_discount: createVendorDto.discount,
+            default_markup: createVendorDto.markup,
+            created_by: user_id,
+          }))
+        : undefined;
 
     const vendorBankData: Prisma.vendor_bankCreateInput = {
       account_name: createVendorDto.account_name,
@@ -49,11 +51,13 @@ export class VendorService {
     };
 
     const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
-      createVendorDto.service_type_id.map((item) => {
-        return {
-          service_type_id: item,
-        };
-      });
+      createVendorDto.service_type_id
+        ? createVendorDto.service_type_id.map((item) => {
+            return {
+              service_type_id: item,
+            };
+          })
+        : undefined;
 
     const users = await this.dbService.users.create({
       data: {
@@ -84,18 +88,26 @@ export class VendorService {
           data: vendorFiles.flat(),
         },
       },
-      vendor_area: {
-        createMany: {
-          data: vendorAreaData,
-        },
-      },
+      ...(vendorAreaData
+        ? {
+            vendor_area: {
+              createMany: {
+                data: vendorAreaData,
+              },
+            },
+          }
+        : undefined),
+      ...(vendorServiceData
+        ? {
+            vendor_service: {
+              createMany: {
+                data: vendorServiceData,
+              },
+            },
+          }
+        : undefined),
       vendor_bank: {
         create: vendorBankData,
-      },
-      vendor_service: {
-        createMany: {
-          data: vendorServiceData,
-        },
       },
     };
 
