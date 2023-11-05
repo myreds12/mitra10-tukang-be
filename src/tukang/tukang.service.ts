@@ -15,18 +15,19 @@ export class TukangService {
     files: TukangFiles,
   ) {
     const { id: user_id } = user;
-    const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> =
-      Object.entries(files).map((file) => {
-        if (file[0].length) {
-          const newFile = file[1].map((item) => ({
-            document_name: file[0],
-            path: item.filename,
-            created_by: user_id,
-          }));
+    const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
+      ? Object.entries(files).map((file) => {
+          if (file[0].length) {
+            const newFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
 
-          return newFile;
-        }
-      });
+            return newFile;
+          }
+        })
+      : undefined;
 
     const roles = await this.dbService.roles.findFirst({
       where: {
@@ -74,11 +75,15 @@ export class TukangService {
       address: createTukangDto.address,
       phone_number: createTukangDto.phone_number,
       bod: new Date(createTukangDto.bod),
-      tukang_document: {
-        createMany: {
-          data: tukangFiles.flat(),
-        },
-      },
+      ...(tukangFiles
+        ? {
+            tukang_document: {
+              createMany: {
+                data: tukangFiles.flat(),
+              },
+            },
+          }
+        : undefined),
       ...(tukangServiceTypes
         ? {
             tukang_service: {
@@ -197,39 +202,44 @@ export class TukangService {
   ) {
     const { id: user_id } = user;
 
-    const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> =
-      Object.entries(files).map((file) => {
-        if (file[0].length) {
-          const newFile = file[1].map((item) => ({
-            document_name: file[0],
-            path: item.filename,
-            created_by: user_id,
-          }));
+    const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
+      ? Object.entries(files).map((file) => {
+          if (file[0].length) {
+            const newFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
 
-          return newFile;
-        }
-      });
+            return newFile;
+          }
+        })
+      : undefined;
     console.log(updateTukangDto.service_types);
 
     const updateTukangServiceType = updateTukangDto?.service_types
-      .filter((x) => Boolean(x.id))
-      .map(({ id, service_type_id }) => {
-        return {
-          where: { id },
-          data: {
-            service_type_id,
-            updated_by: user_id,
-          },
-        };
-      });
+      ? updateTukangDto?.service_types
+          .filter((x) => Boolean(x.id))
+          .map(({ id, service_type_id }) => {
+            return {
+              where: { id },
+              data: {
+                service_type_id,
+                updated_by: user_id,
+              },
+            };
+          })
+      : undefined;
 
     const newTukangServiceType = {
       data: updateTukangDto.service_types
-        .filter((x) => !Boolean(x.id))
-        .map(({ service_type_id }) => ({
-          service_type_id,
-          created_by: user_id,
-        })),
+        ? updateTukangDto.service_types
+            .filter((x) => !Boolean(x.id))
+            .map(({ service_type_id }) => ({
+              service_type_id,
+              created_by: user_id,
+            }))
+        : undefined,
     };
     console.log(updateTukangServiceType, newTukangServiceType);
 
@@ -248,15 +258,23 @@ export class TukangService {
       address: updateTukangDto.address,
       phone_number: updateTukangDto.phone_number,
       bod: new Date(updateTukangDto.bod),
-      tukang_document: {
-        createMany: {
-          data: tukangFiles.flat(),
-        },
-      },
-      tukang_service: {
-        update: updateTukangServiceType,
-        createMany: newTukangServiceType,
-      },
+      ...(tukangFiles
+        ? {
+            tukang_document: {
+              createMany: {
+                data: tukangFiles.flat(),
+              },
+            },
+          }
+        : undefined),
+      ...(updateTukangServiceType || newTukangServiceType
+        ? {
+            tukang_service: {
+              update: updateTukangServiceType,
+              createMany: newTukangServiceType,
+            },
+          }
+        : undefined),
     };
 
     const [syncDocument, syncServiceType, tukang] =
@@ -269,11 +287,13 @@ export class TukangService {
         this.dbService.tukang_service.deleteMany({
           where: {
             tukang_id: id,
-            NOT: updateTukangDto.service_types.map((item) => {
-              return {
-                service_type_id: item.service_type_id,
-              };
-            }),
+            NOT: updateTukangDto.service_types
+              ? updateTukangDto.service_types.map((item) => {
+                  return {
+                    service_type_id: item.service_type_id,
+                  };
+                })
+              : undefined,
           },
         }),
         this.dbService.tukang.update({

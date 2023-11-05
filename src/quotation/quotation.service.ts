@@ -14,14 +14,16 @@ export class QuotationService {
   async create(
     createQuotationDto: CreateQuotationDto,
     user: users,
-    quotaion_files: Express.Multer.File[],
+    quotaion_files?: Express.Multer.File[],
   ) {
     const { id: user_id } = user;
     const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
-      quotaion_files.map((item) => ({
-        path: item.filename,
-        created_by: user_id,
-      }));
+      quotaion_files
+        ? quotaion_files.map((item) => ({
+            path: item.filename,
+            created_by: user_id,
+          }))
+        : undefined;
 
     const quotation_data = {
       order: {

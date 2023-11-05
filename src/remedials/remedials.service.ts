@@ -25,10 +25,12 @@ export class RemedialsService {
     });
 
     const evidences: Array<Prisma.remedial_evidencesCreateManyRemedialsInput> =
-      remedial_evidences.map((evidence) => ({
-        evidence_location: evidence.filename,
-        created_by: user_id,
-      }));
+      remedial_evidences
+        ? remedial_evidences.map((evidence) => ({
+            evidence_location: evidence.filename,
+            created_by: user_id,
+          }))
+        : undefined;
 
     console.log(evidences, remedial_evidences);
 
@@ -56,11 +58,15 @@ export class RemedialsService {
     const remedial_options: Prisma.remedialsCreateArgs = {
       data: {
         ...remedial_data,
-        remedial_evidences: {
-          createMany: {
-            data: evidences,
-          },
-        },
+        ...(remedial_evidences
+          ? {
+              remedial_evidences: {
+                createMany: {
+                  data: evidences,
+                },
+              },
+            }
+          : undefined),
       },
     };
 
@@ -144,10 +150,12 @@ export class RemedialsService {
       complaint.orders.project_status_id == 3 /* FILL WITH STATUS ACCEPTED*/
     ) {
       const evidences: Array<Prisma.remedial_evidencesCreateManyRemedialsInput> =
-        remedial_evidences.map((evidence) => ({
-          evidence_location: evidence.filename,
-          created_by: user_id,
-        }));
+        remedial_evidences
+          ? remedial_evidences.map((evidence) => ({
+              evidence_location: evidence.filename,
+              created_by: user_id,
+            }))
+          : undefined;
 
       const remedial_data = {
         complaints: {
@@ -176,14 +184,18 @@ export class RemedialsService {
         },
         data: {
           ...remedial_data,
-          remedial_evidences: {
-            updateMany: {
-              where: {
-                remedial_id: id,
-              },
-              data: evidences,
-            },
-          },
+          ...(remedial_evidences
+            ? {
+                remedial_evidences: {
+                  updateMany: {
+                    where: {
+                      remedial_id: id,
+                    },
+                    data: evidences,
+                  },
+                },
+              }
+            : undefined),
         },
       };
 

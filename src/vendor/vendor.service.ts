@@ -16,18 +16,19 @@ export class VendorService {
   ) {
     const { id: user_id } = user;
 
-    const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> =
-      Object.entries(files).map((file) => {
-        if (file[1].length) {
-          const newFile = file[1].map((item) => ({
-            document_name: file[0],
-            path: item.filename,
-            created_by: user_id,
-          }));
+    const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
+      ? Object.entries(files).map((file) => {
+          if (file[1].length) {
+            const newFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
 
-          return newFile;
-        }
-      });
+            return newFile;
+          }
+        })
+      : undefined;
 
     const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
       createVendorDto.city_id
@@ -83,11 +84,15 @@ export class VendorService {
         ? new Date(createVendorDto.join_date)
         : null,
       created_by: user_id,
-      vendor_document: {
-        createMany: {
-          data: vendorFiles.flat(),
-        },
-      },
+      ...(vendorFiles
+        ? {
+            vendor_document: {
+              createMany: {
+                data: vendorFiles.flat(),
+              },
+            },
+          }
+        : undefined),
       ...(vendorAreaData
         ? {
             vendor_area: {
@@ -110,6 +115,8 @@ export class VendorService {
         create: vendorBankData,
       },
     };
+
+    console.log('Vendor Data', vendorData);
 
     const [vendor] = await this.dbService.$transaction([
       this.dbService.vendor.create({
@@ -224,72 +231,93 @@ export class VendorService {
     const { id: user_id } = user;
     console.log(updateVendorDto);
 
-    const vendorFiles: Prisma.vendor_documentCreateManyInput[] = Object.entries(
-      files,
-    ).map((file) => {
-      if (file[1].length) {
-        const updateFile = file[1].map((item) => ({
-          document_name: file[0],
-          path: item.filename,
-          created_by: user_id,
-        }));
-        return updateFile;
-      }
-    });
+    const vendorFiles: Prisma.vendor_documentCreateManyInput[] = files
+      ? Object.entries(files).map((file) => {
+          if (file[1].length) {
+            const updateFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
+            return updateFile;
+          }
+        })
+      : undefined;
     console.log(updateVendorDto.vendor_service);
 
     const updateVendorService = updateVendorDto.vendor_service
-      .filter((x) => Boolean(x.id))
-      .map(({ id, service_type_id }) => {
-        return {
-          where: { id },
-          data: {
-            service_type_id,
-            updated_by: user_id,
-          },
-        };
-      });
+      ? updateVendorDto.vendor_service
+          .filter((x) => Boolean(x.id))
+          .map(({ id, service_type_id }) => {
+            return {
+              where: { id },
+              data: {
+                service_type_id,
+                updated_by: user_id,
+              },
+            };
+          })
+      : undefined;
     console.log('updateVendorService', updateVendorService);
 
-    const newVendorService = {
-      data: updateVendorDto.vendor_service
-        .filter((x) => !Boolean(x.id))
-        .map(({ service_type_id }) => ({
-          service_type_id,
-          created_by: user_id,
-        })),
-    };
+    const newVendorService = updateVendorDto.vendor_service
+      ? {
+          data: updateVendorDto.vendor_service
+            .filter((x) => !Boolean(x.id))
+            .map(({ service_type_id }) => ({
+              service_type_id,
+              created_by: user_id,
+            })),
+        }
+      : undefined;
     console.log('newVendorService', newVendorService);
 
     const updateVendorArea = updateVendorDto.vendor_area
-      .filter((x) => Boolean(x.id))
-      .map(
-        ({ id, city_id, default_discount, default_markup, default_unit }) => {
-          return {
-            where: { id },
-            data: {
+      ? updateVendorDto.vendor_area
+          .filter((x) => Boolean(x.id))
+          .map(
+            ({
+              id,
               city_id,
               default_discount,
               default_markup,
               default_unit,
-              updated_by: user_id,
+            }) => {
+              return {
+                where: { id },
+                data: {
+                  city_id,
+                  default_discount,
+                  default_markup,
+                  default_unit,
+                  updated_by: user_id,
+                },
+              };
             },
-          };
-        },
-      );
+          )
+      : undefined;
     console.log('updateVendorArea', updateVendorArea);
 
-    const newVendorArea = {
-      data: updateVendorDto.vendor_area
-        .filter((x) => !Boolean(x.id))
-        .map(({ city_id, default_discount, default_markup, default_unit }) => ({
-          city_id,
-          default_discount,
-          default_markup,
-          default_unit,
-          created_by: user_id,
-        })),
-    };
+    const newVendorArea = updateVendorDto.vendor_area
+      ? {
+          data: updateVendorDto.vendor_area
+            .filter((x) => !Boolean(x.id))
+            .map(
+              ({
+                city_id,
+                default_discount,
+                default_markup,
+                default_unit,
+              }) => ({
+                city_id,
+                default_discount,
+                default_markup,
+                default_unit,
+                created_by: user_id,
+              }),
+            ),
+        }
+      : undefined;
     console.log('newVendorArea', newVendorArea);
 
     const vendorData: Prisma.vendorUpdateInput = {
@@ -320,19 +348,31 @@ export class VendorService {
           },
         },
       },
-      vendor_document: {
-        createMany: {
-          data: vendorFiles.flat(),
-        },
-      },
-      vendor_area: {
-        update: updateVendorArea.length ? updateVendorArea : undefined,
-        createMany: newVendorArea.data.length ? newVendorArea : undefined,
-      },
-      vendor_service: {
-        update: updateVendorService.length ? updateVendorService : undefined,
-        createMany: newVendorService.data.length ? newVendorService : undefined,
-      },
+      ...(vendorFiles
+        ? {
+            vendor_document: {
+              createMany: {
+                data: vendorFiles.flat(),
+              },
+            },
+          }
+        : undefined),
+      ...(updateVendorArea || newVendorArea
+        ? {
+            vendor_area: {
+              update: updateVendorArea ? updateVendorArea : undefined,
+              createMany: newVendorArea ? newVendorArea : undefined,
+            },
+          }
+        : undefined),
+      ...(updateVendorService || newVendorService
+        ? {
+            vendor_service: {
+              update: updateVendorService ? updateVendorService : undefined,
+              createMany: newVendorService ? newVendorService : undefined,
+            },
+          }
+        : undefined),
     };
 
     const [syncArea, syncService, syncDocument, vendor] =
@@ -340,21 +380,25 @@ export class VendorService {
         this.dbService.vendor_area.deleteMany({
           where: {
             vendor_id: id,
-            NOT: updateVendorDto.vendor_area.map((item) => {
-              return {
-                city_id: item.city_id,
-              };
-            }),
+            NOT: updateVendorDto.vendor_area
+              ? updateVendorDto.vendor_area.map((item) => {
+                  return {
+                    city_id: item.city_id,
+                  };
+                })
+              : undefined,
           },
         }),
         this.dbService.vendor_service.deleteMany({
           where: {
             vendor_id: id,
-            NOT: updateVendorDto.vendor_service.map((item) => {
-              return {
-                service_type_id: item.service_type_id,
-              };
-            }),
+            NOT: updateVendorDto.vendor_service
+              ? updateVendorDto.vendor_service.map((item) => {
+                  return {
+                    service_type_id: item.service_type_id,
+                  };
+                })
+              : undefined,
           },
         }),
         this.dbService.vendor_document.deleteMany({
