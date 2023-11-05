@@ -66,17 +66,18 @@ model employee {
 }
 
 model items {
-  id              Int               @id @default(autoincrement())
-  item_name       String            @db.VarChar(45)
-  category_name   String
-  created_at      DateTime?         @default(now()) @db.DateTime()
-  updated_at      DateTime?         @db.DateTime()
-  deleted_at      DateTime?         @db.DateTime()
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
-  m_order_details m_order_details[]
-  prices          prices[]
+  id                   Int                    @id @default(autoincrement())
+  item_name            String                 @db.VarChar(45)
+  category_name        String
+  created_at           DateTime?              @default(now()) @db.DateTime()
+  updated_at           DateTime?              @db.DateTime()
+  deleted_at           DateTime?              @db.DateTime()
+  created_by           Int?
+  updated_by           Int?
+  deleted_by           Int?
+  m_order_details      m_order_details[]
+  prices               prices[]
+  work_order_materials work_order_materials[]
 }
 
 model logs {
@@ -90,26 +91,30 @@ model logs {
 }
 
 model members {
-  id              Int       @id @default(autoincrement())
-  full_name       String    @db.VarChar(255)
-  email           String    @unique() @db.VarChar(255)
-  phone_number    String    @db.VarChar(20)
-  whatsapp_number String    @db.VarChar(20)
-  address_1       String    @db.VarChar(255)
-  address_2       String?   @db.VarChar(255)
-  city_id         Int?
-  zip_code        String?   @db.VarChar(10)
-  rating          Int?      @default(0)
-  join_date       DateTime  @default(now()) @db.DateTime()
-  join_location   Int?
-  created_at      DateTime  @default(now()) @db.DateTime()
-  updated_at      DateTime? @db.DateTime()
-  deleted_at      DateTime? @db.DateTime()
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
-  city            city?     @relation(fields: [city_id], references: [id])
-  order           orders[]
+  id            Int  @id @default(autoincrement())
+  city_id       Int?
+  join_location Int?
+
+  full_name       String   @db.VarChar(255)
+  email           String   @unique() @db.VarChar(255)
+  phone_number    String   @db.VarChar(20)
+  whatsapp_number String   @db.VarChar(20)
+  address_1       String   @db.VarChar(255)
+  address_2       String?  @db.VarChar(255)
+  zip_code        String?  @db.VarChar(10)
+  rating          Int?     @default(0)
+  join_date       DateTime @default(now()) @db.DateTime()
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  city                city?    @relation(fields: [city_id], references: [id])
+  order               orders[]
+  join_location_store store?   @relation(fields: [join_location], references: [id])
 }
 
 model menus {
@@ -277,6 +282,7 @@ model store {
   employee   employee[]
   orders     orders[]
   quotation  quotation[]
+  members    members[]
 }
 
 model tukang {
@@ -300,12 +306,13 @@ model tukang {
   updated_by Int?
   deleted_by Int?
 
-  vendor            vendor?             @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users             users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tukang_service    tukang_service[]
-  orders            orders[]
-  tukang_document   tukang_document[]
-  work_order_tukang work_order_tukang[]
+  vendor               vendor?                @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                users?                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang_service       tukang_service[]
+  orders               orders[]
+  tukang_document      tukang_document[]
+  work_order_tukang    work_order_tukang[]
+  work_order_materials work_order_materials[]
 }
 
 model tukang_document {
@@ -444,18 +451,19 @@ model vendor_service {
 }
 
 model status {
-  id              Int               @id @default(autoincrement())
-  category        String
-  description     String
-  created_at      DateTime          @default(now()) @db.DateTime()
-  updated_at      DateTime?
-  order           orders[]
-  m_order_details m_order_details[]
-  complaints      complaints[]
-  work_orders     work_orders[]
-  quotation       quotation[]
-  remedials       remedials[]
-  refund          refund[]
+  id                Int                 @id @default(autoincrement())
+  category          String
+  description       String
+  created_at        DateTime            @default(now()) @db.DateTime()
+  updated_at        DateTime?
+  order             orders[]
+  m_order_details   m_order_details[]
+  complaints        complaints[]
+  work_orders       work_orders[]
+  quotation         quotation[]
+  remedials         remedials[]
+  refund            refund[]
+  work_order_status work_order_status[]
 }
 
 model orders {
@@ -495,10 +503,10 @@ model orders {
   store           store?            @relation(fields: [store_id], references: [id])
   m_order_details m_order_details[]
   complaints      complaints[]
-  work_orders     work_orders[]
   invoices        invoices[]
   quotation       quotation[]
   refund          refund[]
+  work_orders     work_orders?
 }
 
 model m_order_details {
@@ -685,8 +693,8 @@ model remedials {
 
   complaint_id    Int
   remedial_action String
-  ra_date_start   DateTime @db.Date()
-  ra_date_end     DateTime @db.Date()
+  ra_date_start   DateTime  @db.Date()
+  ra_date_end     DateTime? @db.Date()
   remedial_pic    Int?
   remedial_status Int?
 
@@ -722,7 +730,7 @@ model remedial_evidences {
 
 model work_orders {
   id        Int @id @default(autoincrement())
-  order_id  Int
+  order_id  Int @unique
   vendor_id Int
 
   worker_order_status Int
@@ -743,6 +751,7 @@ model work_orders {
   work_order_evidences work_order_evidences[]
   vendor               vendor                 @relation(fields: [vendor_id], references: [id])
   work_order_tukang    work_order_tukang[]
+  work_order_status    work_order_status[]
 }
 
 model work_order_tukang {
@@ -777,6 +786,51 @@ model work_order_evidences {
   deleted_at DateTime? @db.DateTime()
 
   work_orders work_orders @relation(fields: [work_order_id], references: [id])
+}
+
+model work_order_status {
+  id            Int @id @default(autoincrement())
+  work_order_id Int
+  status_id     Int
+
+  work_date_time DateTime?
+  time_spent     String?
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  work_order           work_orders            @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status               status                 @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_order_materials work_order_materials[]
+}
+
+model work_order_materials {
+  id                   Int  @id @default(autoincrement())
+  work_order_status_id Int
+  item_id              Int?
+  tukang_id            Int?
+
+  tukang_name String? @db.VarChar(40)
+  name        String  @db.VarChar()
+  price       Decimal @db.Decimal(32, 2)
+  quantity    Int     @db.Int()
+  total       Decimal @db.Decimal(32, 2)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at          DateTime          @default(now()) @db.DateTime()
+  updated_at          DateTime?         @db.DateTime()
+  deleted_at          DateTime?         @db.DateTime()
+  tukang              tukang?           @relation(fields: [tukang_id], references: [id])
+  work_order_status   work_order_status @relation(fields: [work_order_status_id], references: [id])
+  item                items?            @relation(fields: [item_id], references: [id])
 }
 
 model invoices {

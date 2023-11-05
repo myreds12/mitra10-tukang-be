@@ -1,13 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ParseArrayOptions,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { UpdateWorkOrderDto } from './dto/update.dto';
 import { Prisma, users } from '@prisma/client';
+import { OrderService } from 'src/order/order.service';
+import { VendorService } from 'src/vendor/vendor.service';
 
 @Injectable()
 export class WorkOrdersService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private orderService: OrderService,
+    private vendorService: VendorService,
+  ) {}
 
   async create(
     dataDto: CreateWorkOrderDto,
@@ -16,13 +26,17 @@ export class WorkOrdersService {
   ) {
     const { id: user_id } = user;
 
+    const order = await this.orderService.findOne(dataDto.order_id);
+
+    if (!order) throw new BadRequestException('Order not found.');
+    if (!order.vendor_id)
+      throw new BadRequestException("Order doesn't have any vendor assigned.");
+
     const evidences: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
       work_order_evidences?.map((evidences) => ({
         evidence_location: evidences.filename,
         created_by: user_id,
       }));
-
-    console.log(dataDto.work_order_tukang);
 
     const workOrderTukang: Prisma.work_order_tukangCreateManyWork_ordersInput[] =
       dataDto.work_order_tukang?.map((item) => {
@@ -32,9 +46,13 @@ export class WorkOrdersService {
         };
       });
 
-    console.log(workOrderTukang);
-
-    // return console.log(tukangConn);
+    const workOrderStatus = {
+      status: {
+        connect: {
+          id: dataDto.work_order_status,
+        },
+      },
+    };
 
     const work_order_data: Prisma.work_ordersCreateArgs = {
       data: {
@@ -49,12 +67,12 @@ export class WorkOrdersService {
         },
         order: {
           connect: {
-            id: dataDto.order_id,
+            id: order.id,
           },
         },
         vendor: {
           connect: {
-            id: dataDto.vendor_id,
+            id: order.vendor_id,
           },
         },
         ...(evidences
@@ -71,16 +89,12 @@ export class WorkOrdersService {
             data: workOrderTukang,
           },
         },
+        work_order_status: {
+          create: workOrderStatus,
+        },
       },
     };
-    // await this.dbService.orders.update({
-    //   where: {
-    //     id: dataDto.order_id,
-    //   },
-    //   data: {
-    //     project_status_id: dataDto.work_order_status,
-    //   },
-    // });
+
     const [work_order, order_update] = await this.dbService.$transaction([
       this.dbService.work_orders.create(work_order_data),
       this.dbService.orders.update({
@@ -115,7 +129,7 @@ export class WorkOrdersService {
               },
             ]
           : []),
-        ...(status ? [{ status: { id: { equals: status } } }] : []),
+        ...(status ? [{ status: { id: { in: status } } }] : []),
         date_from && date_to
           ? {
               created_at: {
@@ -173,15 +187,85 @@ export class WorkOrdersService {
     id: number,
     dataDto: UpdateWorkOrderDto,
     user: users,
-    work_order_evidences: Express.Multer.File[],
+    work_order_evidences?: Array<Express.Multer.File>,
   ) {
+    // TODO: Check Work Order ID if exist
+    const checkWorkOrder = await this.dbService.work_orders.findFirst({
+      where: {
+        id,
+      },
+    });
+
+    if (!checkWorkOrder) throw new BadRequestException('Work Order not exist');
+
+    // TODO: Create New Status in work_order_status
     const { id: user_id } = user;
-    const evidences: Array<Prisma.work_order_evidencesUpdateInput> =
+    const evidences: Array<Prisma.work_order_evidencesUpdateManyArgs> =
       work_order_evidences.map((evidences) => ({
-        evidence_location: evidences.filename,
-        updated_at: new Date(),
-        updated_by: user_id,
+        data: {
+          evidence_location: evidences.filename,
+          updated_at: new Date(),
+          updated_by: user_id,
+        },
       }));
+    const invalidItemIds = dataDto.status_details.work_order_materials
+      .filter((x) => !Boolean(x.id))
+      .filter(async ({ item_id }) => {
+        const getItem = await this.dbService.items.findFirst({
+          where: {
+            id: item_id,
+          },
+        });
+        return !getItem;
+      });
+
+    if (invalidItemIds.length > 0)
+      throw new BadRequestException('Item not Found');
+
+    const workOrderMaterial = await Promise.all(
+      dataDto.status_details.work_order_materials
+        .filter((x) => !Boolean(x.id))
+        .map(async ({ item_id, price, quantity, tukang_id }) => {
+          const getItem = await this.dbService.items.findFirst({
+            where: {
+              id: item_id,
+            },
+          });
+          const getTukang = await this.dbService.tukang.findFirst({
+            where: {
+              id: tukang_id,
+            },
+          });
+          return {
+            item_id: item_id,
+            name: getItem.item_name,
+            tukang_id: tukang_id ? tukang_id : undefined,
+            tukang_name: getTukang ? getTukang.full_name : undefined,
+            price: price,
+            quantity: quantity,
+            total: quantity * Number(price),
+          };
+        }),
+    );
+
+    const workOrderStatus = {
+      status: {
+        connect: {
+          id: dataDto.work_order_status,
+        },
+      },
+      work_date_time: dataDto?.status_details?.work_date_time
+        ? new Date(dataDto.status_details.work_date_time)
+        : undefined,
+      time_spent: dataDto?.status_details?.time_spent,
+      work_order_materials: {
+        createMany: {
+          data: dataDto.status_details.work_order_materials
+            ? workOrderMaterial
+            : undefined,
+        },
+      },
+    };
 
     const work_order_data: Prisma.work_ordersUpdateArgs = {
       where: {
@@ -214,6 +298,9 @@ export class WorkOrdersService {
             },
             data: evidences,
           },
+        },
+        work_order_status: {
+          create: workOrderStatus,
         },
       },
     };

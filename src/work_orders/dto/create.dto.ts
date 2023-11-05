@@ -1,18 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { WorkOrderTukang } from './wo-tukang.dto';
 
-class WorkOrderTukang {
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  id?: number;
-
-  @ApiProperty({ type: Number })
-  @Type(() => Number)
-  @IsNumber()
-  tukang_id: number;
-}
 export class CreateWorkOrderDto {
   @ApiProperty({ type: Number })
   @Type(() => Number)

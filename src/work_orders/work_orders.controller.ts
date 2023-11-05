@@ -9,10 +9,10 @@ import {
   Res,
   UseGuards,
   Get,
-  Patch,
   Delete,
   UseInterceptors,
   UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -39,10 +39,16 @@ export class WorkOrdersController {
   async create(
     @Body() dataDto: CreateWorkOrderDto,
     @Request() req: UserRequest,
-    @UploadedFiles() work_order_evidences: Express.Multer.File[],
     @Res() res: IExpressResponse,
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
   ) {
     try {
+      if (!dataDto.work_order_tukang)
+        throw new BadRequestException('Tukang cannot be null');
+      // THROW NEW ERROR WHEN NO TUKANG
+      if (!dataDto.work_order_tukang.length)
+        throw new BadRequestException('Tukang should be an one or many.');
+      
       const work_orders = await this.workOrdersService.create(
         dataDto,
         req.user,
@@ -57,11 +63,7 @@ export class WorkOrdersController {
     } catch (error) {
       console.log(error);
 
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message,
-        stack: error,
-      });
+      return res.status(error.response.statusCode).json(error);
     }
   }
 
@@ -86,7 +88,7 @@ export class WorkOrdersController {
     } catch (error) {
       console.log(error);
 
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
         stack: error,
@@ -118,15 +120,17 @@ export class WorkOrdersController {
     @Param('id') id: number,
     @Body() dataDto: UpdateWorkOrderDto,
     @Request() req: UserRequest,
-    @UploadedFiles() work_evidences: Express.Multer.File[],
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
     @Res() res: IExpressResponse,
   ) {
     try {
+      console.log('Evidences', work_order_evidences);
+
       const work_orders = await this.workOrdersService.update(
         id,
         dataDto,
         req.user,
-        work_evidences,
+        work_order_evidences,
       );
 
       return res.status(200).json({
@@ -135,6 +139,8 @@ export class WorkOrdersController {
         data: work_orders,
       });
     } catch (error) {
+      console.log(error);
+      
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',
