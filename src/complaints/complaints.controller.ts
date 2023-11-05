@@ -113,13 +113,10 @@ export class ComplaintsController {
   }
 
   @Get('/')
-  async findAll(
-    @Query() query: QueryParamsDto,
-    @Res() response: IExpressResponse,
-  ) {
+  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
       const complaint = await this.complaintsService.findAll(query);
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Complaint',
         data: complaint,
@@ -127,7 +124,7 @@ export class ComplaintsController {
     } catch (error) {
       console.log(error);
 
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
         stack: error,
@@ -136,17 +133,17 @@ export class ComplaintsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Res() response) {
+  async findOne(@Param('id') id: string, @Res() res) {
     try {
       const complaint = await this.complaintsService.findOne(+id);
 
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Find Complaint',
         data: complaint,
       });
     } catch (error) {
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
         stack: error,
@@ -188,17 +185,21 @@ export class ComplaintsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Req() req, @Res() response) {
+  async remove(
+    @Param('id') id: string,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
+  ) {
     try {
       const user_id = req.user.id;
       const complaint = this.complaintsService.remove(+id, user_id);
-      return response.status(200).json({
+      return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Complaint Deleted',
         data: complaint,
       });
     } catch (error) {
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Delete',
         stack: error,

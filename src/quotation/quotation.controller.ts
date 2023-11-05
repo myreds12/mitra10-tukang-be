@@ -64,9 +64,9 @@ export class QuotationController {
   @UseInterceptors(FilesInterceptor('quotation_files'))
   async create(
     @Body() createQuotationDto: CreateQuotationDto,
-    @Request() req,
     @UploadedFiles() quotation_files: Express.Multer.File[],
-    @Res() response,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
   ) {
     try {
       const user = req.user;
@@ -76,7 +76,7 @@ export class QuotationController {
         quotation_files,
       );
 
-      return response.status(201).json({
+      return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Quotation Created',
         data: quotation,
@@ -84,7 +84,7 @@ export class QuotationController {
     } catch (error) {
       console.log(error);
 
-      return response.status(400).json({
+      return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Create',
         stack: error,
@@ -95,7 +95,8 @@ export class QuotationController {
   @Get()
   async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
     try {
-      const {data, page, skip, take, countTotal} = await this.quotationService.findAll(queryParamsDto);
+      const { data, page, skip, take, countTotal } =
+        await this.quotationService.findAll(queryParamsDto);
 
       return response.status(200).json({
         status: HttpStatus.OK,
@@ -104,11 +105,11 @@ export class QuotationController {
         total: countTotal,
         page,
         take,
-        skip
+        skip,
       });
     } catch (error) {
       console.log(error);
-      
+
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
@@ -168,8 +169,6 @@ export class QuotationController {
       });
     }
   }
-
-  
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req, @Res() response) {

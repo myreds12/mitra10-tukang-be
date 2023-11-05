@@ -43,7 +43,7 @@ export class VendorController {
   async nextCode(@Req() req: IExpressRequest, @Res() res: IExpressResponse) {
     try {
       const vendor = await this.vendorService.nextCode();
-      let nextCode;
+      let nextCode: number;
       if (vendor) nextCode = vendor.id + 1;
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -90,7 +90,7 @@ export class VendorController {
         status: HttpStatus.CREATED,
         messages: 'Vendor Created.',
         data: vendor,
-        user: users
+        user: users,
       });
     } catch (error) {
       console.log(error);
@@ -211,6 +211,4 @@ export class VendorController {
       });
     }
   }
-
-  
 }

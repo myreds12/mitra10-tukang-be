@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class QueryParamsDto {
   @Type(() => Number)
@@ -12,10 +12,12 @@ export class QueryParamsDto {
   @Type(() => Number)
   skip?: number = 0;
 
+  @Transform((value) => value.value.split(',').map(Number))
+  @Type(() => String)
+  status?: number[];
+
   date_from?: string;
   date_to?: string;
-  @Type(() => Number)
-  status?: number;
 
   order_by: 'asc' | 'desc' = 'asc';
 }

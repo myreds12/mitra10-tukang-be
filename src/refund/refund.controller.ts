@@ -48,7 +48,7 @@ export class RefundController {
       });
     } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Create',
@@ -69,11 +69,11 @@ export class RefundController {
         total,
         skip,
         page,
-        take
+        take,
       });
     } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
@@ -84,14 +84,14 @@ export class RefundController {
 
   @Get(':id')
   async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
-    try{
+    try {
       const refund = await this.refundService.findOne(id);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Refund',
-        data: refund
-      })
-    }catch(error){
+        data: refund,
+      });
+    } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
@@ -101,17 +101,21 @@ export class RefundController {
   }
 
   @Post(':id')
-  async update(@Param('id') id: number, @Body() updateRefundDto: UpdateRefundDto,  @Req() req: UserRequest,
-  @Res() res: IExpressResponse,) {
-    try{
+  async update(
+    @Param('id') id: number,
+    @Body() updateRefundDto: UpdateRefundDto,
+    @Req() req: UserRequest,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
       const user = req.user;
-      const refund = await this.refundService.update(id, updateRefundDto, user)
+      const refund = await this.refundService.update(id, updateRefundDto, user);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Refund Updated',
         data: refund,
       });
-    }catch(error){
+    } catch (error) {
       console.log(error);
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,

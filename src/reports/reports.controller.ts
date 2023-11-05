@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Res, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+  Res,
+  HttpStatus,
+} from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
@@ -18,8 +30,10 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService,
-    private readonly orderService: OrderService) { }
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly orderService: OrderService,
+  ) {}
 
   @Post()
   create(@Body() createReportDto: CreateReportDto) {
@@ -27,19 +41,22 @@ export class ReportsController {
   }
 
   @Get('/orders')
-  async getOrders(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
+  async getOrders(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
     try {
-      const orders = await this.orderService.findAll(query)
+      const orders = await this.orderService.findAll(query);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Order',
-        data: orders
+        data: orders,
       });
     } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
-        stack: error
+        stack: error,
       });
     }
   }
