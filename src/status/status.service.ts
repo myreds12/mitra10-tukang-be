@@ -41,7 +41,7 @@ export class StatusService {
 
         where: {
           id: {
-            equals: status ?? undefined,
+            in: status ?? undefined,
           },
         },
       });

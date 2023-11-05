@@ -141,6 +141,7 @@ export class OrderService {
       queryParams;
     const skip = page * take - take;
     const countTotal = await this.dbService.orders.count();
+    console.log(status);
 
     const where: Prisma.ordersWhereInput = {
       AND: [
@@ -154,7 +155,7 @@ export class OrderService {
               },
             ]
           : []),
-        ...(status ? [{ status: { id: { equals: status } } }] : []),
+        ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
               {
@@ -168,6 +169,8 @@ export class OrderService {
       ].filter(Boolean),
       deleted_at: null,
     };
+
+    console.log(where);
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -289,7 +292,16 @@ export class OrderService {
           },
         },
         complaints: true,
-        work_orders: true,
+        // TODO: TAMBAHIN ORDERBY DESC KETIKA INCLUDE WORK_ORDER_STATUS
+        work_orders: {
+          include: {
+            work_order_status: {
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
+          },
+        },
       },
     });
 
@@ -319,7 +331,6 @@ export class OrderService {
         status: true,
       },
     });
-
 
     if (!order) throw new NotFoundException('Order not found');
 

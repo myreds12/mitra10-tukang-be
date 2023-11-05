@@ -61,7 +61,7 @@ export class RefundService {
               },
             ]
           : []),
-        ...(status ? [{ status: { id: { equals: status } } }] : []),
+        ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
               {
@@ -73,7 +73,7 @@ export class RefundService {
             ]
           : []),
       ].filter(Boolean),
-      deleted_at: null
+      deleted_at: null,
     };
 
     const refund = await this.dbService.refund.findMany({
@@ -90,12 +90,12 @@ export class RefundService {
             store: true,
             m_order_details: {
               include: {
-                item: true
-              }
+                item: true,
+              },
             },
             sales: true,
-            status: true
-          }
+            status: true,
+          },
         },
         status: true,
       },
@@ -108,7 +108,7 @@ export class RefundService {
     const refund = await this.dbService.refund.findFirst({
       where: {
         id,
-        deleted_at: null
+        deleted_at: null,
       },
       include: {
         orders: {
@@ -117,12 +117,12 @@ export class RefundService {
             store: true,
             m_order_details: {
               include: {
-                item: true
-              }
+                item: true,
+              },
             },
             sales: true,
-            status: true
-          }
+            status: true,
+          },
         },
         status: true,
       },
@@ -160,7 +160,7 @@ export class RefundService {
     };
     const refund = await this.dbService.refund.update({
       where: {
-        id
+        id,
       },
       data: {
         ...refundConn,

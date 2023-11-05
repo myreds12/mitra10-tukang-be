@@ -19,14 +19,14 @@ const prisma = new PrismaClient();
 async function main() {
   // await RolesSeed();
   // await MenusSeed();
-  await ItemsSeed();
+  // await ItemsSeed();
   // await UsersSeed();
   // await PermissionSeed();
   // await MembersSeed();
   // await PositionSeed();
   // await StoreSeed();
   // await ServiceTypeSeed();
-  // await StatusSeed();
+  await StatusSeed();
   // await BankSeed();
   // await CitySeed();
   // await UnitSeed();

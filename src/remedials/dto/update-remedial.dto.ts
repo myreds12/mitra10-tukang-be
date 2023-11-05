@@ -9,7 +9,7 @@ export class UpdateRemedialDto {
   remedial_action: string;
 
   ra_date_start: string;
-  ra_date_end: string;
+  ra_date_end?: string;
 
   remedial_pic: number;
 

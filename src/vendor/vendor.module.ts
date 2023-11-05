@@ -8,6 +8,7 @@ import { extname } from 'path/posix';
 @Module({
   controllers: [VendorController],
   providers: [VendorService],
+  exports: [VendorService],
   imports: [
     MulterModule.register({
       limits: {

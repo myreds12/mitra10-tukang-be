@@ -32,6 +32,7 @@ import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CityModule } from './city/city.module';
 import { RefundModule } from './refund/refund.module';
+import { MaterialsModule } from './materials/materials.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { RefundModule } from './refund/refund.module';
     ScheduleModule.forRoot(),
     CityModule,
     RefundModule,
+    MaterialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

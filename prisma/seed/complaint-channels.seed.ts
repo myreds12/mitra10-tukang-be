@@ -4,12 +4,12 @@ const prisma = new PrismaClient();
 
 export async function ComplaintChannelSeed() {
   const complaint_channel = [
-    { name: 'Channel 1' },
-    { name: 'Channel 2' },
-    { name: 'Channel 3' },
-    { name: 'Channel 4' },
-    { name: 'Channel 5' },
-    { name: 'Channel 6' },
+    { name: 'WhatsApp' },
+    { name: 'Telpon' },
+    { name: 'Kasir' },
+    { name: 'Email' },
+    { name: 'Surat' },
+    { name: 'Tukang' },
   ];
 
   // const store: Prisma.storeCreateManyInput[] = permission_name.map((item) => {

@@ -79,7 +79,7 @@ export class ComplaintsService {
 
     const where: Prisma.complaintsWhereInput = {
       AND: [
-        status ? { complaint_status: { equals: status } } : null,
+        status ? { status: { id: { in: status } } } : null,
         search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
@@ -282,7 +282,11 @@ export class ComplaintsService {
       },
     });
 
-    if (!["DRAFTED", "INVESTIGATE", "INVESTIGATED"].includes(complaint.status.category))
+    if (
+      !['DRAFTED', 'INVESTIGATE', 'INVESTIGATED'].includes(
+        complaint.status.category,
+      )
+    )
       throw new BadRequestException('Cannot Change Status');
 
     const data = await this.dbService.complaints.update({
