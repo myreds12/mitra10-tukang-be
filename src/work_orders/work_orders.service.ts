@@ -183,6 +183,7 @@ export class WorkOrdersService {
     return work_orders;
   }
 
+  // FIXME:  FILE UPLOAD STILL NOT FUNCTIONING
   async update(
     id: number,
     dataDto: UpdateWorkOrderDto,
@@ -198,7 +199,6 @@ export class WorkOrdersService {
 
     if (!checkWorkOrder) throw new BadRequestException('Work Order not exist');
 
-    // TODO: Create New Status in work_order_status
     const { id: user_id } = user;
     const evidences: Array<Prisma.work_order_evidencesUpdateManyArgs> =
       work_order_evidences.map((evidences) => ({

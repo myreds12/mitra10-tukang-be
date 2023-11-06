@@ -6,7 +6,7 @@ import { hash } from 'bcrypt';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
 
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
@@ -19,12 +19,16 @@ export class MemberService {
           full_name: createMemberDto.full_name,
           email: createMemberDto.email,
           address_1: createMemberDto.address_1,
-          join_date: createMemberDto.join_date ? new Date(createMemberDto.join_date) : new Date(),
+          join_date: createMemberDto.join_date
+            ? new Date(createMemberDto.join_date)
+            : undefined,
           phone_number: createMemberDto.phone_number,
           whatsapp_number: createMemberDto.whatsapp_number,
           zip_code: createMemberDto.zip_code,
           //join location diisi dengan store id
-          join_location: createMemberDto.join_location ? createMemberDto.join_location : null,
+          join_location: createMemberDto.join_location
+            ? createMemberDto.join_location
+            : undefined,
           created_by: user_id,
         },
       });
@@ -33,7 +37,7 @@ export class MemberService {
         data: {
           username: member.full_name,
           password: await hash('tukanginwebsite165', 10),
-          role_id: 7
+          role_id: 7,
         },
       });
 
@@ -72,7 +76,11 @@ export class MemberService {
 
   async findAll() {
     try {
-      const member = await this.dbService.members.findMany();
+      const member = await this.dbService.members.findMany({
+        where: {
+          deleted_at: null,
+        },
+      });
       return {
         data: {
           member,
@@ -96,13 +104,12 @@ export class MemberService {
           order: {
             include: {
               complaints: true,
-              invoices: true
-            }
-          }
-        }
+              invoices: true,
+            },
+          },
+        },
       });
       console.log(member);
-
 
       return {
         data: { member },

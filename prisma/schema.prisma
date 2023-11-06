@@ -477,14 +477,15 @@ model orders {
   // category_id       Int?
 
   project_address         String
-  project_number          String  @default("0")
-  receipt_number          String? @db.NVarChar(30)
-  receipt_path            String? @db.Text
-  total_estimate_workdays Int     @db.TinyInt
-  payment_type            String  @db.VarChar(200)
-  grand_total             Decimal @db.Decimal(32, 2)
-  grand_total_comission   Decimal @db.Decimal(32, 2)
-  print_counter           Int     @db.TinyInt()
+  project_number          String    @default("0")
+  receipt_number          String?   @db.NVarChar(30)
+  receipt_path            String?   @db.Text
+  request_survey          DateTime? @db.DateTime()
+  total_estimate_workdays Int       @db.TinyInt
+  payment_type            String    @db.VarChar(200)
+  grand_total             Decimal   @db.Decimal(32, 2)
+  grand_total_comission   Decimal   @db.Decimal(32, 2)
+  print_counter           Int       @db.TinyInt()
 
   created_by Int?
   updated_by Int?
@@ -825,12 +826,12 @@ model work_order_materials {
   updated_by Int?
   deleted_by Int?
 
-  created_at          DateTime          @default(now()) @db.DateTime()
-  updated_at          DateTime?         @db.DateTime()
-  deleted_at          DateTime?         @db.DateTime()
-  tukang              tukang?           @relation(fields: [tukang_id], references: [id])
-  work_order_status   work_order_status @relation(fields: [work_order_status_id], references: [id])
-  item                items?            @relation(fields: [item_id], references: [id])
+  created_at        DateTime          @default(now()) @db.DateTime()
+  updated_at        DateTime?         @db.DateTime()
+  deleted_at        DateTime?         @db.DateTime()
+  tukang            tukang?           @relation(fields: [tukang_id], references: [id])
+  work_order_status work_order_status @relation(fields: [work_order_status_id], references: [id])
+  item              items?            @relation(fields: [item_id], references: [id])
 }
 
 model invoices {

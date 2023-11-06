@@ -112,6 +112,7 @@ export class OrderService {
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
       print_counter: 0,
+      request_survey: new Date(createOrderDto.request_survey),
     };
     const ordersOptions: Prisma.ordersCreateArgs = {
       data: {
@@ -201,6 +202,7 @@ export class OrderService {
         total_estimate_workdays: true,
         payment_type: true,
         grand_total: true,
+        request_survey: true,
         grand_total_comission: true,
         print_counter: true,
         created_by: true,
@@ -426,6 +428,9 @@ export class OrderService {
       project_status_id: projectStatusDefault.id,
       print_counter: 0,
       updated_at: new Date(),
+      request_survey: updateOrderDto?.request_survey
+        ? new Date(updateOrderDto?.request_survey)
+        : undefined,
     };
     console.log(orderDetailsUpdateData, orderDetailsNew, orderUpdateData);
 

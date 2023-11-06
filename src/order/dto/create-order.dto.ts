@@ -133,4 +133,6 @@ export class CreateOrderDto {
   @ApiProperty({ type: [OrderDetailDto] }) // This represents an array of OrderDetailDto
   @Type(() => OrderDetailDto)
   order_details?: OrderDetailDto[];
+
+  request_survey: string;
 }

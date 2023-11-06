@@ -69,6 +69,7 @@ export class ItemsService {
         category_name: {
           contains: search,
         },
+        deleted_at: null,
       },
       include: {
         prices: true,
