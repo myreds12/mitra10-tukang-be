@@ -48,7 +48,7 @@ export class WorkOrdersController {
       // THROW NEW ERROR WHEN NO TUKANG
       if (!dataDto.work_order_tukang.length)
         throw new BadRequestException('Tukang should be an one or many.');
-      
+
       const work_orders = await this.workOrdersService.create(
         dataDto,
         req.user,
@@ -116,6 +116,7 @@ export class WorkOrdersController {
   }
 
   @Post(':id')
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
   async update(
     @Param('id') id: number,
     @Body() dataDto: UpdateWorkOrderDto,
@@ -124,8 +125,6 @@ export class WorkOrdersController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      console.log('Evidences', work_order_evidences);
-
       const work_orders = await this.workOrdersService.update(
         id,
         dataDto,
@@ -140,7 +139,7 @@ export class WorkOrdersController {
       });
     } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',

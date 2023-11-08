@@ -1,24 +1,25 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsNumber } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsNumber, isNumber } from 'class-validator';
 
 export class CreateMaterialDto {
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  id: number;
-  
-  @ApiProperty()
-  @Type(() => Number)
+  id?: number;
+
   @IsNumber()
-  item_id?: number;
-  
   @Type(() => Number)
+  item_id?: number | null;
+  item_name: string;
+
   @IsNumber()
-  tukang_id?: number;
+  @Type(() => Number)
+  tukang_id?: number | null;
+  tukang_name: string;
 
   price: string;
-  
+
   @Type(() => Number)
   @IsNumber()
   quantity: number;

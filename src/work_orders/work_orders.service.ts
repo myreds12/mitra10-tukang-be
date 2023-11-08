@@ -38,6 +38,8 @@ export class WorkOrdersService {
         created_by: user_id,
       }));
 
+    console.log(dataDto.work_order_tukang);
+
     const workOrderTukang: Prisma.work_order_tukangCreateManyWork_ordersInput[] =
       dataDto.work_order_tukang?.map((item) => {
         return {
@@ -200,52 +202,115 @@ export class WorkOrdersService {
     if (!checkWorkOrder) throw new BadRequestException('Work Order not exist');
 
     const { id: user_id } = user;
-    const evidences: Array<Prisma.work_order_evidencesUpdateManyArgs> =
-      work_order_evidences.map((evidences) => ({
-        data: {
+    const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
+      {
+        data: work_order_evidences.map((evidences) => ({
           evidence_location: evidences.filename,
           updated_at: new Date(),
           updated_by: user_id,
+        })),
+      };
+
+    // const invalidItemIds = dataDto.status_details.work_order_materials
+    //   .filter((x) => !Boolean(x.id))
+    //   .filter(async ({ item_id }) => {
+    //     const getItem = await this.dbService.items.findFirst({
+    //       where: {
+    //         id: item_id,
+    //       },
+    //     });
+
+    //     return !getItem;
+    //   });
+
+    // if (invalidItemIds.length > 0)
+    //   throw new BadRequestException('Item not Found');
+
+    const tukangUpdate = dataDto?.work_order_tukang
+      ?.filter((x) => Boolean(x.id))
+      ?.map((item) => ({
+        where: {
+          id: item.id,
+        },
+        data: {
+          tukang_id: item.tukang_id,
         },
       }));
-    const invalidItemIds = dataDto.status_details.work_order_materials
-      .filter((x) => !Boolean(x.id))
-      .filter(async ({ item_id }) => {
-        const getItem = await this.dbService.items.findFirst({
-          where: {
-            id: item_id,
-          },
-        });
-        return !getItem;
-      });
 
-    if (invalidItemIds.length > 0)
-      throw new BadRequestException('Item not Found');
+    const tukangCreateMany = {
+      data: dataDto?.work_order_tukang
+        ?.filter((x) => !Boolean(x.id))
+        ?.map((item) => ({
+          tukang_id: item.tukang_id,
+        })),
+    };
 
-    const workOrderMaterial = await Promise.all(
-      dataDto.status_details.work_order_materials
-        .filter((x) => !Boolean(x.id))
-        .map(async ({ item_id, price, quantity, tukang_id }) => {
-          const getItem = await this.dbService.items.findFirst({
-            where: {
-              id: item_id,
-            },
-          });
-          const getTukang = await this.dbService.tukang.findFirst({
-            where: {
-              id: tukang_id,
-            },
-          });
-          return {
-            item_id: item_id,
-            name: getItem.item_name,
-            tukang_id: tukang_id ? tukang_id : undefined,
-            tukang_name: getTukang ? getTukang.full_name : undefined,
-            price: price,
-            quantity: quantity,
-            total: quantity * Number(price),
-          };
-        }),
+    // console.log('tukang', tukangUpdate, tukangCreateMany);
+
+    const workOrderMaterialCreate = dataDto?.status_details
+      ?.work_order_materials
+      ? await Promise.all(
+          dataDto.status_details.work_order_materials
+            .filter((x) => !Boolean(x.id))
+            .map(
+              async ({
+                item_id,
+                item_name,
+                tukang_name,
+                price,
+                quantity,
+                tukang_id,
+              }) => ({
+                item_id,
+                name: item_name,
+                tukang_id: tukang_id ?? undefined,
+                tukang_name: tukang_name ?? undefined,
+                price,
+                quantity,
+                total: quantity * Number(price),
+              }),
+            ),
+        )
+      : undefined;
+
+    const workOrderMaterialUpdate = dataDto?.status_details
+      ?.work_order_materials
+      ? await Promise.all(
+          dataDto.status_details.work_order_materials
+            .filter((x) => Boolean(x.id))
+            .map(async ({ id, item_id, price, quantity, tukang_id }) => {
+              const getItem = await this.dbService.items.findFirst({
+                where: {
+                  id: item_id,
+                },
+              });
+              const getTukang = await this.dbService.tukang.findFirst({
+                where: {
+                  id: tukang_id,
+                },
+              });
+              return {
+                where: { id },
+                data: {
+                  item_id,
+                  name: getItem.item_name,
+                  tukang_id: tukang_id ? tukang_id : undefined,
+                  tukang_name: getTukang ? getTukang.full_name : undefined,
+                  price: price,
+                  quantity: quantity,
+                  total: quantity * Number(price),
+                },
+              };
+            }),
+        )
+      : undefined;
+
+    console.log(
+      'material',
+      dataDto?.status_details,
+      dataDto?.status_details?.work_order_materials,
+      workOrderMaterialCreate,
+      workOrderMaterialUpdate,
     );
 
     const workOrderStatus = {
@@ -258,54 +323,90 @@ export class WorkOrdersService {
         ? new Date(dataDto.status_details.work_date_time)
         : undefined,
       time_spent: dataDto?.status_details?.time_spent,
+      description: dataDto?.status_details?.description,
       work_order_materials: {
         createMany: {
-          data: dataDto.status_details.work_order_materials
-            ? workOrderMaterial
+          data: dataDto?.status_details?.work_order_materials
+            ? workOrderMaterialCreate
             : undefined,
         },
       },
     };
+    // console.log('workOrderStatus', workOrderStatus);
 
     const work_order_data: Prisma.work_ordersUpdateArgs = {
       where: {
         id,
       },
       data: {
-        request_work_time: new Date(dataDto.request_work_time),
-        survey_date: new Date(dataDto.survey_date),
-        work_start_date: new Date(dataDto.work_start_date),
-        work_end_date: new Date(dataDto.work_end_date),
+        request_work_time: dataDto?.request_work_time
+          ? new Date(dataDto.request_work_time)
+          : undefined,
+        survey_date: dataDto.survey_date
+          ? new Date(dataDto.survey_date)
+          : undefined,
+        work_start_date: dataDto.work_start_date
+          ? new Date(dataDto.work_start_date)
+          : undefined,
+        work_end_date: dataDto.work_end_date
+          ? new Date(dataDto.work_end_date)
+          : undefined,
         status: {
           connect: {
             id: dataDto.work_order_status,
           },
         },
-        order: {
-          connect: {
-            id: dataDto.order_id,
-          },
-        },
-        vendor: {
-          connect: {
-            id: dataDto.vendor_id,
-          },
-        },
+        ...(dataDto.order_id
+          ? {
+              order: {
+                connect: {
+                  id: dataDto.order_id,
+                },
+              },
+            }
+          : undefined),
+        ...(dataDto.vendor_id
+          ? {
+              vendor: {
+                connect: {
+                  id: dataDto.vendor_id,
+                },
+              },
+            }
+          : undefined),
         work_order_evidences: {
-          updateMany: {
-            where: {
-              work_order_id: id,
-            },
-            data: evidences,
+          createMany: {
+            ...(evidences ?? undefined),
           },
         },
         work_order_status: {
           create: workOrderStatus,
         },
+        work_order_tukang: {
+          update: tukangUpdate?.length ? tukangUpdate : undefined,
+          createMany: tukangCreateMany.data?.length
+            ? tukangCreateMany
+            : undefined,
+        },
       },
     };
+    // console.log('work_order_data', work_order_data);
 
     const [work_order] = await this.dbService.$transaction([
+      // this.dbService.work_order_tukang.deleteMany({
+      //   where: {
+      //     work_order_id: id,
+      //     ...(tukangUpdate.length
+      //       ? {
+      //           id: {
+      //             notIn: dataDto.work_order_tukang.map((item) => {
+      //               return item.id;
+      //             }),
+      //           },
+      //         }
+      //       : undefined),
+      //   },
+      // }),
       this.dbService.work_orders.update(work_order_data),
     ]);
 

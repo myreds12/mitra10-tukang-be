@@ -302,6 +302,17 @@ export class OrderService {
                 created_at: 'desc',
               },
             },
+            work_order_tukang: {
+              select: {
+                id: true,
+                tukang_id: true,
+                tukang: {
+                  select: {
+                    full_name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },

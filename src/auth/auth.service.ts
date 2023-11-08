@@ -43,6 +43,7 @@ export class AuthService {
     const user = await this.dbService.users.findFirst({
       where: { username: dto.username },
       include: {
+        tukang: true,
         roles: {
           select: { name: true },
         },
