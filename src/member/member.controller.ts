@@ -8,11 +8,13 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { MemberService } from './member.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('member')
@@ -26,11 +28,11 @@ export class MemberController {
   }
 
   @Get('/')
-  findAll() {
-    return this.memberService.findAll();
+  findAll(@Query() query: QueryParamsDto) {
+    return this.memberService.findAll(query);
   }
 
-  @Get('/id')
+  @Get('/:id')
   findOne(@Param('id') id: string) {
     return this.memberService.findOne(+id);
   }
