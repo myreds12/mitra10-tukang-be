@@ -143,7 +143,7 @@ export class WorkOrdersController {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Update',
-        stack: error,
+        stack: error.message,
       });
     }
   }

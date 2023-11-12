@@ -141,7 +141,6 @@ export class OrderService {
     const { take, page, search, status, date_from, date_to, order_by } =
       queryParams;
     const skip = page * take - take;
-    const countTotal = await this.dbService.orders.count();
     console.log(status);
 
     const where: Prisma.ordersWhereInput = {
@@ -243,8 +242,9 @@ export class OrderService {
         },
       },
     });
+    console.log(orders.length);
 
-    return { data: orders, countTotal, page, take };
+    return { data: orders, total: orders.length, page, take };
   }
 
   async findOne(id: number) {

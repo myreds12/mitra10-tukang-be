@@ -8,16 +8,23 @@ import { hash } from 'bcrypt';
 export class MemberService {
   constructor(private readonly dbService: PrismaService) {}
 
+
+  //TODO: NAMBAHIN MEMBER NUMBER 
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
       const email_check = await this.dbService.members.findFirst({
         where: { email: createMemberDto.email },
       });
       if (email_check) throw new BadRequestException('Email already exist!');
+      const totalMember  = await this.dbService.members.count() + 1;
+      const defaultZero = "00000000"
+      const numberMember = defaultZero.slice(0, 8 - totalMember.toString().length
+        ) + totalMember.toString();
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,
           email: createMemberDto.email,
+          member_number: numberMember,
           address_1: createMemberDto.address_1,
           join_date: createMemberDto.join_date
             ? new Date(createMemberDto.join_date)

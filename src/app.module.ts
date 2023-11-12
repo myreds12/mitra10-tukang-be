@@ -33,6 +33,16 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CityModule } from './city/city.module';
 import { RefundModule } from './refund/refund.module';
 import { MaterialsModule } from './materials/materials.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { PugAdapter } from '@nestjs-modules/mailer/dist/adapters/pug.adapter';
+
+// TODO : Dynamic for production Setu
+const user = 'f22c1f963daf4c';
+const pass = 'e06400e91fc5d7';
+const smtpServ = 'sandbox.smtp.mailtrap.io';
+const transporter = 'smtps';
+const query = '?pool=true';
+const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${query}`;
 
 @Module({
   imports: [
@@ -76,6 +86,26 @@ import { MaterialsModule } from './materials/materials.module';
     CityModule,
     RefundModule,
     MaterialsModule,
+    MailerModule.forRoot({
+      transport: {
+        host: 'sandbox.smtp.mailtrap.io',
+        port: 2525,
+        auth: {
+          user: 'f22c1f963daf4c',
+          pass: 'e06400e91fc5d7',
+        },
+      },
+      defaults: {
+        from: '"nest-modules" <modules@nestjs.com>',
+      },
+      template: {
+        dir: './templates',
+        adapter: new PugAdapter(),
+        options: {
+          strict: true,
+        },
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -10,6 +10,7 @@ import { UpdateWorkOrderDto } from './dto/update.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { VendorService } from 'src/vendor/vendor.service';
+import { DataDto } from 'src/items/dto/create-item.dto';
 
 @Injectable()
 export class WorkOrdersService {
@@ -159,6 +160,7 @@ export class WorkOrdersService {
         },
         vendor: true,
         work_order_evidences: true,
+        work_order_status: true,
       },
     });
 
@@ -197,9 +199,41 @@ export class WorkOrdersService {
       where: {
         id,
       },
+      include: {
+        work_order_status: true,
+      },
     });
 
     if (!checkWorkOrder) throw new BadRequestException('Work Order not exist');
+
+    // TODO : @IMFAREL @ALIF
+    // TODO : CHECK JIKA WORK ORDER STATUS YANG BARU ITU SUDAH ADA
+    // TODO : WORK ORDER STATUS WIP -> SURVEYDONE
+    // CARI WORK ORDER STATUS DENGAN CATEGORY SURVEYSTART
+    // CHECK STATUS DARI DTO/REQUEST ITU CATEGORY SURVEYDONE
+    // IF DTO.STATUS === SURVEYDONE && WORK ORDER STATUS === SURVEYSTART
+    // updateStatus = SURVEYDONE
+    // parentId = SURVEYSTART
+    // const checkWorkOrderStatus =
+    //   await this.dbService.work_order_status.findMany({
+    //     where: {
+    //       status: {
+    //         category: {
+    //           contains: 'SURVEYSTART',
+    //         },
+    //       },
+    //     },
+    //   });
+
+    let updateStatus: number | undefined = undefined;
+    let parentId: number | undefined = undefined;
+    if (
+      dataDto.work_order_status === 7 &&
+      checkWorkOrder.work_order_status[0].status_id === 6
+    ) {
+      updateStatus = dataDto.work_order_status;
+      parentId = checkWorkOrder.work_order_status[0].status_id;
+    }
 
     const { id: user_id } = user;
     const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
@@ -313,26 +347,27 @@ export class WorkOrdersService {
       workOrderMaterialUpdate,
     );
 
-    const workOrderStatus = {
-      status: {
-        connect: {
-          id: dataDto.work_order_status,
+    const workOrderStatus: Prisma.work_order_statusCreateWithoutWork_orderInput =
+      {
+        parent_id: parentId ?? undefined,
+        status: {
+          connect: {
+            id: dataDto.work_order_status,
+          },
         },
-      },
-      work_date_time: dataDto?.status_details?.work_date_time
-        ? new Date(dataDto.status_details.work_date_time)
-        : undefined,
-      time_spent: dataDto?.status_details?.time_spent,
-      description: dataDto?.status_details?.description,
-      work_order_materials: {
-        createMany: {
-          data: dataDto?.status_details?.work_order_materials
-            ? workOrderMaterialCreate
-            : undefined,
+        work_date_time: dataDto?.status_details?.work_date_time
+          ? new Date(dataDto.status_details.work_date_time)
+          : undefined,
+        time_spent: dataDto?.status_details?.time_spent,
+        description: dataDto?.status_details?.description,
+        work_order_materials: {
+          createMany: {
+            data: dataDto?.status_details?.work_order_materials
+              ? workOrderMaterialCreate
+              : undefined,
+          },
         },
-      },
-    };
-    // console.log('workOrderStatus', workOrderStatus);
+      };
 
     const work_order_data: Prisma.work_ordersUpdateArgs = {
       where: {
@@ -352,9 +387,13 @@ export class WorkOrdersService {
           ? new Date(dataDto.work_end_date)
           : undefined,
         status: {
-          connect: {
-            id: dataDto.work_order_status,
-          },
+          ...(updateStatus
+            ? {
+                connect: {
+                  id: dataDto.work_order_status,
+                },
+              }
+            : undefined),
         },
         ...(dataDto.order_id
           ? {
@@ -390,23 +429,10 @@ export class WorkOrdersService {
         },
       },
     };
-    // console.log('work_order_data', work_order_data);
 
+    // console.log('work_order_data', work_order_data);
+    //FIXME: KETIKA WORK ORDER TUKANH DELETEMANY DINYALAKAN TERJADI ERROR
     const [work_order] = await this.dbService.$transaction([
-      // this.dbService.work_order_tukang.deleteMany({
-      //   where: {
-      //     work_order_id: id,
-      //     ...(tukangUpdate.length
-      //       ? {
-      //           id: {
-      //             notIn: dataDto.work_order_tukang.map((item) => {
-      //               return item.id;
-      //             }),
-      //           },
-      //         }
-      //       : undefined),
-      //   },
-      // }),
       this.dbService.work_orders.update(work_order_data),
     ]);
 

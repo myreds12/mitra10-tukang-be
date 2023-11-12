@@ -32,7 +32,7 @@ export class InvoicesService {
     const { page, take, search, date_from, date_to, order_by } = query;
     const skip = page * take - take;
     const total = await this.dbService.invoices.count();
-    const where: Prisma.work_ordersWhereInput = {
+    const where: Prisma.invoicesWhereInput = {
       AND: [
         ...(search
           ? [
@@ -57,7 +57,7 @@ export class InvoicesService {
       ].filter(Boolean),
       deleted_at: null,
     };
-    const work_orders = await this.dbService.work_orders.findMany({
+    const work_orders = await this.dbService.invoices.findMany({
       skip,
       take: take <= 0 ? undefined : take,
       where,
@@ -65,14 +65,12 @@ export class InvoicesService {
         created_at: order_by,
       },
       include: {
-        order: true,
-        work_order_tukang: {
+        order: {
           include: {
-            tukang: true,
-          },
+            m_order_details: true,
+            status: true
+          }
         },
-        vendor: true,
-        work_order_evidences: true,
       },
     });
 

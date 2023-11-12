@@ -27,6 +27,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
+import { SendEmailService } from 'src/mails/send-email.service';
 // import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
 // import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
 // import { PermissionAction } from 'src/casl/enum/permission-action.enum';
@@ -35,12 +36,29 @@ interface UserRequest extends IExpressRequest {
   user: users;
 }
 const menuName = 'orders';
+
 @Controller(menuName)
 @UseGuards(JwtAuthGuard)
 // @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrderController {
-  constructor(private readonly orderService: OrderService) {}
+  constructor(
+    private readonly orderService: OrderService,
+    private readonly sendEmailService: SendEmailService,
+  ) {}
 
+  @Get('/testmail')
+  async testMail() {
+    try {
+      const testMail = this.sendEmailService.sendMail(
+        'test@email.com',
+        'test!',
+      );
+
+      return 'success'
+    } catch (error) {
+      console.log(error);
+    }
+  }
   @Post(':id/counter')
   async counter(
     @Param('id', ParseIntPipe) id: number,
@@ -79,7 +97,9 @@ export class OrderController {
       if (!createOrderDto.order_details)
         throw new BadRequestException('Order Details cannot be null.');
       if (!createOrderDto.order_details.length)
-        throw new BadRequestException('Order Details should be an one or many.');
+        throw new BadRequestException(
+          'Order Details should be an one or many.',
+        );
 
       const order = await this.orderService.create(
         createOrderDto,
@@ -107,7 +127,7 @@ export class OrderController {
   // @CheckPermissions([PermissionAction.READ, menuName])
   async findAll(@Query() query: QueryParamsDto) {
     try {
-      const { data, page, take, countTotal } = await this.orderService.findAll(
+      const { data, page, take, total } = await this.orderService.findAll(
         query,
       );
       return {
@@ -116,7 +136,7 @@ export class OrderController {
         data,
         page,
         take,
-        total: countTotal,
+        total,
       };
     } catch (error) {
       console.log(error.message);
