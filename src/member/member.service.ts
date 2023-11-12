@@ -3,23 +3,25 @@ import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class MemberService {
   constructor(private readonly dbService: PrismaService) {}
 
-
-  //TODO: NAMBAHIN MEMBER NUMBER 
+  //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
       const email_check = await this.dbService.members.findFirst({
         where: { email: createMemberDto.email },
       });
       if (email_check) throw new BadRequestException('Email already exist!');
-      const totalMember  = await this.dbService.members.count() + 1;
-      const defaultZero = "00000000"
-      const numberMember = defaultZero.slice(0, 8 - totalMember.toString().length
-        ) + totalMember.toString();
+      const totalMember = (await this.dbService.members.count()) + 1;
+      const defaultZero = '00000000';
+      const numberMember =
+        defaultZero.slice(0, 8 - totalMember.toString().length) +
+        totalMember.toString();
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,
@@ -81,12 +83,26 @@ export class MemberService {
     }
   }
 
-  async findAll() {
+  async findAll(query: QueryParamsDto) {
     try {
+      const { search } = query;
+      const where: Prisma.membersWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { whatsapp_number: { contains: search } },
+                    { member_number: { contains: search } },
+                  ],
+                },
+              ]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
       const member = await this.dbService.members.findMany({
-        where: {
-          deleted_at: null,
-        },
+        where,
       });
       return {
         data: {
@@ -96,6 +112,8 @@ export class MemberService {
         message: 'Successfully get data',
       };
     } catch (error) {
+      console.log(error);
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to get data',
