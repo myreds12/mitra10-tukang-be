@@ -107,7 +107,6 @@ export class TukangService {
   async findAll(query: QueryParamsDto) {
     const { order_by, date_from, date_to, page, search, take } = query;
     const skip = page * take - take;
-    const countTotal = await this.dbService.tukang.count();
 
     const where: Prisma.tukangWhereInput = {
       AND: [
@@ -160,7 +159,7 @@ export class TukangService {
       },
     });
 
-    return { data: tukang, skip, take, page, countTotal };
+    return { data: tukang, skip, take, page, countTotal: tukang.length };
   }
 
   async findOne(id: number) {

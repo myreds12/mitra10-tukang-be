@@ -231,26 +231,27 @@ model users {
 }
 
 model sales {
-  id           Int            @id @default(autoincrement())
-  store_id     Int?
-  user_id      Int?
-  full_name    String         @db.VarChar(255)
-  nik          String         @db.VarChar(20)
-  bank_id      Int?
-  bank_branch  String         @db.VarChar(50)
-  account_name String         @db.VarChar(255)
-  is_active    Boolean        @default(true)
-  created_at   DateTime       @default(now()) @db.DateTime()
-  updated_at   DateTime?      @db.DateTime()
-  deleted_at   DateTime?      @db.DateTime()
-  created_by   Int?
-  updated_by   Int?
-  deleted_by   Int?
-  store        store?         @relation(fields: [store_id], references: [id])
-  users        users?         @relation(fields: [user_id], references: [id])
-  bank         bank?          @relation(fields: [bank_id], references: [id])
-  orders       orders[]
-  sales_brands sales_brands[]
+  id               Int                @id @default(autoincrement())
+  store_id         Int?
+  user_id          Int?
+  full_name        String             @db.VarChar(255)
+  nik              String             @db.VarChar(20)
+  bank_id          Int?
+  bank_branch      String             @db.VarChar(50)
+  account_name     String             @db.VarChar(255)
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.DateTime()
+  updated_at       DateTime?          @db.DateTime()
+  deleted_at       DateTime?          @db.DateTime()
+  created_by       Int?
+  updated_by       Int?
+  deleted_by       Int?
+  store            store?             @relation(fields: [store_id], references: [id])
+  users            users?             @relation(fields: [user_id], references: [id])
+  bank             bank?              @relation(fields: [bank_id], references: [id])
+  orders           orders[]
+  sales_brands     sales_brands[]
+  sales_categories sales_categories[]
 }
 
 model brands {
@@ -270,9 +271,9 @@ model brands {
 }
 
 model sales_brands {
-  id        Int @id @default(autoincrement())
-  sales_id  Int
-  brands_id Int
+  id        Int  @id @default(autoincrement())
+  sales_id  Int?
+  brands_id Int?
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -280,8 +281,23 @@ model sales_brands {
   created_by Int?
   updated_by Int?
 
-  sales  sales  @relation(fields: [sales_id], references: [id])
-  brands brands @relation(fields: [brands_id], references: [id])
+  sales  sales?  @relation(fields: [sales_id], references: [id])
+  brands brands? @relation(fields: [brands_id], references: [id])
+}
+
+model sales_categories {
+  id          Int  @id @default(autoincrement())
+  sales_id    Int?
+  category_id Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+
+  sales      sales?      @relation(fields: [sales_id], references: [id])
+  categories categories? @relation(fields: [category_id], references: [id])
 }
 
 model service_type {
@@ -617,10 +633,11 @@ model categories {
   updated_by Int?
   deleted_by Int?
 
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
+  created_at       DateTime           @default(now()) @db.DateTime()
+  updated_at       DateTime?          @db.DateTime()
+  deleted_at       DateTime?          @db.DateTime()
   // orders     orders[]
+  sales_categories sales_categories[]
 }
 
 model quotation {

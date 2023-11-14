@@ -35,6 +35,7 @@ import { RefundModule } from './refund/refund.module';
 import { MaterialsModule } from './materials/materials.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { PugAdapter } from '@nestjs-modules/mailer/dist/adapters/pug.adapter';
+import { BrandsModule } from './brands/brands.module';
 
 // TODO : Dynamic for production Setu
 const user = 'f22c1f963daf4c';
@@ -106,6 +107,7 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
         },
       },
     }),
+    BrandsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

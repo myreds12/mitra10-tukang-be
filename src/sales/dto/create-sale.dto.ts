@@ -6,6 +6,8 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { SalesBrandsDto } from './sales-brands.dto';
+import { SalesCategoriesDto } from './sales-categories.dto';
 
 export class CreateSalesDto {
   @ApiProperty()
@@ -42,4 +44,10 @@ export class CreateSalesDto {
   @IsString()
   @IsOptional()
   account_name?: string;
+
+  @ApiProperty()
+  sales_brands: SalesBrandsDto[];
+
+  @ApiProperty()
+  sales_categories: SalesCategoriesDto[];
 }

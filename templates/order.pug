@@ -1,16 +1,83 @@
 doctype html
-html(lang="en")
-  head
-    title= pageTitle
-    script(type='text/javascript').
-      if (foo) bar(1 + 5)
-  body
-    h1(style='width:1000px') Pug - node template engine
-    #container.col
-      if youAreUsingPug
-        p You are amazing
-      else
-        p Get on it!
-      p.
-        Pug is a terse and simple templating language with a
-        strong focus on performance and powerful features.
+head
+  meta(charset='UTF-8')
+  meta(name='viewport' content='width=device-width, initial-scale=1.0')
+  link(href='https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC' crossorigin='anonymous')
+  link(rel='stylesheet' href='./public/css/style.css')  
+  title Email Preview
+section#preview-email
+  .card
+    .card-body
+      .invoice-detail.d-flex.justify-content-between
+        .vendor-information
+          .vendor-detail
+            img.h-50px.logo.mb-3(src=('./public/img/logo-mitra.png') alt='Logo')
+            .address
+              h3.fs-1.fw-bolder.text-uppercase #{data.store.store_name}
+              h3.fw-normal #{data.store.address}
+        .payment-request
+          h1.fw-bolder EMAIL ORDER
+          h3.fw-bolder
+            | Tanggal Order :
+            span.fw-normal  #{data.created_at ? data.created_at.toLocaleDateString('id-ID') : ''}
+      .invoice-detail.d-flex.justify-content-between
+        .receiver-information
+          .receiver-detail
+            h1.fw-bolder Ditunjukkan kepada :
+            h1.fw-bolder #{data.members.full_name}
+          .address
+            h3.fw-normal #{data.project_address}
+            h3.fw-normal Telp : #{data.members.phone_number}
+        .payment-request
+          h3.fw-bolder
+            | Costumer ID :
+            span.fw-normal #{data.members.id}
+          h3.fw-bolder
+            | Tipe Pembayaran :
+            span.fw-normal.text-capitalize #{data && data.payment_type === 'survey' ? 'Berbayar & Survey' : data && data.payment_type === 'gratis' ? 'Gratis' : data && data.payment_type === 'pemasangan_tanpa_survey' ? 'Berbayar & Pemasangan Tanpa Survey' : ''}
+    .detail-table
+      table.table.table-hover
+        thead
+          tr
+            th Item Code
+            th Item Name
+            th Nama Pemasangan
+            th QTY Pemasangan
+            th Harga Jasa
+            th Jumlah
+        tbody
+          each item in data.order_details
+            tr
+              td= item.item_id
+              td= item.unit
+              td= item.status.description
+              td= item.quantity
+              td= `Rp ${parseInt(item.unit_price || 0).toLocaleString('id')}`
+              td= `Rp. ${item.total.toLocaleString('id')}`
+          if data.payment_type === 'survey'
+            tr
+              td(colspan=6) Survey
+          tr
+            td(colspan=5).text-end.fw-bolder Biaya Survey
+            td.fw-bolder
+              | #{data.payment_type === 'gratis' || data.payment_type === 'pemasangan_tanpa_survey' ? 'Rp. 0' : (data.payment_type === 'survey' ? 'Rp. 99000' : 'Rp. 0')}
+          tr
+            td(colspan=5).text-end.fw-bolder Grand Total
+            td.fw-bolder
+              | Rp. #{parseInt(data.grand_total || 0).toLocaleString('id')}
+    .payment-detail
+      .payment-method
+        h1.fw-bolder Silahkan melakukan pembayaran di account di bawah ini :
+        h3.fw-normal BANK BCA
+        h3.fw-normal PT.MITRA10
+        h3.fw-normal 123-876-90
+      .payment-evidence
+        h1.fw-bolder Silahkan kirim bukti bayar anda melalui:
+        h1.fw-bolder WA: 0813748392
+        h1.fw-bolder Email: Installation.support@mitra10.com
+      h1.fw-bolder
+        | Terima kasih telah melakukan bisnis dengan Mitra10. Kami harap kedatangan anda kembali.
+
+script(src='https://code.jquery.com/jquery-3.5.1.slim.min.js')
+script(src='https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js')
+script(src='https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js' crossorigin='anonymous')

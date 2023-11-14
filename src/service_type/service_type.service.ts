@@ -30,26 +30,25 @@ export class ServiceTypeService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const {take, page,  search } = query;
+      const { take, page, search } = query;
       const skip = page * take - take;
-      const countTotal = await this.dbService.service_type.count();
       const service_type = await this.dbService.service_type.findMany({
         skip,
-        take : take <= 0 ? undefined : take,
+        take: take <= 0 ? undefined : take,
         where: {
           service_type: {
-            contains: search ? search : undefined
-          }
-        } 
+            contains: search ? search : undefined,
+          },
+        },
       });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
         data: service_type,
-        total: countTotal,
+        total: service_type.length,
         page,
-        take
+        take,
       };
     } catch (error) {
       return {

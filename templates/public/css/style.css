@@ -1,0 +1,113 @@
+/* Header */
+
+#preview-email {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#preview-email .card {
+  width: 900px;
+}
+
+#preview-email .card .card-body {
+  min-height: 100vh;
+  padding: 3rem 3rem !important;
+}
+
+#preview-email .card .card-body .invoice-detail {
+  margin: 0 0 30px 0;
+}
+
+#preview-email .card .card-body .vendor-information .vendor-detail h1 {
+  color: #007eb4;
+  font-size: 41px;
+  padding: 0 0 10px 0;
+}
+
+#preview-email .receiver-information .receiver-detail {
+  padding: 0 0 10px 0;
+}
+
+#preview-email .receiver-information .receiver-detail h1 {
+  font-size: 18px;
+}
+
+#preview-email .address h3 {
+  font-size: 16px;
+  padding: 0 0 10px 0;
+}
+
+#preview-email .payment-request {
+  width: 300px;
+}
+
+#preview-email .payment-request h1 {
+  color: #484747;
+  font-size: 41px;
+  padding: 0 0 10px 0;
+}
+
+#preview-email .payment-request h3 {
+  padding: 0 0 10px 0;
+  font-size: 16px;
+}
+
+/* Table */
+
+#preview-email .detail-table {
+  margin: 0 0 30px 0;
+}
+
+#preview-email .detail-table table tr th {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background-color: #555555;
+}
+
+#detail-invoice
+  .detail-table
+  table.table.table-striped.table-bordered.table-hover
+  tr:nth-child(even)
+  td {
+  background-color: #e4e9f7;
+}
+
+#detail-invoice
+  .detail-table
+  table.table.table-striped.table-bordered.table-hover
+  tr:nth-child(odd)
+  td {
+  background-color: #ffff;
+}
+
+/* Footer */
+
+#preview-email .payment-detail .payment-method {
+  margin: 10px 0;
+}
+
+#preview-email .payment-detail .payment-method {
+  margin: 10px 0;
+}
+
+#preview-email .payment-detail h1 {
+  padding: 10px 0;
+  font-size: 16px;
+}
+
+#preview-email .payment-detail .payment-method h1 {
+  padding: 0 0 10px 0;
+  font-size: 16px;
+}
+
+#preview-email .payment-detail .payment-evidence h1 {
+  padding: 0 0 10px 0;
+  font-size: 16px;
+}
+
+#preview-email .payment-detail .payment-method h3 {
+  padding: 0 0 10px 0;
+  font-size: 14px;
+}

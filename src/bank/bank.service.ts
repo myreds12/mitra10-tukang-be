@@ -6,7 +6,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class BankService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createBankDto: CreateBankDto, user_id: number) {
     try {
       const banks = await this.dbService.bank.create({
@@ -30,26 +30,25 @@ export class BankService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const {take, page,  search } = query;
+      const { take, page, search } = query;
       const skip = page * take - take;
-      const countTotal = await this.dbService.bank.count()
       const banks = await this.dbService.bank.findMany({
         skip,
         take: take <= 0 ? undefined : take,
-        where:{ 
+        where: {
           bank_name: {
-            contains: search ? search : undefined
-          }
-        }
+            contains: search ? search : undefined,
+          },
+        },
       });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
         data: banks,
-        countTotal,
+        total: banks.length,
         page,
-        take
+        take,
       };
     } catch (error) {
       return {

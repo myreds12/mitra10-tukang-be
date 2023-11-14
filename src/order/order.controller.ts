@@ -15,6 +15,7 @@ import {
   Req,
   Res,
   BadRequestException,
+  Render,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -54,7 +55,7 @@ export class OrderController {
         'test!',
       );
 
-      return 'success'
+      return 'success';
     } catch (error) {
       console.log(error);
     }
@@ -149,7 +150,9 @@ export class OrderController {
     }
   }
 
+  //FIXME : UNTUK PUG TIDAK BISA MEN INCLUDE CSS DAN IMAGE, MENGGUNAKAN CONTROLLER FIND ONE AGAR MUDAH FETCH DATANYA
   @Get(':id')
+  @Render('order')
   // @CheckPermissions([PermissionAction.READ, menuName])
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {

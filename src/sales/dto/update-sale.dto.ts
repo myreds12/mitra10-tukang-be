@@ -6,6 +6,9 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { SalesBrandsDto } from './sales-brands.dto';
+import { SalesCategoriesDto } from './sales-categories.dto';
+
 export class UpdateSalesDto {
   @ApiProperty()
   @IsInt()
@@ -43,17 +46,8 @@ export class UpdateSalesDto {
   account_name?: string;
 
   @ApiProperty()
-  @IsBoolean()
-  @IsOptional()
-  is_active?: boolean;
+  sales_brands?: SalesBrandsDto[];
 
   @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  updated_by?: number;
-
-  @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  deleted_by?: number;
+  sales_categories?: SalesCategoriesDto[];
 }

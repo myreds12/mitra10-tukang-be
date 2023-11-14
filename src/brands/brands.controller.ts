@@ -6,144 +6,128 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
-  Request,
-  HttpStatus,
+  Req,
   Res,
-  Query,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
-import { SalesService } from './sales.service';
-import { CreateSalesDto } from './dto/create-sale.dto';
-import { UpdateSalesDto } from './dto/update-sale.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { BrandsService } from './brands.service';
+import { CreateBrandDto } from './dto/create-brand.dto';
+import { UpdateBrandDto } from './dto/update-brand.dto';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
 import { users } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 interface UserRequest extends IExpressRequest {
   user: users;
 }
-@Controller('sales')
-@UseGuards(JwtAuthGuard)
-export class SalesController {
-  constructor(private readonly salesService: SalesService) {}
 
-  @Post()
+@Controller('brands')
+export class BrandsController {
+  constructor(private readonly brandsService: BrandsService) {}
+
+  @Post('/')
   async create(
-    @Body() createSaleDto: CreateSalesDto,
-    @Request() req: UserRequest,
+    @Body() createBrandDto: CreateBrandDto,
+    @Req() req: UserRequest,
     @Res() res: IExpressResponse,
   ) {
     try {
       const user = req.user;
-      console.log('Wasuuu');
-      const { sales, users } = await this.salesService.create(
-        createSaleDto,
-        user,
-      );
-
+      const brands = await this.brandsService.create(createBrandDto, user);
       return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Created',
-        data: sales,
-        user: users,
+        data: brands,
       });
     } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While Create',
+        message: error.message ?? 'Error While Create',
         stack: error,
       });
     }
   }
 
-  @Get()
-  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
+  @Get('/')
+  async findAll(@Res() res: IExpressResponse) {
     try {
-      const { data, total, page, take } = await this.salesService.findAll(
-        query,
-      );
+      const brands = await this.brandsService.findAll();
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Data',
-        data,
-        total,
-        page,
-        take,
+        data: brands,
       });
     } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While GET',
+        message: error.message ?? 'Error While Get',
         stack: error,
       });
     }
   }
 
-  @Get('/:id')
+  @Get(':id')
   async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
     try {
-      const sales = await this.salesService.findOne(id);
+      const brands = await this.brandsService.findOne(id);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Details Data',
-        data: sales,
+        data: brands,
       });
     } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While GET',
+        message: error.message ?? 'Error While Get',
         stack: error,
       });
     }
   }
 
-  @Post('/:id')
+  @Post(':id')
   async update(
     @Param('id') id: number,
-    @Body() updateSaleDto: UpdateSalesDto,
-    @Request() req: UserRequest,
+    @Body() updateBrandDto: UpdateBrandDto,
+    @Req() req: UserRequest,
     @Res() res: IExpressResponse,
   ) {
     try {
       const user = req.user;
-      const sales = await this.salesService.update(id, updateSaleDto, user);
-      return res.status(200).json({
-        status: HttpStatus.OK,
+      const brands = await this.brandsService.update(id, updateBrandDto, user);
+      return res.status(201).json({
+        status: HttpStatus.CREATED,
         message: 'Updated',
-        data: sales,
+        data: brands,
       });
     } catch (error) {
-      console.log(error);
-
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While Update',
+        message: error.message ?? 'Error While Update',
         stack: error,
       });
     }
   }
 
-  @Delete('/:id')
+  @Delete(':id')
   async remove(
     @Param('id') id: number,
-    @Request() req: UserRequest,
+    @Req() req: UserRequest,
     @Res() res: IExpressResponse,
   ) {
     try {
       const user = req.user;
-      const sales = await this.salesService.remove(id, user);
+      const brands = await this.brandsService.remove(id, user);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Deleted',
-        data: sales,
+        data: brands,
       });
     } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While Delete',
+        message: error.message ?? 'Error While Delete',
         stack: error,
       });
     }

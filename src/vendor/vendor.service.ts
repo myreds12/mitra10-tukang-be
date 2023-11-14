@@ -130,7 +130,6 @@ export class VendorService {
   async findAll(query: QueryParamsDto) {
     const { take, page, search, status, date_from, date_to } = query;
     const skip = page * take - take;
-    const countTotal = await this.dbService.vendor.count();
 
     const where: Prisma.vendorWhereInput = {
       AND: [
@@ -186,7 +185,7 @@ export class VendorService {
       },
     });
 
-    return { data: vendor, countTotal, page, take };
+    return { data: vendor, countTotal: vendor.length, page, take };
   }
 
   async findOne(id: number) {

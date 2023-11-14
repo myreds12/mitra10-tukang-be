@@ -72,7 +72,6 @@ export class QuotationService {
     const { take, page, search, status, date_from, date_to, order_by } =
       queryParamsDto;
     const skip = page * take - take;
-    const countTotal = await this.dbService.quotation.count();
     const where: Prisma.quotationWhereInput = {
       AND: [
         status ? { status: { id: { in: status } } } : null,
@@ -122,7 +121,7 @@ export class QuotationService {
       skip,
       take,
       page,
-      countTotal,
+      total: quotation.length,
     };
   }
 

@@ -95,8 +95,13 @@ export class QuotationController {
   @Get()
   async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
     try {
-      const { data, page, skip, take, countTotal } =
-        await this.quotationService.findAll(queryParamsDto);
+      const {
+        data,
+        page,
+        skip,
+        take,
+        total: countTotal,
+      } = await this.quotationService.findAll(queryParamsDto);
 
       return response.status(200).json({
         status: HttpStatus.OK,
