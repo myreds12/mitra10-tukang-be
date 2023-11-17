@@ -30,6 +30,29 @@ interface UserRequest extends IExpressRequest {
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
+  @Get('next-code')
+  async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {
+    try {
+      const code = await this.salesService.getCode();
+      let nextCode = 1;
+      if (code) nextCode = code.id + 1;
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Sales code pulled',
+        data: { code: nextCode },
+      });
+    } catch (error) {
+      console.error(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While pulling sales code',
+        stack: error,
+      });
+    }
+  }
+
   @Post()
   async create(
     @Body() createSaleDto: CreateSalesDto,

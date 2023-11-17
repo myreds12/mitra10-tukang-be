@@ -1,10 +1,17 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsNumber } from 'class-validator';
 
 export class CreateInvoiceDto {
-    @ApiProperty()
-    order_id: number;
-    request_work_time: string;
-    survey_date: string;
-    work_start_date: string;
-    work_end_date: string;
+  @ApiProperty()
+  request_work_time: string;
+  survey_date: string;
+  work_start_date: string;
+  work_end_date: string;
+
+  @Type(() => Number)
+  order_id: number;
+
+  @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
+  invoice_evidences?: Array<Express.Multer.File>;
 }

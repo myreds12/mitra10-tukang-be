@@ -899,10 +899,27 @@ model invoices {
   updated_by Int?
   deleted_by Int?
 
+  created_at       DateTime           @default(now()) @db.DateTime()
+  updated_at       DateTime?          @db.DateTime()
+  deleted_at       DateTime?          @db.DateTime()
+  order            orders             @relation(fields: [order_id], references: [id])
+  invoice_evidence invoice_evidence[]
+}
+
+model invoice_evidence {
+  id Int @id @default(autoincrement())
+
+  invoice_id        Int
+  evidence_location String
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
-  order      orders    @relation(fields: [order_id], references: [id])
+  invoices   invoices  @relation(fields: [invoice_id], references: [id])
 }
 
 model refund {

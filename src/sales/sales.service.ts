@@ -9,6 +9,18 @@ import { hash } from 'bcrypt';
 @Injectable()
 export class SalesService {
   constructor(private readonly dbService: PrismaService) {}
+
+  async getCode() {
+    const sales = await this.dbService.sales.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 1,
+    });
+
+    return sales[0] || null;
+  }
+
   async create(createSalesDto: CreateSalesDto, user: users) {
     const { id: user_id } = user;
     const bank = await this.dbService.bank.findFirst({

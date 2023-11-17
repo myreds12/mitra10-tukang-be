@@ -8,24 +8,44 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 @Injectable()
 export class InvoicesService {
   constructor(private readonly dbService: PrismaService) {}
-  async create(createInvoiceDto: CreateInvoiceDto, user: users) {
+  async create(
+    createInvoiceDto: CreateInvoiceDto,
+    user: users,
+    invoice_evidences?: Array<Express.Multer.File>,
+  ) {
     const { id: user_id } = user;
-    const invoice = await this.dbService.invoices.create({
-      data: {
-        order: {
-          connect: {
-            id: createInvoiceDto.order_id,
-          },
-        },
-        request_work_time: new Date(createInvoiceDto.request_work_time),
-        survey_date: new Date(createInvoiceDto.survey_date),
-        work_start_date: new Date(createInvoiceDto.work_start_date),
-        work_end_date: new Date(createInvoiceDto.work_end_date),
-        created_by: user_id,
-      },
-    });
+    const evidences = invoice_evidences
+      ? invoice_evidences.map((item) => {
+          return {
+            evidence_location: item.filename,
+            created_by: user_id,
+          };
+        })
+      : undefined;
 
-    return invoice;
+    const data: Prisma.invoicesCreateInput = {
+      order: {
+        connect: {
+          id: createInvoiceDto.order_id,
+        },
+      },
+      request_work_time: new Date(createInvoiceDto.request_work_time),
+      survey_date: new Date(createInvoiceDto.survey_date),
+      work_start_date: new Date(createInvoiceDto.work_start_date),
+      work_end_date: new Date(createInvoiceDto.work_end_date),
+      invoice_evidence: {
+        createMany: {
+          data: evidences,
+        },
+      },
+      created_by: user_id,
+    };
+
+    const [invoices] = await this.dbService.$transaction([
+      this.dbService.invoices.create({ data }),
+    ]);
+
+    return invoices;
   }
 
   async findAll(query: QueryParamsDto) {
@@ -65,11 +85,31 @@ export class InvoicesService {
         created_at: order_by,
       },
       include: {
+        invoice_evidence: true,
         order: {
           include: {
+            complaints: true,
             m_order_details: true,
-            status: true
-          }
+            status: true,
+            quotation: true,
+            work_orders: {
+              include: {
+                work_order_status: {
+                  include: {
+                    status: true,
+                  },
+                },
+                work_order_evidences: true,
+                work_order_tukang: {
+                  include: {
+                    tukang: true,
+                  },
+                },
+              },
+            },
+            vendor: true,
+            tukang: true,
+          },
         },
       },
     });
@@ -82,33 +122,97 @@ export class InvoicesService {
       where: {
         id,
       },
+      include: {
+        order: {
+          include: {
+            complaints: true,
+            m_order_details: true,
+            status: true,
+            quotation: true,
+            work_orders: {
+              include: {
+                work_order_status: {
+                  include: {
+                    status: true,
+                  },
+                },
+                work_order_evidences: true,
+                work_order_tukang: {
+                  include: {
+                    tukang: true,
+                  },
+                },
+              },
+            },
+            vendor: true,
+            tukang: true,
+          },
+        },
+      },
     });
 
     return invoice;
   }
 
-  async update(id: number, updateInvoiceDto: UpdateInvoiceDto, user: users) {
+  //FIXME : TOLONG CEK APAKAH SUDAH SESUAI ATAU BELUM
+  async update(
+    id: number,
+    updateInvoiceDto: UpdateInvoiceDto,
+    user: users,
+    invoice_evidences?: Array<Express.Multer.File>,
+  ) {
     const { id: user_id } = user;
-    const invoice = await this.dbService.invoices.update({
+    const evidences = invoice_evidences
+      ? invoice_evidences.map((item) => {
+          return {
+            evidence_location: item.filename,
+            created_by: user_id,
+          };
+        })
+      : undefined;
+
+    const invoice_data: Prisma.invoicesUpdateInput = {
+      order: {
+        connect: {
+          id: updateInvoiceDto.order_id,
+        },
+      },
+      request_work_time: new Date(updateInvoiceDto.request_work_time),
+      survey_date: new Date(updateInvoiceDto.survey_date),
+      work_start_date: new Date(updateInvoiceDto.work_start_date),
+      work_end_date: new Date(updateInvoiceDto.work_end_date),
+      updated_at: new Date(),
+      updated_by: user_id,
+    };
+
+    const invoice: Prisma.invoicesUpdateArgs = {
       where: {
         id,
       },
       data: {
-        order: {
-          connect: {
-            id: updateInvoiceDto.order_id,
-          },
-        },
-        request_work_time: new Date(updateInvoiceDto.request_work_time),
-        survey_date: new Date(updateInvoiceDto.survey_date),
-        work_start_date: new Date(updateInvoiceDto.work_start_date),
-        work_end_date: new Date(updateInvoiceDto.work_end_date),
-        updated_by: user_id,
-        updated_at: new Date(),
+        ...invoice_data,
+        ...(invoice_evidences
+          ? {
+              invoice_evidence: {
+                createMany: {
+                  data: evidences,
+                },
+              },
+            }
+          : undefined),
       },
-    });
+    };
 
-    return invoice;
+    const [invoice_evidence, invoices] = await this.dbService.$transaction([
+      this.dbService.invoice_evidence.deleteMany({
+        where: {
+          invoice_id: id,
+        },
+      }),
+      this.dbService.invoices.update(invoice),
+    ]);
+
+    return invoices;
   }
 
   async remove(id: number, user: users) {
