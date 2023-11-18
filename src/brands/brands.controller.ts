@@ -10,6 +10,7 @@ import {
   Res,
   HttpStatus,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -19,10 +20,12 @@ import {
   Response as IExpressResponse,
 } from 'express';
 import { users } from '@prisma/client';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 interface UserRequest extends IExpressRequest {
   user: users;
 }
 
+@UseGuards(JwtAuthGuard)
 @Controller('brands')
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}

@@ -31,18 +31,22 @@ export class SalesService {
 
     if (bank.is_active == false)
       throw new HttpException('Bank is not active', HttpStatus.BAD_REQUEST);
-    const users = await this.dbService.users.create({
-      data: {
-        username: createSalesDto.full_name,
-        password: await hash(createSalesDto.nik, 20),
-        roles: {
-          connect: {
-            id: 3, // FIXME: FILL WITH ROLES SALES
+    let users;
+    if (createSalesDto.full_name && createSalesDto.nik) {
+      users = await this.dbService.users.create({
+        data: {
+          username: createSalesDto.full_name,
+          password: await hash(createSalesDto.nik, 20),
+          roles: {
+            connect: {
+              id: 3, // FIXME: FILL WITH ROLES SALES
+            },
           },
+          created_by: user_id,
         },
-        created_by: user_id,
-      },
-    });
+      });
+    }
+
     const sales_brands: Prisma.sales_brandsCreateManyInput[] =
       createSalesDto.sales_brands.map((item) => {
         return {
@@ -66,9 +70,13 @@ export class SalesService {
       created_by: user_id,
       nik: createSalesDto.nik,
       users: {
-        connect: {
-          id: users.id,
-        },
+        ...(users
+          ? {
+              connect: {
+                id: users.id,
+              },
+            }
+          : undefined),
       },
       store: {
         connect: {
@@ -97,7 +105,7 @@ export class SalesService {
       }),
     ]);
 
-    return { sales, users };
+    return { sales, ...(users ? users : undefined)  };
   }
 
   async findAll(query: QueryParamsDto) {

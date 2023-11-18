@@ -235,9 +235,9 @@ model sales {
   store_id         Int?
   user_id          Int?
   full_name        String             @db.VarChar(255)
-  nik              String             @db.VarChar(20)
+  nik              String?             @db.VarChar(20)
   bank_id          Int?
-  bank_branch      String             @db.VarChar(50)
+  bank_branch      String?             @db.VarChar(50)
   account_name     String             @db.VarChar(255)
   is_active        Boolean            @default(true)
   created_at       DateTime           @default(now()) @db.DateTime()
@@ -557,6 +557,24 @@ model orders {
   quotation       quotation[]
   refund          refund[]
   work_orders     work_orders?
+  order_files     order_files[]
+}
+
+model order_files {
+  id Int @id @default(autoincrement())
+
+  order_id Int    @map("quotation_id")
+  path     String @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  order orders @relation(fields: [order_id], references: [id])
 }
 
 model m_order_details {

@@ -111,8 +111,8 @@ export class UpdateOrderDto {
   @ApiProperty()
   receipt_number?: string;
 
-  @ApiProperty({ type: 'string', format: 'binary' })
-  receipt_file?: Express.Multer.File;
+  @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
+  order_files: Array<Express.Multer.File>;
 
   @ApiProperty()
   @Type(() => Number)

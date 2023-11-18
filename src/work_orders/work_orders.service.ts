@@ -360,13 +360,13 @@ export class WorkOrdersService {
           : undefined,
         time_spent: dataDto?.status_details?.time_spent,
         description: dataDto?.status_details?.description,
-        work_order_materials: {
-          createMany: {
-            data: dataDto?.status_details?.work_order_materials
-              ? workOrderMaterialCreate
-              : undefined,
-          },
-        },
+        work_order_materials: dataDto?.status_details?.work_order_materials
+          ? {
+              createMany: {
+                data: workOrderMaterialCreate,
+              },
+            }
+          : undefined,
       };
 
     const work_order_data: Prisma.work_ordersUpdateArgs = {

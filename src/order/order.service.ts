@@ -22,12 +22,16 @@ export class OrderService {
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
-    file: Express.Multer.File,
+    order_files:  Array<Express.Multer.File>,
   ) {
-    const filePath = file ? file.filename : '';
     const { id: user_id } = user;
     let grand_total = 0;
     let grand_total_comission = 0;
+    const files : Array<Prisma.order_filesCreateManyOrderInput> =
+      order_files.map((item) => ({
+        path: item.filename,
+        created_by: user_id,
+      }));
 
     const BOOKED_STATUS = await this.dbService.status.findFirst({
       where: {
@@ -105,7 +109,6 @@ export class OrderService {
       project_address: createOrderDto.project_address,
       project_number: createOrderDto.project_number,
       receipt_number: createOrderDto.receipt_number,
-      receipt_path: filePath ?? '',
       total_estimate_workdays: createOrderDto.total_estimate_workdays,
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
@@ -123,6 +126,11 @@ export class OrderService {
             data: order_details,
           },
         },
+        order_files: {
+          createMany: {
+            data: files
+          }
+        }
       },
     };
 
@@ -240,6 +248,7 @@ export class OrderService {
             updated_at: true,
           },
         },
+        order_files: true
       },
     });
     console.log(orders.length);
@@ -293,6 +302,7 @@ export class OrderService {
             },
           },
         },
+        order_files: true,
         complaints: true,
         // TODO: TAMBAHIN ORDERBY DESC KETIKA INCLUDE WORK_ORDER_STATUS
         work_orders: {
@@ -332,10 +342,14 @@ export class OrderService {
     id: number,
     updateOrderDto: UpdateOrderDto,
     user?: users,
-    file?: Express.Multer.File,
+    order_files?: Express.Multer.File[],
   ) {
     const { id: user_id, role_id } = user;
-    const filePath = file ? file.filename : undefined;
+    const files : Array<Prisma.order_filesCreateManyOrderInput> =
+    order_files.map((item) => ({
+      path: item.filename,
+      created_by: user_id,
+    }));
     const order = await this.dbService.orders.findFirst({
       where: {
         id,
@@ -430,7 +444,7 @@ export class OrderService {
       vendor_id: updateOrderDto?.vendor_id,
       project_address: updateOrderDto?.project_address,
       receipt_number: updateOrderDto?.receipt_number,
-      receipt_path: filePath,
+      // receipt_path: filePath,
       total_estimate_workdays: updateOrderDto?.total_estimate_workdays,
       grand_total: updateOrderDto?.grand_total,
       grand_total_comission: updateOrderDto?.grand_total_comission,
@@ -442,10 +456,15 @@ export class OrderService {
       request_survey: updateOrderDto?.request_survey
         ? new Date(updateOrderDto?.request_survey)
         : undefined,
+        order_files: {
+          createMany: {
+            data: files
+          }
+        }
     };
     console.log(orderDetailsUpdateData, orderDetailsNew, orderUpdateData);
 
-    const [syncDetails, orderQuery] = await this.dbService.$transaction([
+    const [syncDetails, syncFiles ,orderQuery] = await this.dbService.$transaction([
       this.dbService.m_order_details.deleteMany({
         where: {
           order_id: id,
@@ -455,6 +474,11 @@ export class OrderService {
             }),
           },
         },
+      }),
+      this.dbService.order_files.deleteMany({
+        where: {
+          order_id: id
+        }
       }),
       this.dbService.orders.update({
         where: {

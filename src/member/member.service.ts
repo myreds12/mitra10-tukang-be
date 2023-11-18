@@ -134,7 +134,6 @@ export class MemberService {
           },
         },
       });
-      console.log(member);
 
       return {
         data: { member },

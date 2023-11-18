@@ -10,6 +10,9 @@ import { SalesBrandsDto } from './sales-brands.dto';
 import { SalesCategoriesDto } from './sales-categories.dto';
 
 export class CreateSalesDto {
+  full_name: string;
+  nik?: string;
+  
   @ApiProperty()
   @IsInt()
   @IsOptional()
@@ -20,28 +23,12 @@ export class CreateSalesDto {
   @IsOptional()
   user_id?: number;
 
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  full_name: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  nik: string;
-
-  @ApiProperty()
-  @IsInt()
   @IsOptional()
   bank_id?: number;
 
-  @ApiProperty()
-  @IsString()
   @IsOptional()
   bank_branch?: string;
 
-  @ApiProperty()
-  @IsString()
   @IsOptional()
   account_name?: string;
 

@@ -125,6 +125,14 @@ export class WorkOrdersController {
     @Res() res: IExpressResponse,
   ) {
     try {
+      console.log(
+        'work order update : ',
+        id,
+        dataDto,
+        req.user,
+        work_order_evidences,
+      );
+
       const work_orders = await this.workOrdersService.update(
         id,
         dataDto,

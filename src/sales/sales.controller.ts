@@ -70,10 +70,12 @@ export class SalesController {
       return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Created',
-        data: sales,
-        user: users,
+        data: {sales, users},
+        // user: users,
       });
     } catch (error) {
+      console.log(error);
+      
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.messsage ?? 'Error While Create',

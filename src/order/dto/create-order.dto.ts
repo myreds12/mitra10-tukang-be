@@ -65,6 +65,9 @@ export class OrderDetailDto {
 }
 
 export class CreateOrderDto {
+  @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
+  order_files: Array<Express.Multer.File>;
+
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
@@ -105,10 +108,6 @@ export class CreateOrderDto {
   @ApiProperty()
   // @IsEitherRequired('receipt_file')
   receipt_number?: string;
-
-  @ApiProperty({ type: 'string', format: 'binary' })
-  // @IsEitherRequired('receipt_number')
-  receipt_file: Express.Multer.File;
 
   @ApiProperty()
   @Type(() => Number)

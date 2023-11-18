@@ -16,6 +16,7 @@ import {
   Res,
   BadRequestException,
   Render,
+  UploadedFiles,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -86,14 +87,16 @@ export class OrderController {
 
   @Post('/')
   // @CheckPermissions([PermissionAction.CREATE, menuName])
-  @UseInterceptors(FileInterceptor('receipt_file'))
+  @UseInterceptors(FilesInterceptor('order_files'))
   async create(
-    @UploadedFile() receipt_file: Express.Multer.File,
     @Body() createOrderDto: CreateOrderDto,
     @Req() req: UserRequest,
+    @UploadedFiles() order_files: Array<Express.Multer.File>,
     @Res() res: IExpressResponse,
   ) {
     try {
+      console.log(createOrderDto);
+
       // Cek di dTO ada updateTukangDto?.service_types
       if (!createOrderDto.order_details)
         throw new BadRequestException('Order Details cannot be null.');
@@ -105,7 +108,7 @@ export class OrderController {
       const order = await this.orderService.create(
         createOrderDto,
         req.user,
-        receipt_file,
+        order_files,
       );
 
       return res.status(201).json({
@@ -152,7 +155,7 @@ export class OrderController {
 
   //FIXME : UNTUK PUG TIDAK BISA MEN INCLUDE CSS DAN IMAGE, MENGGUNAKAN CONTROLLER FIND ONE AGAR MUDAH FETCH DATANYA
   @Get(':id')
-  @Render('order')
+  // @Render('order')
   // @CheckPermissions([PermissionAction.READ, menuName])
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
@@ -175,9 +178,9 @@ export class OrderController {
 
   @Post(':id')
   // @CheckPermissions([PermissionAction.UPDATE, menuName])
-  @UseInterceptors(FileInterceptor('receipt_file'))
+  @UseInterceptors(FilesInterceptor('order_files'))
   async update(
-    @UploadedFile() receipt_file: Express.Multer.File,
+    @UploadedFiles() order_files: Array<Express.Multer.File>,
     @Param('id', ParseIntPipe) id: number,
     @Body() updateOrderDto: UpdateOrderDto,
     @Req() req: UserRequest,
@@ -188,7 +191,7 @@ export class OrderController {
         id,
         updateOrderDto,
         req.user,
-        receipt_file,
+        order_files,
       );
 
       return res.status(200).json({
