@@ -66,15 +66,19 @@ model employee {
 }
 
 model items {
-  id                   Int                    @id @default(autoincrement())
-  item_name            String                 @db.VarChar(45)
-  category_name        String
-  created_at           DateTime?              @default(now()) @db.DateTime()
-  updated_at           DateTime?              @db.DateTime()
-  deleted_at           DateTime?              @db.DateTime()
-  created_by           Int?
-  updated_by           Int?
-  deleted_by           Int?
+  id Int @id @default(autoincrement())
+
+  name     String @db.VarChar(45)
+  category String @default("INSTALASI")
+
+  created_at DateTime? @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
   m_order_details      m_order_details[]
   prices               prices[]
   work_order_materials work_order_materials[]
@@ -235,9 +239,9 @@ model sales {
   store_id         Int?
   user_id          Int?
   full_name        String             @db.VarChar(255)
-  nik              String?             @db.VarChar(20)
+  nik              String?            @db.VarChar(20)
   bank_id          Int?
-  bank_branch      String?             @db.VarChar(50)
+  bank_branch      String?            @db.VarChar(50)
   account_name     String             @db.VarChar(255)
   is_active        Boolean            @default(true)
   created_at       DateTime           @default(now()) @db.DateTime()
@@ -252,6 +256,7 @@ model sales {
   orders           orders[]
   sales_brands     sales_brands[]
   sales_categories sales_categories[]
+  m_order_details  m_order_details[]
 }
 
 model brands {
@@ -506,7 +511,6 @@ model status {
   created_at        DateTime            @default(now()) @db.DateTime()
   updated_at        DateTime?
   order             orders[]
-  m_order_details   m_order_details[]
   complaints        complaints[]
   work_orders       work_orders[]
   quotation         quotation[]
@@ -518,23 +522,20 @@ model status {
 model orders {
   id                Int  @id @default(autoincrement())
   member_id         Int
-  seles_id          Int
   store_id          Int
   project_status_id Int
   vendor_id         Int?
   tukang_id         Int?
   // category_id       Int?
 
-  project_address         String
-  project_number          String    @default("0")
-  receipt_number          String?   @db.NVarChar(30)
-  receipt_path            String?   @db.Text
-  request_survey          DateTime? @db.DateTime()
-  total_estimate_workdays Int       @db.TinyInt
-  payment_type            String    @db.VarChar(200)
-  grand_total             Decimal   @db.Decimal(32, 2)
-  grand_total_comission   Decimal   @db.Decimal(32, 2)
-  print_counter           Int       @db.TinyInt()
+  project_address       String
+  project_number        String    @default("0")
+  receipt_number        String?   @db.NVarChar(30)
+  request_survey        DateTime? @db.DateTime()
+  payment_type          String    @db.VarChar(200)
+  grand_total           Decimal   @db.Decimal(32, 2)
+  grand_total_comission Decimal   @db.Decimal(32, 2)
+  print_counter         Int       @db.TinyInt()
 
   created_by Int?
   updated_by Int?
@@ -544,13 +545,13 @@ model orders {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  members         members?          @relation(fields: [member_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  sales           sales?            @relation(fields: [seles_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  vendor          vendor?           @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tukang          tukang?           @relation(fields: [tukang_id], references: [id])
-  status          status?           @relation(fields: [project_status_id], references: [id])
-  // categories      categories?       @relation(fields: [category_id], references: [id])
-  store           store?            @relation(fields: [store_id], references: [id])
+  members members? @relation(fields: [member_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // sales   sales?   @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor  vendor?  @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  store   store?   @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status  status?  @relation(fields: [project_status_id], references: [id])
+  tukang  tukang?  @relation(fields: [tukang_id], references: [id])
+
   m_order_details m_order_details[]
   complaints      complaints[]
   invoices        invoices[]
@@ -558,13 +559,16 @@ model orders {
   refund          refund[]
   work_orders     work_orders?
   order_files     order_files[]
+  sales           sales?            @relation(fields: [salesId], references: [id])
+  salesId         Int?
 }
 
 model order_files {
-  id Int @id @default(autoincrement())
+  id       Int @id @default(autoincrement())
+  order_id Int
 
-  order_id Int    @map("quotation_id")
-  path     String @db.Text()
+  type String
+  path String @db.Text()
 
   created_by Int?
   updated_by Int?
@@ -578,18 +582,18 @@ model order_files {
 }
 
 model m_order_details {
-  id              Int @id @default(autoincrement())
-  order_id        Int
-  item_id         Int
-  order_status_id Int
+  id       Int @id @default(autoincrement())
+  order_id Int
+  item_id  Int
+  sales_id Int
 
-  unit         String  @db.VarChar(200)
-  unit_price   Decimal @db.Decimal(32, 2)
-  quote_price  Decimal @db.Decimal(32, 2)
-  quantity     Decimal @db.Decimal(32, 2)
-  total        Int
-  survey_price Decimal @db.Decimal(32, 2)
-  comission    Int
+  item_code   String? @db.VarChar(200)
+  item_name   String? @db.VarChar(200)
+  unit_price  Decimal @db.Decimal(32, 2)
+  quote_price Decimal @db.Decimal(32, 2)
+  quantity    Decimal @db.Decimal(32, 2)
+  total       Int
+  comission   Int
 
   created_by Int?
   updated_by Int?
@@ -599,9 +603,9 @@ model m_order_details {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  order  orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  item   items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  status status @relation(fields: [order_status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales sales  @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  order orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  item  items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model prices {
@@ -816,7 +820,7 @@ model work_orders {
   updated_at           DateTime?              @db.DateTime()
   deleted_at           DateTime?              @db.DateTime()
   status               status?                @relation(fields: [worker_order_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  order                orders                 @relation(fields: [order_id], references: [id])
+  order                orders                 @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   work_order_evidences work_order_evidences[]
   vendor               vendor                 @relation(fields: [vendor_id], references: [id])
   work_order_tukang    work_order_tukang[]

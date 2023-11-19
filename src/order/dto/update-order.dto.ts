@@ -79,7 +79,7 @@ export class UpdateOrderDto {
   @Type(() => Number)
   @IsNumber()
   @IsOptional()
-  seles_id?: number;
+  sales_id?: number;
 
   @ApiProperty()
   @Type(() => Number)

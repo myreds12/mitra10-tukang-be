@@ -22,13 +22,14 @@ export class OrderService {
   async create(
     createOrderDto: CreateOrderDto,
     user: users,
-    order_files:  Array<Express.Multer.File>,
+    order_files: Array<Express.Multer.File>,
   ) {
     const { id: user_id } = user;
     let grand_total = 0;
     let grand_total_comission = 0;
-    const files : Array<Prisma.order_filesCreateManyOrderInput> =
+    const files: Array<Prisma.order_filesCreateManyOrderInput> =
       order_files.map((item) => ({
+        type: 'any',
         path: item.filename,
         created_by: user_id,
       }));
@@ -63,6 +64,7 @@ export class OrderService {
         created_by: user_id,
         order_status_id: BOOKED_STATUS.id,
         total,
+        sales_id: createOrderDto.sales_id,
       };
     });
 
@@ -128,9 +130,9 @@ export class OrderService {
         },
         order_files: {
           createMany: {
-            data: files
-          }
-        }
+            data: files,
+          },
+        },
       },
     };
 
@@ -191,7 +193,6 @@ export class OrderService {
         id: true,
         member_id: true,
         members: true,
-        seles_id: true,
         sales: true,
         store_id: true,
         store: true,
@@ -205,8 +206,6 @@ export class OrderService {
         // categories: true,
         project_address: true,
         receipt_number: true,
-        receipt_path: true,
-        total_estimate_workdays: true,
         payment_type: true,
         grand_total: true,
         request_survey: true,
@@ -224,23 +223,15 @@ export class OrderService {
             item: {
               select: {
                 id: true,
-                item_name: true,
-                category_name: true,
-              },
-            },
-            order_status_id: true,
-            status: {
-              select: {
+                name: true,
                 category: true,
-                description: true,
               },
             },
-            unit: true,
+            sales: true,
             unit_price: true,
             quote_price: true,
             quantity: true,
             total: true,
-            survey_price: true,
             comission: true,
             created_by: true,
             updated_by: true,
@@ -248,7 +239,7 @@ export class OrderService {
             updated_at: true,
           },
         },
-        order_files: true
+        order_files: true,
       },
     });
     console.log(orders.length);
@@ -278,28 +269,20 @@ export class OrderService {
             item: {
               select: {
                 id: true,
-                category_name: true,
+                name: true,
+                category: true,
                 prices: true,
               },
             },
-            order_status_id: true,
-            unit: true,
             unit_price: true,
             quote_price: true,
             quantity: true,
             total: true,
-            survey_price: true,
             comission: true,
             created_by: true,
             updated_by: true,
             created_at: true,
             updated_at: true,
-            status: {
-              select: {
-                category: true,
-                description: true,
-              },
-            },
           },
         },
         order_files: true,
@@ -345,11 +328,12 @@ export class OrderService {
     order_files?: Express.Multer.File[],
   ) {
     const { id: user_id, role_id } = user;
-    const files : Array<Prisma.order_filesCreateManyOrderInput> =
-    order_files.map((item) => ({
-      path: item.filename,
-      created_by: user_id,
-    }));
+    const files: Array<Prisma.order_filesCreateManyOrderInput> =
+      order_files.map((item) => ({
+        type: 'any',
+        path: item.filename,
+        created_by: user_id,
+      }));
     const order = await this.dbService.orders.findFirst({
       where: {
         id,
@@ -418,34 +402,32 @@ export class OrderService {
         },
       }));
 
-    const orderDetailsNew = {
-      data: updateOrderDto.order_details
-        .filter((x) => !Boolean(x.id))
-        .map((item) => ({
-          item_id: item?.item_id,
-          order_status_id: projectStatusDefault.id,
-          unit: item?.unit,
-          unit_price: item?.unit_price,
-          quote_price: item?.quote_price,
-          quantity: item?.quantity,
-          total: item?.total,
-          survey_price: item?.survey_price,
-          comission: item?.comission,
-          created_by: user_id,
-          updated_by: user_id,
-          updated_at: new Date(),
-        })),
-    };
+    const orderDetailsNew: Prisma.m_order_detailsCreateManyOrderInputEnvelope =
+      {
+        data:
+          updateOrderDto.order_details
+            .filter((x) => !Boolean(x.id))
+            .map((item) => ({
+              item_id: item?.item_id,
+              sales_id: updateOrderDto.sales_id,
+              unit_price: item?.unit_price,
+              quote_price: item?.quote_price,
+              quantity: item?.quantity,
+              total: item?.total,
+              comission: item?.comission,
+              created_by: user_id,
+              updated_by: user_id,
+              updated_at: new Date(),
+            })) ?? undefined,
+      };
 
     const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
       member_id: updateOrderDto?.member_id,
-      seles_id: updateOrderDto?.seles_id,
       store_id: updateOrderDto?.store_id,
       vendor_id: updateOrderDto?.vendor_id,
       project_address: updateOrderDto?.project_address,
       receipt_number: updateOrderDto?.receipt_number,
       // receipt_path: filePath,
-      total_estimate_workdays: updateOrderDto?.total_estimate_workdays,
       grand_total: updateOrderDto?.grand_total,
       grand_total_comission: updateOrderDto?.grand_total_comission,
       updated_by: user_id,
@@ -456,47 +438,46 @@ export class OrderService {
       request_survey: updateOrderDto?.request_survey
         ? new Date(updateOrderDto?.request_survey)
         : undefined,
-        order_files: {
-          createMany: {
-            data: files
-          }
-        }
+      order_files: {
+        createMany: {
+          data: files,
+        },
+      },
     };
     console.log(orderDetailsUpdateData, orderDetailsNew, orderUpdateData);
 
-    const [syncDetails, syncFiles ,orderQuery] = await this.dbService.$transaction([
-      this.dbService.m_order_details.deleteMany({
-        where: {
-          order_id: id,
-          id: {
-            notIn: updateOrderDto.order_details.map((item) => {
-              return item.id;
-            }),
+    const [syncDetails, syncFiles, orderQuery] =
+      await this.dbService.$transaction([
+        this.dbService.m_order_details.deleteMany({
+          where: {
+            order_id: id,
+            id: {
+              notIn: updateOrderDto.order_details.map((item) => {
+                return item.id;
+              }),
+            },
           },
-        },
-      }),
-      this.dbService.order_files.deleteMany({
-        where: {
-          order_id: id
-        }
-      }),
-      this.dbService.orders.update({
-        where: {
-          id: order.id,
-        },
-        data: {
-          ...orderUpdateData,
-          m_order_details: {
-            update: orderDetailsUpdateData.length
-              ? orderDetailsUpdateData
-              : undefined,
-            createMany: orderDetailsNew.data.length
-              ? orderDetailsNew
-              : undefined,
+        }),
+        this.dbService.order_files.deleteMany({
+          where: {
+            order_id: id,
           },
-        },
-      }),
-    ]);
+        }),
+        this.dbService.orders.update({
+          where: {
+            id: order.id,
+          },
+          data: {
+            ...orderUpdateData,
+            m_order_details: {
+              update: orderDetailsUpdateData.length
+                ? orderDetailsUpdateData
+                : undefined,
+              createMany: orderDetailsNew.data ? orderDetailsNew : undefined,
+            },
+          },
+        }),
+      ]);
     return orderQuery;
   }
 
