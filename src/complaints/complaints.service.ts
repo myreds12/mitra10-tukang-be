@@ -112,8 +112,6 @@ export class ComplaintsService {
             store: true,
             status: true,
             vendor: true,
-            tukang: true,
-            // categories: true,
 
             m_order_details: true,
           },
@@ -141,8 +139,6 @@ export class ComplaintsService {
             store: true,
             status: true,
             vendor: true,
-            tukang: true,
-            // categories: true,
 
             m_order_details: true,
           },

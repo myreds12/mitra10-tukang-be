@@ -22,6 +22,8 @@ import {
   Response as IExpressResponse,
 } from 'express';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Stores')
 @Controller('stores')
 @UseGuards(JwtAuthGuard)
 export class StoreController {

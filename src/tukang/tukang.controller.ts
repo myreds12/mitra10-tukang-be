@@ -27,11 +27,13 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { users } from '@prisma/client';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { ApiTags } from '@nestjs/swagger';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
 
+@ApiTags('Tukang')
 @Controller('tukang')
 @UseGuards(JwtAuthGuard)
 export class TukangController {

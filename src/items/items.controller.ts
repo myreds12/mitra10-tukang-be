@@ -22,10 +22,12 @@ import {
 } from 'express';
 import { users } from '@prisma/client';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { ApiTags } from '@nestjs/swagger';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
+@ApiTags('Items')
 @Controller('items')
 @UseGuards(JwtAuthGuard)
 export class ItemsController {

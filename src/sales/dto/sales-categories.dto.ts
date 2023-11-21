@@ -12,4 +12,10 @@ export class SalesCategoriesDto {
   @Type(() => Number)
   @IsNumber()
   category_id: number;
+
+  
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  commission: number;
 }

@@ -26,10 +26,12 @@ import { response } from 'express';
 import { UpdateWorkOrderDto } from './dto/update.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { users } from '@prisma/client';
+import { ApiTags } from '@nestjs/swagger';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
+@ApiTags('Work Orders')
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {

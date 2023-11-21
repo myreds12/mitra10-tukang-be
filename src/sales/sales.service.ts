@@ -59,6 +59,7 @@ export class SalesService {
       createSalesDto.sales_categories.map((item) => {
         return {
           category_id: item.category_id,
+          commission: item.commission,
           created_by: user_id,
         };
       });
@@ -105,7 +106,7 @@ export class SalesService {
       }),
     ]);
 
-    return { sales, ...(users ? users : undefined)  };
+    return { sales, ...(users ? users : undefined) };
   }
 
   async findAll(query: QueryParamsDto) {
@@ -246,11 +247,12 @@ export class SalesService {
     const updateSalesCategories = updateSalesDto.sales_categories
       ? updateSalesDto.sales_categories
           .filter((x) => Boolean(x.id))
-          .map(({ id, category_id }) => {
+          .map(({ id, category_id, commission }) => {
             return {
               where: { id },
               data: {
                 category_id,
+                commission,
                 updated_at: new Date(),
                 updated_by: user_id,
               },
@@ -262,8 +264,9 @@ export class SalesService {
       ? {
           data: updateSalesDto.sales_categories
             .filter((x) => !Boolean(x.id))
-            .map(({ category_id }) => ({
+            .map(({ category_id, commission }) => ({
               category_id,
+              commission,
               created_by: user_id,
             })),
         }

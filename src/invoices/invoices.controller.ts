@@ -25,10 +25,12 @@ import {
 import { users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { ApiTags } from '@nestjs/swagger';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
+@ApiTags('Invoices')
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {

@@ -19,10 +19,12 @@ import { CreateRegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { TransformPasswordPipe } from './transform-password.pipe';
 import { users } from '@prisma/client';
+import { ApiTags } from '@nestjs/swagger';
 
 interface UserRequest extends IExpressRequest {
   user: users;
 }
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

@@ -22,9 +22,11 @@ import {
 } from 'express';
 import { users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { ApiTags } from '@nestjs/swagger';
 interface UserRequest extends IExpressRequest {
   user: users;
 }
+@ApiTags('Sales')
 @Controller('sales')
 @UseGuards(JwtAuthGuard)
 export class SalesController {

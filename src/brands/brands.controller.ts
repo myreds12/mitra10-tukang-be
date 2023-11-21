@@ -21,10 +21,12 @@ import {
 } from 'express';
 import { users } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
 interface UserRequest extends IExpressRequest {
   user: users;
 }
 
+@ApiTags('Brands')
 @UseGuards(JwtAuthGuard)
 @Controller('brands')
 export class BrandsController {
