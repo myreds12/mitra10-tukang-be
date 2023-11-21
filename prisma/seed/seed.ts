@@ -9,11 +9,12 @@ import { PositionSeed } from './position-seed';
 import { StoreSeed } from './store-seed';
 import { ServiceTypeSeed } from './service-type';
 import { StatusSeed } from './status-seed';
-import { BankSeed } from './bank.seed';
+import { BankSeed } from './bank-seed';
 import { CitySeed } from './city-seed';
 import { UnitSeed } from './unit.seed';
 import { ComplaintChannelSeed } from './complaint-channels.seed';
 import { CategorySeed } from './categories-seed';
+import { BrandsSeed } from './brands-seed';
 
 const prisma = new PrismaClient();
 
@@ -30,7 +31,8 @@ async function main() {
   // await MembersSeed();
 
   // await PositionSeed();
-  await StoreSeed();
+  // await StoreSeed();
+  // await BrandsSeed();
   // await ServiceTypeSeed();
   // await StatusSeed();
   // await BankSeed();

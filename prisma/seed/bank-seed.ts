@@ -3,14 +3,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function BankSeed() {
-  const bank = [
-    { bank_name: 'BCA' },
-    { bank_name: 'BJB' },
-    { bank_name: 'MEGA' },
-    { bank_name: 'MANDIRI' },
-    { bank_name: 'BRI' },
-    { bank_name: 'JAGO' },
-  ];
+  const bank = ['BCA', 'BJB', 'MEGA', 'MANDIRI', 'BRI', 'JAGO'];
 
   // const store: Prisma.storeCreateManyInput[] = permission_name.map((item) => {
   //   return {
@@ -22,6 +15,8 @@ export async function BankSeed() {
   // });
 
   await prisma.bank.createMany({
-    data: bank,
+    data: bank.map((x) => ({
+      bank_name: x,
+    })),
   });
 }
