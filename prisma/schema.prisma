@@ -70,7 +70,7 @@ model items {
 
   item_name    String? @db.VarChar(45)
   item_code    String? @db.VarChar(45)
-  service_name String @db.VarChar(45)
+  service_name String  @db.VarChar(45)
   category_id  Int
 
   created_at DateTime? @default(now()) @db.DateTime()
@@ -238,21 +238,24 @@ model users {
 }
 
 model sales {
-  id               Int                @id @default(autoincrement())
-  store_id         Int?
-  user_id          Int?
-  full_name        String             @db.VarChar(255)
-  nik              String?            @db.VarChar(20)
-  bank_id          Int?
-  bank_branch      String?            @db.VarChar(50)
-  account_name     String             @db.VarChar(255)
-  is_active        Boolean            @default(true)
-  created_at       DateTime           @default(now()) @db.DateTime()
-  updated_at       DateTime?          @db.DateTime()
-  deleted_at       DateTime?          @db.DateTime()
-  created_by       Int?
-  updated_by       Int?
-  deleted_by       Int?
+  id       Int  @id @default(autoincrement())
+  store_id Int?
+  user_id  Int?
+
+  full_name    String  @db.VarChar(255)
+  nik          String? @db.VarChar(20)
+  bank_id      Int?
+  bank_branch  String? @db.VarChar(50)
+  account_name String  @db.VarChar(255)
+
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
   store            store?             @relation(fields: [store_id], references: [id])
   users            users?             @relation(fields: [user_id], references: [id])
   bank             bank?              @relation(fields: [bank_id], references: [id])
@@ -297,6 +300,8 @@ model sales_categories {
   id          Int  @id @default(autoincrement())
   sales_id    Int?
   category_id Int?
+
+  commission Decimal @db.Decimal(32, 2)
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()

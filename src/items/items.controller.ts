@@ -109,7 +109,7 @@ export class ItemsController {
       const items = await this.itemsService.update(+id, UpdateDataDto, user_id);
       return response.status(200).json({
         status: HttpStatus.OK,
-        message: 'Item Update',
+        message: 'Item Updated',
         data: items,
       });
     } catch (error) {
@@ -117,7 +117,7 @@ export class ItemsController {
 
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
+        message: 'Error While Updating',
         stack: error,
       });
     }

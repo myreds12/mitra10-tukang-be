@@ -120,11 +120,13 @@ export class ItemsService {
   async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
     console.log(UpdateDataDto);
 
+    // update or insert
     const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
       UpdateDataDto.prices.map((item) => {
         return {
           where: {
             item_id: id,
+            // If id is not present set it to zero to be created
             id: item?.id ?? 0,
           },
           update: {
