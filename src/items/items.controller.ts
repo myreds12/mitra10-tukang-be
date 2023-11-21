@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { DataDto } from './dto/create-item.dto';
+import { CreateItemDto } from './dto/create-item.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import {
   Request as IExpressRequest,
@@ -33,7 +33,7 @@ export class ItemsController {
 
   @Post()
   async create(
-    @Body() dataDto: DataDto,
+    @Body() dataDto: CreateItemDto,
     @Req() request: UserRequest,
     @Res() response: IExpressResponse,
   ) {

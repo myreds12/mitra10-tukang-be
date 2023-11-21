@@ -13,20 +13,26 @@ import { BankSeed } from './bank.seed';
 import { CitySeed } from './city-seed';
 import { UnitSeed } from './unit.seed';
 import { ComplaintChannelSeed } from './complaint-channels.seed';
+import { CategorySeed } from './categories-seed';
 
 const prisma = new PrismaClient();
 
 async function main() {
   // await RolesSeed();
   // await MenusSeed();
-  // await ItemsSeed();
-  // await UsersSeed();
   // await PermissionSeed();
+
+  // await CategorySeed();
+  // await ItemsSeed();
+
+  // await UsersSeed();
+
   // await MembersSeed();
+
   // await PositionSeed();
-  // await StoreSeed();
+  await StoreSeed();
   // await ServiceTypeSeed();
-  await StatusSeed();
+  // await StatusSeed();
   // await BankSeed();
   // await CitySeed();
   // await UnitSeed();

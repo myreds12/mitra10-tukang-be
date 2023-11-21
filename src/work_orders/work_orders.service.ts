@@ -10,7 +10,7 @@ import { UpdateWorkOrderDto } from './dto/update.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { VendorService } from 'src/vendor/vendor.service';
-import { DataDto } from 'src/items/dto/create-item.dto';
+import { CreateItemDto } from 'src/items/dto/create-item.dto';
 
 @Injectable()
 export class WorkOrdersService {
@@ -327,7 +327,7 @@ export class WorkOrdersService {
                 where: { id },
                 data: {
                   item_id,
-                  name: getItem.item_name,
+                  name: getItem.service_name,
                   tukang_id: tukang_id ? tukang_id : undefined,
                   tukang_name: getTukang ? getTukang.full_name : undefined,
                   price: price,

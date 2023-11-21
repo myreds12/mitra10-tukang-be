@@ -223,7 +223,7 @@ export class OrderService {
             item: {
               select: {
                 id: true,
-                name: true,
+                item_name: true,
                 category: true,
               },
             },
@@ -269,7 +269,7 @@ export class OrderService {
             item: {
               select: {
                 id: true,
-                name: true,
+                item_name: true,
                 category: true,
                 prices: true,
               },

@@ -19,5 +19,7 @@ export class QueryParamsDto {
   date_from?: string;
   date_to?: string;
 
+  group_by?: string;
+
   order_by: 'asc' | 'desc' = 'asc';
 }

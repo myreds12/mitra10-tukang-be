@@ -1,18 +1,33 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsNumber } from 'class-validator';
 
-export class DataDto {
-  @ApiProperty()
-  item_name: string;
-  category_name: string;
+export class CreateItemDto {
+  item_code?: string;
+  item_name?: string;
+
+  name: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  category_id: number;
+
+  @Type(() => Number)
+  default_price: number;
+
+  @Type(() => Prices)
   prices: Prices[];
 }
 class Prices {
-  @ApiProperty()
-  unit_id: number;
+  @Type(() => Number)
   store_id: number;
+
   periodic_start: string;
   periodic_end: string;
-  nominal_discount: string;
+
+  @Type(() => Number)
   price: number;
-  created_by?: number;
+
+  @Type(() => Number)
+  min_order: number;
 }

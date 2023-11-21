@@ -68,8 +68,10 @@ model employee {
 model items {
   id Int @id @default(autoincrement())
 
-  name     String @db.VarChar(45)
-  category String @default("INSTALASI")
+  item_name    String? @db.VarChar(45)
+  item_code    String? @db.VarChar(45)
+  service_name String @db.VarChar(45)
+  category_id  Int
 
   created_at DateTime? @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -82,6 +84,7 @@ model items {
   m_order_details      m_order_details[]
   prices               prices[]
   work_order_materials work_order_materials[]
+  category             categories             @relation(fields: [category_id], references: [id])
 }
 
 model logs {
@@ -609,15 +612,14 @@ model m_order_details {
 }
 
 model prices {
-  id               Int      @id @default(autoincrement())
-  item_id          Int
-  unit_id          Int
-  store_id         Int?
-  periodic_start   DateTime
-  periodic_end     DateTime
-  nominal_discount String   @db.VarChar(50)
-  price            Int
-  is_active        Boolean  @default(true)
+  id Int @id @default(autoincrement())
+
+  item_id        Int
+  store_id       Int?
+  periodic_start DateTime?
+  periodic_end   DateTime?
+  price          Decimal   @db.Decimal(32, 2)
+  min_order      Int
 
   created_by Int?
   updated_by Int?
@@ -628,7 +630,6 @@ model prices {
   deleted_at DateTime? @db.DateTime()
 
   store store? @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  units units  @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   items items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -644,7 +645,6 @@ model units {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
-  prices     prices[]
 }
 
 model categories {
@@ -660,6 +660,7 @@ model categories {
   deleted_at       DateTime?          @db.DateTime()
   // orders     orders[]
   sales_categories sales_categories[]
+  items            items[]
 }
 
 model quotation {

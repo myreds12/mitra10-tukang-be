@@ -2,7 +2,7 @@ import { Injectable, HttpStatus } from '@nestjs/common';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { DataDto } from './dto/create-item.dto';
+import { CreateItemDto } from './dto/create-item.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
@@ -12,8 +12,8 @@ export class ItemsService {
     private readonly eventEmitter: EventEmitter2,
     private readonly dbService: PrismaService,
   ) {}
-  async create(dataDto: DataDto, user_id: number) {
-    const prices = dataDto.prices.map((price) => {
+  async create(createItemDto: CreateItemDto, user_id: number) {
+    const prices = createItemDto.prices.map((price) => {
       return {
         ...price,
         periodic_start: new Date(price.periodic_start),
@@ -22,25 +22,26 @@ export class ItemsService {
       };
     });
 
-    const item_data = {
-      item_name: dataDto.item_name,
-      category_name: dataDto.category_name,
-    };
-
-    const items: Prisma.itemsCreateArgs = {
-      data: {
-        ...item_data,
-        prices: {
-          createMany: {
-            data: prices,
-          },
+    const itemDataOptions: Prisma.itemsCreateInput = {
+      item_code: createItemDto?.item_code,
+      item_name: createItemDto?.item_name,
+      service_name: createItemDto.name,
+      category: {
+        connect: {
+          id: createItemDto.category_id,
+        },
+      },
+      prices: {
+        createMany: {
+          data: prices,
         },
       },
     };
-    console.log(items, item_data, prices);
 
     const [{ id: items_id }] = await this.dbService.$transaction([
-      this.dbService.items.create(items),
+      this.dbService.items.create({
+        data: itemDataOptions,
+      }),
     ]);
 
     // this.eventEmitter.emit('create.logger', {
@@ -52,29 +53,55 @@ export class ItemsService {
     // });
     return {
       id: items_id,
-      ...item_data,
+      ...createItemDto,
     };
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    const { search, take, page, skip } = queryParamsDto;
-
-    const items = await this.dbService.items.findMany({
+    const { search, take, page, skip, group_by } = queryParamsDto;
+    const category_id = +search ? Number.parseInt(search) : undefined;
+    const itemsOptions = {
       skip: skip ?? 0,
       take: take > 0 ? take : undefined,
       where: {
-        item_name: {
-          contains: search,
-        },
-        category_name: {
-          contains: search,
-        },
-        deleted_at: null,
+        AND: [
+          search
+            ? {
+                OR: [
+                  {
+                    service_name: {
+                      contains: search,
+                    },
+                  },
+                  category_id
+                    ? {
+                        category_id: {
+                          equals: category_id,
+                        },
+                      }
+                    : undefined,
+                ],
+              }
+            : undefined,
+          {
+            deleted_at: null,
+          },
+        ],
       },
-      include: {
+      select: {
+        item_name: true,
+        item_code: true,
+        service_name: true,
+        category_id: true,
+        created_at: true,
+        updated_at: true,
+        created_by: true,
+        updated_by: true,
         prices: true,
       },
-    });
+    };
+
+    const items = await this.dbService.items.findMany({ ...itemsOptions });
 
     return items;
   }
@@ -91,54 +118,70 @@ export class ItemsService {
   }
 
   async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
-    const price = UpdateDataDto.prices.map((item) => {
-      return {
+    console.log(UpdateDataDto);
+
+    const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
+      UpdateDataDto.prices.map((item) => {
+        return {
+          where: {
+            item_id: id,
+            id: item?.id ?? 0,
+          },
+          update: {
+            store_id: item?.store_id,
+            periodic_start: item?.periodic_start
+              ? new Date(item.periodic_start)
+              : undefined,
+            periodic_end: item?.periodic_end
+              ? new Date(item.periodic_end)
+              : undefined,
+            min_order: item?.min_order,
+            price: item?.price,
+            updated_by: user_id,
+            updated_at: new Date(),
+          },
+          create: {
+            store_id: item?.store_id,
+            periodic_start: item?.periodic_start
+              ? new Date(item.periodic_start)
+              : undefined,
+            periodic_end: item?.periodic_end
+              ? new Date(item.periodic_end)
+              : undefined,
+            min_order: item?.min_order,
+            price: item?.price,
+            created_at: new Date(),
+            created_by: user_id,
+          },
+        };
+      });
+
+    const [syncPrices, items_query] = await this.dbService.$transaction([
+      this.dbService.prices.deleteMany({
         where: {
-          id: item.id,
+          item_id: id,
+          id: {
+            notIn: UpdateDataDto.prices
+              .filter((x) => Boolean(x.id))
+              .map((x) => x.id),
+          },
         },
-        data: {
-          // store: {
-          //   connect: {
-          //     id: item.store_id,
-          //   },
-          // },
-          // units: {
-          //   connect: {
-          //     id: item.unit_id,
-          //   },
-          // },
-          store_id: item.store_id,
-          unit_id: item.unit_id,
-          periodic_start: new Date(item.periodic_start),
-          periodic_end: new Date(item.periodic_end),
-          nominal_discount: item.nominal_discount,
-          price: item.price,
-          updated_by: user_id,
-          updated_at: new Date(),
-        },
-      };
-    });
-
-    const item_data = {
-      item_name: UpdateDataDto.item_name,
-      category_name: UpdateDataDto.category_name,
-    };
-
-    const [items_query] = await this.dbService.$transaction([
+      }),
       this.dbService.items.update({
         where: {
           id,
         },
         data: {
-          ...item_data,
+          item_code: UpdateDataDto?.item_code,
+          item_name: UpdateDataDto?.item_name,
+          service_name: UpdateDataDto?.name,
+          category_id: UpdateDataDto?.category_id,
           prices: {
-            update: price,
+            upsert: priceUpsert,
           },
         },
       }),
     ]);
-
-    console.log(items_query);
 
     return items_query;
   }

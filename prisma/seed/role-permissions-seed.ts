@@ -11,22 +11,51 @@ export async function PermissionSeed() {
       name: {
         in: ['CREATE', 'READ', 'UPDATE'],
       },
-      menu_id: { in: [2, 5, 16] },
+      menus: {
+        title: {
+          in: ['orders', 'complaints', 'reports'],
+        },
+      },
     },
   });
 
   const permissionStoreCs = await prisma.permissions.findMany({
     where: {
       name: {
-        in: ['UPDATE', 'READ'],
+        in: ['CREATE', 'READ', 'UPDATE'],
       },
-      menu_id: { in: [2, 5, 16] },
+      menus: {
+        title: {
+          in: ['orders', 'complaints', 'reports'],
+        },
+      },
     },
   });
 
   const permissionAdminHo = await prisma.permissions.findMany({
     where: {
-      menu_id: { in: [] },
+      menus: {
+        title: {
+          in: [
+            'Items',
+            'Orders',
+            'Tukang',
+            'Vendor',
+            'Complaints',
+            'Employee',
+            'Invoices',
+            'CSI',
+            'Work Order',
+            'Member',
+            'Quotation',
+            'Remedials',
+            'Store',
+            'Auth',
+            'Sales',
+            'Reports',
+          ],
+        },
+      },
     },
   });
 
