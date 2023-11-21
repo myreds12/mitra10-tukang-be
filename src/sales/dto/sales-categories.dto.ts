@@ -1,21 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsCurrency, IsDecimal, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class SalesCategoriesDto {
   @ApiProperty()
   @Type(() => Number)
-  @IsOptional()
   id?: number;
 
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
+  @IsNotEmpty()
   category_id: number;
-
   
-  @ApiProperty()
-  @Type(() => Number)
-  @IsNumber()
-  commission: number;
+  @Type(() => String)
+  @IsString()
+  @IsNotEmpty()
+  commission: string;
 }

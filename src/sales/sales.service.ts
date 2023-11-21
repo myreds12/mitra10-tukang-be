@@ -4,11 +4,15 @@ import { UpdateSalesDto } from './dto/update-sale.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { hash } from 'bcrypt';
+import { hash, hashSync } from 'bcrypt';
+import { AuthService } from 'src/auth/auth.service';
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   async getCode() {
     const sales = await this.dbService.sales.findMany({
@@ -22,6 +26,8 @@ export class SalesService {
   }
 
   async create(createSalesDto: CreateSalesDto, user: users) {
+    console.log(createSalesDto);
+    
     const { id: user_id } = user;
     const bank = await this.dbService.bank.findFirst({
       where: {
@@ -30,27 +36,20 @@ export class SalesService {
     });
 
     if (bank.is_active == false)
-      throw new HttpException('Bank is not active', HttpStatus.BAD_REQUEST);
-    let users;
-    if (createSalesDto.full_name && createSalesDto.nik) {
-      users = await this.dbService.users.create({
-        data: {
-          username: createSalesDto.full_name,
-          password: await hash(createSalesDto.nik, 20),
-          roles: {
-            connect: {
-              id: 3, // FIXME: FILL WITH ROLES SALES
-            },
-          },
-          created_by: user_id,
+      throw new HttpException('Bank is not available', HttpStatus.BAD_REQUEST);
+
+    const SALES_ROLES = await this.dbService.roles.findFirst({
+      where: {
+        name: {
+          contains: 'sales',
         },
-      });
-    }
+      },
+    });
 
     const sales_brands: Prisma.sales_brandsCreateManyInput[] =
       createSalesDto.sales_brands.map((item) => {
         return {
-          brands_id: item.brands_id,
+          brands_id: item.brand_id,
           created_by: user_id,
         };
       });
@@ -64,21 +63,14 @@ export class SalesService {
         };
       });
 
+    const saltedPassword = hashSync(createSalesDto?.nik ?? 'password', 12);
+
     const sales_data: Prisma.salesCreateInput = {
       full_name: createSalesDto.account_name,
       bank_branch: createSalesDto.bank_branch,
       account_name: createSalesDto.account_name,
       created_by: user_id,
       nik: createSalesDto.nik,
-      users: {
-        ...(users
-          ? {
-              connect: {
-                id: users.id,
-              },
-            }
-          : undefined),
-      },
       store: {
         connect: {
           id: createSalesDto.store_id ? createSalesDto.store_id : undefined,
@@ -99,14 +91,33 @@ export class SalesService {
           data: sales_categories,
         },
       },
+      users: {
+        connectOrCreate: {
+          where: {
+            username: {
+              contains: createSalesDto.full_name
+                .toLowerCase()
+                .replace(' ', '_'),
+            },
+            id: 0,
+          },
+          create: {
+            username: createSalesDto.full_name.toLowerCase().replace(' ', '_'),
+            password: saltedPassword,
+            role_id: SALES_ROLES.id,
+          },
+        },
+      },
     };
-    const [sales] = await this.dbService.$transaction([
+
+    const [] = await this.dbService.$transaction([
+      // this.dbService.users.create({ data: userQuery }),
       this.dbService.sales.create({
-        data: sales_data,
+        data: { ...sales_data },
       }),
     ]);
 
-    return { sales, ...(users ? users : undefined) };
+    return { sales: createSalesDto };
   }
 
   async findAll(query: QueryParamsDto) {
@@ -221,7 +232,7 @@ export class SalesService {
     const updateSalesBrands = updateSalesDto.sales_brands
       ? updateSalesDto.sales_brands
           .filter((x) => Boolean(x.id))
-          .map(({ id, brands_id: brand_id }) => {
+          .map(({ id, brand_id: brand_id }) => {
             return {
               where: { id },
               data: {
@@ -237,7 +248,7 @@ export class SalesService {
       ? {
           data: updateSalesDto.sales_brands
             .filter((x) => !Boolean(x.id))
-            .map(({ brands_id: brand_id }) => ({
+            .map(({ brand_id: brand_id }) => ({
               brand_id,
               created_by: user_id,
             })),
@@ -318,7 +329,7 @@ export class SalesService {
             sales_id: id,
             NOT: updateSalesDto.sales_brands
               ? updateSalesDto.sales_brands.map((item) => ({
-                  brands_id: item.brands_id,
+                  brands_id: item.brand_id,
                 }))
               : undefined,
           },

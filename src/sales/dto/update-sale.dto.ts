@@ -16,11 +16,6 @@ export class UpdateSalesDto {
   store_id?: number;
 
   @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  user_id?: number;
-
-  @ApiProperty()
   @IsString()
   @IsOptional()
   full_name?: string;

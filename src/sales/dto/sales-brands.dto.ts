@@ -11,5 +11,5 @@ export class SalesBrandsDto {
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  brands_id: number;
+  brand_id: number;
 }

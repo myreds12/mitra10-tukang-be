@@ -63,21 +63,17 @@ export class SalesController {
   ) {
     try {
       const user = req.user;
-      console.log('Wasuuu');
-      const { sales, users } = await this.salesService.create(
-        createSaleDto,
-        user,
-      );
+      const { sales } = await this.salesService.create(createSaleDto, user);
 
       return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Created',
-        data: {sales, users},
+        data: { ...sales },
         // user: users,
       });
     } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.messsage ?? 'Error While Create',

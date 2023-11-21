@@ -280,7 +280,6 @@ model brands {
 
   sales_brands sales_brands[]
 }
-
 model sales_brands {
   id        Int  @id @default(autoincrement())
   sales_id  Int?
@@ -371,7 +370,6 @@ model tukang {
   vendor               vendor?                @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                users?                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang_service       tukang_service[]
-  orders               orders[]
   tukang_document      tukang_document[]
   work_order_tukang    work_order_tukang[]
   work_order_materials work_order_materials[]
@@ -533,17 +531,18 @@ model orders {
   store_id          Int
   project_status_id Int
   vendor_id         Int?
-  tukang_id         Int?
-  // category_id       Int?
+  sales_id          Int?
 
   project_address       String
   project_number        String    @default("0")
   receipt_number        String?   @db.NVarChar(30)
   request_survey        DateTime? @db.DateTime()
   payment_type          String    @db.VarChar(200)
-  grand_total           Decimal   @db.Decimal(32, 2)
-  grand_total_comission Decimal   @db.Decimal(32, 2)
-  print_counter         Int       @db.TinyInt()
+  grand_total           Decimal?  @db.Decimal(32, 2)
+  grand_total_comission Decimal?  @db.Decimal(32, 2)
+  print_counter         Int       @default(0) @db.TinyInt()
+  item_code             String?
+  item_name             String?
 
   created_by Int?
   updated_by Int?
@@ -554,11 +553,10 @@ model orders {
   deleted_at DateTime? @db.DateTime()
 
   members members? @relation(fields: [member_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  // sales   sales?   @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales   sales?   @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendor  vendor?  @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   store   store?   @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   status  status?  @relation(fields: [project_status_id], references: [id])
-  tukang  tukang?  @relation(fields: [tukang_id], references: [id])
 
   m_order_details m_order_details[]
   complaints      complaints[]
@@ -567,8 +565,6 @@ model orders {
   refund          refund[]
   work_orders     work_orders?
   order_files     order_files[]
-  sales           sales?            @relation(fields: [salesId], references: [id])
-  salesId         Int?
 }
 
 model order_files {
