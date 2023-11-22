@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { CreateStatusDto } from './dto/create-status.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { connect } from 'http2';
 import { HttpStatus } from '@nestjs/common';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 @Injectable()

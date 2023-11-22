@@ -21,8 +21,10 @@ async function bootstrap() {
     prefix: '/public/',
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
+
   app.setBaseViewsDir(join('templates'));
   app.setViewEngine('pug');
+
   await app.listen(3030);
 }
 bootstrap();

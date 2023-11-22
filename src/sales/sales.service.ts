@@ -2,7 +2,7 @@ import { Injectable, HttpStatus, HttpException } from '@nestjs/common';
 import { CreateSalesDto } from './dto/create-sale.dto';
 import { UpdateSalesDto } from './dto/update-sale.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, users } from '@prisma/client';
+import { Prisma, roles, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { hash, hashSync } from 'bcrypt';
 import { AuthService } from 'src/auth/auth.service';
@@ -27,7 +27,7 @@ export class SalesService {
 
   async create(createSalesDto: CreateSalesDto, user: users) {
     console.log(createSalesDto);
-    
+
     const { id: user_id } = user;
     const bank = await this.dbService.bank.findFirst({
       where: {
@@ -94,11 +94,7 @@ export class SalesService {
       users: {
         connectOrCreate: {
           where: {
-            username: {
-              contains: createSalesDto.full_name
-                .toLowerCase()
-                .replace(' ', '_'),
-            },
+            username: createSalesDto.full_name.toLowerCase().replace(' ', '_'),
             id: 0,
           },
           create: {
@@ -202,97 +198,79 @@ export class SalesService {
 
   async update(id: number, updateSalesDto: UpdateSalesDto, user: users) {
     const { id: user_id } = user;
-    let users = undefined;
-    if (updateSalesDto.full_name || updateSalesDto.nik) {
-      const user = await this.dbService.users.findFirst({
-        where: {
-          sales: {
-            every: {
-              id: id,
-            },
-          },
+    const sales = await this.dbService.sales.findFirst({
+      where: {
+        id,
+      },
+    });
+
+    const SALES_ROLES: roles = await this.dbService.roles.findFirst({
+      where: {
+        name: {
+          contains: 'sales',
         },
-      });
-      users = await this.dbService.users.update({
+      },
+    });
+
+    const usersConnectOrCreate: Prisma.usersCreateNestedOneWithoutSalesInput = {
+      connectOrCreate: {
         where: {
-          id: user.id,
+          id: sales?.user_id ?? 0,
         },
-        data: {
+        create: {
           username: updateSalesDto.full_name
             ? updateSalesDto.full_name
             : undefined,
           password: updateSalesDto.nik
             ? await hash(updateSalesDto.nik, 20)
             : undefined,
+          role_id: SALES_ROLES.id,
         },
-      });
-    }
-    console.log(typeof users);
+      },
+    };
 
-    const updateSalesBrands = updateSalesDto.sales_brands
-      ? updateSalesDto.sales_brands
-          .filter((x) => Boolean(x.id))
-          .map(({ id, brand_id: brand_id }) => {
-            return {
-              where: { id },
-              data: {
-                brand_id,
-                updated_at: new Date(),
-                updated_by: user_id,
-              },
-            };
-          })
-      : undefined;
-
-    const newSalesBrands = updateSalesDto.sales_brands
-      ? {
-          data: updateSalesDto.sales_brands
-            .filter((x) => !Boolean(x.id))
-            .map(({ brand_id: brand_id }) => ({
-              brand_id,
-              created_by: user_id,
-            })),
-        }
-      : undefined;
-
-    const updateSalesCategories = updateSalesDto.sales_categories
-      ? updateSalesDto.sales_categories
-          .filter((x) => Boolean(x.id))
-          .map(({ id, category_id, commission }) => {
-            return {
-              where: { id },
-              data: {
-                category_id,
-                commission,
-                updated_at: new Date(),
-                updated_by: user_id,
-              },
-            };
-          })
-      : undefined;
-
-    const newSalesCategories = updateSalesDto.sales_categories
-      ? {
-          data: updateSalesDto.sales_categories
-            .filter((x) => !Boolean(x.id))
-            .map(({ category_id, commission }) => ({
-              category_id,
-              commission,
-              created_by: user_id,
-            })),
-        }
-      : undefined;
+    const upsertSalesBrands: Prisma.sales_brandsUpsertWithWhereUniqueWithoutSalesInput[] =
+      updateSalesDto.sales_brands.map((i) => ({
+        where: {
+          id: i?.id ?? 0,
+          brands_id: i.brand_id,
+        },
+        update: {
+          brands_id: i.brand_id,
+          updated_at: new Date(),
+          updated_by: user_id,
+        },
+        create: {
+          brands_id: i.brand_id,
+          created_by: user_id,
+        },
+      }));
+    const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
+      updateSalesDto.sales_categories.map(
+        ({ id, category_id, commission }) => ({
+          where: {
+            id: id ?? 0,
+            category_id,
+          },
+          update: {
+            category_id,
+            commission,
+            updated_at: new Date(),
+            updated_by: user_id,
+          },
+          create: {
+            category_id,
+            commission,
+            created_at: new Date(),
+            created_by: user_id,
+          },
+        }),
+      );
 
     const salesData: Prisma.salesUpdateInput = {
-      ...(users
-        ? {
-            users: {
-              connect: {
-                id: users.id,
-              },
-            },
-          }
-        : undefined),
+      users: {
+        ...usersConnectOrCreate,
+      },
       bank: {
         connect: {
           id: updateSalesDto.bank_id,
@@ -302,46 +280,36 @@ export class SalesService {
       bank_branch: updateSalesDto.bank_branch,
       full_name: updateSalesDto.full_name,
       nik: updateSalesDto.nik,
-      ...(updateSalesBrands || newSalesBrands
-        ? {
-            sales_brands: {
-              createMany: newSalesBrands ? newSalesBrands : undefined,
-              update: updateSalesBrands ? updateSalesBrands : undefined,
-            },
-          }
-        : undefined),
-      ...(updateSalesCategories || newSalesCategories
-        ? {
-            sales_categories: {
-              createMany: newSalesCategories ? newSalesCategories : undefined,
-              update: updateSalesCategories ? updateSalesCategories : undefined,
-            },
-          }
-        : undefined),
+      sales_brands: {
+        upsert: upsertSalesBrands,
+      },
+      sales_categories: {
+        upsert: upsertSalesCategories,
+      },
       updated_at: new Date(),
       updated_by: user_id,
     };
 
-    const [syncSalesBrands, syncSalesCategories, sales] =
+    const [syncSalesBrands, syncSalesCategories, updatedSales] =
       await this.dbService.$transaction([
         this.dbService.sales_brands.deleteMany({
           where: {
             sales_id: id,
-            NOT: updateSalesDto.sales_brands
-              ? updateSalesDto.sales_brands.map((item) => ({
-                  brands_id: item.brand_id,
-                }))
-              : undefined,
+            id: {
+              notIn: updateSalesDto.sales_brands.map(
+                ({ brand_id }) => brand_id,
+              ),
+            },
           },
         }),
         this.dbService.sales_categories.deleteMany({
           where: {
             sales_id: id,
-            NOT: updateSalesDto.sales_categories
-              ? updateSalesDto.sales_categories.map((item) => ({
-                  category_id: item.category_id,
-                }))
-              : undefined,
+            id: {
+              notIn: updateSalesDto.sales_categories.map(
+                ({ category_id }) => category_id,
+              ),
+            },
           },
         }),
         this.dbService.sales.update({
@@ -351,7 +319,7 @@ export class SalesService {
           data: salesData,
         }),
       ]);
-    return sales;
+    return updatedSales;
   }
 
   async remove(id: number, user: users) {

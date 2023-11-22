@@ -11,6 +11,7 @@ import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from './dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Item } from 'src/items/entities/item.entity';
 
 @Injectable()
 export class OrderService {
@@ -25,8 +26,41 @@ export class OrderService {
     order_files: Array<Express.Multer.File>,
   ) {
     const { id: user_id } = user;
+    const SALES_ROLES = await this.dbService.roles.findFirst({
+      where: { name: { contains: 'sales' } },
+    });
+
+    const salesUser = await this.dbService.users.findFirst({
+      where: { id: user_id },
+      include: {
+        sales: {
+          ...(SALES_ROLES?.id
+            ? { where: { id: createOrderDto.sales_id } }
+            : undefined),
+          include: { sales_categories: true },
+        },
+      },
+    });
+
+    const orderDetailItems = await this.dbService.items.findMany({
+      where: {
+        id: { in: createOrderDto.order_details.map(({ item_id }) => item_id) },
+      },
+      include: {
+        category: true,
+        prices: {
+          where: {
+            periodic_start: { lte: new Date() },
+            periodic_end: { gte: new Date() },
+          },
+        },
+      },
+    });
+
     let grand_total = 0;
     let grand_total_comission = 0;
+    let project_number = (await this.dbService.orders.count()) + 1;
+
     const files: Array<Prisma.order_filesCreateManyOrderInput> =
       order_files.map((item) => ({
         type: 'any',
@@ -34,84 +68,64 @@ export class OrderService {
         created_by: user_id,
       }));
 
-    const BOOKED_STATUS = await this.dbService.status.findFirst({
-      where: {
-        category: {
-          equals: 'book',
-        },
-      },
+    const BOOK_STATUS = await this.dbService.status.findFirst({
+      where: { category: { equals: 'book' } },
     });
 
     if (createOrderDto.payment_type === PAYMENT_TYPE.SURVEY) {
       grand_total += 99000;
     }
 
-    const order_details = createOrderDto.order_details.map((item) => {
-      let total = 0;
+    const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
+      createOrderDto.order_details.map((item) => {
+        let total = 0;
+        const currentItem = orderDetailItems?.find(
+          ({ id }) => id === item?.item_id,
+        );
+        const itemPrice =
+          currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
+            ?.price ?? currentItem.default_price;
+        const comission = Number(
+          salesUser?.sales?.sales_categories?.find(
+            ({ category_id }) => currentItem.category_id === category_id,
+          )?.commission ?? 0,
+        );
+        if (
+          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
+            createOrderDto.payment_type,
+          )
+        ) {
+          total = Number(itemPrice) * item.quantity;
+          grand_total += total;
+          grand_total_comission += comission;
+        }
 
-      if (
-        [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
-          createOrderDto.payment_type,
-        )
-      ) {
-        total = item.unit_price * item.quantity + item.quote_price;
-        grand_total += total;
-        grand_total_comission += item.comission;
-      }
-
-      return {
-        ...item,
-        created_by: user_id,
-        order_status_id: BOOKED_STATUS.id,
-        total,
-        sales_id: createOrderDto.sales_id,
-      };
-    });
+        return {
+          ...item,
+          unit_price: itemPrice,
+          created_by: user_id,
+          total,
+          comission,
+          sales_id: salesUser?.sales?.id ?? createOrderDto.sales_id,
+        };
+      });
 
     const orderConnection = Object.fromEntries(
       Object.entries({
-        members: {
-          connect: {
-            id: createOrderDto.member_id,
-          },
-        },
-        store: {
-          connect: {
-            id: createOrderDto.store_id,
-          },
-        },
-        status: {
-          connect: {
-            id: BOOKED_STATUS.id,
-          },
-        },
-        sales: {
-          connect: {
-            id: createOrderDto.sales_id,
-          },
-        },
+        members: { connect: { id: createOrderDto.member_id } },
+        store: { connect: { id: createOrderDto.store_id } },
+        status: { connect: { id: BOOK_STATUS.id } },
+        sales: { connect: { id: createOrderDto.sales_id } },
         vendor: createOrderDto.vendor_id
-          ? {
-              connect: {
-                id: createOrderDto.vendor_id,
-              },
-            }
-          : undefined,
-        tukang: createOrderDto.tukang_id
-          ? {
-              connect: {
-                id: createOrderDto.tukang_id,
-              },
-            }
+          ? { connect: { id: createOrderDto.vendor_id } }
           : undefined,
       }).filter(([key, value]) => value !== undefined),
     );
 
     const orderData = {
       project_address: createOrderDto.project_address,
-      project_number: createOrderDto.project_number,
+      project_number: project_number.toString(),
       receipt_number: createOrderDto.receipt_number,
-      total_estimate_workdays: createOrderDto.total_estimate_workdays,
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
       created_by: user_id,
@@ -119,20 +133,13 @@ export class OrderService {
       print_counter: 0,
       request_survey: new Date(createOrderDto.request_survey),
     };
+
     const ordersOptions: Prisma.ordersCreateArgs = {
       data: {
         ...orderConnection,
         ...orderData,
-        m_order_details: {
-          createMany: {
-            data: order_details,
-          },
-        },
-        order_files: {
-          createMany: {
-            data: files,
-          },
-        },
+        m_order_details: { createMany: { data: order_details } },
+        order_files: { createMany: { data: files } },
       },
     };
 
@@ -141,7 +148,7 @@ export class OrderService {
     ]);
 
     return {
-      id: order_id,
+      id: null,
       ...orderData,
     };
   }
@@ -200,10 +207,6 @@ export class OrderService {
         status: true,
         vendor_id: true,
         vendor: true,
-        tukang_id: true,
-        tukang: true,
-        // category_id: true,
-        // categories: true,
         project_address: true,
         receipt_number: true,
         payment_type: true,
@@ -229,7 +232,6 @@ export class OrderService {
             },
             sales: true,
             unit_price: true,
-            quote_price: true,
             quantity: true,
             total: true,
             comission: true,
@@ -259,8 +261,6 @@ export class OrderService {
         status: true,
         vendor: true,
         store: true,
-        // categories: true,
-        tukang: true,
         m_order_details: {
           select: {
             id: true,
@@ -275,7 +275,6 @@ export class OrderService {
               },
             },
             unit_price: true,
-            quote_price: true,
             quantity: true,
             total: true,
             comission: true,

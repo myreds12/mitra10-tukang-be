@@ -30,6 +30,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
 import { SendEmailService } from 'src/mails/send-email.service';
+import { ApiTags } from '@nestjs/swagger';
 // import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
 // import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
 // import { PermissionAction } from 'src/casl/enum/permission-action.enum';
@@ -39,6 +40,7 @@ interface UserRequest extends IExpressRequest {
 }
 const menuName = 'orders';
 
+@ApiTags('Orders')
 @Controller(menuName)
 @UseGuards(JwtAuthGuard)
 // @UseGuards(JwtAuthGuard, PermissionsGuard)

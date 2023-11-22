@@ -68,10 +68,11 @@ model employee {
 model items {
   id Int @id @default(autoincrement())
 
-  item_name    String? @db.VarChar(45)
-  item_code    String? @db.VarChar(45)
-  service_name String  @db.VarChar(45)
-  category_id  Int
+  item_name     String? @db.VarChar(45)
+  item_code     String? @db.VarChar(45)
+  service_name  String  @db.VarChar(45)
+  default_price Decimal @default(0) @db.Decimal(32, 2)
+  category_id   Int
 
   created_at DateTime? @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -231,7 +232,7 @@ model users {
   deleted_by Int?
 
   roles    roles     @relation(fields: [role_id], references: [id])
-  sales    sales[]
+  sales    sales?
   employee employee?
   vendor   vendor[]
   tukang   tukang[]
@@ -240,7 +241,7 @@ model users {
 model sales {
   id       Int  @id @default(autoincrement())
   store_id Int?
-  user_id  Int?
+  user_id  Int? @unique
 
   full_name    String  @db.VarChar(255)
   nik          String? @db.VarChar(20)
@@ -280,6 +281,7 @@ model brands {
 
   sales_brands sales_brands[]
 }
+
 model sales_brands {
   id        Int  @id @default(autoincrement())
   sales_id  Int?
@@ -541,8 +543,6 @@ model orders {
   grand_total           Decimal?  @db.Decimal(32, 2)
   grand_total_comission Decimal?  @db.Decimal(32, 2)
   print_counter         Int       @default(0) @db.TinyInt()
-  item_code             String?
-  item_name             String?
 
   created_by Int?
   updated_by Int?
@@ -591,13 +591,12 @@ model m_order_details {
   item_id  Int
   sales_id Int
 
-  item_code   String? @db.VarChar(200)
-  item_name   String? @db.VarChar(200)
-  unit_price  Decimal @db.Decimal(32, 2)
-  quote_price Decimal @db.Decimal(32, 2)
-  quantity    Decimal @db.Decimal(32, 2)
-  total       Int
-  comission   Int
+  item_code  String? @db.VarChar(200)
+  item_name  String? @db.VarChar(200)
+  unit_price Decimal @db.Decimal(32, 2)
+  quantity   Int
+  total      Decimal @db.Decimal(32, 2)
+  comission  Decimal @db.Decimal(32, 2)
 
   created_by Int?
   updated_by Int?

@@ -17,7 +17,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(dto: CreateRegisterDto) {
+  async register(dto: CreateRegisterDto, role_id?: number | null) {
     const user = await this.dbService.users.findFirst({
       where: {
         username: dto.username,
@@ -26,9 +26,13 @@ export class AuthService {
     if (user) {
       throw new HttpException('User Exists', HttpStatus.BAD_REQUEST);
     }
-    const createUser = await this.dbService.users.create({
-      data: { ...dto, role_id: 2 },
-    });
+
+    const [createUser] = await this.dbService.$transaction([
+      this.dbService.users.create({
+        data: { ...dto, role_id: role_id ?? 2 },
+      }),
+    ]);
+
     if (createUser) {
       return {
         statusCode: 200,
@@ -111,12 +115,13 @@ export class AuthService {
     secret: any,
     expired = JwtConfig.user_expired,
   ) {
-    const { id, username } = user;
+    const { id, username, role_id } = user;
 
     const accessToken = this.jwtService.sign(
       {
         id: id,
         username,
+        role_id,
       },
       {
         expiresIn: expired,

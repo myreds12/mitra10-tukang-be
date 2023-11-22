@@ -29,12 +29,12 @@ interface UserRequest extends IExpressRequest {
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @UsePipes(ValidationPipe, TransformPasswordPipe)
-  @HttpCode(200)
-  @Post('register')
-  async register(@Body() dto: CreateRegisterDto) {
-    return await this.authService.register(dto);
-  }
+  // @UsePipes(ValidationPipe, TransformPasswordPipe)
+  // @HttpCode(200)
+  // @Post('register')
+  // async register(@Body() dto: CreateRegisterDto) {
+  //   return await this.authService.register(dto);
+  // }
 
   @HttpCode(200)
   @Post('login')

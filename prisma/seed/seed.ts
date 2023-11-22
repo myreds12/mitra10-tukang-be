@@ -22,14 +22,10 @@ async function main() {
   // await RolesSeed();
   // await MenusSeed();
   // await PermissionSeed();
-
   // await CategorySeed();
   // await ItemsSeed();
-
   // await UsersSeed();
-
   // await MembersSeed();
-
   // await PositionSeed();
   // await StoreSeed();
   // await BrandsSeed();
