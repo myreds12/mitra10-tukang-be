@@ -61,7 +61,9 @@ export class ItemsService {
   async findAll(queryParamsDto: QueryParamsDto) {
     const { search, take, page, skip, group_by } = queryParamsDto;
     const category_id = +search ? Number.parseInt(search) : undefined;
-    const itemsOptions = {
+    const now = new Date();
+
+    const itemsOptions: Prisma.itemsFindManyArgs = {
       skip: skip ?? 0,
       take: take > 0 ? take : undefined,
       where: {
@@ -89,16 +91,23 @@ export class ItemsService {
           },
         ],
       },
-      select: {
-        item_name: true,
-        item_code: true,
-        service_name: true,
-        category_id: true,
-        created_at: true,
-        updated_at: true,
-        created_by: true,
-        updated_by: true,
-        prices: true,
+      include: {
+        prices: {
+          where: {
+            periodic_start: { lte: now },
+            periodic_end: { gte: now },
+          },
+          select: {
+            id: true,
+            item_id: true,
+            store_id: true,
+            periodic_start: true,
+            periodic_end: true,
+            price: true,
+            min_order: true,
+            created_at: true,
+          },
+        },
       },
     };
 
