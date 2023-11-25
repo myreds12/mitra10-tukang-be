@@ -61,10 +61,13 @@ export class ItemsController {
   @Get('/')
   async findAll(
     @Query() queryParamsDto: QueryParamsDto,
+    @Req() request: UserRequest,
     @Res() response: IExpressResponse,
   ) {
     try {
-      const items = await this.itemsService.findAll(queryParamsDto);
+      const user = request.user;
+
+      const items = await this.itemsService.findAll(queryParamsDto, user);
 
       return response.status(200).json({
         status: HttpStatus.OK,

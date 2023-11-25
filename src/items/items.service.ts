@@ -1,7 +1,7 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, users } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
@@ -58,10 +58,24 @@ export class ItemsService {
     };
   }
 
-  async findAll(queryParamsDto: QueryParamsDto) {
+  async findAll(queryParamsDto: QueryParamsDto, user: users) {
+    const {id ,role_id} = user;
     const { search, take, page, skip, group_by } = queryParamsDto;
     const category_id = +search ? Number.parseInt(search) : undefined;
     const now = new Date();
+    const sales = await this.dbService.users.findFirst({
+      where: {
+        id,
+        role_id
+      },
+      include: {
+        sales: {
+          include: {
+            sales_categories: true
+          }
+        }
+      }
+    })
 
     const itemsOptions: Prisma.itemsFindManyArgs = {
       skip: skip ?? 0,
@@ -86,7 +100,14 @@ export class ItemsService {
                 ],
               }
             : undefined,
-          {
+            sales.sales ? {
+              category: {
+                id: {
+                  in: sales.sales.sales_categories.map(({category_id}) => category_id) 
+                }
+              }
+            } : undefined,
+            {
             deleted_at: null,
           },
         ],

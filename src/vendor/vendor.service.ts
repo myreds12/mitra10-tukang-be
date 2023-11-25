@@ -60,11 +60,18 @@ export class VendorService {
           })
         : undefined;
 
+    const role = await this.dbService.roles.findFirst({
+      where: {
+        name: {
+          contains: 'admin vendor'
+        }
+      }
+    })
     const users = await this.dbService.users.create({
       data: {
         username: `${createVendorDto.pic_name}`,
         password: await hash('password', 10),
-        role_id: 5,
+        role_id: role.id,
       },
     });
 

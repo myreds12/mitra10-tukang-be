@@ -82,11 +82,11 @@ model items {
   updated_by Int?
   deleted_by Int?
 
-  m_order_details      m_order_details[]
-  prices               prices[]
-  work_order_materials work_order_materials[]
-  category             categories             @relation(fields: [category_id], references: [id])
-  quotation_details    quotation_details[]
+  m_order_details   m_order_details[]
+  prices            prices[]
+  work_order_items  work_order_items[]
+  category          categories          @relation(fields: [category_id], references: [id])
+  quotation_details quotation_details[]
 }
 
 model logs {
@@ -370,12 +370,12 @@ model tukang {
   updated_by Int?
   deleted_by Int?
 
-  vendor               vendor?                @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users                users?                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tukang_service       tukang_service[]
-  tukang_document      tukang_document[]
-  work_order_tukang    work_order_tukang[]
-  work_order_materials work_order_materials[]
+  vendor            vendor?             @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             users?              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang_service    tukang_service[]
+  tukang_document   tukang_document[]
+  work_order_tukang work_order_tukang[]
+  work_order_items  work_order_items[]
 }
 
 model tukang_document {
@@ -693,9 +693,10 @@ model quotation {
 }
 
 model quotation_details {
-  id           Int  @id @default(autoincrement())
-  quotation_id Int
-  item_id      Int? @db.Int
+  id                  Int  @id @default(autoincrement())
+  quotation_id        Int
+  item_id             Int? @db.Int
+  work_order_items_id Int? @db.Int
 
   item_type   Int      @db.Int
   name        String?  @db.Text()
@@ -703,6 +704,7 @@ model quotation_details {
   margin      Decimal? @default(0) @db.Decimal(32, 2)
   final_price Decimal? @default(0) @db.Decimal(32, 2)
   quantity    Int      @default(0)
+  is_customer Boolean @default(false)
 
   created_by Int?
   updated_by Int?
@@ -712,8 +714,9 @@ model quotation_details {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  quotation quotation @relation(fields: [quotation_id], references: [id])
-  item      items?    @relation(fields: [item_id], references: [id])
+  quotation        quotation         @relation(fields: [quotation_id], references: [id])
+  item             items?            @relation(fields: [item_id], references: [id])
+  work_order_items work_order_items? @relation(fields: [work_order_items_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model quotation_files {
@@ -908,33 +911,34 @@ model work_order_status {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  work_order           work_orders            @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  status               status                 @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  work_order_materials work_order_materials[]
+  work_order       work_orders        @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status           status             @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_order_items work_order_items[]
 }
 
-model work_order_materials {
+model work_order_items {
   id                   Int  @id @default(autoincrement())
   work_order_status_id Int
   item_id              Int?
   tukang_id            Int?
 
+  type        Int     @db.Int
+  is_customer Boolean @default(false)
   tukang_name String? @db.VarChar(40)
-  name        String  @db.VarChar(40)
-  price       Decimal @db.Decimal(32, 2)
-  quantity    Int     @db.Int()
-  total       Decimal @db.Decimal(32, 2)
+  name        String? @db.VarChar(40)
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
-  created_at        DateTime          @default(now()) @db.DateTime()
-  updated_at        DateTime?         @db.DateTime()
-  deleted_at        DateTime?         @db.DateTime()
-  tukang            tukang?           @relation(fields: [tukang_id], references: [id])
-  work_order_status work_order_status @relation(fields: [work_order_status_id], references: [id])
-  item              items?            @relation(fields: [item_id], references: [id])
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  tukang            tukang?             @relation(fields: [tukang_id], references: [id])
+  work_order_status work_order_status   @relation(fields: [work_order_status_id], references: [id])
+  item              items?              @relation(fields: [item_id], references: [id])
+  quotation_details quotation_details[]
 }
 
 model invoices {

@@ -239,6 +239,7 @@ export class OrderService {
                 item_name: true,
                 category: true,
                 default_price: true,
+                service_name: true,
               },
             },
             sales: true,
@@ -286,6 +287,7 @@ export class OrderService {
                 category: true,
                 prices: true,
                 default_price: true,
+                service_name: true,
               },
             },
             unit_price: true,
@@ -387,7 +389,7 @@ export class OrderService {
       (x) => !orderDetail.some((y) => x === y.id),
     );
 
-    if (checkOrderDetailIds)
+    if (checkOrderDetailIds.length)
       throw new NotFoundException({
         messages: 'The provided detail id not found',
         errorIds: checkOrderDetailIds,

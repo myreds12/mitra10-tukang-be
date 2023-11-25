@@ -41,14 +41,19 @@ export class CreateVendorDto {
   @Type(() => Number)
   bank_id: number;
 
+  @IsString()
   pic_name: string;
-
+  
+  @IsString()
   markup: string;
-
+  
+  @IsString()
   discount: string;
 
+  @IsString()
   account_name: string;
 
+  @IsString()
   account_number: string;
 
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
@@ -58,12 +63,14 @@ export class CreateVendorDto {
   @IsOptional()
   npwp_file?: Array<Express.Multer.File> | Express.Multer.File;
 
+  @IsString()
   npwp_number?: string;
 
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   ktp_file?: Array<Express.Multer.File> | Express.Multer.File;
 
+  @IsString()
   ktp_number?: string;
 
   @ApiProperty({ type: 'string', format: 'string' })
