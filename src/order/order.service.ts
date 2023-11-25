@@ -358,6 +358,41 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found');
 
+    const providedDetailIds = updateOrderDto.order_details
+      .filter((x) => Boolean(x.id))
+      .map((x) => x.id);
+
+    const orderDetail = await this.dbService.m_order_details.findMany({
+      where: {
+        id: {
+          in: providedDetailIds,
+        },
+      },
+      include: {
+        item: {
+          include: {
+            category: true,
+            prices: {
+              where: {
+                periodic_start: { lte: new Date() },
+                periodic_end: { gte: new Date() },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const checkOrderDetailIds = providedDetailIds.filter(
+      (x) => !orderDetail.some((y) => x === y.id),
+    );
+
+    if (checkOrderDetailIds)
+      throw new NotFoundException({
+        messages: 'The provided detail id not found',
+        errorIds: checkOrderDetailIds,
+      });
+
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
           where: {
@@ -403,20 +438,8 @@ export class OrderService {
       },
     });
 
-    const orderDetailItems = await this.dbService.items.findMany({
-      where: {
-        id: { in: updateOrderDto.order_details.map(({ item_id }) => item_id) },
-      },
-      include: {
-        category: true,
-        prices: {
-          where: {
-            periodic_start: { lte: new Date() },
-            periodic_end: { gte: new Date() },
-          },
-        },
-      },
-    });
+    const orderDetailItems = orderDetail.map((x) => x.item);
+
     let grand_total = 0;
     let grand_total_comission = 0;
 
@@ -472,8 +495,8 @@ export class OrderService {
             },
             sales: {
               connect: {
-                id: updateOrderDto.sales_id ?? order.sales_id 
-              }
+                id: updateOrderDto.sales_id ?? order.sales_id,
+              },
             },
             item_name: item?.item_name ?? '',
             item_code: item?.item_code ?? '',
@@ -517,9 +540,11 @@ export class OrderService {
           where: {
             order_id: id,
             id: {
-              notIn: updateOrderDto.order_details.map((item) => {
-                return item.id;
-              }),
+              notIn: updateOrderDto.order_details
+                .filter((x) => Boolean(x?.id))
+                .map((item) => {
+                  return item.id;
+                }),
             },
           },
         }),

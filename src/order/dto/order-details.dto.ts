@@ -4,6 +4,7 @@ import { IsNumber, IsOptional, IsString } from 'class-validator';
 export class OrderDetailDto {
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   id?: number;
 
   @Type(() => Number)
