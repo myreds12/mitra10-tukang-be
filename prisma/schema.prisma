@@ -86,6 +86,7 @@ model items {
   prices               prices[]
   work_order_materials work_order_materials[]
   category             categories             @relation(fields: [category_id], references: [id])
+  quotation_details    quotation_details[]
 }
 
 model logs {
@@ -674,25 +675,27 @@ model quotation {
   quotation_date        DateTime @db.Date()
   quotation_validity    DateTime @db.Date()
   quotation_status      Int
-  quotation_disc        Decimal  @db.Decimal(32, 2)
+  quotation_disc        Decimal  @default(0) @db.Decimal(32, 2)
   quotation_grand_total Decimal  @db.Decimal(32, 2)
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
-  created_at      DateTime          @default(now()) @db.DateTime()
-  updated_at      DateTime?         @db.DateTime()
-  deleted_at      DateTime?         @db.DateTime()
-  store           store             @relation(fields: [store_id], references: [id])
-  order           orders            @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  status          status            @relation(fields: [quotation_status], references: [id])
-  quotation_files quotation_files[]
+  created_at        DateTime            @default(now()) @db.DateTime()
+  updated_at        DateTime?           @db.DateTime()
+  deleted_at        DateTime?           @db.DateTime()
+  store             store               @relation(fields: [store_id], references: [id])
+  order             orders              @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status            status              @relation(fields: [quotation_status], references: [id])
+  quotation_files   quotation_files[]
+  quotation_details quotation_details[]
 }
 
 model quotation_details {
-  id      Int  @id @default(autoincrement())
-  item_id Int? @db.Int
+  id           Int  @id @default(autoincrement())
+  quotation_id Int
+  item_id      Int? @db.Int
 
   item_type   Int      @db.Int
   name        String?  @db.Text()
@@ -708,6 +711,9 @@ model quotation_details {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
+
+  quotation quotation @relation(fields: [quotation_id], references: [id])
+  item      items?    @relation(fields: [item_id], references: [id])
 }
 
 model quotation_files {

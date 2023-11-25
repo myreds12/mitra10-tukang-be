@@ -60,6 +60,36 @@ export class QuotationController {
     }
   }
 
+  @Post(':id/set-status/:status_id')
+  async setStatus(
+    @Param('id') id: number,
+    @Param('status_id') status_id: number,
+    @Request() req,
+    @Res() response,
+  ) {
+    try {
+      const user = req.user;
+      const quotation = await this.quotationService.setStatus(
+        id,
+        status_id,
+        user,
+      );
+      return response.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Quotation Updated',
+        data: quotation,
+      });
+    } catch (error) {
+      console.log(error);
+
+      return response.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error.message,
+        stack: error,
+      });
+    }
+  }
+
   @Post()
   @UseInterceptors(FilesInterceptor('quotation_files'))
   async create(

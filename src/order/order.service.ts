@@ -25,16 +25,21 @@ export class OrderService {
     user: users,
     order_files: Array<Express.Multer.File>,
   ) {
-    const { id: user_id } = user;
-    const SALES_ROLES = await this.dbService.roles.findFirst({
-      where: { name: { contains: 'sales' } },
-    });
+    const { id: user_id, role_id } = user;
+    const ROLES = await this.dbService.roles.findMany();
+
+    const SALES_ROLES = ROLES.find(({ name }) =>
+      name.toLowerCase().includes('sales'),
+    );
+    const STORE_ROLES = ROLES.find(({ name }) =>
+      name.toLowerCase().includes('store staff'),
+    );
 
     const salesUser = await this.dbService.users.findFirst({
       where: { id: user_id },
       include: {
         sales: {
-          ...(SALES_ROLES?.id
+          ...(role_id !== SALES_ROLES?.id
             ? { where: { id: createOrderDto.sales_id } }
             : undefined),
           include: { sales_categories: true },
@@ -68,8 +73,10 @@ export class OrderService {
         created_by: user_id,
       }));
 
-    const BOOK_STATUS = await this.dbService.status.findFirst({
-      where: { category: { equals: 'book' } },
+    const ROLE_STATUS = await this.dbService.status.findFirst({
+      where: {
+        category: { equals: role_id === STORE_ROLES.id ? 'picklist' : 'book' },
+      },
     });
 
     if (createOrderDto.payment_type === PAYMENT_TYPE.SURVEY) {
@@ -114,7 +121,7 @@ export class OrderService {
       Object.entries({
         members: { connect: { id: createOrderDto.member_id } },
         store: { connect: { id: createOrderDto.store_id } },
-        status: { connect: { id: BOOK_STATUS.id } },
+        status: { connect: { id: ROLE_STATUS.id } },
         sales: { connect: { id: createOrderDto.sales_id } },
         vendor: createOrderDto.vendor_id
           ? { connect: { id: createOrderDto.vendor_id } }
@@ -148,7 +155,7 @@ export class OrderService {
     ]);
 
     return {
-      id: null,
+      id: order_id,
       ...orderData,
     };
   }
@@ -222,6 +229,8 @@ export class OrderService {
           select: {
             id: true,
             order_id: true,
+            item_code: true,
+            item_name: true,
             item_id: true,
             item: {
               select: {
@@ -265,6 +274,8 @@ export class OrderService {
           select: {
             id: true,
             order_id: true,
+            item_code: true,
+            item_name: true,
             item_id: true,
             item: {
               select: {

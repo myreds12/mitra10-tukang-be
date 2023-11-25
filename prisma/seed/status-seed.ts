@@ -19,7 +19,7 @@ export async function StatusSeed() {
     { category: 'RESURVEYDONE', description: 'Resurvey Done' },
 
     { category: 'QUOTEIN', description: 'Quotation In' },
-    { category: 'QOUTEOUT', description: 'Quotation Out' },
+    { category: 'QUOTEOUT', description: 'Quotation Out' },
 
     { category: 'WORKREQ', description: 'Work Order Request' },
     { category: 'WORKSTART', description: 'Work Order Start' },

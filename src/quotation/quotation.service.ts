@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -14,18 +14,45 @@ export class QuotationService {
   async create(
     createQuotationDto: CreateQuotationDto,
     user: users,
-    quotaion_files?: Express.Multer.File[],
+    quotation_files?: Express.Multer.File[],
   ) {
+    console.log(createQuotationDto);
+
     const { id: user_id } = user;
+    let grandTotal = 0;
+
     const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
-      quotaion_files
-        ? quotaion_files.map((item) => ({
+      quotation_files
+        ? quotation_files.map((item) => ({
             path: item.filename,
             created_by: user_id,
           }))
         : undefined;
 
-    const quotation_data = {
+    const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
+      createQuotationDto.quotation_details.map((item) => {
+        const final_price = +item.price * item.quantity + +item.margin;
+        grandTotal += final_price;
+        return {
+          item_id: item?.item_id,
+          item_type: item.type,
+          margin: item.margin,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          final_price,
+        };
+      });
+
+    const status = await this.dbService.status.findFirst({
+      where: {
+        category: {
+          contains: 'QUOTEIN',
+        },
+      },
+    });
+
+    const quotation_data: Prisma.quotationCreateInput = {
       order: {
         connect: {
           id: createQuotationDto.order_id,
@@ -38,15 +65,19 @@ export class QuotationService {
       },
       status: {
         connect: {
-          id: createQuotationDto.quotation_status,
+          id: status.id,
         },
       },
       description: createQuotationDto.description,
       quotation_number: createQuotationDto.quotation_number,
       quotation_date: new Date(createQuotationDto.quotation_date),
       quotation_validity: new Date(createQuotationDto.quotation_validity),
+      quotation_disc: createQuotationDto.quotation_disc,
+      quotation_grand_total: grandTotal - +createQuotationDto.quotation_disc,
       created_by: user_id,
     };
+
+    console.log(quotation_data);
 
     const quotation_options: Prisma.quotationCreateArgs = {
       data: {
@@ -56,16 +87,18 @@ export class QuotationService {
             data: evidence,
           },
         },
+        quotation_details: {
+          createMany: {
+            data: quotaionDetails,
+          },
+        },
       },
     };
 
     const [quotation] = await this.dbService.$transaction([
       this.dbService.quotation.create(quotation_options),
     ]);
-
-    return {
-      ...quotation,
-    };
+    return quotation;
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
@@ -158,46 +191,50 @@ export class QuotationService {
     quotation_files: Express.Multer.File[],
   ) {
     const { id: user_id } = user;
-    await this.dbService.quotation_files.deleteMany({
-      where: {
-        quotation_id: id,
-      },
-    });
+
+    // const quotationDetailsUpsert : Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
 
     const evidence = quotation_files.map((item) => ({
       path: item.filename,
       created_by: user_id,
     }));
 
-    const orderConn = updateQuotationDto.order_id
-      ? {
-          connect: {
-            id: updateQuotationDto.order_id,
+    let grandTotal = 0;
+    const quotationDetailsUpsert: Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
+      updateQuotationDto.quotation_details.map((item) => {
+        const final_price = +item.price * item.quantity + +item.margin;
+        grandTotal += final_price;
+        return {
+          where: {
+            quotation_id: id,
+            id: item?.id ?? 0,
           },
-        }
-      : undefined;
-
-    const storeConn = updateQuotationDto.store_id
-      ? {
-          connect: {
-            id: updateQuotationDto.store_id,
+          update: {
+            item_id: item?.item_id,
+            item_type: item?.type,
+            name: item?.name,
+            price: item?.price,
+            quantity: item?.quantity,
+            margin: item?.margin,
+            final_price,
+            updated_at: new Date(),
+            updated_by: user_id,
           },
-        }
-      : undefined;
-
-    const statusConn = updateQuotationDto.quotation_status
-      ? {
-          connect: {
-            id: updateQuotationDto.quotation_status,
+          create: {
+            item_id: item?.item_id,
+            item_type: item?.type,
+            name: item?.name,
+            price: item?.price,
+            quantity: item?.quantity,
+            margin: item?.margin,
+            final_price,
+            created_by: user_id,
           },
-        }
-      : undefined;
+        };
+      });
 
     const quotation_data: Prisma.quotationUpdateInput = Object.fromEntries(
       Object.entries({
-        order: orderConn,
-        store: storeConn,
-        status: statusConn,
         description: updateQuotationDto.description ?? undefined,
         quotation_number: updateQuotationDto.quotation_number ?? undefined,
         quotation_date: updateQuotationDto.quotation_date
@@ -217,12 +254,38 @@ export class QuotationService {
       }).filter(([key, value]) => value != undefined),
     );
 
-    const [quotation] = await this.dbService.$transaction([
+    const [syncQuotationFiles, quotation] = await this.dbService.$transaction([
+      this.dbService.quotation_files.deleteMany({
+        where: {
+          quotation_id: id,
+        },
+      }),
       this.dbService.quotation.update({
         where: {
           id,
         },
-        data: quotation_data,
+        data: {
+          description: updateQuotationDto?.description ?? undefined,
+          quotation_number: updateQuotationDto?.quotation_number ?? undefined,
+          quotation_date: updateQuotationDto?.quotation_date
+            ? new Date(updateQuotationDto?.quotation_date)
+            : undefined,
+          quotation_validity: updateQuotationDto?.quotation_validity
+            ? new Date(updateQuotationDto?.quotation_validity)
+            : undefined,
+          updated_by: user_id,
+          updated_at: new Date(),
+          quotation_files: quotation_files.length
+            ? {
+                createMany: {
+                  data: evidence,
+                },
+              }
+            : undefined,
+          quotation_details: {
+            upsert: quotationDetailsUpsert,
+          },
+        },
       }),
     ]);
 
@@ -250,5 +313,47 @@ export class QuotationService {
     });
 
     return complaints[0] || null;
+  }
+
+  async setStatus(
+    id: number,
+    status_id: number,
+    user: users,
+  ) {
+    const {id: user_id} = user;
+    const status = await this.dbService.status.findFirst({
+      where:{
+        id: status_id,
+        category: {
+          in: ["quotein", "quoteout"]
+        }
+      }
+    });
+    if(!status) throw new BadRequestException("Status Id not found!");
+
+    const quotationFind = await this.dbService.quotation.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        status: true
+      }
+    })
+
+    if(!quotationFind) throw new BadRequestException("Quotation not found!");
+    if(quotationFind.status.category.toLowerCase().includes("quoteout")) throw new BadRequestException("Cannot change status!");
+
+    const quotation = await this.dbService.quotation.update({
+      where: {
+        id,
+      },
+      data: {
+        quotation_status: status.id,
+        updated_at: new Date(),
+        updated_by: user_id,
+      },
+    });
+
+    return quotation;
   }
 }
