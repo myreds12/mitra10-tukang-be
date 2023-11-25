@@ -4,9 +4,9 @@ import {
   ParseArrayOptions,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateWorkOrderDto } from './dto/create.dto';
+import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { UpdateWorkOrderDto } from './dto/update.dto';
+import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { VendorService } from 'src/vendor/vendor.service';
@@ -245,107 +245,84 @@ export class WorkOrdersService {
         })),
       };
 
-    // const invalidItemIds = dataDto.status_details.work_order_materials
-    //   .filter((x) => !Boolean(x.id))
-    //   .filter(async ({ item_id }) => {
-    //     const getItem = await this.dbService.items.findFirst({
-    //       where: {
-    //         id: item_id,
-    //       },
-    //     });
+    const tukangUpsert: Prisma.work_order_tukangUpsertWithWhereUniqueWithoutWork_ordersInput[] =
+      dataDto?.work_order_tukang?.map((item) => {
+        return {
+          where: {
+            work_order_id: id,
+            id: item.id ?? 0,
+          },
+          update: {
+            tukang_id: item.tukang_id,
+          },
+          create: {
+            tukang_id: item.tukang_id,
+          },
+        };
+      });
 
-    //     return !getItem;
-    //   });
+    console.log(tukangUpsert);
 
-    // if (invalidItemIds.length > 0)
-    //   throw new BadRequestException('Item not Found');
-
-    const tukangUpdate = dataDto?.work_order_tukang
-      ?.filter((x) => Boolean(x.id))
-      ?.map((item) => ({
-        where: {
-          id: item.id,
-        },
-        data: {
-          tukang_id: item.tukang_id,
-        },
-      }));
-
-    const tukangCreateMany = {
-      data: dataDto?.work_order_tukang
-        ?.filter((x) => !Boolean(x.id))
-        ?.map((item) => ({
-          tukang_id: item.tukang_id,
-        })),
-    };
-
-    // console.log('tukang', tukangUpdate, tukangCreateMany);
-
-    const workOrderMaterialCreate = dataDto?.status_details
-      ?.work_order_materials
-      ? await Promise.all(
-          dataDto.status_details.work_order_materials
-            .filter((x) => !Boolean(x.id))
-            .map(
-              async ({
-                item_id,
-                item_name,
-                tukang_name,
-                price,
-                quantity,
-                tukang_id,
-              }) => ({
-                item_id,
-                name: item_name,
-                tukang_id: tukang_id ?? undefined,
-                tukang_name: tukang_name ?? undefined,
-                price,
-                quantity,
-                total: quantity * Number(price),
-              }),
-            ),
-        )
-      : undefined;
-
-    const workOrderMaterialUpdate = dataDto?.status_details
-      ?.work_order_materials
-      ? await Promise.all(
-          dataDto.status_details.work_order_materials
-            .filter((x) => Boolean(x.id))
-            .map(async ({ id, item_id, price, quantity, tukang_id }) => {
-              const getItem = await this.dbService.items.findFirst({
-                where: {
-                  id: item_id,
-                },
-              });
-              const getTukang = await this.dbService.tukang.findFirst({
-                where: {
-                  id: tukang_id,
-                },
-              });
-              return {
-                where: { id },
-                data: {
+    const workOrderMaterialCreate: Prisma.work_order_itemsCreateManyWork_order_statusInput[] =
+      dataDto?.status_details?.work_order_items
+        ? await Promise.all(
+            dataDto.status_details.work_order_items
+              .filter((x) => !Boolean(x.id))
+              .map(
+                async ({
                   item_id,
-                  name: getItem.service_name,
-                  tukang_id: tukang_id ? tukang_id : undefined,
-                  tukang_name: getTukang ? getTukang.full_name : undefined,
-                  price: price,
-                  quantity: quantity,
-                  total: quantity * Number(price),
-                },
-              };
-            }),
-        )
-      : undefined;
+                  item_name,
+                  tukang_name,
+                  tukang_id,
+                  type,
+                  is_customer,
+                }) => ({
+                  item_id,
+                  name: item_name,
+                  tukang_id: tukang_id ?? undefined,
+                  tukang_name: tukang_name ?? undefined,
+                  type,
+                  is_customer: Boolean(is_customer),
+                }),
+              ),
+          )
+        : undefined;
 
-    console.log(
-      'material',
-      dataDto?.status_details,
-      dataDto?.status_details?.work_order_materials,
-      workOrderMaterialCreate,
-      workOrderMaterialUpdate,
-    );
+    console.log('workOrderMaterialCreate => ', workOrderMaterialCreate);
+
+    const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
+      {
+        where: {
+          id: 0,
+          parent_id: parentId ?? undefined,
+        },
+        create: {
+          parent_id: parentId ?? undefined,
+          status: {
+            connect: {
+              id: dataDto.work_order_status,
+            },
+          },
+          work_date_time: dataDto?.status_details?.work_date_time ?? undefined,
+          time_spent: dataDto?.status_details?.time_spent,
+          description: dataDto?.status_details?.description,
+        },
+        update: {
+          parent_id: parentId ?? undefined,
+          status: {
+            connect: {
+              id: dataDto.work_order_status,
+            },
+          },
+          work_date_time: dataDto?.status_details?.work_date_time ?? undefined,
+          time_spent: dataDto?.status_details?.time_spent,
+          description: dataDto?.status_details?.description,
+          work_order_items: {
+            createMany: { data: workOrderMaterialCreate },
+          },
+        },
+      };
+    console.log('workOrderStatusUpsert', workOrderStatusUpsert);
 
     const workOrderStatus: Prisma.work_order_statusCreateWithoutWork_orderInput =
       {
@@ -360,14 +337,12 @@ export class WorkOrdersService {
           : undefined,
         time_spent: dataDto?.status_details?.time_spent,
         description: dataDto?.status_details?.description,
-        work_order_materials: dataDto?.status_details?.work_order_materials
-          ? {
-              createMany: {
-                data: workOrderMaterialCreate,
-              },
-            }
-          : undefined,
+        work_order_items: {
+          create: workOrderMaterialCreate
+        },
       };
+
+    console.log('workOrderStatus', workOrderStatus);
 
     const work_order_data: Prisma.work_ordersUpdateArgs = {
       where: {
@@ -377,15 +352,9 @@ export class WorkOrdersService {
         request_work_time: dataDto?.request_work_time
           ? new Date(dataDto.request_work_time)
           : undefined,
-        survey_date: dataDto.survey_date
-          ? new Date(dataDto.survey_date)
-          : undefined,
-        work_start_date: dataDto.work_start_date
-          ? new Date(dataDto.work_start_date)
-          : undefined,
-        work_end_date: dataDto.work_end_date
-          ? new Date(dataDto.work_end_date)
-          : undefined,
+        survey_date: dataDto?.survey_date ?? undefined,
+        work_start_date: dataDto.work_start_date ?? undefined,
+        work_end_date: dataDto.work_end_date ?? undefined,
         status: {
           ...(updateStatus
             ? {
@@ -419,16 +388,16 @@ export class WorkOrdersService {
           },
         },
         work_order_status: {
+          upsert: workOrderStatusUpsert,
           create: workOrderStatus,
         },
         work_order_tukang: {
-          update: tukangUpdate?.length ? tukangUpdate : undefined,
-          createMany: tukangCreateMany.data?.length
-            ? tukangCreateMany
-            : undefined,
+          upsert: tukangUpsert,
         },
       },
     };
+
+    console.log('work_order_data', work_order_data);
 
     // console.log('work_order_data', work_order_data);
     //FIXME: KETIKA WORK ORDER TUKANH DELETEMANY DINYALAKAN TERJADI ERROR

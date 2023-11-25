@@ -20,10 +20,10 @@ import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
-import { CreateWorkOrderDto } from './dto/create.dto';
+import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { response } from 'express';
-import { UpdateWorkOrderDto } from './dto/update.dto';
+import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';

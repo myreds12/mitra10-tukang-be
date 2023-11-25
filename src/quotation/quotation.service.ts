@@ -31,15 +31,19 @@ export class QuotationService {
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
       createQuotationDto.quotation_details.map((item) => {
-        const final_price = +item.price * item.quantity + +item.margin;
+        const prices = Number(item.is_customer ? 0 : item.price)
+        const quantity = item.is_customer ? 0 : item.quantity
+        const final_price = prices * quantity + +item.margin;
         grandTotal += final_price;
         return {
           item_id: item?.item_id,
           item_type: item.type,
           margin: item.margin,
           name: item.name,
-          price: item.price,
-          quantity: item.quantity,
+          price: prices,
+          quantity: quantity,
+          work_order_items_id: item?.work_order_item_id,
+          is_customer: Boolean(item.is_customer),
           final_price,
         };
       });
@@ -202,7 +206,9 @@ export class QuotationService {
     let grandTotal = 0;
     const quotationDetailsUpsert: Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
       updateQuotationDto.quotation_details.map((item) => {
-        const final_price = +item.price * item.quantity + +item.margin;
+        const price = Number(item.is_customer ? 0 : item.price);
+        const quantity = item.is_customer ? 0 : item.quantity;
+        const final_price = price * quantity + +item.margin;
         grandTotal += final_price;
         return {
           where: {
@@ -213,10 +219,12 @@ export class QuotationService {
             item_id: item?.item_id,
             item_type: item?.type,
             name: item?.name,
-            price: item?.price,
-            quantity: item?.quantity,
+            price,
+            quantity,
             margin: item?.margin,
             final_price,
+            work_order_items_id: item?.work_order_item_id,
+            is_customer: Boolean(item.is_customer),
             updated_at: new Date(),
             updated_by: user_id,
           },
@@ -227,32 +235,13 @@ export class QuotationService {
             price: item?.price,
             quantity: item?.quantity,
             margin: item?.margin,
+            work_order_items_id: item?.work_order_item_id,
+            is_customer: Boolean(item.is_customer),
             final_price,
             created_by: user_id,
           },
         };
       });
-
-    const quotation_data: Prisma.quotationUpdateInput = Object.fromEntries(
-      Object.entries({
-        description: updateQuotationDto.description ?? undefined,
-        quotation_number: updateQuotationDto.quotation_number ?? undefined,
-        quotation_date: updateQuotationDto.quotation_date
-          ? new Date(updateQuotationDto.quotation_date)
-          : undefined,
-        quotation_validity: updateQuotationDto.quotation_validity
-          ? new Date(updateQuotationDto.quotation_validity)
-          : undefined,
-        updated_by: user_id,
-        quotation_files: quotation_files.length
-          ? {
-              createMany: {
-                data: evidence,
-              },
-            }
-          : undefined,
-      }).filter(([key, value]) => value != undefined),
-    );
 
     const [syncQuotationFiles, quotation] = await this.dbService.$transaction([
       this.dbService.quotation_files.deleteMany({
@@ -315,33 +304,30 @@ export class QuotationService {
     return complaints[0] || null;
   }
 
-  async setStatus(
-    id: number,
-    status_id: number,
-    user: users,
-  ) {
-    const {id: user_id} = user;
+  async setStatus(id: number, status_id: number, user: users) {
+    const { id: user_id } = user;
     const status = await this.dbService.status.findFirst({
-      where:{
+      where: {
         id: status_id,
         category: {
-          in: ["quotein", "quoteout"]
-        }
-      }
+          in: ['quotein', 'quoteout'],
+        },
+      },
     });
-    if(!status) throw new BadRequestException("Status Id not found!");
+    if (!status) throw new BadRequestException('Status Id not found!');
 
     const quotationFind = await this.dbService.quotation.findFirst({
       where: {
         id,
       },
       include: {
-        status: true
-      }
-    })
+        status: true,
+      },
+    });
 
-    if(!quotationFind) throw new BadRequestException("Quotation not found!");
-    if(quotationFind.status.category.toLowerCase().includes("quoteout")) throw new BadRequestException("Cannot change status!");
+    if (!quotationFind) throw new BadRequestException('Quotation not found!');
+    if (quotationFind.status.category.toLowerCase().includes('quoteout'))
+      throw new BadRequestException('Cannot change status!');
 
     const quotation = await this.dbService.quotation.update({
       where: {
