@@ -1,6 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 import { WorkOrderTukang } from './wo-tukang.dto';
 
 export class CreateWorkOrderDto {
@@ -22,6 +27,7 @@ export class CreateWorkOrderDto {
   @ApiProperty({ type: [WorkOrderTukang] }) // This represents an array of VendorService
   @Type(() => WorkOrderTukang)
   @IsNotEmpty()
+  @ValidateNested({ each: true })
   work_order_tukang: WorkOrderTukang[];
 
   request_work_time: string;
