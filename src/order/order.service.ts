@@ -97,6 +97,7 @@ export class OrderService {
             ({ category_id }) => currentItem.category_id === category_id,
           )?.commission ?? 0,
         );
+
         if (
           [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
             createOrderDto.payment_type,
@@ -237,6 +238,7 @@ export class OrderService {
                 id: true,
                 item_name: true,
                 category: true,
+                default_price: true,
               },
             },
             sales: true,
@@ -283,6 +285,7 @@ export class OrderService {
                 item_name: true,
                 category: true,
                 prices: true,
+                default_price: true,
               },
             },
             unit_price: true,
@@ -391,45 +394,98 @@ export class OrderService {
 
     console.log(projectStatusDefault, updateOrderDto.order_details);
 
-    const orderDetailsUpdateData = updateOrderDto.order_details
-      .filter((x) => Boolean(x.id))
-      .map((item) => ({
-        where: {
-          id: item.id,
-        },
-        data: {
-          item_id: item?.item_id,
-          order_status_id: projectStatusDefault.id,
-          unit: item?.unit,
-          unit_price: item?.unit_price,
-          quote_price: item?.quote_price,
-          quantity: item?.quantity,
-          total: item?.total,
-          survey_price: item?.survey_price,
-          comission: item?.comission,
-          updated_by: user_id,
-          updated_at: new Date(),
-        },
-      }));
+    const salesUser = await this.dbService.sales.findFirst({
+      where: {
+        id: order.sales_id,
+      },
+      include: {
+        sales_categories: true,
+      },
+    });
 
-    const orderDetailsNew: Prisma.m_order_detailsCreateManyOrderInputEnvelope =
-      {
-        data:
-          updateOrderDto.order_details
-            .filter((x) => !Boolean(x.id))
-            .map((item) => ({
-              item_id: item?.item_id,
-              sales_id: updateOrderDto.sales_id,
-              unit_price: item?.unit_price,
-              quote_price: item?.quote_price,
-              quantity: item?.quantity,
-              total: item?.total,
-              comission: item?.comission,
-              created_by: user_id,
-              updated_by: user_id,
-              updated_at: new Date(),
-            })) ?? undefined,
-      };
+    const orderDetailItems = await this.dbService.items.findMany({
+      where: {
+        id: { in: updateOrderDto.order_details.map(({ item_id }) => item_id) },
+      },
+      include: {
+        category: true,
+        prices: {
+          where: {
+            periodic_start: { lte: new Date() },
+            periodic_end: { gte: new Date() },
+          },
+        },
+      },
+    });
+    let grand_total = 0;
+    let grand_total_comission = 0;
+
+    const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
+      updateOrderDto.order_details.map((item) => {
+        let total = 0;
+        const currentItem = orderDetailItems?.find(
+          ({ id }) => id === item?.item_id,
+        );
+
+        const itemPrice = (
+          currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
+            ?.price ?? currentItem.default_price
+        ).toString();
+
+        const comission = Number(
+          salesUser?.sales_categories?.find(
+            ({ category_id }) => currentItem.category_id === category_id,
+          )?.commission ?? 0,
+        );
+
+        if (
+          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
+            updateOrderDto.payment_type,
+          )
+        ) {
+          total = Number(itemPrice) * item.quantity;
+          grand_total += total;
+          grand_total_comission += comission;
+        }
+
+        return {
+          where: {
+            id: item?.id ?? 0,
+            order_id: id,
+          },
+          update: {
+            item_name: item?.item_name ?? '',
+            item_code: item?.item_code ?? '',
+            item_id: item?.item_id ?? undefined,
+            quantity: item?.quantity,
+            unit_price: itemPrice,
+            total,
+            comission,
+            updated_by: user_id,
+            updated_at: new Date(),
+          },
+          create: {
+            item: {
+              connect: {
+                id: item?.item_id ?? undefined,
+              },
+            },
+            sales: {
+              connect: {
+                id: updateOrderDto.sales_id ?? order.sales_id 
+              }
+            },
+            item_name: item?.item_name ?? '',
+            item_code: item?.item_code ?? '',
+            quantity: item?.quantity,
+            unit_price: itemPrice,
+            total,
+            comission,
+            created_by: user_id,
+            created_at: new Date(),
+          },
+        };
+      });
 
     const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
       member_id: updateOrderDto?.member_id,
@@ -437,9 +493,8 @@ export class OrderService {
       vendor_id: updateOrderDto?.vendor_id,
       project_address: updateOrderDto?.project_address,
       receipt_number: updateOrderDto?.receipt_number,
-      // receipt_path: filePath,
-      grand_total: updateOrderDto?.grand_total,
-      grand_total_comission: updateOrderDto?.grand_total_comission,
+      grand_total: grand_total,
+      grand_total_comission: grand_total_comission,
       updated_by: user_id,
       payment_type: updateOrderDto?.payment_type,
       project_status_id: projectStatusDefault.id,
@@ -454,7 +509,7 @@ export class OrderService {
         },
       },
     };
-    console.log(orderDetailsUpdateData, orderDetailsNew, orderUpdateData);
+    console.log(orderUpdateData);
 
     const [syncDetails, syncFiles, orderQuery] =
       await this.dbService.$transaction([
@@ -480,10 +535,7 @@ export class OrderService {
           data: {
             ...orderUpdateData,
             m_order_details: {
-              update: orderDetailsUpdateData.length
-                ? orderDetailsUpdateData
-                : undefined,
-              createMany: orderDetailsNew.data ? orderDetailsNew : undefined,
+              upsert: orderDetailUpsert,
             },
           },
         }),
