@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  ParseArrayOptions,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
@@ -10,7 +6,7 @@ import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { VendorService } from 'src/vendor/vendor.service';
-import { CreateItemDto } from 'src/items/dto/create-item.dto';
+import { StatusDetails } from './dto/work-order-status.dto';
 
 @Injectable()
 export class WorkOrdersService {
@@ -159,8 +155,21 @@ export class WorkOrdersService {
           },
         },
         vendor: true,
+        work_order_status: {
+          include: {
+            status: true,
+            work_order_items: {
+              include: {
+                item: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+          },
+        },
         work_order_evidences: true,
-        work_order_status: true,
       },
     });
 
@@ -180,6 +189,22 @@ export class WorkOrdersService {
           },
         },
         vendor: true,
+        work_order_status: {
+          orderBy: { created_at: 'desc' },
+          include: {
+            status: true,
+            work_order_items: {
+              include: {
+                item: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+          },
+        },
+        status: true,
         work_order_evidences: true,
       },
     });
@@ -194,7 +219,6 @@ export class WorkOrdersService {
     user: users,
     work_order_evidences?: Array<Express.Multer.File>,
   ) {
-    // TODO: Check Work Order ID if exist
     const checkWorkOrder = await this.dbService.work_orders.findFirst({
       where: {
         id,
@@ -205,25 +229,6 @@ export class WorkOrdersService {
     });
 
     if (!checkWorkOrder) throw new BadRequestException('Work Order not exist');
-
-    // TODO : @IMFAREL @ALIF
-    // TODO : CHECK JIKA WORK ORDER STATUS YANG BARU ITU SUDAH ADA
-    // TODO : WORK ORDER STATUS WIP -> SURVEYDONE
-    // CARI WORK ORDER STATUS DENGAN CATEGORY SURVEYSTART
-    // CHECK STATUS DARI DTO/REQUEST ITU CATEGORY SURVEYDONE
-    // IF DTO.STATUS === SURVEYDONE && WORK ORDER STATUS === SURVEYSTART
-    // updateStatus = SURVEYDONE
-    // parentId = SURVEYSTART
-    // const checkWorkOrderStatus =
-    //   await this.dbService.work_order_status.findMany({
-    //     where: {
-    //       status: {
-    //         category: {
-    //           contains: 'SURVEYSTART',
-    //         },
-    //       },
-    //     },
-    //   });
 
     let updateStatus: number | undefined = undefined;
     let parentId: number | undefined = undefined;
@@ -261,69 +266,6 @@ export class WorkOrdersService {
         };
       });
 
-    console.log(tukangUpsert);
-
-    const workOrderMaterialCreate: Prisma.work_order_itemsCreateManyWork_order_statusInput[] =
-      dataDto?.status_details?.work_order_items
-        ? await Promise.all(
-            dataDto.status_details.work_order_items
-              .filter((x) => !Boolean(x.id))
-              .map(
-                async ({
-                  item_id,
-                  item_name,
-                  tukang_name,
-                  tukang_id,
-                  type,
-                  is_customer,
-                }) => ({
-                  item_id,
-                  name: item_name,
-                  tukang_id: tukang_id ?? undefined,
-                  tukang_name: tukang_name ?? undefined,
-                  type,
-                  is_customer: Boolean(is_customer),
-                }),
-              ),
-          )
-        : undefined;
-
-    console.log('workOrderMaterialCreate => ', workOrderMaterialCreate);
-
-    const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
-      {
-        where: {
-          id: 0,
-          parent_id: parentId ?? undefined,
-        },
-        create: {
-          parent_id: parentId ?? undefined,
-          status: {
-            connect: {
-              id: dataDto.work_order_status,
-            },
-          },
-          work_date_time: dataDto?.status_details?.work_date_time ?? undefined,
-          time_spent: dataDto?.status_details?.time_spent,
-          description: dataDto?.status_details?.description,
-        },
-        update: {
-          parent_id: parentId ?? undefined,
-          status: {
-            connect: {
-              id: dataDto.work_order_status,
-            },
-          },
-          work_date_time: dataDto?.status_details?.work_date_time ?? undefined,
-          time_spent: dataDto?.status_details?.time_spent,
-          description: dataDto?.status_details?.description,
-          work_order_items: {
-            createMany: { data: workOrderMaterialCreate },
-          },
-        },
-      };
-    console.log('workOrderStatusUpsert', workOrderStatusUpsert);
-
     const workOrderStatus: Prisma.work_order_statusCreateWithoutWork_orderInput =
       {
         parent_id: parentId ?? undefined,
@@ -337,74 +279,147 @@ export class WorkOrdersService {
           : undefined,
         time_spent: dataDto?.status_details?.time_spent,
         description: dataDto?.status_details?.description,
-        work_order_items: {
-          create: workOrderMaterialCreate
-        },
       };
 
     console.log('workOrderStatus', workOrderStatus);
-
     const work_order_data: Prisma.work_ordersUpdateArgs = {
-      where: {
-        id,
-      },
+      where: { id },
       data: {
+        ...(updateStatus
+          ? { status: { connect: { id: dataDto.work_order_status } } }
+          : undefined),
+        ...(dataDto.order_id
+          ? { order: { connect: { id: dataDto.order_id } } }
+          : undefined),
+        ...(dataDto.vendor_id
+          ? { vendor: { connect: { id: dataDto.vendor_id } } }
+          : undefined),
         request_work_time: dataDto?.request_work_time
           ? new Date(dataDto.request_work_time)
           : undefined,
         survey_date: dataDto?.survey_date ?? undefined,
         work_start_date: dataDto.work_start_date ?? undefined,
         work_end_date: dataDto.work_end_date ?? undefined,
-        status: {
-          ...(updateStatus
-            ? {
-                connect: {
-                  id: dataDto.work_order_status,
-                },
-              }
-            : undefined),
-        },
-        ...(dataDto.order_id
-          ? {
-              order: {
-                connect: {
-                  id: dataDto.order_id,
-                },
-              },
-            }
-          : undefined),
-        ...(dataDto.vendor_id
-          ? {
-              vendor: {
-                connect: {
-                  id: dataDto.vendor_id,
-                },
-              },
-            }
-          : undefined),
-        work_order_evidences: {
-          createMany: {
-            ...(evidences ?? undefined),
-          },
-        },
-        work_order_status: {
-          upsert: workOrderStatusUpsert,
-          create: workOrderStatus,
-        },
-        work_order_tukang: {
-          upsert: tukangUpsert,
-        },
+        work_order_evidences: { createMany: { ...(evidences ?? undefined) } },
+        work_order_status: { create: workOrderStatus },
+        work_order_tukang: { upsert: tukangUpsert },
       },
     };
 
-    console.log('work_order_data', work_order_data);
-
-    // console.log('work_order_data', work_order_data);
     //FIXME: KETIKA WORK ORDER TUKANH DELETEMANY DINYALAKAN TERJADI ERROR
     const [work_order] = await this.dbService.$transaction([
       this.dbService.work_orders.update(work_order_data),
     ]);
 
+    return work_order;
+  }
+
+  async setStatusWithMaterials(
+    id: number,
+    user: users,
+    updateData: StatusDetails,
+    work_order_evidences?: Array<Express.Multer.File>,
+  ) {
+    const workOrder = await this.findOne(id);
+
+    if (!workOrder) throw new BadRequestException('Work Order not exist');
+
+    const [NEW_STATUS] = await this.dbService.status.findMany({
+      where: { id: updateData.status_id },
+      orderBy: { category: 'desc' },
+    });
+
+    const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
+      {
+        data: work_order_evidences.map((evidences) => ({
+          evidence_location: evidences.filename,
+          updated_at: new Date(),
+          updated_by: user.id,
+        })),
+      };
+    const workOrderStatus = workOrder.work_order_status.find(
+      (x) => x.status_id === NEW_STATUS.id,
+    );
+
+    console.log(workOrderStatus);
+
+    const upsertItems: Prisma.work_order_itemsUpsertWithWhereUniqueWithoutWork_order_statusInput[] =
+      updateData.work_order_items.map((x) => ({
+        where: { id: x?.id ?? 0 },
+        create: {
+          item_id: x?.item_id,
+          name: x?.item_name,
+          tukang_id: x.tukang_id ?? undefined,
+          tukang_name: x.tukang_name ?? undefined,
+          type: x.type,
+          is_customer: Boolean(x.is_customer),
+          quantity: x.quantity,
+        },
+        update: {
+          item_id: x.item_id,
+          name: x.item_name,
+          tukang_id: x.tukang_id ?? undefined,
+          tukang_name: x.tukang_name ?? undefined,
+          type: x.type,
+          quantity: x.quantity,
+          is_customer: Boolean(x.is_customer),
+        },
+      }));
+
+    const [syncMaterials, work_order] = await this.dbService.$transaction([
+      this.dbService.work_order_items.updateMany({
+        where: {
+          work_order_status: {
+            work_order: {
+              id,
+            },
+          },
+          id: {
+            notIn: updateData.work_order_items
+              .filter((x) => Boolean(x?.id))
+              .map((x) => x.id),
+          },
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user.id,
+        },
+      }),
+      this.dbService.work_orders.update({
+        where: { id },
+        data: {
+          status_id: NEW_STATUS.id,
+          work_order_evidences: { createMany: evidences ?? undefined },
+          work_order_status: {
+            upsert: {
+              where: {
+                status_id: NEW_STATUS.id,
+                id: workOrderStatus?.id ?? 0,
+              },
+              create: {
+                status_id: NEW_STATUS.id,
+                description: updateData.description,
+                time_spent: updateData.time_spent,
+                work_date_time: updateData.work_date_time,
+                created_at: new Date(),
+                created_by: user.id,
+                work_order_items: {
+                  createMany: { data: upsertItems.map((x) => x.create) },
+                },
+              },
+              update: {
+                description: updateData.description,
+                time_spent: updateData.time_spent,
+                work_date_time: updateData.work_date_time,
+                updated_at: new Date(),
+                updated_by: user.id,
+                work_order_items: { upsert: upsertItems },
+              },
+            },
+          },
+        },
+      }),
+    ]);
     return work_order;
   }
 

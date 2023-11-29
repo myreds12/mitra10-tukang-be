@@ -27,6 +27,7 @@ import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
+import { StatusDetails } from './dto/work-order-status.dto';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -36,7 +37,30 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
-  @Post()
+
+  @Post(':id/set-materials')
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
+  async setStatusWithMaterials(
+    @Param('id') id: number,
+    @Body() body: StatusDetails,
+    @Request() req: UserRequest,
+    @Res() res: IExpressResponse,
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
+  ) {
+    const work_order = await this.workOrdersService.setStatusWithMaterials(
+      id,
+      req.user,
+      body,
+      work_order_evidences
+    );
+    return res.status(201).json({
+      status: HttpStatus.CREATED,
+      message: 'Work Order Material Created',
+      data: work_order,
+    });
+  }
+
+  @Post('')
   @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
   async create(
     @Body() dataDto: CreateWorkOrderDto,
@@ -69,7 +93,7 @@ export class WorkOrdersController {
     }
   }
 
-  @Get()
+  @Get('')
   async findAll(
     @Query() queryParamsDto: QueryParamsDto,
     @Res() res: IExpressResponse,

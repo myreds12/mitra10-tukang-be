@@ -11,55 +11,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { WorkOrderTukang } from './wo-tukang.dto';
-import { WorkOrderMaterialType } from './work-order-material-type.enum';
-// import { CreateMaterialDto } from 'src/materials/dto/create-material.dto';
-
-class CreateMaterialDto {
-  @Type(() => Number)
-  @IsOptional()
-  @IsNumber()
-  id?: number;
-
-  @Transform(({ value }) => Number.parseInt(value))
-  @IsOptional()
-  item_id?: number;
-  @IsOptional()
-  item_name?: string;
-
-  @Type(() => Number)
-  @IsOptional()
-  tukang_id?: number | null;
-  @IsOptional()
-  tukang_name?: string;
-
-  @Transform(({ value }) => Number(value))
-  @IsEnum(WorkOrderMaterialType)
-  type: WorkOrderMaterialType;
-
-  @IsNotEmpty()
-  @Type(() => Number)
-  @IsIn([0, 1])
-  is_customer: number;
-}
-
-class StatusDetails {
-  @ApiProperty()
-  @IsOptional()
-  @Transform(({ value }) => new Date(value))
-  work_date_time?: string;
-
-  @IsString()
-  @IsOptional()
-  time_spent?: string;
-
-  @IsOptional()
-  description?: string;
-
-  @ApiProperty({ type: CreateMaterialDto })
-  @Type(() => CreateMaterialDto)
-  @ValidateNested({ each: true })
-  work_order_items?: Array<CreateMaterialDto>;
-}
+import { StatusDetails } from './work-order-status.dto';
 
 export class UpdateWorkOrderDto {
   @ApiProperty()
