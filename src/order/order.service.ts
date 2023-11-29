@@ -195,8 +195,6 @@ export class OrderService {
       deleted_at: null,
     };
 
-    console.log(where);
-
     const orders = await this.dbService.orders.findMany({
       skip,
       take: take > 0 ? take : undefined,
@@ -204,28 +202,83 @@ export class OrderService {
       orderBy: {
         created_at: order_by,
       },
-      select: {
-        id: true,
-        member_id: true,
-        members: true,
-        sales: true,
-        store_id: true,
-        store: true,
-        project_status_id: true,
-        status: true,
-        vendor_id: true,
-        vendor: true,
-        project_address: true,
-        receipt_number: true,
-        payment_type: true,
-        grand_total: true,
-        request_survey: true,
-        grand_total_comission: true,
-        print_counter: true,
-        created_by: true,
-        updated_by: true,
-        created_at: true,
-        updated_at: true,
+      include: {
+        members: {
+          select: {
+            id: true,
+            city_id: true,
+            join_location: true,
+            member_number: true,
+            full_name: true,
+            email: true,
+            phone_number: true,
+            whatsapp_number: true,
+            address_1: true,
+            address_2: true,
+            zip_code: true,
+            rating: true,
+            join_date: true,
+            created_at: true,
+            updated_at: true,
+            created_by: true,
+            updated_by: true,
+          },
+        },
+        sales: {
+          select: {
+            id: true,
+            store_id: true,
+            user_id: true,
+            full_name: true,
+            nik: true,
+            bank_id: true,
+            bank_branch: true,
+            account_name: true,
+            is_active: true,
+            created_at: true,
+            updated_at: true,
+            created_by: true,
+            updated_by: true,
+          },
+        },
+        store: {
+          select: {
+            id: true,
+            store_name: true,
+            address: true,
+            city_id: true,
+            zip_code: true,
+            created_at: true,
+            updated_at: true,
+            created_by: true,
+            updated_by: true,
+          },
+        },
+        status: {
+          select: {
+            id: true,
+            category: true,
+            description: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            user_id: true,
+            company_name: true,
+            address: true,
+            phone_number: true,
+            ktp_number: true,
+            npwp_number: true,
+            email_address: true,
+            join_date: true,
+            is_active: true,
+            created_at: true,
+            updated_at: true,
+            created_by: true,
+            updated_by: true,
+          },
+        },
         m_order_details: {
           select: {
             id: true,
@@ -253,10 +306,41 @@ export class OrderService {
             updated_at: true,
           },
         },
+        work_orders: {
+          include: {
+            vendor: true,
+            work_order_evidences: true,
+            work_order_tukang: {
+              include: {
+                tukang: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+            work_order_status: {
+              include: {
+                status: true,
+                work_order_items: {
+                  include: {
+                    item: true,
+                  },
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
+                  },
+                },
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
+          },
+        },
         order_files: true,
       },
     });
-    console.log(orders.length);
 
     return { data: orders, total: orders.length, page, take };
   }
@@ -302,23 +386,34 @@ export class OrderService {
         },
         order_files: true,
         complaints: true,
-        // TODO: TAMBAHIN ORDERBY DESC KETIKA INCLUDE WORK_ORDER_STATUS
         work_orders: {
           include: {
-            work_order_status: {
-              orderBy: {
-                created_at: 'desc',
+            vendor: true,
+            work_order_evidences: true,
+            work_order_tukang: {
+              include: {
+                tukang: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
               },
             },
-            work_order_tukang: {
-              select: {
-                id: true,
-                tukang_id: true,
-                tukang: {
-                  select: {
-                    full_name: true,
+            work_order_status: {
+              include: {
+                status: true,
+                work_order_items: {
+                  include: {
+                    item: true,
+                  },
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
                   },
                 },
+              },
+              orderBy: {
+                created_at: 'desc',
               },
             },
           },
@@ -343,20 +438,23 @@ export class OrderService {
     order_files?: Express.Multer.File[],
   ) {
     const { id: user_id, role_id } = user;
+    const currentUser = await this.dbService.users.findFirst({
+      where: {
+        id: user_id,
+      },
+      include: {
+        roles: true,
+        sales: true,
+      },
+    });
     const files: Array<Prisma.order_filesCreateManyOrderInput> =
       order_files.map((item) => ({
         type: 'any',
         path: item.filename,
         created_by: user_id,
       }));
-    const order = await this.dbService.orders.findFirst({
-      where: {
-        id,
-      },
-      include: {
-        status: true,
-      },
-    });
+
+    const order = await this.findOne(id);
 
     if (!order) throw new NotFoundException('Order not found');
 
@@ -408,7 +506,16 @@ export class OrderService {
     if (
       searchStatusInput &&
       searchStatusInput.category === 'BOOKED' &&
-      order.status.category === 'BOOK'
+      order.status.category === 'PICKLIST' &&
+      currentUser.roles.name.toLowerCase().includes('cs')
+    ) {
+      projectStatusDefault = searchStatusInput;
+    }
+    if (
+      searchStatusInput &&
+      searchStatusInput.category === 'BOOKED' &&
+      order.status.category === 'BOOK' &&
+      currentUser.roles.name.toLowerCase().includes('admin ho')
     ) {
       projectStatusDefault = searchStatusInput;
     }
@@ -416,7 +523,8 @@ export class OrderService {
     if (
       searchStatusInput &&
       searchStatusInput.category === 'SURVEYREQ' &&
-      order.status.category === 'BOOKED'
+      order.status.category === 'BOOKED' &&
+      updateOrderDto.vendor_id
     ) {
       projectStatusDefault = searchStatusInput;
     }
@@ -428,8 +536,6 @@ export class OrderService {
     ) {
       projectStatusDefault = searchStatusInput;
     }
-
-    console.log(projectStatusDefault, updateOrderDto.order_details);
 
     const salesUser = await this.dbService.sales.findFirst({
       where: {
@@ -474,10 +580,7 @@ export class OrderService {
         }
 
         return {
-          where: {
-            id: item?.id ?? 0,
-            order_id: id,
-          },
+          where: { id: item?.id ?? 0, order_id: id },
           update: {
             item_name: item?.item_name ?? '',
             item_code: item?.item_code ?? '',
@@ -490,15 +593,9 @@ export class OrderService {
             updated_at: new Date(),
           },
           create: {
-            item: {
-              connect: {
-                id: item?.item_id ?? undefined,
-              },
-            },
+            item: { connect: { id: item?.item_id ?? undefined } },
             sales: {
-              connect: {
-                id: updateOrderDto.sales_id ?? order.sales_id,
-              },
+              connect: { id: updateOrderDto.sales_id ?? order.sales_id },
             },
             item_name: item?.item_name ?? '',
             item_code: item?.item_code ?? '',
@@ -534,7 +631,6 @@ export class OrderService {
         },
       },
     };
-    console.log(orderUpdateData);
 
     const [syncDetails, syncFiles, orderQuery] =
       await this.dbService.$transaction([
