@@ -45,7 +45,11 @@ export class AuthService {
 
   async login(dto: CreateLoginDto) {
     const user = await this.dbService.users.findFirst({
-      where: { username: dto.username },
+      where: {
+        username: {
+          equals: dto.username,
+        },
+      },
       include: {
         tukang: true,
         roles: {
@@ -70,6 +74,7 @@ export class AuthService {
         },
       },
     });
+    console.log(user, dto.username);
 
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
