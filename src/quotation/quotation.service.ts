@@ -31,11 +31,12 @@ export class QuotationService {
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
       createQuotationDto.quotation_details.map((item) => {
-        const prices = Number(item.is_customer ? 0 : item.price)
-        const quantity = item.is_customer ? 0 : item.quantity
+        const prices = Number(item.is_customer ? 0 : item.price);
+        const quantity = item.is_customer ? 0 : item.quantity;
         const final_price = prices * quantity + +item.margin;
         grandTotal += final_price;
         return {
+          category_id: item?.category_id,
           item_id: item?.item_id,
           item_type: item.type,
           margin: item.margin,
@@ -55,6 +56,8 @@ export class QuotationService {
         },
       },
     });
+
+    // console.log("Discount" ,(createQuotationDto.quotation_disc ? +createQuotationDto.quotation_disc : 0 + createQuotationDto.quotation_promotion ? +createQuotationDto.quotation_promotion : 0));
 
     const quotation_data: Prisma.quotationCreateInput = {
       order: {
@@ -76,8 +79,15 @@ export class QuotationService {
       quotation_number: createQuotationDto.quotation_number,
       quotation_date: new Date(createQuotationDto.quotation_date),
       quotation_validity: new Date(createQuotationDto.quotation_validity),
-      quotation_disc: createQuotationDto.quotation_disc,
-      quotation_grand_total: grandTotal - +createQuotationDto.quotation_disc,
+      quotation_disc: createQuotationDto?.quotation_disc,
+      quotation_promotion: createQuotationDto?.quotation_promotion,
+      quotation_grand_total:
+        grandTotal -
+        (createQuotationDto.quotation_disc
+          ? +createQuotationDto.quotation_disc
+          : 0 + createQuotationDto.quotation_promotion
+          ? +createQuotationDto.quotation_promotion
+          : 0),
       created_by: user_id,
     };
 
@@ -140,12 +150,32 @@ export class QuotationService {
       take: take <= 0 ? undefined : take,
       include: {
         quotation_files: true,
+        quotation_details: {
+          include: {
+            category: true
+          }
+        },
         order: {
           include: {
             m_order_details: true,
             vendor: true,
             members: true,
-            work_orders: true,
+            work_orders: {
+              include: {
+                work_order_evidences: true,
+                work_order_status: {
+                  include: {
+                    work_order_items: {
+                      orderBy: {
+                        id: 'desc'
+                      }
+                    },
+                  },
+                },
+                work_order_tukang: true,
+                status: true,
+              },
+            },
           },
         },
         status: true,
@@ -170,12 +200,35 @@ export class QuotationService {
       },
       include: {
         quotation_files: true,
+        quotation_details: {
+          include: {
+            category: true
+          }
+        },
         order: {
           include: {
             m_order_details: true,
             members: true,
             vendor: true,
-            work_orders: true,
+            work_orders: {
+              include: {
+                work_order_evidences: true,
+                work_order_status: {
+                  orderBy: {
+                    id: 'desc'
+                  },
+                  include: {
+                    work_order_items: {
+                      orderBy: {
+                        id: 'desc'
+                      }
+                    },
+                  },
+                },
+                work_order_tukang: true,
+                status: true,
+              },
+            },
           },
         },
         status: true,
@@ -203,6 +256,12 @@ export class QuotationService {
       created_by: user_id,
     }));
 
+    const quotation_file = await this.dbService.quotation_files.findMany({
+      where: {
+        quotation_id: id
+      }
+    })
+
     let grandTotal = 0;
     const quotationDetailsUpsert: Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
       updateQuotationDto.quotation_details.map((item) => {
@@ -216,6 +275,7 @@ export class QuotationService {
             id: item?.id ?? 0,
           },
           update: {
+            category_id: item?.category_id,
             item_id: item?.item_id,
             item_type: item?.type,
             name: item?.name,
@@ -229,6 +289,7 @@ export class QuotationService {
             updated_by: user_id,
           },
           create: {
+            category_id: item?.category_id,
             item_id: item?.item_id,
             item_type: item?.type,
             name: item?.name,
@@ -243,11 +304,26 @@ export class QuotationService {
         };
       });
 
-    const [syncQuotationFiles, quotation] = await this.dbService.$transaction([
-      this.dbService.quotation_files.deleteMany({
+      console.log(quotationDetailsUpsert);
+      
+
+    const [syncQuotationFiles, syncDetails,quotation] = await this.dbService.$transaction([
+      quotation_file ? this.dbService.quotation_files.deleteMany({
         where: {
           quotation_id: id,
         },
+      }) : undefined,
+      this.dbService.quotation_details.deleteMany({
+        where: {
+          quotation_id: id,
+          id: {
+            notIn: updateQuotationDto.quotation_details
+              .filter((x) => Boolean(x?.id))
+              .map((item) => {
+                return item.id;
+              }),
+          },
+        }
       }),
       this.dbService.quotation.update({
         where: {
@@ -262,6 +338,15 @@ export class QuotationService {
           quotation_validity: updateQuotationDto?.quotation_validity
             ? new Date(updateQuotationDto?.quotation_validity)
             : undefined,
+          quotation_disc: updateQuotationDto?.quotation_disc,
+          quotation_promotion: updateQuotationDto?.quotation_promotion,
+          quotation_grand_total:
+            grandTotal -
+            (updateQuotationDto.quotation_disc
+              ? +updateQuotationDto.quotation_disc
+              : 0 + updateQuotationDto.quotation_promotion
+              ? +updateQuotationDto.quotation_promotion
+              : 0),
           updated_by: user_id,
           updated_at: new Date(),
           quotation_files: quotation_files.length

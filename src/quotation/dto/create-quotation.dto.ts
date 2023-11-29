@@ -7,6 +7,9 @@ class QuotationDetails {
   item_id?: number;
 
   @Type(() => Number)
+  category_id?: number;
+
+  @Type(() => Number)
   work_order_item_id?: number;
 
   @Transform(({ value }) => Number(value))
@@ -36,6 +39,7 @@ export class CreateQuotationDto {
   quotation_date: string;
   quotation_validity: string;
   quotation_disc: string;
+  quotation_promotion: string;
 
   @Type(() => Number)
   order_id: number;
