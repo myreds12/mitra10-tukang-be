@@ -3,7 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
-import { Prisma, users } from '@prisma/client';
+import { Prisma, users, work_orders } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { VendorService } from 'src/vendor/vendor.service';
 import { StatusDetails } from './dto/work-order-status.dto';
@@ -116,19 +116,17 @@ export class WorkOrdersService {
     const total = await this.dbService.work_orders.count();
     const where: Prisma.work_ordersWhereInput = {
       AND: [
-        ...(search
-          ? [
-              {
-                OR: [
-                  { request_work_time: { equals: new Date(search) } },
-                  { survey_date: { equals: new Date(search) } },
-                  { work_start_date: { equals: new Date(search) } },
-                  { work_end_date: { equals: new Date(search) } },
-                ],
-              },
-            ]
-          : []),
-        ...(status ? [{ status: { id: { in: status } } }] : []),
+        search
+          ? {
+              OR: [
+                { request_work_time: { equals: new Date(search) } },
+                { survey_date: { equals: new Date(search) } },
+                { work_start_date: { equals: new Date(search) } },
+                { work_end_date: { equals: new Date(search) } },
+              ],
+            }
+          : undefined,
+        status ? { status: { id: { in: status } } } : undefined,
         date_from && date_to
           ? {
               created_at: {
@@ -140,6 +138,7 @@ export class WorkOrdersService {
       ].filter(Boolean),
       deleted_at: null,
     };
+
     const work_orders = await this.dbService.work_orders.findMany({
       skip,
       take: take <= 0 ? undefined : take,
@@ -212,7 +211,6 @@ export class WorkOrdersService {
     return work_orders;
   }
 
-  // FIXME:  FILE UPLOAD STILL NOT FUNCTIONING
   async update(
     id: number,
     dataDto: UpdateWorkOrderDto,
@@ -306,8 +304,21 @@ export class WorkOrdersService {
       },
     };
 
-    //FIXME: KETIKA WORK ORDER TUKANH DELETEMANY DINYALAKAN TERJADI ERROR
-    const [work_order] = await this.dbService.$transaction([
+    const [syncTukang, work_order] = await this.dbService.$transaction([
+      this.dbService.work_order_tukang.updateMany({
+        where: {
+          id: {
+            notIn: dataDto?.work_order_tukang
+              .filter((x) => Boolean(x.id))
+              .map((x) => x.id),
+          },
+          work_order_id: id,
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user.id,
+        },
+      }),
       this.dbService.work_orders.update(work_order_data),
     ]);
 
@@ -319,7 +330,7 @@ export class WorkOrdersService {
     user: users,
     updateData: StatusDetails,
     work_order_evidences?: Array<Express.Multer.File>,
-  ) {
+  ): Promise<work_orders> {
     const workOrder = await this.findOne(id);
 
     if (!workOrder) throw new BadRequestException('Work Order not exist');
@@ -329,23 +340,27 @@ export class WorkOrdersService {
       orderBy: { category: 'desc' },
     });
 
-    const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
-      {
-        data: work_order_evidences.map((evidences) => ({
-          evidence_location: evidences.filename,
-          updated_at: new Date(),
-          updated_by: user.id,
-        })),
-      };
-    const workOrderStatus = workOrder.work_order_status.find(
+    const evidences:
+      | Prisma.work_order_evidencesCreateManyWork_ordersInput[]
+      | undefined[] =
+      work_order_evidences?.map((evidences) => ({
+        evidence_location: evidences.filename,
+        updated_at: new Date(),
+        updated_by: user.id,
+      })) ?? [];
+
+    const recentWorkStatus = workOrder.work_order_status.find(
       (x) => x.status_id === NEW_STATUS.id,
     );
 
-    console.log(workOrderStatus);
+    console.log(recentWorkStatus);
 
     const upsertItems: Prisma.work_order_itemsUpsertWithWhereUniqueWithoutWork_order_statusInput[] =
       updateData.work_order_items.map((x) => ({
-        where: { id: x?.id ?? 0 },
+        where: {
+          id: x?.id ?? 0,
+          work_order_status_id: recentWorkStatus?.id ?? 0,
+        },
         create: {
           item_id: x?.item_id,
           name: x?.item_name,
@@ -366,18 +381,46 @@ export class WorkOrdersService {
         },
       }));
 
-    const [syncMaterials, work_order] = await this.dbService.$transaction([
+    const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
+      {
+        where: {
+          status_id: NEW_STATUS.id,
+          id: recentWorkStatus?.id ?? 0,
+        },
+        create: {
+          status_id: NEW_STATUS.id,
+          description: updateData.description,
+          time_spent: updateData.time_spent,
+          work_date_time: updateData.work_date_time,
+          created_at: new Date(),
+          created_by: user.id,
+          work_order_items: {
+            createMany: { data: upsertItems.map((x) => x.create) },
+          },
+        },
+        update: {
+          description: updateData.description,
+          time_spent: updateData.time_spent,
+          work_date_time: updateData.work_date_time,
+          updated_at: new Date(),
+          updated_by: user.id,
+          work_order_items: { upsert: upsertItems },
+        },
+      };
+
+    const [syncItems, work_order] = await this.dbService.$transaction([
       this.dbService.work_order_items.updateMany({
         where: {
-          work_order_status: {
-            work_order: {
-              id,
-            },
-          },
           id: {
             notIn: updateData.work_order_items
               .filter((x) => Boolean(x?.id))
               .map((x) => x.id),
+          },
+          work_order_status_id: NEW_STATUS?.id ?? 0,
+          work_order_status: {
+            work_order: {
+              id,
+            },
           },
         },
         data: {
@@ -389,37 +432,14 @@ export class WorkOrdersService {
         where: { id },
         data: {
           status_id: NEW_STATUS.id,
-          work_order_evidences: { createMany: evidences ?? undefined },
+          work_order_evidences: { createMany: { data: evidences } },
           work_order_status: {
-            upsert: {
-              where: {
-                status_id: NEW_STATUS.id,
-                id: workOrderStatus?.id ?? 0,
-              },
-              create: {
-                status_id: NEW_STATUS.id,
-                description: updateData.description,
-                time_spent: updateData.time_spent,
-                work_date_time: updateData.work_date_time,
-                created_at: new Date(),
-                created_by: user.id,
-                work_order_items: {
-                  createMany: { data: upsertItems.map((x) => x.create) },
-                },
-              },
-              update: {
-                description: updateData.description,
-                time_spent: updateData.time_spent,
-                work_date_time: updateData.work_date_time,
-                updated_at: new Date(),
-                updated_by: user.id,
-                work_order_items: { upsert: upsertItems },
-              },
-            },
+            upsert: workOrderStatusUpsert,
           },
         },
       }),
     ]);
+
     return work_order;
   }
 

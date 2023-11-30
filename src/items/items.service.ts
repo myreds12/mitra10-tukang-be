@@ -59,23 +59,23 @@ export class ItemsService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
-    const {id ,role_id} = user;
+    const { id, role_id } = user;
     const { search, take, page, skip, group_by } = queryParamsDto;
     const category_id = +search ? Number.parseInt(search) : undefined;
     const now = new Date();
     const sales = await this.dbService.users.findFirst({
       where: {
         id,
-        role_id
+        role_id,
       },
       include: {
         sales: {
           include: {
-            sales_categories: true
-          }
-        }
-      }
-    })
+            sales_categories: true,
+          },
+        },
+      },
+    });
 
     const itemsOptions: Prisma.itemsFindManyArgs = {
       skip: skip ?? 0,
@@ -100,14 +100,18 @@ export class ItemsService {
                 ],
               }
             : undefined,
-            sales.sales ? {
-              category: {
-                id: {
-                  in: sales.sales.sales_categories.map(({category_id}) => category_id) 
-                }
+          sales.sales
+            ? {
+                category: {
+                  id: {
+                    in: sales.sales.sales_categories.map(
+                      ({ category_id }) => category_id,
+                    ),
+                  },
+                },
               }
-            } : undefined,
-            {
+            : undefined,
+          {
             deleted_at: null,
           },
         ],
@@ -122,6 +126,7 @@ export class ItemsService {
             id: true,
             item_id: true,
             store_id: true,
+            store: true,
             periodic_start: true,
             periodic_end: true,
             price: true,
@@ -138,14 +143,34 @@ export class ItemsService {
   }
 
   async findOne(id: number) {
+    const now = new Date();
     const items = await this.dbService.items.findFirst({
       where: {
         id,
       },
       include: {
-        prices: true,
+        category: true,
+        prices: {
+          where: {
+            periodic_start: { lte: now },
+            periodic_end: { gte: now },
+          },
+          select: {
+            id: true,
+            item_id: true,
+            store_id: true,
+            store: true,
+            periodic_start: true,
+            periodic_end: true,
+            price: true,
+            min_order: true,
+            created_at: true,
+          },
+        },
       },
     });
+
+    return items;
   }
 
   async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
