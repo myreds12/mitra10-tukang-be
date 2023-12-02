@@ -1,5 +1,12 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsIn, IsNotEmpty, IsNumber, ValidateNested } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 
 class QuotationDetails {
@@ -7,6 +14,13 @@ class QuotationDetails {
   item_id?: number;
 
   @Type(() => Number)
+  @ValidateIf(
+    (object: QuotationDetails, value: number | undefined | null) =>
+      object.type === WorkOrderMaterialType.MATERIAL && Boolean(value),
+    {
+      message: 'category_id is required when type is 2 or MATERIAL',
+    },
+  )
   category_id?: number;
 
   @Type(() => Number)
