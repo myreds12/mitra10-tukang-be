@@ -51,7 +51,6 @@ export class InvoicesService {
   async findAll(query: QueryParamsDto) {
     const { page, take, search, date_from, date_to, order_by } = query;
     const skip = page * take - take;
-    const total = await this.dbService.invoices.count();
     const where: Prisma.invoicesWhereInput = {
       AND: [
         ...(search
@@ -77,7 +76,7 @@ export class InvoicesService {
       ].filter(Boolean),
       deleted_at: null,
     };
-    const work_orders = await this.dbService.invoices.findMany({
+    const invoices = await this.dbService.invoices.findMany({
       skip,
       take: take <= 0 ? undefined : take,
       where,
@@ -113,7 +112,7 @@ export class InvoicesService {
       },
     });
 
-    return { data: work_orders, skip, page, take, total };
+    return { data: invoices, skip, page, take, total: invoices.length };
   }
 
   async findOne(id: number) {

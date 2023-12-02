@@ -154,6 +154,7 @@ export class SalesService {
       skip,
       take: take <= 0 ? undefined : take,
       include: {
+        bank: true,
         sales_brands: {
           include: {
             brands: true,
@@ -182,6 +183,7 @@ export class SalesService {
         id,
       },
       include: {
+        bank: true,
         sales_brands: {
           include: {
             brands: true,
