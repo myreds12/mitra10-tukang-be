@@ -30,7 +30,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('sales')
 @UseGuards(JwtAuthGuard)
 export class SalesController {
-  constructor(private readonly salesService: SalesService) {}
+  constructor(private readonly salesService: SalesService) { }
 
   @Get('next-code')
   async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {

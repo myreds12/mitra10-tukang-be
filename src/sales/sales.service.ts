@@ -12,7 +12,7 @@ export class SalesService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly authService: AuthService,
-  ) {}
+  ) { }
 
   async getCode() {
     const sales = await this.dbService.sales.findMany({
@@ -106,14 +106,17 @@ export class SalesService {
       },
     };
 
-    const [] = await this.dbService.$transaction([
+    const [sales] = await this.dbService.$transaction([
       // this.dbService.users.create({ data: userQuery }),
       this.dbService.sales.create({
         data: { ...sales_data },
+        include: {
+          users: true
+        }
       }),
     ]);
 
-    return { sales: createSalesDto };
+    return { sales };
   }
 
   async findAll(query: QueryParamsDto) {
@@ -124,24 +127,24 @@ export class SalesService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { full_name: { contains: search } },
-                  {
-                    sales_brands: {
-                      every: { brands: { name: { contains: search } } },
+            {
+              OR: [
+                { full_name: { contains: search } },
+                {
+                  sales_brands: {
+                    every: { brands: { name: { contains: search } } },
+                  },
+                },
+                {
+                  sales_categories: {
+                    every: {
+                      categories: { category_name: { contains: search } },
                     },
                   },
-                  {
-                    sales_categories: {
-                      every: {
-                        categories: { category_name: { contains: search } },
-                      },
-                    },
-                  },
-                ],
-              },
-            ]
+                },
+              ],
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -292,7 +295,7 @@ export class SalesService {
 
     const [syncSalesBrands, syncSalesCategories, updatedSales] =
       await this.dbService.$transaction([
-        this.dbService.sales_brands.deleteMany({
+        this.dbService.sales_brands.updateMany({
           where: {
             sales_id: id,
             id: {
@@ -301,8 +304,12 @@ export class SalesService {
               ),
             },
           },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id
+          }
         }),
-        this.dbService.sales_categories.deleteMany({
+        this.dbService.sales_categories.updateMany({
           where: {
             sales_id: id,
             id: {
@@ -311,6 +318,10 @@ export class SalesService {
               ),
             },
           },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id
+          }
         }),
         this.dbService.sales.update({
           where: {

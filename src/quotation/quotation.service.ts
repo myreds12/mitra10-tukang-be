@@ -7,7 +7,7 @@ import { Prisma, users } from '@prisma/client';
 
 @Injectable()
 export class QuotationService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
 
   //TODO: FILE UPLOAD => DONE
   // TODOL SYNC WITH TABLE NEEDS => DONE
@@ -24,9 +24,9 @@ export class QuotationService {
     const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
       quotation_files
         ? quotation_files.map((item) => ({
-            path: item.filename,
-            created_by: user_id,
-          }))
+          path: item.filename,
+          created_by: user_id,
+        }))
         : undefined;
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
@@ -86,8 +86,8 @@ export class QuotationService {
         (createQuotationDto.quotation_disc
           ? +createQuotationDto.quotation_disc
           : 0 + createQuotationDto.quotation_promotion
-          ? +createQuotationDto.quotation_promotion
-          : 0),
+            ? +createQuotationDto.quotation_promotion
+            : 0),
       created_by: user_id,
     };
 
@@ -124,22 +124,22 @@ export class QuotationService {
         status ? { status: { id: { in: status } } } : null,
         ...(search
           ? [
-              {
-                OR: [
-                  { order: { vendor: { company_name: { contains: search } } } },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { order: { vendor: { company_name: { contains: search } } } },
+                { store: { store_name: { contains: search } } },
+                { quotation_number: { contains: search } },
+              ],
+            },
+          ]
           : []),
         date_from && date_to
           ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : null,
       ].filter((condition) => Boolean(condition)),
       deleted_at: null,
@@ -304,16 +304,20 @@ export class QuotationService {
         };
       });
 
-      console.log(quotationDetailsUpsert);
-      
+    console.log(quotationDetailsUpsert);
 
-    const [syncQuotationFiles, syncDetails,quotation] = await this.dbService.$transaction([
-      quotation_file ? this.dbService.quotation_files.deleteMany({
+
+    const [syncQuotationFiles, syncDetails, quotation] = await this.dbService.$transaction([
+      quotation_file ? this.dbService.quotation_files.updateMany({
         where: {
           quotation_id: id,
         },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id
+        }
       }) : undefined,
-      this.dbService.quotation_details.deleteMany({
+      this.dbService.quotation_details.updateMany({
         where: {
           quotation_id: id,
           id: {
@@ -323,6 +327,10 @@ export class QuotationService {
                 return item.id;
               }),
           },
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id
         }
       }),
       this.dbService.quotation.update({
@@ -345,16 +353,16 @@ export class QuotationService {
             (updateQuotationDto.quotation_disc
               ? +updateQuotationDto.quotation_disc
               : 0 + updateQuotationDto.quotation_promotion
-              ? +updateQuotationDto.quotation_promotion
-              : 0),
+                ? +updateQuotationDto.quotation_promotion
+                : 0),
           updated_by: user_id,
           updated_at: new Date(),
           quotation_files: quotation_files.length
             ? {
-                createMany: {
-                  data: evidence,
-                },
-              }
+              createMany: {
+                data: evidence,
+              },
+            }
             : undefined,
           quotation_details: {
             upsert: quotationDetailsUpsert,
