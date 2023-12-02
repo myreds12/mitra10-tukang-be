@@ -11,7 +11,7 @@ export class ItemsService {
   constructor(
     private readonly eventEmitter: EventEmitter2,
     private readonly dbService: PrismaService,
-  ) {}
+  ) { }
   async create(createItemDto: CreateItemDto, user_id: number) {
     const prices = createItemDto.prices.map((price) => {
       return {
@@ -84,32 +84,32 @@ export class ItemsService {
         AND: [
           search
             ? {
-                OR: [
-                  {
-                    service_name: {
-                      contains: search,
-                    },
+              OR: [
+                {
+                  service_name: {
+                    contains: search,
                   },
-                  category_id
-                    ? {
-                        category_id: {
-                          equals: category_id,
-                        },
-                      }
-                    : undefined,
-                ],
-              }
+                },
+                category_id
+                  ? {
+                    category_id: {
+                      equals: category_id,
+                    },
+                  }
+                  : undefined,
+              ],
+            }
             : undefined,
           sales.sales
             ? {
-                category: {
-                  id: {
-                    in: sales.sales.sales_categories.map(
-                      ({ category_id }) => category_id,
-                    ),
-                  },
+              category: {
+                id: {
+                  in: sales.sales.sales_categories.map(
+                    ({ category_id }) => category_id,
+                  ),
                 },
-              }
+              },
+            }
             : undefined,
           {
             deleted_at: null,
@@ -213,7 +213,7 @@ export class ItemsService {
       }));
 
     const [syncPrices, items_query] = await this.dbService.$transaction([
-      this.dbService.prices.deleteMany({
+      this.dbService.prices.updateMany({
         where: {
           item_id: id,
           id: {
@@ -222,6 +222,10 @@ export class ItemsService {
               .map((x) => x.id),
           },
         },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id,
+        }
       }),
       this.dbService.items.update({
         where: {

@@ -293,6 +293,7 @@ model sales_brands {
   deleted_at DateTime? @db.DateTime()
   created_by Int?
   updated_by Int?
+  deleted_by Int?
 
   sales  sales?  @relation(fields: [sales_id], references: [id])
   brands brands? @relation(fields: [brands_id], references: [id])
@@ -310,6 +311,7 @@ model sales_categories {
   deleted_at DateTime? @db.DateTime()
   created_by Int?
   updated_by Int?
+  deleted_by Int?
 
   sales      sales?      @relation(fields: [sales_id], references: [id])
   categories categories? @relation(fields: [category_id], references: [id])

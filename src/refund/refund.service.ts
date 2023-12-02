@@ -7,7 +7,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class RefundService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(createRefundDto: CreateRefundDto, user: users) {
     const { id: user_id } = user;
 
@@ -48,29 +48,28 @@ export class RefundService {
   async findAll(query: QueryParamsDto) {
     const { order_by, date_from, date_to, page, search, status, take } = query;
     const skip = page * take - take;
-    const total = await this.dbService.refund.count();
     const where: Prisma.refundWhereInput = {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { voucher: { contains: search } },
-                  { reason: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { voucher: { contains: search } },
+                { reason: { contains: search } },
+              ],
+            },
+          ]
           : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -101,7 +100,7 @@ export class RefundService {
       },
     });
 
-    return { data: refund, total, skip, take, page };
+    return { data: refund, total: refund.length, skip, take, page };
   }
 
   async findOne(id: number) {

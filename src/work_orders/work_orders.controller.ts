@@ -36,7 +36,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) {}
+  constructor(private readonly workOrdersService: WorkOrdersService) { }
 
   @Post(':id/set-materials')
   @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
@@ -89,7 +89,12 @@ export class WorkOrdersController {
     } catch (error) {
       console.log(error);
 
-      return res.status(error.response.statusCode).json(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Create',
+        stack: error,
+      });
     }
   }
 
