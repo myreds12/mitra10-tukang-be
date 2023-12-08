@@ -451,7 +451,7 @@ model vendor {
   vendor_service  vendor_service[]
   orders          orders[]
   work_orders     work_orders[]
-  payment         payment[]
+  payment         payments[]
 }
 
 model vendor_area {
@@ -976,20 +976,6 @@ model work_order_items {
   quotation_details quotation_details[]
 }
 
-model payment {
-  id        Int @id @default(autoincrement())
-  vendor_id Int
-
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-  vendor     vendor    @relation(fields: [vendor_id], references: [id])
-}
-
 model invoices {
   id Int @id @default(autoincrement())
 
@@ -1025,8 +1011,12 @@ model invoice_evidence {
   invoices   invoices  @relation(fields: [invoice_id], references: [id])
 }
 
-model payment_details {
-  id Int @id @default(autoincrement())
+model payments {
+  id        Int @id @default(autoincrement())
+  vendor_id Int
+
+  grandTotal Decimal @default(0) @map("grand_total") @db.Decimal(32, 2)
+  paid       Decimal @default(0) @map("paid") @db.Decimal(32, 2)
 
   created_by Int?
   updated_by Int?
@@ -1035,6 +1025,28 @@ model payment_details {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
+
+  vendor          vendor            @relation(fields: [vendor_id], references: [id])
+  payment_details payment_details[]
+}
+
+model payment_details {
+  id         Int @id @default(autoincrement())
+  payment_id Int
+  invoice_id Int
+
+  subtotal Decimal @default(0) @db.Decimal(32, 2)
+  paid     Decimal @default(0) @db.Decimal(32, 2)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  payment payments @relation(fields: [payment_id], references: [id])
 }
 
 model refund {

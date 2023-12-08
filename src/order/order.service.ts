@@ -769,8 +769,9 @@ export class OrderService {
     return orders;
   }
 
+  // TODO: type-def for payload only order ...
   async addHistory(id: number, payload: Object): Promise<void> {
-    // TODO: THE ORDER HISTORY FUNCTION ..
+    // TODO: THE ORDER HISTORY FUNCTION ...
     // TODO: SAVE THE PAYLOAD TO THE HISTORY TABLE ...
     // JSON.stringify(payload)
   }
