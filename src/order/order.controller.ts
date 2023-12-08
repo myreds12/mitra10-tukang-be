@@ -50,6 +50,29 @@ export class OrderController {
     private readonly sendEmailService: SendEmailService,
   ) {}
 
+  @Post(':id/set-status/:status_id')
+  async setStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('status_id', ParseIntPipe) status_id: number,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const order = await this.orderService.setStatus(id, status_id);
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        messages: 'Order Status Updated.',
+        data: order,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      });
+    }
+  }
+
   @Get('/testmail')
   async testMail() {
     try {
@@ -63,6 +86,8 @@ export class OrderController {
       console.log(error);
     }
   }
+
+
   @Post(':id/counter')
   async counter(
     @Param('id', ParseIntPipe) id: number,

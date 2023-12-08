@@ -7,9 +7,9 @@ export class OrderDetailDto {
   @Type(() => Number)
   id?: number;
 
-  @Type(() => Number)
-  @IsNumber()
-  order_id: number;
+  // @Type(() => Number)
+  // @IsNumber()
+  // order_id: number;
 
   @Type(() => Number)
   @IsNumber()

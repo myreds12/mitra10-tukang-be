@@ -18,7 +18,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) { }
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -155,6 +155,8 @@ export class OrderService {
       this.dbService.orders.create(ordersOptions),
     ]);
 
+    await this.addHistory(order_id, createOrderDto);
+
     return {
       id: order_id,
       ...orderData,
@@ -172,24 +174,24 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
           : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -495,10 +497,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-        where: {
-          id: updateOrderDto.project_status_id,
-        },
-      })
+          where: {
+            id: updateOrderDto.project_status_id,
+          },
+        })
       : null;
 
     let projectStatusDefault = order.status;
@@ -647,8 +649,8 @@ export class OrderService {
           },
           data: {
             deleted_at: new Date(),
-            deleted_by: user_id
-          }
+            deleted_by: user_id,
+          },
         }),
         this.dbService.order_files.updateMany({
           where: {
@@ -656,8 +658,8 @@ export class OrderService {
           },
           data: {
             deleted_at: new Date(),
-            deleted_by: user_id
-          }
+            deleted_by: user_id,
+          },
         }),
         this.dbService.orders.update({
           where: {
@@ -733,5 +735,43 @@ export class OrderService {
     console.log(orders, thirdDateTime);
 
     return orders;
+  }
+
+  async setStatus(id: number, status_id: number) {
+    const order = await this.findOne(id);
+
+    if (!order) throw new BadRequestException('Order does not Exist!');
+    const [STATUS] = await this.dbService.status.findMany({
+      where: {
+        id: status_id,
+      },
+      orderBy: {
+        category: 'desc',
+      },
+    });
+    const orderData: Prisma.ordersUpdateInput = {
+      status: {
+        connect: {
+          id: STATUS.id,
+        },
+      },
+    };
+
+    const [orders] = await this.dbService.$transaction([
+      this.dbService.orders.update({
+        where: {
+          id,
+        },
+        data: orderData,
+      }),
+    ]);
+
+    return orders;
+  }
+
+  async addHistory(id: number, payload: Object): Promise<void> {
+    // TODO: THE ORDER HISTORY FUNCTION
+    // TODO: SAVE THE PAYLOAD TO THE HISTORY TABLE ...
+    // JSON.stringify(payload)
   }
 }

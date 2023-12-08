@@ -1,4 +1,10 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { ApiBody, ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
@@ -40,6 +46,7 @@ export class CreateOrderDto {
   payment_type: PAYMENT_TYPE;
 
   @Type(() => OrderDetailDto)
+  @ValidateNested({ each: true })
   order_details?: OrderDetailDto[];
 
   request_survey: string;

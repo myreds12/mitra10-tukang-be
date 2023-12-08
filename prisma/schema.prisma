@@ -68,8 +68,8 @@ model employee {
 model items {
   id Int @id @default(autoincrement())
 
-  item_name     String? @db.VarChar(45)
-  item_code     String? @db.VarChar(45)
+  item_name     String? @db.VarChar(100)
+  item_code     String? @db.VarChar(100)
   service_name  String  @db.VarChar(45)
   default_price Decimal @default(0) @db.Decimal(32, 2)
   category_id   Int
@@ -244,11 +244,13 @@ model sales {
   store_id Int?
   user_id  Int? @unique
 
-  full_name    String  @db.VarChar(255)
-  nik          String? @db.VarChar(20)
-  bank_id      Int?
-  bank_branch  String? @db.VarChar(50)
-  account_name String  @db.VarChar(255)
+  full_name      String  @db.VarChar(255)
+  nik            String? @db.VarChar(20)
+  bank_id        Int?
+  bank_branch    String? @db.VarChar(50)
+  account_name   String  @db.VarChar(255)
+  account_number String? @db.VarChar(255)
+  phone_number   String? @db.VarChar(50)
 
   is_active  Boolean   @default(true)
   created_at DateTime  @default(now()) @db.DateTime()
@@ -332,23 +334,27 @@ model service_type {
 }
 
 model store {
-  id         Int         @id @default(autoincrement())
-  store_name String      @db.VarChar(45)
-  address    String      @db.VarChar(45)
-  city_id    Int
-  zip_code   String      @db.VarChar(45)
-  created_at DateTime    @default(now()) @db.DateTime()
-  updated_at DateTime?   @db.DateTime()
-  deleted_at DateTime?   @db.DateTime()
+  id Int @id @default(autoincrement())
+
+  store_name String  @db.VarChar(45)
+  address    String  @db.VarChar(255)
+  city_id    Int?
+  zip_code   String? @default("") @db.VarChar(45)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
   created_by Int?
   updated_by Int?
   deleted_by Int?
-  sales      sales[]
-  prices     prices[]
-  employee   employee[]
-  orders     orders[]
-  quotation  quotation[]
-  members    members[]
+
+  sales     sales[]
+  prices    prices[]
+  employee  employee[]
+  orders    orders[]
+  quotation quotation[]
+  members   members[]
 }
 
 model tukang {
@@ -357,7 +363,7 @@ model tukang {
   user_id   Int?
 
   full_name    String    @db.VarChar(45)
-  address      String    @db.VarChar(45)
+  address      String    @db.VarChar(255)
   phone_number String    @db.VarChar(45)
   ktp_number   String    @db.VarChar(45)
   email        String    @db.VarChar(45)
@@ -445,6 +451,7 @@ model vendor {
   vendor_service  vendor_service[]
   orders          orders[]
   work_orders     work_orders[]
+  payment         payment[]
 }
 
 model vendor_area {
@@ -528,6 +535,7 @@ model status {
   remedials         remedials[]
   refund            refund[]
   work_order_status work_order_status[]
+  order_history     order_histories[]
 }
 
 model orders {
@@ -563,11 +571,30 @@ model orders {
 
   m_order_details m_order_details[]
   complaints      complaints[]
-  invoices        invoices[]
   quotation       quotation[]
   refund          refund[]
   work_orders     work_orders?
   order_files     order_files[]
+  order_history   order_histories[]
+}
+
+model order_histories {
+  id        Int @id @default(autoincrement())
+  order_id  Int
+  status_id Int
+
+  payload String @db.NVarChar(1000)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  order  orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status status @relation(fields: [status_id], references: [id])
 }
 
 model order_files {
@@ -949,14 +976,28 @@ model work_order_items {
   quotation_details quotation_details[]
 }
 
+model payment {
+  id        Int @id @default(autoincrement())
+  vendor_id Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  vendor     vendor    @relation(fields: [vendor_id], references: [id])
+}
+
 model invoices {
   id Int @id @default(autoincrement())
 
-  order_id          Int
   request_work_time DateTime @db.DateTime()
   survey_date       DateTime @db.Date()
   work_start_date   DateTime @db.Date()
   work_end_date     DateTime @db.Date()
+  invoice_number    String   @db.VarChar(50)
 
   created_by Int?
   updated_by Int?
@@ -965,7 +1006,6 @@ model invoices {
   created_at       DateTime           @default(now()) @db.DateTime()
   updated_at       DateTime?          @db.DateTime()
   deleted_at       DateTime?          @db.DateTime()
-  order            orders             @relation(fields: [order_id], references: [id])
   invoice_evidence invoice_evidence[]
 }
 
@@ -985,6 +1025,18 @@ model invoice_evidence {
   invoices   invoices  @relation(fields: [invoice_id], references: [id])
 }
 
+model payment_details {
+  id Int @id @default(autoincrement())
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+}
+
 model refund {
   id Int @id @default(autoincrement())
 
@@ -993,8 +1045,8 @@ model refund {
 
   notes           String   @db.Text()
   reason          String   @db.Text()
-  approval_number String   @db.VarChar(45)
-  voucher         String?  @db.VarChar(45)
+  approval_number String   @db.VarChar(100)
+  voucher         String?  @db.VarChar(100)
   penalty_nominal Decimal? @db.Decimal(32, 2)
   date_approve    DateTime @db.DateTime
   date_of_filing  DateTime @db.DateTime
