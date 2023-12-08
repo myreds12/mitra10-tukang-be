@@ -66,9 +66,11 @@ export class SalesService {
     const saltedPassword = hashSync(createSalesDto?.nik ?? 'password', 12);
 
     const sales_data: Prisma.salesCreateInput = {
-      full_name: createSalesDto.account_name,
+      full_name: createSalesDto.full_name,
       bank_branch: createSalesDto.bank_branch,
       account_name: createSalesDto.account_name,
+      phone_number: createSalesDto.phone_number,
+      account_number: createSalesDto.account_number,
       created_by: user_id,
       nik: createSalesDto.nik,
       store: {
@@ -155,6 +157,7 @@ export class SalesService {
       take: take <= 0 ? undefined : take,
       include: {
         bank: true,
+        store: true,
         sales_brands: {
           include: {
             brands: true,
@@ -184,6 +187,7 @@ export class SalesService {
       },
       include: {
         bank: true,
+        store: true,
         sales_brands: {
           include: {
             brands: true,

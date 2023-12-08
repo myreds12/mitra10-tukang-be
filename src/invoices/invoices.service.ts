@@ -7,7 +7,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createInvoiceDto: CreateInvoiceDto,
     user: users,
@@ -16,19 +16,22 @@ export class InvoicesService {
     const { id: user_id } = user;
     const evidences = invoice_evidences
       ? invoice_evidences.map((item) => {
-        return {
-          evidence_location: item.filename,
-          created_by: user_id,
-        };
-      })
+          return {
+            evidence_location: item.filename,
+            created_by: user_id,
+          };
+        })
       : undefined;
 
+    const invoicesCount = (await this.dbService.invoices.count()) + 1;
+
     const data: Prisma.invoicesCreateInput = {
-      order: {
-        connect: {
-          id: createInvoiceDto.order_id,
-        },
-      },
+      // order: {
+      //   connect: {
+      //     id: createInvoiceDto.order_id,
+      //   },
+      // },
+      invoice_number: `${invoicesCount}`,
       request_work_time: new Date(createInvoiceDto.request_work_time),
       survey_date: new Date(createInvoiceDto.survey_date),
       work_start_date: new Date(createInvoiceDto.work_start_date),
@@ -55,23 +58,23 @@ export class InvoicesService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { request_work_time: { equals: new Date(search) } },
-                { survey_date: { equals: new Date(search) } },
-                { work_start_date: { equals: new Date(search) } },
-                { work_end_date: { equals: new Date(search) } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { request_work_time: { equals: new Date(search) } },
+                  { survey_date: { equals: new Date(search) } },
+                  { work_start_date: { equals: new Date(search) } },
+                  { work_end_date: { equals: new Date(search) } },
+                ],
+              },
+            ]
           : []),
         date_from && date_to
           ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : undefined,
       ].filter(Boolean),
       deleted_at: null,
@@ -85,30 +88,30 @@ export class InvoicesService {
       },
       include: {
         invoice_evidence: true,
-        order: {
-          include: {
-            complaints: true,
-            m_order_details: true,
-            status: true,
-            quotation: true,
-            work_orders: {
-              include: {
-                work_order_status: {
-                  include: {
-                    status: true,
-                  },
-                },
-                work_order_evidences: true,
-                work_order_tukang: {
-                  include: {
-                    tukang: true,
-                  },
-                },
-              },
-            },
-            vendor: true,
-          },
-        },
+        // order: {
+        //   include: {
+        //     complaints: true,
+        //     m_order_details: true,
+        //     status: true,
+        //     quotation: true,
+        //     work_orders: {
+        //       include: {
+        //         work_order_status: {
+        //           include: {
+        //             status: true,
+        //           },
+        //         },
+        //         work_order_evidences: true,
+        //         work_order_tukang: {
+        //           include: {
+        //             tukang: true,
+        //           },
+        //         },
+        //       },
+        //     },
+        //     vendor: true,
+        //   },
+        // },
       },
     });
 
@@ -120,32 +123,32 @@ export class InvoicesService {
       where: {
         id,
       },
-      include: {
-        order: {
-          include: {
-            complaints: true,
-            m_order_details: true,
-            status: true,
-            quotation: true,
-            work_orders: {
-              include: {
-                work_order_status: {
-                  include: {
-                    status: true,
-                  },
-                },
-                work_order_evidences: true,
-                work_order_tukang: {
-                  include: {
-                    tukang: true,
-                  },
-                },
-              },
-            },
-            vendor: true,
-          },
-        },
-      },
+      // include: {
+      //   order: {
+      //     include: {
+      //       complaints: true,
+      //       m_order_details: true,
+      //       status: true,
+      //       quotation: true,
+      //       work_orders: {
+      //         include: {
+      //           work_order_status: {
+      //             include: {
+      //               status: true,
+      //             },
+      //           },
+      //           work_order_evidences: true,
+      //           work_order_tukang: {
+      //             include: {
+      //               tukang: true,
+      //             },
+      //           },
+      //         },
+      //       },
+      //       vendor: true,
+      //     },
+      //   },
+      // },
     });
 
     return invoice;
@@ -161,19 +164,19 @@ export class InvoicesService {
     const { id: user_id } = user;
     const evidences = invoice_evidences
       ? invoice_evidences.map((item) => {
-        return {
-          evidence_location: item.filename,
-          created_by: user_id,
-        };
-      })
+          return {
+            evidence_location: item.filename,
+            created_by: user_id,
+          };
+        })
       : undefined;
 
     const invoice_data: Prisma.invoicesUpdateInput = {
-      order: {
-        connect: {
-          id: updateInvoiceDto.order_id,
-        },
-      },
+      // order: {
+      //   connect: {
+      //     id: updateInvoiceDto.order_id,
+      //   },
+      // },
       request_work_time: new Date(updateInvoiceDto.request_work_time),
       survey_date: new Date(updateInvoiceDto.survey_date),
       work_start_date: new Date(updateInvoiceDto.work_start_date),
@@ -190,12 +193,12 @@ export class InvoicesService {
         ...invoice_data,
         ...(invoice_evidences
           ? {
-            invoice_evidence: {
-              createMany: {
-                data: evidences,
+              invoice_evidence: {
+                createMany: {
+                  data: evidences,
+                },
               },
-            },
-          }
+            }
           : undefined),
       },
     };
@@ -207,8 +210,8 @@ export class InvoicesService {
         },
         data: {
           deleted_at: new Date(),
-          deleted_by: user_id
-        }
+          deleted_by: user_id,
+        },
       }),
       this.dbService.invoices.update(invoice),
     ]);

@@ -16,7 +16,7 @@ export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-  ) { }
+  ) {}
   async create(
     createComplaintDto: CreateComplaintDto,
     user_id: number,
@@ -37,6 +37,14 @@ export class ComplaintsService {
         },
       },
     });
+
+    const findOrder = await this.dbService.orders.findFirst({
+      where: {
+        id: createComplaintDto.order_id
+      }
+    });
+
+    if(!findOrder) throw new BadRequestException('Order does bot exist!');
 
     const complaintData: Prisma.complaintsCreateInput = {
       orders: {
@@ -64,6 +72,8 @@ export class ComplaintsService {
       },
     };
 
+    const order = this.orderService.setStatus(createComplaintDto.order_id, createComplaintDto.complaint_status);
+
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.create({
         data: complaintData,
@@ -83,11 +93,11 @@ export class ComplaintsService {
         search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
-            complaint_date: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              complaint_date: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : null,
       ].filter((condition) => Boolean(condition)),
     };
@@ -192,8 +202,8 @@ export class ComplaintsService {
       },
       data: {
         deleted_at: new Date(),
-        deleted_by: user_id
-      }
+        deleted_by: user_id,
+      },
     });
 
     const evidences = complaint_evidences.map((file) => ({
@@ -203,17 +213,17 @@ export class ComplaintsService {
 
     const orderConn = updateComplaintDto.order_id
       ? {
-        connect: {
-          id: updateComplaintDto.order_id,
-        },
-      }
+          connect: {
+            id: updateComplaintDto.order_id,
+          },
+        }
       : undefined;
     const complaint_channelsConn = updateComplaintDto.complaint_channel
       ? {
-        connect: {
-          id: updateComplaintDto.complaint_channel,
-        },
-      }
+          connect: {
+            id: updateComplaintDto.complaint_channel,
+          },
+        }
       : undefined;
 
     const complaintData: Prisma.complaintsUpdateInput = Object.fromEntries(
@@ -228,14 +238,15 @@ export class ComplaintsService {
         updated_by: user_id,
         complaint_evidence: evidences.length
           ? {
-            createMany: {
-              data: evidences,
-            },
-          }
+              createMany: {
+                data: evidences,
+              },
+            }
           : undefined,
       }).filter(([key, value]) => value !== undefined),
     );
     console.log('complaintData', complaintData);
+    this.orderService.setStatus(updateComplaintDto?.order_id, updateComplaintDto?.complaint_status)
 
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.update({

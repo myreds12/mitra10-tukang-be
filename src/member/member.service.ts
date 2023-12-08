@@ -114,7 +114,7 @@ export class MemberService {
           order: {
             include: {
               complaints: true,
-              invoices: true,
+              // invoices: true,
             },
           },
         },

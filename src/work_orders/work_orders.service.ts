@@ -94,16 +94,18 @@ export class WorkOrdersService {
       },
     };
 
-    const [work_order, order_update] = await this.dbService.$transaction([
+    this.orderService.setStatus(order.id, dataDto.work_order_status)
+
+    const [work_order] = await this.dbService.$transaction([
       this.dbService.work_orders.create(work_order_data),
-      this.dbService.orders.update({
-        where: {
-          id: dataDto.order_id,
-        },
-        data: {
-          project_status_id: dataDto.work_order_status,
-        },
-      }),
+      // this.dbService.orders.update({
+      //   where: {
+      //     id: dataDto.order_id,
+      //   },
+      //   data: {
+      //     project_status_id: dataDto.work_order_status,
+      //   },
+      // }),
     ]);
 
     return work_order;
@@ -303,6 +305,7 @@ export class WorkOrdersService {
         work_order_tukang: { upsert: tukangUpsert },
       },
     };
+    
 
     const [syncTukang, syncEvidence, work_order] = await this.dbService.$transaction([
       this.dbService.work_order_tukang.updateMany({
