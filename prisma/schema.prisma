@@ -245,17 +245,20 @@ model sales {
   user_id  Int? @unique
 
   full_name      String  @db.VarChar(255)
-  nik            String? @db.VarChar(20)
+  nik            String? @default("") @db.VarChar(20)
   bank_id        Int?
   bank_branch    String? @db.VarChar(50)
   account_name   String  @db.VarChar(255)
   account_number String? @db.VarChar(255)
   phone_number   String? @db.VarChar(50)
+  sales_brand    String? @default("")
 
-  is_active  Boolean   @default(true)
+  is_active Boolean @default(true)
+
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
+
   created_by Int?
   updated_by Int?
   deleted_by Int?
@@ -286,9 +289,9 @@ model brands {
 }
 
 model sales_brands {
-  id        Int  @id @default(autoincrement())
-  sales_id  Int?
-  brands_id Int?
+  id        Int @id @default(autoincrement())
+  sales_id  Int
+  brands_id Int
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -297,8 +300,8 @@ model sales_brands {
   updated_by Int?
   deleted_by Int?
 
-  sales  sales?  @relation(fields: [sales_id], references: [id])
-  brands brands? @relation(fields: [brands_id], references: [id])
+  sales  sales  @relation(fields: [sales_id], references: [id])
+  brands brands @relation(fields: [brands_id], references: [id])
 }
 
 model sales_categories {
@@ -306,7 +309,7 @@ model sales_categories {
   sales_id    Int?
   category_id Int?
 
-  commission Decimal @db.Decimal(32, 2)
+  commission Decimal? @default("0") @db.Decimal(32, 2)
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -451,7 +454,7 @@ model vendor {
   vendor_service  vendor_service[]
   orders          orders[]
   work_orders     work_orders[]
-  payment         payments[]
+  invoices        invoices[]
 }
 
 model vendor_area {
@@ -536,6 +539,7 @@ model status {
   refund            refund[]
   work_order_status work_order_status[]
   order_history     order_histories[]
+  invoices          invoices[]
 }
 
 model orders {
@@ -722,6 +726,7 @@ model quotation {
   status            status              @relation(fields: [quotation_status], references: [id])
   quotation_files   quotation_files[]
   quotation_details quotation_details[]
+  invoice_details   invoice_details[]
 }
 
 model quotation_details {
@@ -977,22 +982,43 @@ model work_order_items {
 }
 
 model invoices {
-  id Int @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
+  vendor_id Int @map("vendorId")
+  status_id Int @map("statusId")
 
-  request_work_time DateTime @db.DateTime()
-  survey_date       DateTime @db.Date()
-  work_start_date   DateTime @db.Date()
-  work_end_date     DateTime @db.Date()
-  invoice_number    String   @db.VarChar(50)
+  invoice_number String
+  description    String? @db.VarChar(400)
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
-  created_at       DateTime           @default(now()) @db.DateTime()
-  updated_at       DateTime?          @db.DateTime()
-  deleted_at       DateTime?          @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  vendor           vendor             @relation(fields: [vendor_id], references: [id])
+  status           status             @relation(fields: [status_id], references: [id])
   invoice_evidence invoice_evidence[]
+  invoice_details  invoice_details[]
+}
+
+model invoice_details {
+  id Int @id @default(autoincrement())
+
+  invoice_id   Int @map("invoiceId")
+  quotation_id Int @map("quotationId")
+
+  created_by Int? @map("createdBy")
+  updated_by Int? @map("updatedBy")
+  deleted_by Int? @map("deletedBy")
+
+  created_at DateTime  @default(now()) @map("createdAt") @db.DateTime()
+  updated_at DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+
+  quotation quotation @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoices  invoices  @relation(fields: [invoice_id], references: [id])
 }
 
 model invoice_evidence {
@@ -1009,44 +1035,6 @@ model invoice_evidence {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
   invoices   invoices  @relation(fields: [invoice_id], references: [id])
-}
-
-model payments {
-  id        Int @id @default(autoincrement())
-  vendor_id Int
-
-  grandTotal Decimal @default(0) @map("grand_total") @db.Decimal(32, 2)
-  paid       Decimal @default(0) @map("paid") @db.Decimal(32, 2)
-
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-
-  vendor          vendor            @relation(fields: [vendor_id], references: [id])
-  payment_details payment_details[]
-}
-
-model payment_details {
-  id         Int @id @default(autoincrement())
-  payment_id Int
-  invoice_id Int
-
-  subtotal Decimal @default(0) @db.Decimal(32, 2)
-  paid     Decimal @default(0) @db.Decimal(32, 2)
-
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-
-  payment payments @relation(fields: [payment_id], references: [id])
 }
 
 model refund {

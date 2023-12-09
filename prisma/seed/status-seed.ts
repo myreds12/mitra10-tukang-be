@@ -34,19 +34,26 @@ export async function StatusSeed() {
     { category: 'INVOICE', description: 'Invoice' },
     { category: 'INVOICESEND', description: 'Invoice Send' },
 
+    { category: 'CSIIN', description: 'CSI In' },
     { category: 'CSIOUT', description: 'CSI Out' },
 
     { category: 'REFUND', description: 'Refund' },
+    { category: 'REFUNDED', description: 'Refunded' },
 
     { category: 'ACCEPTED', description: 'Accepted' },
     { category: 'APPROVE', description: 'Approve' },
-    { category: 'REJECT', description: 'Reject' },
+    { category: 'REJECTED', description: 'Rejected' },
 
     { category: 'RESCHEDULE', description: 'Reschedule' },
 
     { category: 'WARRANTYCLAIM', description: 'Warranty Claim' },
+
+    { category: 'PAID', description: 'Paid' },
     { category: 'UNPAID', description: 'Unpaid' },
+
     { category: 'FEEDBACK', description: 'Feedback' },
+    { category: 'NONE', description: 'None' },
+    { category: 'PENDING', description: 'Pending' },
   ];
 
   await prisma.status.createMany({
