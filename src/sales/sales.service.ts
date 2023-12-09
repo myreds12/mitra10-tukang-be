@@ -12,7 +12,7 @@ export class SalesService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly authService: AuthService,
-  ) { }
+  ) {}
 
   async getCode() {
     const sales = await this.dbService.sales.findMany({
@@ -46,8 +46,8 @@ export class SalesService {
       },
     });
 
-    const sales_brands: Prisma.sales_brandsCreateManyInput[] =
-      createSalesDto.sales_brands.map((item) => {
+    const sales_brands: Prisma.sales_brandsCreateManySalesInput[] =
+      createSalesDto?.sales_brands?.map((item) => {
         return {
           brands_id: item.brand_id,
           created_by: user_id,
@@ -58,12 +58,12 @@ export class SalesService {
       createSalesDto.sales_categories.map((item) => {
         return {
           category_id: item.category_id,
-          commission: item.commission,
+          commission: item.commission ?? '0',
           created_by: user_id,
         };
       });
 
-    const saltedPassword = hashSync(createSalesDto?.nik ?? 'password', 12);
+    const saltedPassword = hashSync('password', 12);
 
     const sales_data: Prisma.salesCreateInput = {
       full_name: createSalesDto.full_name,
@@ -75,7 +75,7 @@ export class SalesService {
       nik: createSalesDto.nik,
       store: {
         connect: {
-          id: createSalesDto.store_id ? createSalesDto.store_id : undefined,
+          id: createSalesDto?.store_id ?? undefined,
         },
       },
       bank: {
@@ -109,12 +109,11 @@ export class SalesService {
     };
 
     const [sales] = await this.dbService.$transaction([
-      // this.dbService.users.create({ data: userQuery }),
       this.dbService.sales.create({
         data: { ...sales_data },
         include: {
-          users: true
-        }
+          users: true,
+        },
       }),
     ]);
 
@@ -129,24 +128,27 @@ export class SalesService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { full_name: { contains: search } },
-                {
-                  sales_brands: {
-                    every: { brands: { name: { contains: search } } },
-                  },
-                },
-                {
-                  sales_categories: {
-                    every: {
-                      categories: { category_name: { contains: search } },
+              {
+                OR: [
+                  { full_name: { contains: search } },
+                  {
+                    sales_brands: {
+                      every: { brands: { name: { contains: search } } },
                     },
                   },
-                },
-              ],
-            },
-          ]
+                  {
+                    sales_brand: { contains: search },
+                  },
+                  {
+                    sales_categories: {
+                      every: {
+                        categories: { category_name: { contains: search } },
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -312,8 +314,8 @@ export class SalesService {
           },
           data: {
             deleted_at: new Date(),
-            deleted_by: user_id
-          }
+            deleted_by: user_id,
+          },
         }),
         this.dbService.sales_categories.updateMany({
           where: {
@@ -326,8 +328,8 @@ export class SalesService {
           },
           data: {
             deleted_at: new Date(),
-            deleted_by: user_id
-          }
+            deleted_by: user_id,
+          },
         }),
         this.dbService.sales.update({
           where: {

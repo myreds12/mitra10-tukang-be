@@ -99,7 +99,7 @@ export class OrderService {
         );
 
         if (
-          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
+          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
             createOrderDto.payment_type,
           )
         ) {
@@ -151,16 +151,13 @@ export class OrderService {
       },
     };
 
-    const [{ id: order_id }] = await this.dbService.$transaction([
+    const [order] = await this.dbService.$transaction([
       this.dbService.orders.create(ordersOptions),
     ]);
 
-    await this.addHistory(order_id, createOrderDto);
+    await this.addHistory(order.id, order.project_status_id, user ,createOrderDto);
 
-    return {
-      id: order_id,
-      ...orderData,
-    };
+    return order;
   }
 
   async findAll(queryParams: QueryParamsDto) {
@@ -673,6 +670,7 @@ export class OrderService {
           },
         }),
       ]);
+    await this.addHistory(orderQuery.id, orderQuery.project_status_id, user, updateOrderDto)
     return orderQuery;
   }
 
@@ -770,9 +768,23 @@ export class OrderService {
   }
 
   // TODO: type-def for payload only order ...
-  async addHistory(id: number, payload: Object): Promise<void> {
+  async addHistory(
+    id: number,
+    status_id: number,
+    user: users,
+    payload: any,
+  ): Promise<void> {
     // TODO: THE ORDER HISTORY FUNCTION ...
     // TODO: SAVE THE PAYLOAD TO THE HISTORY TABLE ...
     // JSON.stringify(payload)
+
+    await this.dbService.order_histories.create({
+      data: {
+        order_id: id,
+        status_id: status_id,
+        payload: JSON.stringify(payload),
+        created_by: user.id,
+      },
+    });
   }
 }

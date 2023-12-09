@@ -22,6 +22,5 @@ export class SalesCategoriesDto {
 
   @Type(() => String)
   @IsString()
-  @IsNotEmpty()
-  commission: string;
+  commission?: string;
 }

@@ -40,11 +40,11 @@ export class ComplaintsService {
 
     const findOrder = await this.dbService.orders.findFirst({
       where: {
-        id: createComplaintDto.order_id
-      }
+        id: createComplaintDto.order_id,
+      },
     });
 
-    if(!findOrder) throw new BadRequestException('Order does bot exist!');
+    if (!findOrder) throw new BadRequestException('Order does bot exist!');
 
     const complaintData: Prisma.complaintsCreateInput = {
       orders: {
@@ -72,7 +72,10 @@ export class ComplaintsService {
       },
     };
 
-    const order = this.orderService.setStatus(createComplaintDto.order_id, createComplaintDto.complaint_status);
+    const order = this.orderService.setStatus(
+      createComplaintDto.order_id,
+      createComplaintDto.complaint_status,
+    );
 
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.create({
@@ -149,8 +152,11 @@ export class ComplaintsService {
             store: true,
             status: true,
             vendor: true,
-
-            m_order_details: true,
+            m_order_details: {
+              include: {
+                item: true,
+              },
+            },
           },
         },
       },
@@ -246,7 +252,10 @@ export class ComplaintsService {
       }).filter(([key, value]) => value !== undefined),
     );
     console.log('complaintData', complaintData);
-    this.orderService.setStatus(updateComplaintDto?.order_id, updateComplaintDto?.complaint_status)
+    this.orderService.setStatus(
+      updateComplaintDto?.order_id,
+      updateComplaintDto?.complaint_status,
+    );
 
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.update({

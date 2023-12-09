@@ -26,6 +26,7 @@ import { users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -34,7 +35,10 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly invoicesService: InvoicesService,
+  ) {}
 
   @Post()
   @UseInterceptors(FilesInterceptor('invoice_evidences'))
@@ -116,15 +120,18 @@ export class InvoicesController {
   @Post(':id')
   @UseInterceptors(FilesInterceptor('invoice_evidences'))
   async update(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() updateInvoiceDto: UpdateInvoiceDto,
     @Request() req: UserRequest,
     @UploadedFiles() invoice_evidences: Array<Express.Multer.File>,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const invoice = await this.invoicesService.update(
-        +id,
+      const invoice = await this.dbService.invoices.findFirstOrThrow({
+        where: { id },
+      });
+      const updated = await this.invoicesService.update(
+        invoice,
         updateInvoiceDto,
         req.user,
         invoice_evidences,
@@ -133,14 +140,14 @@ export class InvoicesController {
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Invoice Updated',
-        data: invoice,
+        data: updated,
       });
     } catch (error) {
       console.log(error);
 
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
+        message: error?.messages ?? error?.messages ?? 'Error while update',
         stack: error,
       });
     }

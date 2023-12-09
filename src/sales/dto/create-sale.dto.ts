@@ -43,10 +43,13 @@ export class CreateSalesDto {
   @IsOptional()
   account_name?: string;
 
-  @ApiProperty()
+  @IsString()
+  sales_brand: string;
+
+  @IsOptional()
   @Type(() => SalesBrandsDto)
   @ValidateNested({ each: true })
-  sales_brands: SalesBrandsDto[];
+  sales_brands?: SalesBrandsDto[];
 
   @ApiProperty()
   @Type(() => SalesCategoriesDto)

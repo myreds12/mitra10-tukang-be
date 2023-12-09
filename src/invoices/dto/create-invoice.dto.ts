@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber } from 'class-validator';
+import { IsNotEmpty, ValidateNested } from 'class-validator';
+import { InvoiceDetails } from './invoice-details.dto';
 
 export class CreateInvoiceDto {
   @ApiProperty()
@@ -9,8 +10,13 @@ export class CreateInvoiceDto {
   work_start_date: string;
   work_end_date: string;
 
+  @ValidateNested({ each: true })
+  @Type(() => InvoiceDetails)
+  invoice_details: InvoiceDetails[];
+
+  @IsNotEmpty()
   @Type(() => Number)
-  order_id: number;
+  vendor_id: number;
 
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   invoice_evidences?: Array<Express.Multer.File>;
