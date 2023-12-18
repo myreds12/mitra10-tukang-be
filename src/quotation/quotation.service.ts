@@ -4,10 +4,14 @@ import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
+import { OrderService } from 'src/order/order.service';
 
 @Injectable()
 export class QuotationService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly orderService: OrderService,
+  ) {}
 
   //TODO: FILE UPLOAD => DONE
   // TODOL SYNC WITH TABLE NEEDS => DONE
@@ -24,9 +28,9 @@ export class QuotationService {
     const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
       quotation_files
         ? quotation_files.map((item) => ({
-          path: item.filename,
-          created_by: user_id,
-        }))
+            path: item.filename,
+            created_by: user_id,
+          }))
         : undefined;
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
@@ -40,8 +44,10 @@ export class QuotationService {
           item_id: item?.item_id,
           item_type: item.type,
           margin: item.margin,
+          description: item?.description,
           name: item.name,
           price: prices,
+          unit: item.unit,
           quantity: quantity,
           work_order_items_id: item?.work_order_item_id,
           is_customer: Boolean(item.is_customer),
@@ -86,8 +92,8 @@ export class QuotationService {
         (createQuotationDto.quotation_disc
           ? +createQuotationDto.quotation_disc
           : 0 + createQuotationDto.quotation_promotion
-            ? +createQuotationDto.quotation_promotion
-            : 0),
+          ? +createQuotationDto.quotation_promotion
+          : 0),
       created_by: user_id,
     };
 
@@ -112,6 +118,12 @@ export class QuotationService {
     const [quotation] = await this.dbService.$transaction([
       this.dbService.quotation.create(quotation_options),
     ]);
+
+    this.orderService.setStatus(
+      quotation.order_id,
+      quotation.quotation_status,
+      user,
+    );
     return quotation;
   }
 
@@ -124,22 +136,22 @@ export class QuotationService {
         status ? { status: { id: { in: status } } } : null,
         ...(search
           ? [
-            {
-              OR: [
-                { order: { vendor: { company_name: { contains: search } } } },
-                { store: { store_name: { contains: search } } },
-                { quotation_number: { contains: search } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { order: { vendor: { company_name: { contains: search } } } },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
           : []),
         date_from && date_to
           ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : null,
       ].filter((condition) => Boolean(condition)),
       deleted_at: null,
@@ -148,17 +160,21 @@ export class QuotationService {
       where,
       skip,
       take: take <= 0 ? undefined : take,
+      orderBy: {
+        created_at: order_by,
+      },
       include: {
         quotation_files: true,
         quotation_details: {
           include: {
-            category: true
-          }
+            category: true,
+          },
         },
         order: {
           include: {
             m_order_details: true,
             vendor: true,
+            store: true,
             members: true,
             work_orders: {
               include: {
@@ -167,8 +183,8 @@ export class QuotationService {
                   include: {
                     work_order_items: {
                       orderBy: {
-                        id: 'desc'
-                      }
+                        id: 'desc',
+                      },
                     },
                   },
                 },
@@ -202,8 +218,8 @@ export class QuotationService {
         quotation_files: true,
         quotation_details: {
           include: {
-            category: true
-          }
+            category: true,
+          },
         },
         order: {
           include: {
@@ -215,13 +231,13 @@ export class QuotationService {
                 work_order_evidences: true,
                 work_order_status: {
                   orderBy: {
-                    id: 'desc'
+                    id: 'desc',
                   },
                   include: {
                     work_order_items: {
                       orderBy: {
-                        id: 'desc'
-                      }
+                        id: 'desc',
+                      },
                     },
                   },
                 },
@@ -249,7 +265,14 @@ export class QuotationService {
   ) {
     const { id: user_id } = user;
 
-    // const quotationDetailsUpsert : Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
+    const new_status = await this.dbService.status.findFirst({
+      where: {
+        id: updateQuotationDto.quotation_status,
+        category: {
+          contains: 'QUOTEOUT',
+        },
+      },
+    });
 
     const evidence = quotation_files.map((item) => ({
       path: item.filename,
@@ -258,9 +281,9 @@ export class QuotationService {
 
     const quotation_file = await this.dbService.quotation_files.findMany({
       where: {
-        quotation_id: id
-      }
-    })
+        quotation_id: id,
+      },
+    });
 
     let grandTotal = 0;
     const quotationDetailsUpsert: Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
@@ -278,8 +301,10 @@ export class QuotationService {
             category_id: item?.category_id,
             item_id: item?.item_id,
             item_type: item?.type,
+            description: item?.description,
             name: item?.name,
             price,
+            unit: item.unit,
             quantity,
             margin: item?.margin,
             final_price,
@@ -292,7 +317,9 @@ export class QuotationService {
             category_id: item?.category_id,
             item_id: item?.item_id,
             item_type: item?.type,
+            description: item?.description,
             name: item?.name,
+            unit: item.unit,
             price: item?.price,
             quantity: item?.quantity,
             margin: item?.margin,
@@ -306,70 +333,82 @@ export class QuotationService {
 
     console.log(quotationDetailsUpsert);
 
-
-    const [syncQuotationFiles, syncDetails, quotation] = await this.dbService.$transaction([
-      quotation_file ? this.dbService.quotation_files.updateMany({
-        where: {
-          quotation_id: id,
-        },
-        data: {
-          deleted_at: new Date(),
-          deleted_by: user_id
-        }
-      }) : undefined,
-      this.dbService.quotation_details.updateMany({
-        where: {
-          quotation_id: id,
-          id: {
-            notIn: updateQuotationDto.quotation_details
-              .filter((x) => Boolean(x?.id))
-              .map((item) => {
-                return item.id;
-              }),
+    const [syncQuotationFiles, syncDetails, quotation] =
+      await this.dbService.$transaction([
+        quotation_file
+          ? this.dbService.quotation_files.updateMany({
+              where: {
+                quotation_id: id,
+                id: {
+                  in: updateQuotationDto.preserve_files,
+                },
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            })
+          : undefined,
+        this.dbService.quotation_details.updateMany({
+          where: {
+            quotation_id: id,
+            id: {
+              notIn: updateQuotationDto.quotation_details
+                .filter((x) => Boolean(x?.id))
+                .map((item) => {
+                  return item.id;
+                }),
+            },
           },
-        },
-        data: {
-          deleted_at: new Date(),
-          deleted_by: user_id
-        }
-      }),
-      this.dbService.quotation.update({
-        where: {
-          id,
-        },
-        data: {
-          description: updateQuotationDto?.description ?? undefined,
-          quotation_number: updateQuotationDto?.quotation_number ?? undefined,
-          quotation_date: updateQuotationDto?.quotation_date
-            ? new Date(updateQuotationDto?.quotation_date)
-            : undefined,
-          quotation_validity: updateQuotationDto?.quotation_validity
-            ? new Date(updateQuotationDto?.quotation_validity)
-            : undefined,
-          quotation_disc: updateQuotationDto?.quotation_disc,
-          quotation_promotion: updateQuotationDto?.quotation_promotion,
-          quotation_grand_total:
-            grandTotal -
-            (updateQuotationDto.quotation_disc
-              ? +updateQuotationDto.quotation_disc
-              : 0 + updateQuotationDto.quotation_promotion
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+          },
+        }),
+        this.dbService.quotation.update({
+          where: {
+            id,
+          },
+          data: {
+            description: updateQuotationDto?.description ?? undefined,
+            quotation_number: updateQuotationDto?.quotation_number ?? undefined,
+            quotation_status: new_status?.id ?? undefined,
+            quotation_date: updateQuotationDto?.quotation_date
+              ? new Date(updateQuotationDto?.quotation_date)
+              : undefined,
+            quotation_validity: updateQuotationDto?.quotation_validity
+              ? new Date(updateQuotationDto?.quotation_validity)
+              : undefined,
+            quotation_disc: updateQuotationDto?.quotation_disc,
+            quotation_promotion: updateQuotationDto?.quotation_promotion,
+            quotation_grand_total:
+              grandTotal -
+              (updateQuotationDto.quotation_disc
+                ? +updateQuotationDto.quotation_disc
+                : 0 + updateQuotationDto.quotation_promotion
                 ? +updateQuotationDto.quotation_promotion
                 : 0),
-          updated_by: user_id,
-          updated_at: new Date(),
-          quotation_files: quotation_files.length
-            ? {
-              createMany: {
-                data: evidence,
-              },
-            }
-            : undefined,
-          quotation_details: {
-            upsert: quotationDetailsUpsert,
+            updated_by: user_id,
+            updated_at: new Date(),
+            quotation_files: quotation_files.length
+              ? {
+                  createMany: {
+                    data: evidence,
+                  },
+                }
+              : undefined,
+            quotation_details: {
+              upsert: quotationDetailsUpsert,
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
+
+    this.orderService.setStatus(
+      quotation.order_id,
+      quotation.quotation_status,
+      user,
+    );
 
     return quotation;
   }

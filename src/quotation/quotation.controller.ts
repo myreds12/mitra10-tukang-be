@@ -21,7 +21,10 @@ import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { response } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse,

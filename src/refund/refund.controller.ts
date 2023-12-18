@@ -11,6 +11,8 @@ import {
   HttpStatus,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { RefundService } from './refund.service';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -22,6 +24,7 @@ import {
 import { users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -33,14 +36,20 @@ export class RefundController {
   constructor(private readonly refundService: RefundService) {}
 
   @Post()
+  @UseInterceptors(FilesInterceptor('refunds_evidences'))
   async create(
+    @UploadedFiles() refunds_evidences: Array<Express.Multer.File>,
     @Body() createRefundDto: CreateRefundDto,
     @Req() req: UserRequest,
     @Res() res: IExpressResponse,
   ) {
     try {
       const user = req.user;
-      const refund = await this.refundService.create(createRefundDto, user);
+      const refund = await this.refundService.create(
+        createRefundDto,
+        user,
+        refunds_evidences,
+      );
       return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Refund Created',
@@ -101,15 +110,22 @@ export class RefundController {
   }
 
   @Post(':id')
+  @UseInterceptors(FilesInterceptor('refunds_evidences'))
   async update(
     @Param('id') id: number,
     @Body() updateRefundDto: UpdateRefundDto,
     @Req() req: UserRequest,
     @Res() res: IExpressResponse,
+    @UploadedFiles() refunds_evidences: Array<Express.Multer.File>,
   ) {
     try {
       const user = req.user;
-      const refund = await this.refundService.update(id, updateRefundDto, user);
+      const refund = await this.refundService.update(
+        id,
+        updateRefundDto,
+        user,
+        refunds_evidences,
+      );
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Refund Updated',

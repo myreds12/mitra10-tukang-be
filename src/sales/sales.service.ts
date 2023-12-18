@@ -83,11 +83,11 @@ export class SalesService {
           id: createSalesDto.bank_id,
         },
       },
-      sales_brands: {
-        createMany: {
-          data: sales_brands,
-        },
-      },
+      // sales_brands: {
+      //   createMany: {
+      //     data: sales_brands,
+      //   },
+      // },
       sales_categories: {
         createMany: {
           data: sales_categories,
@@ -131,11 +131,11 @@ export class SalesService {
               {
                 OR: [
                   { full_name: { contains: search } },
-                  {
-                    sales_brands: {
-                      every: { brands: { name: { contains: search } } },
-                    },
-                  },
+                  // {
+                  //   sales_brands: {
+                  //     every: { brands: { name: { contains: search } } },
+                  //   },
+                  // },
                   {
                     sales_brand: { contains: search },
                   },
@@ -160,11 +160,11 @@ export class SalesService {
       include: {
         bank: true,
         store: true,
-        sales_brands: {
-          include: {
-            brands: true,
-          },
-        },
+        // sales_brands: {
+        //   include: {
+        //     brands: true,
+        //   },
+        // },
         sales_categories: {
           include: {
             categories: true,
@@ -190,11 +190,11 @@ export class SalesService {
       include: {
         bank: true,
         store: true,
-        sales_brands: {
-          include: {
-            brands: true,
-          },
-        },
+        // sales_brands: {
+        //   include: {
+        //     brands: true,
+        //   },
+        // },
         sales_categories: {
           include: {
             categories: true,
@@ -291,9 +291,10 @@ export class SalesService {
       bank_branch: updateSalesDto.bank_branch,
       full_name: updateSalesDto.full_name,
       nik: updateSalesDto.nik,
-      sales_brands: {
-        upsert: upsertSalesBrands,
-      },
+      sales_brand: updateSalesDto.sales_brand,
+      // sales_brands: {
+      //   upsert: upsertSalesBrands,
+      // },
       sales_categories: {
         upsert: upsertSalesCategories,
       },
@@ -301,22 +302,22 @@ export class SalesService {
       updated_by: user_id,
     };
 
-    const [syncSalesBrands, syncSalesCategories, updatedSales] =
+    const [syncSalesCategories, updatedSales] =
       await this.dbService.$transaction([
-        this.dbService.sales_brands.updateMany({
-          where: {
-            sales_id: id,
-            id: {
-              notIn: updateSalesDto.sales_brands.map(
-                ({ brand_id }) => brand_id,
-              ),
-            },
-          },
-          data: {
-            deleted_at: new Date(),
-            deleted_by: user_id,
-          },
-        }),
+        // this.dbService.sales_brands.updateMany({
+        //   where: {
+        //     sales_id: id,
+        //     id: {
+        //       notIn: updateSalesDto.sales_brands.map(
+        //         ({ brand_id }) => brand_id,
+        //       ),
+        //     },
+        //   },
+        //   data: {
+        //     deleted_at: new Date(),
+        //     deleted_by: user_id,
+        //   },
+        // }),
         this.dbService.sales_categories.updateMany({
           where: {
             sales_id: id,

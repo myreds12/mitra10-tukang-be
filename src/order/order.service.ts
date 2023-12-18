@@ -155,15 +155,28 @@ export class OrderService {
       this.dbService.orders.create(ordersOptions),
     ]);
 
-    await this.addHistory(order.id, order.project_status_id, user ,createOrderDto);
+    await this.addHistory(
+      order.id,
+      order.project_status_id,
+      user,
+      createOrderDto,
+    );
 
     return order;
   }
 
   async findAll(queryParams: QueryParamsDto) {
     // DO SEARCH AND PAGINATION LOGIC ...
-    const { take, page, search, status, date_from, date_to, order_by } =
-      queryParams;
+    const {
+      take,
+      page,
+      search,
+      status,
+      date_from,
+      date_to,
+      order_by,
+      sales_id,
+    } = queryParams;
     const skip = page * take - take;
     console.log(status);
 
@@ -179,6 +192,7 @@ export class OrderService {
               },
             ]
           : []),
+        ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
@@ -279,6 +293,10 @@ export class OrderService {
           },
         },
         m_order_details: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
           select: {
             id: true,
             order_id: true,
@@ -357,6 +375,10 @@ export class OrderService {
         vendor: true,
         store: true,
         m_order_details: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
           select: {
             id: true,
             order_id: true,
@@ -453,6 +475,7 @@ export class OrderService {
         created_by: user_id,
       }));
 
+    console.log('UpdaeDto', updateOrderDto);
     const order = await this.findOne(id);
 
     if (!order) throw new NotFoundException('Order not found');
@@ -460,6 +483,8 @@ export class OrderService {
     const providedDetailIds = updateOrderDto.order_details
       .filter((x) => Boolean(x.id))
       .map((x) => x.id);
+
+    console.log('Provide Details', providedDetailIds);
 
     const orderDetail = await this.dbService.m_order_details.findMany({
       where: {
@@ -477,6 +502,25 @@ export class OrderService {
                 periodic_end: { gte: new Date() },
               },
             },
+          },
+        },
+      },
+    });
+
+    const items = await this.dbService.items.findMany({
+      where: {
+        id: {
+          in: updateOrderDto.order_details
+            .filter((x) => Boolean(x.item_id))
+            .map((x) => x.item_id),
+        },
+      },
+      include: {
+        category: true,
+        prices: {
+          where: {
+            periodic_start: { lte: new Date() },
+            periodic_end: { gte: new Date() },
           },
         },
       },
@@ -544,8 +588,7 @@ export class OrderService {
         sales_categories: true,
       },
     });
-
-    const orderDetailItems = orderDetail.map((x) => x.item);
+    console.log('Order Detail', orderDetail);
 
     let grand_total = 0;
     let grand_total_comission = 0;
@@ -553,14 +596,16 @@ export class OrderService {
     const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
       updateOrderDto.order_details.map((item) => {
         let total = 0;
-        const currentItem = orderDetailItems?.find(
-          ({ id }) => id === item?.item_id,
-        );
+        const currentItem = items?.find(({ id }) => id === item?.item_id);
+        console.log('Details Item', items);
+        console.log('Current Item', currentItem);
 
         const itemPrice = (
           currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
             ?.price ?? currentItem.default_price
         ).toString();
+
+        console.log(currentItem.default_price);
 
         const comission = Number(
           salesUser?.sales_categories?.find(
@@ -569,7 +614,7 @@ export class OrderService {
         );
 
         if (
-          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY, PAYMENT_TYPE.SURVEY].includes(
+          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
             updateOrderDto.payment_type,
           )
         ) {
@@ -670,7 +715,12 @@ export class OrderService {
           },
         }),
       ]);
-    await this.addHistory(orderQuery.id, orderQuery.project_status_id, user, updateOrderDto)
+    await this.addHistory(
+      orderQuery.id,
+      orderQuery.project_status_id,
+      user,
+      updateOrderDto,
+    );
     return orderQuery;
   }
 
@@ -735,7 +785,7 @@ export class OrderService {
     return orders;
   }
 
-  async setStatus(id: number, status_id: number) {
+  async setStatus(id: number, status_id: number, user: users) {
     const order = await this.findOne(id);
 
     if (!order) throw new BadRequestException('Order does not Exist!');
@@ -763,6 +813,7 @@ export class OrderService {
         data: orderData,
       }),
     ]);
+    await this.addHistory(orders.id, orders.project_status_id, user, orders);
 
     return orders;
   }

@@ -4,11 +4,14 @@ import { QuotationController } from './quotation.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { OrderService } from 'src/order/order.service';
+import { OrderModule } from 'src/order/order.module';
 
 @Module({
   controllers: [QuotationController],
   providers: [QuotationService],
   imports: [
+    OrderModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/quotation',

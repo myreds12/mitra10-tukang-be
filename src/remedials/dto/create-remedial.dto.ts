@@ -13,6 +13,9 @@ export class CreateRemedialDto {
   @Type(() => Number)
   remedial_pic: number;
 
+  @Type(() => String)
+  remedial_pic_position: string;
+
   @Type(() => Number)
   remedial_status: number;
 

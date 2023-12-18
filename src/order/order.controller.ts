@@ -54,10 +54,12 @@ export class OrderController {
   async setStatus(
     @Param('id', ParseIntPipe) id: number,
     @Param('status_id', ParseIntPipe) status_id: number,
+    @Req() req: UserRequest,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const order = await this.orderService.setStatus(id, status_id);
+      const user = req.user;
+      const order = await this.orderService.setStatus(id, status_id, user);
 
       return res.status(200).json({
         status: HttpStatus.OK,

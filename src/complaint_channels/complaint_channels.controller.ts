@@ -9,7 +9,7 @@ export class ComplaintChannelsController {
   ) {}
   @Get('/')
   async findAll(@Query() query: QueryParamsDto, @Res() response) {
-    const findAll = await this.complaintChannelsService.findAll();
+    const findAll = await this.complaintChannelsService.findAll(query);
     return response.status(200).json({
       status: HttpStatus.OK,
       message: 'Get Channels',

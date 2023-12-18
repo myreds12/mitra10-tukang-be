@@ -287,7 +287,11 @@ export class InvoicesService {
         }),
         this.dbService.invoices.update(invoice_args),
       ]);
-    await this.setStatus(invoices, invoices.status_id, user);
+    await this.setStatus(
+      invoices,
+      updateInvoiceDto?.status_id ?? invoices.status_id,
+      user,
+    );
 
     return invoices;
   }

@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
@@ -23,9 +22,7 @@ import { CreateRemedialDto } from './dto/create-remedial.dto';
 import { UpdateRemedialDto } from './dto/update-remedial.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { users } from '@prisma/client';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 interface UserRequest extends IExpressRequest {

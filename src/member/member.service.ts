@@ -88,6 +88,13 @@ export class MemberService {
       };
       const member = await this.dbService.members.findMany({
         where,
+        include: {
+          order: {
+            include: {
+              complaints: true,
+            },
+          },
+        },
       });
       return {
         data: {

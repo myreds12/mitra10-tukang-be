@@ -4,14 +4,30 @@ import { UpdateRefundDto } from './dto/update-refund.dto';
 import { Prisma, users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { refund_evidences } from '@prisma/client';
 
 @Injectable()
 export class RefundService {
-  constructor(private readonly dbService: PrismaService) { }
-  async create(createRefundDto: CreateRefundDto, user: users) {
+  constructor(private readonly dbService: PrismaService) {}
+  async create(
+    createRefundDto: CreateRefundDto,
+    user: users,
+    refunds_evidences: Express.Multer.File[],
+  ) {
     const { id: user_id } = user;
 
-    const refundConn = {
+    const evidences:
+      | Array<Prisma.refund_evidencesCreateManyRefundInput>
+      | undefined =
+      refunds_evidences?.map((evidence) => ({
+        evidence_location: evidence.filename,
+        created_by: user_id,
+      })) ?? undefined;
+
+    const RefundData: Prisma.refundCreateInput = {
+      refund_evidences: {
+        create: evidences,
+      },
       orders: {
         connect: {
           id: createRefundDto.order_id,
@@ -22,8 +38,6 @@ export class RefundService {
           id: createRefundDto.refund_status,
         },
       },
-    };
-    const refundData = {
       date_approve: new Date(createRefundDto.date_approve),
       date_of_filing: new Date(createRefundDto.date_of_filing),
       notes: createRefundDto.notes,
@@ -35,11 +49,9 @@ export class RefundService {
       voucher: createRefundDto.voucher ? createRefundDto.voucher : null,
       created_by: user_id,
     };
+
     const refund = await this.dbService.refund.create({
-      data: {
-        ...refundConn,
-        ...refundData,
-      },
+      data: RefundData,
     });
 
     return refund;
@@ -52,24 +64,24 @@ export class RefundService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { voucher: { contains: search } },
-                { reason: { contains: search } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { voucher: { contains: search } },
+                  { reason: { contains: search } },
+                ],
+              },
+            ]
           : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -130,8 +142,21 @@ export class RefundService {
     return refund;
   }
 
-  async update(id: number, updateRefundDto: UpdateRefundDto, user: users) {
+  async update(
+    id: number,
+    updateRefundDto: UpdateRefundDto,
+    user: users,
+    refunds_evidences: Express.Multer.File[],
+  ) {
     const { id: user_id } = user;
+
+    const evidences: Array<Prisma.refund_evidencesCreateManyRefundInput> =
+      refunds_evidences
+        ? refunds_evidences.map((evidence) => ({
+            evidence_location: evidence.filename,
+            created_by: user_id,
+          }))
+        : undefined;
 
     const refundConn = {
       orders: {

@@ -40,6 +40,9 @@ export class UpdateSalesDto {
   @IsOptional()
   account_name?: string;
 
+  @IsString()
+  sales_brand: string;
+
   @ApiProperty()
   sales_brands?: SalesBrandsDto[];
 

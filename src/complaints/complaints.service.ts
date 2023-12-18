@@ -8,7 +8,7 @@ import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { Prisma, complaints } from '@prisma/client';
+import { Prisma, complaints, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 
 @Injectable()
@@ -19,9 +19,10 @@ export class ComplaintsService {
   ) {}
   async create(
     createComplaintDto: CreateComplaintDto,
-    user_id: number,
+    user: users,
     complaint_evidences: Array<Express.Multer.File>,
   ) {
+    const { id: user_id } = user;
     console.log('createComplaintDto', createComplaintDto);
 
     const evidences: Array<Prisma.complaint_evidenceCreateManyComplaintsInput> =
@@ -75,6 +76,7 @@ export class ComplaintsService {
     const order = this.orderService.setStatus(
       createComplaintDto.order_id,
       createComplaintDto.complaint_status,
+      user,
     );
 
     const [complaint] = await this.dbService.$transaction([
@@ -168,9 +170,10 @@ export class ComplaintsService {
   async update(
     id: number,
     updateComplaintDto: UpdateComplaintDto,
-    user_id: number,
+    user: users,
     complaint_evidences: Array<Express.Multer.File>,
   ) {
+    const { id: user_id } = user;
     const complaints = await this.dbService.complaints.findFirst({
       where: {
         id,
@@ -255,6 +258,7 @@ export class ComplaintsService {
     this.orderService.setStatus(
       updateComplaintDto?.order_id,
       updateComplaintDto?.complaint_status,
+      user,
     );
 
     const [complaint] = await this.dbService.$transaction([
@@ -292,7 +296,7 @@ export class ComplaintsService {
     return complaints[0] || null;
   }
 
-  async setStatus(id: number, status_id: number) {
+  async setStatus(id: number, status_id: number, payload: { reason?: string }) {
     const complaint = await this.dbService.complaints.findFirst({
       where: {
         id,
@@ -319,6 +323,7 @@ export class ComplaintsService {
             id: status_id,
           },
         },
+        reason: payload?.reason,
       },
     });
 

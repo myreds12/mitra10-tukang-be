@@ -64,11 +64,16 @@ export class ComplaintsController {
   async setStatus(
     @Param('id') id: number,
     @Param('status_id') status_id: number,
+    @Body() payload: { reason?: string },
     @Req() req: UserRequest,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const setStatus = await this.complaintsService.setStatus(id, status_id);
+      const setStatus = await this.complaintsService.setStatus(
+        id,
+        status_id,
+        payload,
+      );
       return res.status(200).json({
         status: HttpStatus.CREATED,
         message: 'Status Changed',
@@ -92,10 +97,10 @@ export class ComplaintsController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const user_id = req.user.id;
+      const user = req.user;
       const complaint = await this.complaintsService.create(
         createComplaintDto,
-        user_id,
+        user,
         complaint_evidences,
       );
       return res.status(201).json({
@@ -163,11 +168,11 @@ export class ComplaintsController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const user_id = req.user.id;
+      const user = req.user;
       const complaint = await this.complaintsService.update(
         +id,
         updateComplaintDto,
-        user_id,
+        user,
         complaint_evidences,
       );
       return res.status(200).json({

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 export async function CitySeed() {
-  const city = [
+  const cities = [
     'Denpasar',
     'Bandung',
     'Batu',
@@ -107,8 +107,6 @@ export async function CitySeed() {
   ];
 
   await prisma.city.createMany({
-    data: city.map((x) => ({
-      city_name: x,
-    })),
+    data: cities.map((city) => ({ city_name: city })),
   });
 }

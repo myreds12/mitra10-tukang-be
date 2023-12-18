@@ -19,7 +19,10 @@ export class WorkOrdersService {
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
-    work_order_evidences?: Array<Express.Multer.File>,
+    files: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
   ) {
     const { id: user_id } = user;
 
@@ -29,13 +32,21 @@ export class WorkOrdersService {
     if (!order.vendor_id)
       throw new BadRequestException("Order doesn't have any vendor assigned.");
 
-    const evidences: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
-      work_order_evidences?.map((evidences) => ({
+    const evidencesBefore: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
+      files.work_order_after?.map((evidences) => ({
         evidence_location: evidences.filename,
         created_by: user_id,
+        type: 2,
       }));
 
-    console.log(dataDto.work_order_tukang);
+    const evidencesAfter: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
+      files.work_order_after?.map((evidences) => ({
+        evidence_location: evidences.filename,
+        created_by: user_id,
+        type: 3,
+      }));
+
+    const evidences = [].concat(evidencesBefore ?? [], evidencesAfter ?? []);
 
     const workOrderTukang: Prisma.work_order_tukangCreateManyWork_ordersInput[] =
       dataDto.work_order_tukang?.map((item) => {
@@ -94,18 +105,10 @@ export class WorkOrdersService {
       },
     };
 
-    this.orderService.setStatus(order.id, dataDto.work_order_status);
+    this.orderService.setStatus(order.id, dataDto.work_order_status, user);
 
     const [work_order] = await this.dbService.$transaction([
       this.dbService.work_orders.create(work_order_data),
-      // this.dbService.orders.update({
-      //   where: {
-      //     id: dataDto.order_id,
-      //   },
-      //   data: {
-      //     project_status_id: dataDto.work_order_status,
-      //   },
-      // }),
     ]);
 
     return work_order;
@@ -149,7 +152,13 @@ export class WorkOrdersService {
         created_at: order_by,
       },
       include: {
-        order: true,
+        order: {
+          include: {
+            store: true,
+            sales: true,
+            members: true,
+          },
+        },
         work_order_tukang: {
           include: {
             tukang: true,
@@ -446,8 +455,9 @@ export class WorkOrdersService {
                 .filter((x) => Boolean(x?.id))
                 .map((x) => x.id),
             },
-            work_order_status_id: NEW_STATUS?.id ?? 0,
+            work_order_status_id: recentWorkStatus?.id ?? 0,
             work_order_status: {
+              status_id: NEW_STATUS?.id ?? 0,
               work_order: {
                 id,
               },

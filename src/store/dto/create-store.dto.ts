@@ -1,24 +1,42 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsInt, IsOptional } from 'class-validator';
 
 export class CreateStoreDto {
-  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   store_name: string;
 
-  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   address: string;
 
-  @ApiProperty()
   @IsInt()
   city_id: number;
 
-  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   zip_code: string;
 
+  @IsString()
+  @IsNotEmpty()
+  phone_number_1: string;
+
+  @IsString()
+  @IsOptional()
+  phone_number_2: string;
+
+  @IsString()
+  @IsNotEmpty()
+  bank_account: string;
+
+  @IsString()
+  @IsNotEmpty()
+  bank_name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  bank_number: string;
+
+  @IsString()
+  @IsNotEmpty()
+  email: string;
 }

@@ -3,6 +3,8 @@ import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { isNumber } from 'class-validator';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class StoreService {
@@ -35,14 +37,38 @@ export class StoreService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to, order_by } = query;
+    const {
+      take,
+      page,
+      search,
+      status,
+      date_from,
+      date_to,
+      order_by,
+      city_id,
+    } = query;
+
     const skip = page * take - take;
 
+    const where: Prisma.storeWhereInput = {
+      city_id: city_id ?? undefined,
+    };
+
     const store = await this.dbService.store.findMany({
-      take: undefined,
+      where,
+      skip,
+      take: take <= 0 ? undefined : take,
+      include: {
+        city: true,
+      },
     });
 
-    return store;
+    return {
+      data: store,
+      total: store.length,
+      page,
+      take,
+    };
   }
 
   async findOne(id: number) {

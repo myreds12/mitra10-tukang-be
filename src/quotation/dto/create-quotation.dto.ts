@@ -1,50 +1,11 @@
-import { Transform, Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsIn,
-  IsNotEmpty,
-  IsNumber,
-  ValidateIf,
-  ValidateNested,
-} from 'class-validator';
-import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+import QuotationDetails from './quotation-details';
 
-class QuotationDetails {
-  @Type(() => Number)
-  item_id?: number;
-
-  @Type(() => Number)
-  @ValidateIf(
-    (object: QuotationDetails, value: number | undefined | null) =>
-      object.type === WorkOrderMaterialType.MATERIAL && Boolean(value),
-    {
-      message: 'category_id is required when type is 2 or MATERIAL',
-    },
-  )
-  category_id?: number;
-
-  @Type(() => Number)
-  work_order_item_id?: number;
-
-  @Transform(({ value }) => Number(value))
-  @IsEnum(WorkOrderMaterialType)
-  type: WorkOrderMaterialType;
-
-  name: string;
-
-  @Transform(({ value }) => Number(value))
-  price: string | number;
-
-  @Transform(({ value }) => Number(value))
-  margin: string | number;
-
-  @Type(() => Number)
-  quantity: number;
-
-  @IsNotEmpty()
-  @Type(() => Number)
-  @IsIn([0, 1])
-  is_customer: number;
+class QuotationFile {
+  id?: number;
+  type?: string;
+  file: Express.Multer.File;
 }
 
 export class CreateQuotationDto {
@@ -66,4 +27,8 @@ export class CreateQuotationDto {
   quotation_details: QuotationDetails[];
 
   quotation_files: Express.Multer.File[];
+
+  @Type(() => QuotationFile)
+  @ValidateNested({ each: true })
+  quotation_files_new: QuotationFile[];
 }

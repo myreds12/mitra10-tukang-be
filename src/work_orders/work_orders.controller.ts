@@ -24,7 +24,10 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { response } from 'express';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { StatusDetails } from './dto/work-order-status.dto';
@@ -36,7 +39,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) { }
+  constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post(':id/set-materials')
   @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
@@ -51,7 +54,7 @@ export class WorkOrdersController {
       id,
       req.user,
       body,
-      work_order_evidences
+      work_order_evidences,
     );
     return res.status(201).json({
       status: HttpStatus.CREATED,
@@ -61,24 +64,39 @@ export class WorkOrdersController {
   }
 
   @Post('')
-  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      {
+        name: 'work_order_before',
+        maxCount: 5,
+      },
+      {
+        name: 'work_order_after',
+        maxCount: 5,
+      },
+    ]),
+  )
   async create(
     @Body() dataDto: CreateWorkOrderDto,
     @Request() req: UserRequest,
     @Res() res: IExpressResponse,
-    @UploadedFiles() work_order_evidences: Express.Multer.File[],
+    @UploadedFiles()
+    files: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
   ) {
     try {
+      const { work_order_after, work_order_before } = files;
       if (!dataDto.work_order_tukang)
         throw new BadRequestException('Tukang cannot be null');
-      // THROW NEW ERROR WHEN NO TUKANG
       if (!dataDto.work_order_tukang.length)
         throw new BadRequestException('Tukang should be an one or many.');
 
       const work_orders = await this.workOrdersService.create(
         dataDto,
         req.user,
-        work_order_evidences,
+        files,
       );
 
       return res.status(201).json({
@@ -88,7 +106,6 @@ export class WorkOrdersController {
       });
     } catch (error) {
       console.log(error);
-
 
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,

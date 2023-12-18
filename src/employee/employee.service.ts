@@ -6,6 +6,7 @@ import { hash } from 'bcrypt';
 import { createApiPropertyDecorator } from '@nestjs/swagger/dist/decorators/api-property.decorator';
 import { connect } from 'http2';
 import { Prisma } from '@prisma/client';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -88,7 +89,7 @@ export class EmployeeService {
     }
   }
 
-  async findAll() {
+  async findAll(queryParamsDto: QueryParamsDto) {
     try {
       const include: Prisma.employeeInclude = {
         positions: true,

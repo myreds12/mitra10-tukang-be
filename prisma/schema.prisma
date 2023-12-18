@@ -25,18 +25,21 @@ model bank {
 }
 
 model city {
-  id          Int           @id @default(autoincrement())
+  id          Int    @id @default(autoincrement())
   province_id Int?
-  city_name   String        @db.VarChar(255)
-  created_at  DateTime      @default(now()) @db.DateTime()
-  updated_at  DateTime?     @db.DateTime()
-  deleted_at  DateTime?     @db.DateTime()
-  created_by  Int?
-  updated_by  Int?
-  deleted_by  Int?
-  members     members[]
+  city_name   String @db.VarChar(255)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
   province    province?     @relation(fields: [province_id], references: [id])
   vendor_area vendor_area[]
+  store       store[]
 }
 
 model employee {
@@ -122,7 +125,6 @@ model members {
   updated_by Int?
   deleted_by Int?
 
-  city                city?    @relation(fields: [city_id], references: [id])
   order               orders[]
   join_location_store store?   @relation(fields: [join_location], references: [id])
 }
@@ -337,12 +339,18 @@ model service_type {
 }
 
 model store {
-  id Int @id @default(autoincrement())
+  id      Int  @id @default(autoincrement())
+  city_id Int?
 
-  store_name String  @db.VarChar(45)
-  address    String  @db.VarChar(255)
-  city_id    Int?
-  zip_code   String? @default("") @db.VarChar(45)
+  email          String  @default("")
+  store_name     String  @db.VarChar(45)
+  address        String  @db.VarChar(255)
+  zip_code       String? @default("") @db.VarChar(45)
+  phone_number_1 String? @default("")
+  phone_number_2 String? @default("")
+  bank_name      String? @default("")
+  bank_account   String? @default("")
+  bank_number    String? @default("")
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -358,6 +366,8 @@ model store {
   orders    orders[]
   quotation quotation[]
   members   members[]
+
+  city city? @relation(fields: [city_id], references: [id])
 }
 
 model tukang {
@@ -742,6 +752,8 @@ model quotation_details {
   margin      Decimal? @default(0) @db.Decimal(32, 2)
   final_price Decimal? @default(0) @db.Decimal(32, 2)
   quantity    Int      @default(0)
+  description String?  @default("") @db.Text()
+  unit        String?  @default("") @db.Text()
   is_customer Boolean  @default(false)
 
   created_by Int?
@@ -797,6 +809,7 @@ model complaints {
   complaint_channel Int?
   complaint_status  Int
 
+  reason         String   @default("") @db.Text()
   description    String   @db.Text()
   complaint_date DateTime @db.Date()
 
@@ -833,14 +846,15 @@ model complaint_evidence {
 }
 
 model remedials {
-  id Int @id @default(autoincrement())
+  id           Int  @id @default(autoincrement())
+  remedial_pic Int?
+  complaint_id Int
 
-  complaint_id    Int
-  remedial_action String
-  ra_date_start   DateTime  @db.Date()
-  ra_date_end     DateTime? @db.Date()
-  remedial_pic    Int?
-  remedial_status Int?
+  remedial_action      String
+  ra_date_start        DateTime  @db.Date()
+  ra_date_end          DateTime? @db.Date()
+  remedial_pic_positon String?   @default("") @db.VarChar(50)
+  remedial_status      Int?
 
   created_by Int?
   updated_by Int?
@@ -920,6 +934,7 @@ model work_order_evidences {
 
   work_order_id     Int
   evidence_location String
+  type              Int @default(1) // 1 = default, 2 = before, 3 = after
 
   created_by Int?
   updated_by Int?
@@ -1059,6 +1074,24 @@ model refund {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  orders orders  @relation(fields: [order_id], references: [id])
-  status status? @relation(fields: [refund_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders           orders             @relation(fields: [order_id], references: [id])
+  status           status?            @relation(fields: [refund_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  refund_evidences refund_evidences[]
+}
+
+model refund_evidences {
+  id Int @id @default(autoincrement())
+
+  refund_id         Int
+  evidence_location String
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  refund refund @relation(fields: [refund_id], references: [id])
 }
