@@ -187,6 +187,7 @@ export class OrderService {
               {
                 OR: [
                   { receipt_number: { contains: search } },
+                  { request_survey: { equals: new Date(search) } },
                   { members: { full_name: { contains: search } } },
                 ],
               },

@@ -51,6 +51,7 @@ export class WorkOrdersService {
     const workOrderTukang: Prisma.work_order_tukangCreateManyWork_ordersInput[] =
       dataDto.work_order_tukang?.map((item) => {
         return {
+          type: item.type,
           tukang_id: item.tukang_id,
           created_by: user_id,
         };
@@ -270,9 +271,11 @@ export class WorkOrdersService {
             id: item.id ?? 0,
           },
           update: {
+            type: item.type,
             tukang_id: item.tukang_id,
           },
           create: {
+            type: item.type,
             tukang_id: item.tukang_id,
           },
         };

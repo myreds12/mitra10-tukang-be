@@ -25,7 +25,7 @@ export class ComplaintsService {
     const { id: user_id } = user;
     console.log('createComplaintDto', createComplaintDto);
 
-    const evidences: Array<Prisma.complaint_evidenceCreateManyComplaintsInput> =
+    const evidences: Array<Prisma.complaint_evidenceCreateManyComplaint_historiesInput> =
       complaint_evidences.map((file) => ({
         evidence_location: file.filename,
         created_by: user_id,
@@ -33,11 +33,12 @@ export class ComplaintsService {
 
     const COMPLAINT_STATUS = await this.dbService.status.findFirst({
       where: {
-        category: {
-          equals: 'investigate',
-        },
+        id: createComplaintDto.complaint_status,
       },
     });
+
+    if (!COMPLAINT_STATUS.category.includes('INVESTIGATED' || 'WARRANTYCLAIM'))
+      throw new BadRequestException('Status does not exist!');
 
     const findOrder = await this.dbService.orders.findFirst({
       where: {
@@ -45,7 +46,12 @@ export class ComplaintsService {
       },
     });
 
-    if (!findOrder) throw new BadRequestException('Order does bot exist!');
+    if (!findOrder) throw new BadRequestException('Order does not exist!');
+    let now = new Date();
+    now.setDate(now.getDate() + 7);
+
+    if (createComplaintDto.type === 2 && findOrder.created_at < now)
+      throw new BadRequestException('You cannot claim this order!'); //FIXME: FIX THE MESSAGE
 
     const complaintData: Prisma.complaintsCreateInput = {
       orders: {
@@ -65,11 +71,19 @@ export class ComplaintsService {
       },
       description: createComplaintDto.description,
       complaint_date: new Date(createComplaintDto.complaint_date),
+      type: createComplaintDto.type,
       // status: COMPLAINT_STATUS.id,
       // complaint_status: COMPLAINT_STATUS.id,
       created_by: user_id,
-      complaint_evidence: {
-        createMany: { data: evidences },
+      complaint_histories: {
+        create: {
+          status_id: COMPLAINT_STATUS.id,
+          reason: createComplaintDto.complaint_histories.reason ?? undefined,
+          created_by: user_id,
+          complaint_evidence: {
+            createMany: { data: evidences },
+          },
+        },
       },
     };
 
@@ -117,7 +131,12 @@ export class ComplaintsService {
       },
       include: {
         complaint_channels: true,
-        complaint_evidence: true,
+        complaint_histories: {
+          include: {
+            status: true,
+            complaint_evidence: true,
+          },
+        },
         remedials: true,
         status: true,
         orders: {
@@ -144,7 +163,12 @@ export class ComplaintsService {
       },
       include: {
         complaint_channels: true,
-        complaint_evidence: true,
+        complaint_histories: {
+          include: {
+            status: true,
+            complaint_evidence: true,
+          },
+        },
         remedials: true,
         status: true,
         orders: {
@@ -178,10 +202,10 @@ export class ComplaintsService {
       where: {
         id,
       },
-      include: {
-        orders: true,
-      },
     });
+
+    if (!complaints)
+      throw new HttpException('Complaint Not Found!', HttpStatus.NOT_FOUND);
 
     console.log('updateComplaintDto', updateComplaintDto);
 
@@ -207,7 +231,8 @@ export class ComplaintsService {
 
     await this.dbService.complaint_evidence.updateMany({
       where: {
-        complaint_id: id,
+        complaint_history_id:
+          updateComplaintDto.complaint_histories.id ?? undefined,
       },
       data: {
         deleted_at: new Date(),
@@ -245,13 +270,20 @@ export class ComplaintsService {
           : undefined,
         complaint_status: updateComplaintDto?.complaint_status,
         updated_by: user_id,
-        complaint_evidence: evidences.length
-          ? {
-              createMany: {
-                data: evidences,
-              },
-            }
-          : undefined,
+        complaint_histories: {
+          create: {
+            status_id: complaints.complaint_status,
+            reason: updateComplaintDto?.complaint_histories.reason ?? undefined,
+            created_by: user_id,
+            complaint_evidence: evidences.length
+              ? {
+                  createMany: {
+                    data: evidences,
+                  },
+                }
+              : undefined,
+          },
+        },
       }).filter(([key, value]) => value !== undefined),
     );
     console.log('complaintData', complaintData);
@@ -323,7 +355,6 @@ export class ComplaintsService {
             id: status_id,
           },
         },
-        reason: payload?.reason,
       },
     });
 

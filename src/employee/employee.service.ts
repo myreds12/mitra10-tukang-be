@@ -100,16 +100,9 @@ export class EmployeeService {
         include,
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Get Data',
-        data: employee,
-      };
+      return employee;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data',
-      };
+      return error;
     }
   }
 

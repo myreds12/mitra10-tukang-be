@@ -30,7 +30,13 @@ export class EmployeeController {
 
   @Get('/')
   async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
-    return await this.employeeService.findAll(queryParamsDto);
+    try {
+      const data = await this.employeeService.findAll(queryParamsDto);
+
+      return data;
+    } catch (error) {
+      return error;
+    }
   }
 
   @Get('/:id')

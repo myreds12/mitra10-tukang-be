@@ -55,7 +55,7 @@ export class StoreService {
     };
 
     const store = await this.dbService.store.findMany({
-      where,
+      // where,
       skip,
       take: take <= 0 ? undefined : take,
       include: {

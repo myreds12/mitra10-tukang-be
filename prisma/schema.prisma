@@ -536,20 +536,21 @@ model vendor_service {
 }
 
 model status {
-  id                Int                 @id @default(autoincrement())
-  category          String
-  description       String
-  created_at        DateTime            @default(now()) @db.DateTime()
-  updated_at        DateTime?
-  order             orders[]
-  complaints        complaints[]
-  work_orders       work_orders[]
-  quotation         quotation[]
-  remedials         remedials[]
-  refund            refund[]
-  work_order_status work_order_status[]
-  order_history     order_histories[]
-  invoices          invoices[]
+  id                  Int                   @id @default(autoincrement())
+  category            String
+  description         String
+  created_at          DateTime              @default(now()) @db.DateTime()
+  updated_at          DateTime?
+  order               orders[]
+  complaints          complaints[]
+  work_orders         work_orders[]
+  quotation           quotation[]
+  remedials           remedials[]
+  refund              refund[]
+  work_order_status   work_order_status[]
+  order_history       order_histories[]
+  invoices            invoices[]
+  compliant_histories complaint_histories[]
 }
 
 model orders {
@@ -803,15 +804,17 @@ model complaint_channels {
 }
 
 model complaints {
-  id Int @id @default(autoincrement())
-
+  id                Int  @id @default(autoincrement())
   order_id          Int
   complaint_channel Int?
-  complaint_status  Int
+  complaint_status  Int?
+  type              Int  @default(1) // 1 = COMPLAINT, 2 =  CLAIMGARANSI
 
-  reason         String   @default("") @db.Text()
-  description    String   @db.Text()
+  description String @db.Text()
+
   complaint_date DateTime @db.Date()
+  feedback_name  String?  @db.VarChar(50)
+  feedback_role  String?  @db.VarChar(50)
 
   created_by Int?
   updated_by Int?
@@ -821,28 +824,48 @@ model complaints {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  orders             orders               @relation(fields: [order_id], references: [id])
-  status             status?              @relation(fields: [complaint_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders              orders                @relation(fields: [order_id], references: [id])
+  complaint_channels  complaint_channels?   @relation(fields: [complaint_channel], references: [id])
+  status              status?               @relation(fields: [complaint_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  remedials           remedials[]
+  complaint_histories complaint_histories[]
+}
+
+model complaint_histories {
+  id Int @id @default(autoincrement())
+
+  complaint_id Int
+  status_id    Int
+
+  reason String @default("") @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  complaints         complaints           @relation(fields: [complaint_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status             status               @relation(fields: [status_id], references: [id])
   complaint_evidence complaint_evidence[]
-  remedials          remedials[]
-  complaint_channels complaint_channels?  @relation(fields: [complaint_channel], references: [id])
 }
 
 model complaint_evidence {
   id Int @id @default(autoincrement())
 
-  complaint_id      Int
-  evidence_location String @db.Text()
+  complaint_history_id Int?
+  evidence_location    String @db.Text()
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-
-  complaints complaints @relation(fields: [complaint_id], references: [id])
+  created_at          DateTime             @default(now()) @db.DateTime()
+  updated_at          DateTime?            @db.DateTime()
+  deleted_at          DateTime?            @db.DateTime()
+  complaint_histories complaint_histories? @relation(fields: [complaint_history_id], references: [id])
 }
 
 model remedials {
@@ -890,12 +913,13 @@ model work_orders {
   id        Int @id @default(autoincrement())
   order_id  Int @unique
   vendor_id Int
+  status_id Int
 
-  status_id         Int
   request_work_time DateTime? @default(now()) @db.DateTime()
   survey_date       DateTime  @db.Date()
-  work_start_date   DateTime  @db.Date()
-  work_end_date     DateTime  @db.Date()
+
+  work_start_date DateTime @db.Date()
+  work_end_date   DateTime @db.Date()
 
   created_by Int?
   updated_by Int?
@@ -916,6 +940,7 @@ model work_order_tukang {
   id            Int @id @default(autoincrement())
   work_order_id Int
   tukang_id     Int
+  type          Int @default(1) // 1 = SURVEY, 2 = PENGERJAAN
 
   created_by Int?
   updated_by Int?
@@ -934,7 +959,7 @@ model work_order_evidences {
 
   work_order_id     Int
   evidence_location String
-  type              Int @default(1) // 1 = default, 2 = before, 3 = after
+  type              Int    @default(1) // 1 = default, 2 = before, 3 = after
 
   created_by Int?
   updated_by Int?
