@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,7 +19,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) {}
+  ) { }
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -61,6 +62,9 @@ export class OrderService {
         },
       },
     });
+    console.log(orderDetailItems, 'Details Item');
+
+    if (orderDetailItems.some((item) => item === null)) throw new BadRequestException('Item not found!');
 
     let grand_total = 0;
     let grand_total_comission = 0;
@@ -184,26 +188,26 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { request_survey: { equals: new Date(search) } },
-                  { members: { full_name: { contains: search } } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { receipt_number: { contains: search } },
+                { request_survey: { equals: new Date(search) } },
+                { members: { full_name: { contains: search } } },
+              ],
+            },
+          ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -539,10 +543,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-          where: {
-            id: updateOrderDto.project_status_id,
-          },
-        })
+        where: {
+          id: updateOrderDto.project_status_id,
+        },
+      })
       : null;
 
     let projectStatusDefault = order.status;

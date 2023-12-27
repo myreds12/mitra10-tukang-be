@@ -342,15 +342,16 @@ model store {
   id      Int  @id @default(autoincrement())
   city_id Int?
 
-  email          String  @default("")
-  store_name     String  @db.VarChar(45)
-  address        String  @db.VarChar(255)
-  zip_code       String? @default("") @db.VarChar(45)
-  phone_number_1 String? @default("")
-  phone_number_2 String? @default("")
-  bank_name      String? @default("")
-  bank_account   String? @default("")
-  bank_number    String? @default("")
+  email              String  @default("")
+  store_name         String  @db.VarChar(45)
+  address            String  @db.VarChar(255)
+  additional_address String? @db.VarChar(255)
+  zip_code           String? @default("") @db.VarChar(45)
+  phone_number_1     String? @default("")
+  phone_number_2     String? @default("")
+  bank_name          String? @default("")
+  bank_account       String? @default("")
+  bank_number        String? @default("")
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -471,7 +472,7 @@ model vendor_area {
   id               Int       @id @default(autoincrement())
   vendor_id        Int?
   city_id          Int?
-  default_discount Decimal   @db.Decimal(32, 2)
+  default_discount Decimal   @default(0) @db.Decimal(32, 2)
   default_markup   String    @db.VarChar(45)
   default_unit     String    @default("unit") @db.VarChar(45)
   is_active        Boolean   @default(true)
@@ -1083,13 +1084,13 @@ model refund {
   order_id      Int
   refund_status Int
 
-  notes           String   @db.Text()
-  reason          String   @db.Text()
-  approval_number String   @db.VarChar(100)
-  voucher         String?  @db.VarChar(100)
-  penalty_nominal Decimal? @db.Decimal(32, 2)
-  date_approve    DateTime @db.DateTime
-  date_of_filing  DateTime @db.DateTime
+  notes           String    @db.Text()
+  reason          String    @db.Text()
+  approval_number String?   @db.VarChar(100)
+  voucher         String?   @db.VarChar(100)
+  penalty_nominal Decimal?  @db.Decimal(32, 2)
+  date_approve    DateTime? @db.DateTime
+  date_of_filing  DateTime  @db.DateTime
 
   created_by Int?
   updated_by Int?

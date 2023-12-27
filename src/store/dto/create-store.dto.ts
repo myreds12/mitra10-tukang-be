@@ -16,6 +16,10 @@ export class CreateStoreDto {
   @IsNotEmpty()
   zip_code: string;
 
+  @IsOptional()
+  @IsString()
+  additional_address: string;
+
   @IsString()
   @IsNotEmpty()
   phone_number_1: string;

@@ -8,18 +8,18 @@ import { refund_evidences } from '@prisma/client';
 
 @Injectable()
 export class RefundService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     createRefundDto: CreateRefundDto,
     user: users,
-    refunds_evidences: Express.Multer.File[],
+    refund_evidences: Express.Multer.File[],
   ) {
     const { id: user_id } = user;
 
     const evidences:
       | Array<Prisma.refund_evidencesCreateManyRefundInput>
       | undefined =
-      refunds_evidences?.map((evidence) => ({
+      refund_evidences?.map((evidence) => ({
         evidence_location: evidence.filename,
         created_by: user_id,
       })) ?? undefined;
@@ -64,24 +64,24 @@ export class RefundService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { voucher: { contains: search } },
-                  { reason: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { voucher: { contains: search } },
+                { reason: { contains: search } },
+              ],
+            },
+          ]
           : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -153,9 +153,9 @@ export class RefundService {
     const evidences: Array<Prisma.refund_evidencesCreateManyRefundInput> =
       refunds_evidences
         ? refunds_evidences.map((evidence) => ({
-            evidence_location: evidence.filename,
-            created_by: user_id,
-          }))
+          evidence_location: evidence.filename,
+          created_by: user_id,
+        }))
         : undefined;
 
     const refundConn = {

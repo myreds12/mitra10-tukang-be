@@ -11,6 +11,7 @@ import {
   Query,
   Res,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { CreateStoreDto } from './dto/create-store.dto';
@@ -21,19 +22,47 @@ import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
+
+interface UserRequest extends IExpressRequest {
+  user: users;
+}
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { users } from '@prisma/client';
 @ApiTags('Stores')
 @Controller('stores')
 @UseGuards(JwtAuthGuard)
 export class StoreController {
-  constructor(private readonly storeService: StoreService) {}
+  constructor(private readonly storeService: StoreService) { }
+
+  @Get('next-code')
+  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
+    try {
+      const code = await this.storeService.getCode();
+      let nextCode = 1;
+      if (code) nextCode = code.id + 1;
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Store code pulled',
+        data: { code: nextCode },
+      });
+    } catch (error) {
+      console.error(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While pulling complaint code',
+        stack: error,
+      });
+    }
+  }
 
   @Post('/')
   async create(@Body() createStoreDto: CreateStoreDto, @Request() req) {
     const user_id = req.user.id;
 
-    return this.storeService.create(createStoreDto, user_id);
+    return await this.storeService.create(createStoreDto, user_id);
   }
 
   @Get('/')

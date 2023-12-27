@@ -43,12 +43,13 @@ export class CreateVendorDto {
 
   @IsString()
   pic_name: string;
-  
+
   @IsString()
   markup: string;
-  
+
   @IsString()
-  discount: string;
+  @IsOptional()
+  discount?: string;
 
   @IsString()
   account_name: string;
