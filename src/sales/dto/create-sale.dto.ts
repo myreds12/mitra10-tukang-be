@@ -15,34 +15,35 @@ export class CreateSalesDto {
   @ApiProperty()
   @IsString()
   full_name: string;
-  
+
   @ApiProperty()
   @IsString()
   @IsOptional()
   nik?: string;
-  
+
   @ApiProperty()
   @IsInt()
   @IsOptional()
   store_id?: number;
-  
+
   @IsOptional()
   bank_id?: number;
-  
+
   @IsOptional()
   bank_branch?: string;
-  
-  @ApiProperty()
+
+  @IsOptional()
   @IsString()
   account_number: string;
-  
-  @ApiProperty()
+
+  @IsOptional()
   @IsString()
   phone_number: string;
 
   @IsOptional()
   account_name?: string;
 
+  @IsOptional()
   @IsString()
   sales_brand: string;
 

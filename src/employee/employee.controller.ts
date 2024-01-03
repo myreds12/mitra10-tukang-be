@@ -10,6 +10,7 @@ import {
   Request,
   Query,
   Res,
+  HttpStatus,
 } from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -20,7 +21,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 @Controller('employees')
 @UseGuards(JwtAuthGuard)
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) {}
+  constructor(private readonly employeeService: EmployeeService) { }
 
   @Post('/')
   async create(@Body() createEmployeeDto: CreateEmployeeDto, @Request() req) {
@@ -31,9 +32,13 @@ export class EmployeeController {
   @Get('/')
   async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
     try {
-      const data = await this.employeeService.findAll(queryParamsDto);
 
-      return data;
+      const data = await this.employeeService.findAll(queryParamsDto);
+      return response.status(200).json({
+        status: HttpStatus.OK,
+        data,
+        message: 'success'
+      });
     } catch (error) {
       return error;
     }

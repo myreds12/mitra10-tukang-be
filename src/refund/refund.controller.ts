@@ -33,12 +33,12 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('refund')
 export class RefundController {
-  constructor(private readonly refundService: RefundService) {}
+  constructor(private readonly refundService: RefundService) { }
 
   @Post()
-  @UseInterceptors(FilesInterceptor('refunds_evidences'))
+  @UseInterceptors(FilesInterceptor('refund_evidences'))
   async create(
-    @UploadedFiles() refunds_evidences: Array<Express.Multer.File>,
+    @UploadedFiles() refund_evidences: Array<Express.Multer.File>,
     @Body() createRefundDto: CreateRefundDto,
     @Req() req: UserRequest,
     @Res() res: IExpressResponse,
@@ -48,7 +48,7 @@ export class RefundController {
       const refund = await this.refundService.create(
         createRefundDto,
         user,
-        refunds_evidences,
+        refund_evidences,
       );
       return res.status(201).json({
         status: HttpStatus.CREATED,

@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
 
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
@@ -75,13 +75,13 @@ export class MemberService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { whatsapp_number: { contains: search } },
-                    { member_number: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  { whatsapp_number: { contains: search } },
+                  { member_number: { contains: search } },
+                ],
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -92,6 +92,9 @@ export class MemberService {
           order: {
             include: {
               complaints: true,
+              store: true,
+              sales: true,
+              m_order_details: true,
             },
           },
         },
@@ -121,7 +124,9 @@ export class MemberService {
           order: {
             include: {
               complaints: true,
-              // invoices: true,
+              store: true,
+              sales: true,
+              m_order_details: true,
             },
           },
         },

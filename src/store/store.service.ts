@@ -8,13 +8,14 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const store = await this.dbService.store.create({
         data: {
           store_name: dto.store_name,
           address: dto.address,
+          additional_address: dto.additional_address,
           city_id: dto.city_id,
           zip_code: dto.zip_code,
           created_by: user_id,
@@ -22,11 +23,9 @@ export class StoreService {
       });
 
       return {
-        data: {
-          store,
-        },
         status: HttpStatus.CREATED,
         message: 'Store Successfully Created',
+        data: store,
       };
     } catch (error) {
       return {
@@ -51,11 +50,21 @@ export class StoreService {
     const skip = page * take - take;
 
     const where: Prisma.storeWhereInput = {
-      city_id: city_id ?? undefined,
+      AND: [
+        ...(city_id
+          ? [
+            {
+              OR: [
+                { city_id: { equals: city_id } },
+              ],
+            },
+          ]
+          : []),
+      ]
     };
 
     const store = await this.dbService.store.findMany({
-      // where,
+      where,
       skip,
       take: take <= 0 ? undefined : take,
       include: {
@@ -84,7 +93,7 @@ export class StoreService {
         message: 'Succesfully find store',
         data: store,
       };
-    } catch (error) {}
+    } catch (error) { }
   }
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {
@@ -102,6 +111,7 @@ export class StoreService {
 
       return {
         status: HttpStatus.CREATED,
+        data: store,
         message: 'Successfully Update Data',
       };
     } catch (error) {
@@ -134,5 +144,16 @@ export class StoreService {
         message: 'Failed to delete store',
       };
     }
+  }
+
+  async getCode() {
+    const stores = await this.dbService.store.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 1,
+    });
+
+    return stores[0] || null;
   }
 }

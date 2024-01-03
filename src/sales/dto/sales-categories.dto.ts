@@ -21,6 +21,7 @@ export class SalesCategoriesDto {
   category_id: number;
 
   @Type(() => String)
+  @IsOptional()
   @IsString()
   commission?: string;
 }

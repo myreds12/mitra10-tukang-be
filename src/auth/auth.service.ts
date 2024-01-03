@@ -15,7 +15,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     const user = await this.dbService.users.findFirst({
@@ -71,6 +71,19 @@ export class AuthService {
               },
             },
           },
+        },
+        sales: {
+          select: {
+            id: true,
+            user_id: true,
+            full_name: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+              }
+            }
+          }
         },
       },
     });

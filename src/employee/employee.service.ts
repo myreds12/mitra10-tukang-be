@@ -10,7 +10,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
       let full_name = createEmployeeDto.first_name;
@@ -90,20 +90,15 @@ export class EmployeeService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    try {
-      const include: Prisma.employeeInclude = {
+
+    const employee = await this.dbService.employee.findMany({
+      include: {
         positions: true,
-        store: true,
-      };
+        store: true
+      },
+    });
 
-      const employee = await this.dbService.employee.findMany({
-        include,
-      });
-
-      return employee;
-    } catch (error) {
-      return error;
-    }
+    return employee;
   }
 
   async findOne(id: number) {

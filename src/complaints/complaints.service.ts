@@ -16,7 +16,7 @@ export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-  ) {}
+  ) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user: users,
@@ -112,11 +112,11 @@ export class ComplaintsService {
         search ? { complaint_channels: { name: { contains: search } } } : null,
         date_from && date_to
           ? {
-              complaint_date: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            complaint_date: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : null,
       ].filter((condition) => Boolean(condition)),
     };
@@ -232,7 +232,7 @@ export class ComplaintsService {
     await this.dbService.complaint_evidence.updateMany({
       where: {
         complaint_history_id:
-          updateComplaintDto.complaint_histories.id ?? undefined,
+          updateComplaintDto.complaint_histories.id ?? 0,
       },
       data: {
         deleted_at: new Date(),
@@ -247,17 +247,17 @@ export class ComplaintsService {
 
     const orderConn = updateComplaintDto.order_id
       ? {
-          connect: {
-            id: updateComplaintDto.order_id,
-          },
-        }
+        connect: {
+          id: updateComplaintDto.order_id,
+        },
+      }
       : undefined;
     const complaint_channelsConn = updateComplaintDto.complaint_channel
       ? {
-          connect: {
-            id: updateComplaintDto.complaint_channel,
-          },
-        }
+        connect: {
+          id: updateComplaintDto.complaint_channel,
+        },
+      }
       : undefined;
 
     const complaintData: Prisma.complaintsUpdateInput = Object.fromEntries(
@@ -277,10 +277,10 @@ export class ComplaintsService {
             created_by: user_id,
             complaint_evidence: evidences.length
               ? {
-                  createMany: {
-                    data: evidences,
-                  },
-                }
+                createMany: {
+                  data: evidences,
+                },
+              }
               : undefined,
           },
         },
