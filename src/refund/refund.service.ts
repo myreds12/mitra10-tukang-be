@@ -38,7 +38,9 @@ export class RefundService {
           id: createRefundDto.refund_status,
         },
       },
-      date_approve: new Date(createRefundDto.date_approve),
+      date_approve: createRefundDto.date_approve
+        ? new Date(createRefundDto.date_approve)
+        : new Date(),
       date_of_filing: new Date(createRefundDto.date_of_filing),
       notes: createRefundDto.notes,
       reason: createRefundDto.reason,
