@@ -95,8 +95,23 @@ export class InvoicesService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { page, take, search, date_from, date_to, order_by } = query;
+    const {
+      page,
+      take,
+      search,
+      date_from,
+      date_to,
+      order_by,
+      vendor_id,
+      monthly,
+    } = query;
     const skip = page * take - take;
+    const now = new Date();
+    if (monthly) now.setFullYear(monthly);
+    console.log(
+      new Date(now.getFullYear(), 0, 1),
+      new Date(now.getFullYear(), 11, 31),
+    );
     const where: Prisma.invoicesWhereInput = {
       AND: [
         ...(search
@@ -118,6 +133,21 @@ export class InvoicesService {
               },
             }
           : undefined,
+        vendor_id
+          ? {
+              vendor_id: {
+                equals: vendor_id,
+              },
+            }
+          : undefined,
+        monthly
+          ? {
+              created_at: {
+                gte: new Date(now.getFullYear(), 0, 1),
+                lte: new Date(now.getFullYear(), 11, 31),
+              },
+            }
+          : undefined,
       ].filter(Boolean),
       deleted_at: null,
     };
@@ -130,13 +160,26 @@ export class InvoicesService {
       },
       include: {
         invoice_evidence: true,
-        vendor: true,
+        vendor: {
+          include: {
+            vendor_bank: {
+              include: {
+                bank: true,
+              },
+            },
+          },
+        },
         status: true,
         invoice_details: {
           include: {
             quotation: {
               include: {
-                order: true,
+                order: {
+                  include: {
+                    store: true,
+                    members: true,
+                  },
+                },
                 quotation_details: true,
               },
             },
@@ -144,8 +187,94 @@ export class InvoicesService {
         },
       },
     });
+    const count = await this.dbService.invoices.count();
+    // const month = invoices.map((x) => ({
+    //   january: invoices
+    //     .filter((x) => x.created_at.getMonth() === 0)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   february: invoices
+    //     .filter((x) => x.created_at.getMonth() === 1)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   march: invoices
+    //     .filter((x) => x.created_at.getMonth() === 2)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   april: invoices
+    //     .filter((x) => x.created_at.getMonth() === 3)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   may: invoices
+    //     .filter((x) => x.created_at.getMonth() === 4)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   june: invoices
+    //     .filter((x) => x.created_at.getMonth() === 5)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   july: invoices
+    //     .filter((x) => x.created_at.getMonth() === 6)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   august: invoices
+    //     .filter((x) => x.created_at.getMonth() === 7)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   september: invoices
+    //     .filter((x) => x.created_at.getMonth() === 8)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   october: invoices
+    //     .filter((x) => x.created_at.getMonth() === 9)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   november: invoices
+    //     .filter((x) => x.created_at.getMonth() === 10)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    //   december: invoices
+    //     .filter((x) => x.created_at.getMonth() === 11)
+    //     .map((x) => x.invoice_details.length)
+    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
+    // }));
+    const month = invoices.reduce((acc, curr) => {
+      const monthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      const month = curr.created_at.getMonth();
+      console.log(month);
+      
+      const monthName = monthNames[month];
 
-    return { data: invoices, skip, page, take, total: invoices.length };
+      if (!acc[monthName]) acc[monthName] = 0;
+
+      acc[monthName] += curr.invoice_details.length;
+      return acc;
+    }, {});
+
+    // return console.log(monthlyData);
+
+    return {
+      data: invoices,
+      skip,
+      page,
+      take,
+      total: count,
+      takeTotal: invoices.length,
+      month,
+    };
   }
 
   async findOne(id: number) {
@@ -155,13 +284,25 @@ export class InvoicesService {
       },
       include: {
         invoice_evidence: true,
-        vendor: true,
+        vendor: {
+          include: {
+            vendor_bank: {
+              include: {
+                bank: true,
+              },
+            },
+          },
+        },
         status: true,
         invoice_details: {
           include: {
             quotation: {
               include: {
-                order: true,
+                order: {
+                  include: {
+                    members: true,
+                  },
+                },
                 quotation_details: true,
               },
             },
@@ -365,5 +506,16 @@ export class InvoicesService {
         },
       },
     });
+  }
+
+  async nextCode() {
+    const vendor = await this.dbService.vendor.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 1,
+    });
+
+    return vendor[0] || null;
   }
 }

@@ -173,10 +173,12 @@ export class SalesService {
         users: true,
       },
     });
+    const count = await this.dbService.sales.count()
 
     return {
       data: sales,
-      total: sales.length,
+      total:  count,
+      takeTotal: sales.length,
       page,
       take,
     };

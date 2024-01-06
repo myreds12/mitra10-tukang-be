@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class QueryParamsDto {
   @Type(() => Number)
@@ -12,6 +12,9 @@ export class QueryParamsDto {
 
   @Type(() => Number)
   skip?: number = 0;
+
+  @Type(() => Number)
+  vendor_id?: number = 0;
 
   @Transform((value) => value.value.split(',').map(Number))
   @Type(() => String)
@@ -32,9 +35,18 @@ export class QueryParamsDto {
   @IsOptional()
   @Type(() => Number)
   sales_id?: number = 0;
-
+  
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   store_id?: number = 0;
+  
+  @IsOptional()
+  @IsString()
+  payment_type?: string
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  monthly: number ;
 }

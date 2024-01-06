@@ -13,15 +13,21 @@ export class OrderDetailDto {
 
   @Type(() => Number)
   @IsNumber()
-  item_id: number;
+  item_id?: number;
 
+  @IsOptional()
+  @IsString()
+  item_notes?: string;
+  
   @Type(() => Number)
   @IsNumber()
   quantity: number;
-
+  
+  @IsOptional()
   @IsString()
-  item_code: string;
-
+  item_code?: string;
+  
+  @IsOptional()
   @IsString()
-  item_name: string;
+  item_name?: string;
 }

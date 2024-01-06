@@ -7,10 +7,9 @@ export class WorkOrderTukang {
   @IsOptional()
   @Type(() => Number)
   id?: number;
-  
-  @IsNumber()
+
   @Type(() => Number)
-  type: number;
+  type?: number;
 
   @ApiProperty({ type: Number })
   @Type(() => Number)

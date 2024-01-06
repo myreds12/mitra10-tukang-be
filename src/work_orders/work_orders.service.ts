@@ -19,10 +19,7 @@ export class WorkOrdersService {
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
-    files: {
-      work_order_before?: Express.Multer.File[];
-      work_order_after?: Express.Multer.File[];
-    },
+    work_order_evidences?: Array<Express.Multer.File>,
   ) {
     const { id: user_id } = user;
 
@@ -32,21 +29,14 @@ export class WorkOrdersService {
     if (!order.vendor_id)
       throw new BadRequestException("Order doesn't have any vendor assigned.");
 
-    const evidencesBefore: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
-      files.work_order_after?.map((evidences) => ({
+    const evidences:
+      | Prisma.work_order_evidencesCreateManyWork_ordersInput[]
+      | undefined[] =
+      work_order_evidences?.map((evidences) => ({
         evidence_location: evidences.filename,
-        created_by: user_id,
-        type: 2,
-      }));
-
-    const evidencesAfter: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
-      files.work_order_after?.map((evidences) => ({
-        evidence_location: evidences.filename,
-        created_by: user_id,
-        type: 3,
-      }));
-
-    const evidences = [].concat(evidencesBefore ?? [], evidencesAfter ?? []);
+        updated_at: new Date(),
+        updated_by: user.id,
+      })) ?? [];
 
     const workOrderTukang: Prisma.work_order_tukangCreateManyWork_ordersInput[] =
       dataDto.work_order_tukang?.map((item) => {
@@ -187,7 +177,7 @@ export class WorkOrdersService {
       },
     });
 
-    return { data: work_orders, skip, page, take, total };
+    return { data: work_orders, skip, page, take, total, takeTotal: work_orders.length };
   }
 
   async findOne(id: number) {
@@ -292,7 +282,8 @@ export class WorkOrdersService {
         work_date_time: dataDto?.status_details?.work_date_time
           ? new Date(dataDto.status_details.work_date_time)
           : undefined,
-        time_spent: dataDto?.status_details?.time_spent,
+        work_start_date: dataDto?.status_details?.work_end_date,
+        work_end_date: dataDto?.status_details?.work_end_date,
         description: dataDto?.status_details?.description,
       };
 
@@ -347,19 +338,19 @@ export class WorkOrdersService {
             deleted_by: user_id,
           },
         }),
-        this.dbService.work_order_items.updateMany({
-          where: {
-            id: {
-              notIn: dataDto?.status_details?.work_order_items
-                .filter((x) => Boolean(x.id))
-                .map((x) => x.id),
-            },
-          },
-          data: {
-            deleted_at: new Date(),
-            deleted_by: user.id,
-          },
-        }),
+        // this.dbService.work_order_items.updateMany({
+        //   where: {
+        //     id: {
+        //       notIn: dataDto?.status_details?.work_order_items
+        //         .filter((x) => Boolean(x.id))
+        //         .map((x) => x.id),
+        //     },
+        //   },
+        //   data: {
+        //     deleted_at: new Date(),
+        //     deleted_by: user.id,
+        //   },
+        // }),
         this.dbService.work_orders.update(work_order_data),
       ]);
 
@@ -370,8 +361,12 @@ export class WorkOrdersService {
     id: number,
     user: users,
     updateData: StatusDetails,
-    work_order_evidences?: Array<Express.Multer.File>,
+    files: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
   ): Promise<work_orders> {
+    const { id: user_id } = user;
     const workOrder = await this.findOne(id);
 
     if (!workOrder) throw new BadRequestException('Work Order not exist');
@@ -381,14 +376,21 @@ export class WorkOrdersService {
       orderBy: { category: 'desc' },
     });
 
-    const evidences:
-      | Prisma.work_order_evidencesCreateManyWork_ordersInput[]
-      | undefined[] =
-      work_order_evidences?.map((evidences) => ({
+    const evidencesBefore: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
+      files.work_order_after?.map((evidences) => ({
         evidence_location: evidences.filename,
-        updated_at: new Date(),
-        updated_by: user.id,
-      })) ?? [];
+        created_by: user_id,
+        type: 2,
+      }));
+
+    const evidencesAfter: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
+      files.work_order_after?.map((evidences) => ({
+        evidence_location: evidences.filename,
+        created_by: user_id,
+        type: 3,
+      }));
+
+    const evidences = [].concat(evidencesBefore ?? [], evidencesAfter ?? []);
 
     const recentWorkStatus = workOrder.work_order_status.find(
       (x) => x.status_id === NEW_STATUS.id,
@@ -410,6 +412,7 @@ export class WorkOrdersService {
           type: x.type,
           is_customer: Boolean(x.is_customer),
           quantity: x.quantity,
+          unit: x?.unit,
         },
         update: {
           item_id: x.item_id,
@@ -419,6 +422,7 @@ export class WorkOrdersService {
           type: x.type,
           quantity: x.quantity,
           is_customer: Boolean(x.is_customer),
+          unit: x?.unit,
         },
       }));
 
@@ -431,7 +435,8 @@ export class WorkOrdersService {
         create: {
           status_id: NEW_STATUS.id,
           description: updateData.description,
-          time_spent: updateData.time_spent,
+          work_start_date: updateData.work_end_date,
+          work_end_date: updateData.work_end_date,
           work_date_time: updateData.work_date_time,
           created_at: new Date(),
           created_by: user.id,
@@ -441,7 +446,8 @@ export class WorkOrdersService {
         },
         update: {
           description: updateData.description,
-          time_spent: updateData.time_spent,
+          work_start_date: updateData.work_end_date,
+          work_end_date: updateData.work_end_date,
           work_date_time: updateData.work_date_time,
           updated_at: new Date(),
           updated_by: user.id,

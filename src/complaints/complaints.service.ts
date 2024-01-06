@@ -87,17 +87,18 @@ export class ComplaintsService {
       },
     };
 
-    const order = this.orderService.setStatus(
-      createComplaintDto.order_id,
-      createComplaintDto.complaint_status,
-      user,
-    );
-
+    
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.create({
         data: complaintData,
       }),
     ]);
+
+    await this.orderService.setStatus(
+     complaint.order_id,
+     complaint.complaint_status,
+     user,
+   );
 
     return complaint;
   }

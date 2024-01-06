@@ -71,6 +71,7 @@ export class VendorController {
       { name: 'surat_permohonan_file', maxCount: 1 },
       { name: 'pks_file', maxCount: 1 },
       { name: 'suip_file', maxCount: 1 },
+      { name: 'ptkp_file', maxCount: 1 },
     ]),
   )
   async create(
@@ -106,7 +107,7 @@ export class VendorController {
   @Get('/')
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
-      const { data, page, take, countTotal } = await this.vendorService.findAll(
+      const { data, page, take, total, takeTotal } = await this.vendorService.findAll(
         query,
       );
       return res.status(200).json({
@@ -115,7 +116,8 @@ export class VendorController {
         data,
         page,
         take,
-        total: countTotal,
+        total,
+        takeTotal
       });
     } catch (error) {
       console.log(error.message);

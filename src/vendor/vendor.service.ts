@@ -191,8 +191,9 @@ export class VendorService {
         work_orders: true,
       },
     });
+    const total = await this.dbService.vendor.count();
 
-    return { data: vendor, countTotal: vendor.length, page, take };
+    return { data: vendor, total, takeTotal: vendor.length, page, take };
   }
 
   async findOne(id: number) {

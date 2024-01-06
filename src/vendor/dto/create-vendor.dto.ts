@@ -88,5 +88,9 @@ export class CreateVendorDto {
 
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
+  ptkp_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @ApiProperty({ type: 'string', format: 'string' })
+  @IsOptional()
   suip_file?: Array<Express.Multer.File> | Express.Multer.File;
 }

@@ -42,28 +42,6 @@ export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post(':id/set-materials')
-  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
-  async setStatusWithMaterials(
-    @Param('id') id: number,
-    @Body() body: StatusDetails,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
-    @UploadedFiles() work_order_evidences: Express.Multer.File[],
-  ) {
-    const work_order = await this.workOrdersService.setStatusWithMaterials(
-      id,
-      req.user,
-      body,
-      work_order_evidences,
-    );
-    return res.status(201).json({
-      status: HttpStatus.CREATED,
-      message: 'Work Order Material Created',
-      data: work_order,
-    });
-  }
-
-  @Post('')
   @UseInterceptors(
     FileFieldsInterceptor([
       {
@@ -76,8 +54,9 @@ export class WorkOrdersController {
       },
     ]),
   )
-  async create(
-    @Body() dataDto: CreateWorkOrderDto,
+  async setStatusWithMaterials(
+    @Param('id') id: number,
+    @Body() body: StatusDetails,
     @Request() req: UserRequest,
     @Res() res: IExpressResponse,
     @UploadedFiles()
@@ -86,8 +65,30 @@ export class WorkOrdersController {
       work_order_after?: Express.Multer.File[];
     },
   ) {
+    console.log(body);
+
+    const work_order = await this.workOrdersService.setStatusWithMaterials(
+      id,
+      req.user,
+      body,
+      files,
+    );
+    return res.status(201).json({
+      status: HttpStatus.CREATED,
+      message: 'Work Order Material Created',
+      data: work_order,
+    });
+  }
+
+  @Post('')
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
+  async create(
+    @Body() dataDto: CreateWorkOrderDto,
+    @Request() req: UserRequest,
+    @Res() res: IExpressResponse,
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
+  ) {
     try {
-      const { work_order_after, work_order_before } = files;
       if (!dataDto.work_order_tukang)
         throw new BadRequestException('Tukang cannot be null');
       if (!dataDto.work_order_tukang.length)
@@ -96,7 +97,7 @@ export class WorkOrdersController {
       const work_orders = await this.workOrdersService.create(
         dataDto,
         req.user,
-        files,
+        work_order_evidences,
       );
 
       return res.status(201).json({
@@ -121,7 +122,7 @@ export class WorkOrdersController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { data, skip, page, take, total } =
+      const { data, skip, page, take, total, takeTotal } =
         await this.workOrdersService.findAll(queryParamsDto);
 
       return res.status(200).json({

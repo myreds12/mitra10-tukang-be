@@ -1,6 +1,12 @@
-import { Transform, Type } from "class-transformer";
-import { IsEnum, IsIn, IsNotEmpty, IsNumber, IsOptional } from "class-validator";
-import { WorkOrderMaterialType } from "./work-order-material-type.enum";
+import { Transform, Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
+import { WorkOrderMaterialType } from './work-order-material-type.enum';
 
 export class CreateMaterialDto {
   @Type(() => Number)
@@ -18,6 +24,9 @@ export class CreateMaterialDto {
   @Transform(({ value }) => Number.parseInt(value))
   @IsOptional()
   quantity?: number;
+
+  @IsOptional()
+  unit?: string;
 
   @Type(() => Number)
   @IsOptional()

@@ -8,7 +8,7 @@ import { refund_evidences } from '@prisma/client';
 
 @Injectable()
 export class RefundService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createRefundDto: CreateRefundDto,
     user: users,
@@ -66,24 +66,24 @@ export class RefundService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { voucher: { contains: search } },
-                { reason: { contains: search } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { voucher: { contains: search } },
+                  { reason: { contains: search } },
+                ],
+              },
+            ]
           : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -101,20 +101,57 @@ export class RefundService {
           include: {
             members: true,
             store: true,
+            vendor: true,
+            work_orders: true,
+            status: true,
             m_order_details: {
-              include: {
-                item: true,
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                order_id: true,
+                item_code: true,
+                item_name: true,
+                item_id: true,
+                item: {
+                  select: {
+                    id: true,
+                    item_name: true,
+                    category: true,
+                    default_price: true,
+                    service_name: true,
+                  },
+                },
+                sales: true,
+                unit_price: true,
+                quantity: true,
+                total: true,
+                comission: true,
+                created_by: true,
+                updated_by: true,
+                created_at: true,
+                updated_at: true,
               },
             },
-            sales: true,
-            status: true,
           },
         },
+        refund_evidences: true,
         status: true,
       },
     });
 
-    return { data: refund, total: refund.length, skip, take, page };
+    const count = await this.dbService.refund.count();
+
+    return {
+      data: refund,
+      total: count,
+      skip,
+      take,
+      page,
+      takeTotal: refund.length,
+    };
   }
 
   async findOne(id: number) {
@@ -124,17 +161,45 @@ export class RefundService {
         deleted_at: null,
       },
       include: {
+        refund_evidences: true,
         orders: {
           include: {
             members: true,
             store: true,
+            vendor: true,
+            work_orders: true,
+            status: true,
             m_order_details: {
-              include: {
-                item: true,
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                order_id: true,
+                item_code: true,
+                item_name: true,
+                item_id: true,
+                item: {
+                  select: {
+                    id: true,
+                    item_name: true,
+                    category: true,
+                    default_price: true,
+                    service_name: true,
+                  },
+                },
+                sales: true,
+                unit_price: true,
+                quantity: true,
+                total: true,
+                comission: true,
+                created_by: true,
+                updated_by: true,
+                created_at: true,
+                updated_at: true,
               },
             },
-            sales: true,
-            status: true,
           },
         },
         status: true,
@@ -155,9 +220,9 @@ export class RefundService {
     const evidences: Array<Prisma.refund_evidencesCreateManyRefundInput> =
       refunds_evidences
         ? refunds_evidences.map((evidence) => ({
-          evidence_location: evidence.filename,
-          created_by: user_id,
-        }))
+            evidence_location: evidence.filename,
+            created_by: user_id,
+          }))
         : undefined;
 
     const refundConn = {

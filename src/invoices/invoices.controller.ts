@@ -13,6 +13,8 @@ import {
   Query,
   UploadedFiles,
   UseInterceptors,
+  Req,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -39,6 +41,28 @@ export class InvoicesController {
     private readonly dbService: PrismaService,
     private readonly invoicesService: InvoicesService,
   ) {}
+
+  @Get('next-code')
+  async nextCode(@Request() req: IExpressRequest, @Res() res: IExpressResponse) {
+    try {
+      const invoices = await this.invoicesService.nextCode();
+      let nextCode: number;
+      if (invoices) nextCode = invoices.id + 1;
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Next Code',
+        data: {
+          code: nextCode,
+        },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
 
   @Post()
   @UseInterceptors(FilesInterceptor('invoice_evidences'))
@@ -90,6 +114,8 @@ export class InvoicesController {
         data: invoice,
       });
     } catch (error) {
+      console.log(error);
+      
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',

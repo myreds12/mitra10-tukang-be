@@ -16,9 +16,14 @@ export class StatusDetails {
   @Transform(({ value }) => new Date(value))
   work_date_time?: string;
 
-  @IsString()
+
   @IsOptional()
-  time_spent?: string;
+  @Transform(({ value }) => new Date(value))
+  work_start_date?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => new Date(value))
+  work_end_date?: string;
 
   @IsOptional()
   description?: string;

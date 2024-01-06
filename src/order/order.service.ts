@@ -114,6 +114,7 @@ export class OrderService {
 
         return {
           ...item,
+          item_notes: item?.item_notes,
           unit_price: itemPrice,
           created_by: user_id,
           total,
@@ -180,9 +181,12 @@ export class OrderService {
       date_to,
       order_by,
       sales_id,
+      payment_type
     } = queryParams;
     const skip = page * take - take;
     console.log(status);
+    let statusDone = await this.dbService.status.findMany();
+    statusDone = statusDone.filter(({ category }) => category === 'DONE');
 
     const where: Prisma.ordersWhereInput = {
       AND: [
@@ -199,6 +203,7 @@ export class OrderService {
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
+        ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
         ...(date_from && date_to
           ? [
             {
@@ -222,6 +227,10 @@ export class OrderService {
       },
       include: {
         members: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
           select: {
             id: true,
             city_id: true,
@@ -243,6 +252,10 @@ export class OrderService {
           },
         },
         sales: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
           select: {
             id: true,
             store_id: true,
@@ -260,6 +273,10 @@ export class OrderService {
           },
         },
         store: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
           select: {
             id: true,
             store_name: true,
@@ -279,7 +296,12 @@ export class OrderService {
             description: true,
           },
         },
+        complaints: true,
         vendor: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
           select: {
             id: true,
             user_id: true,
@@ -328,6 +350,19 @@ export class OrderService {
             updated_at: true,
           },
         },
+        quotation: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          include: {
+            quotation_details: {
+              include: {
+                item: true
+              }
+            }
+          }
+        },
         work_orders: {
           include: {
             vendor: true,
@@ -363,8 +398,9 @@ export class OrderService {
         order_files: true,
       },
     });
+    const count = await this.dbService.orders.count()
 
-    return { data: orders, total: orders.length, page, take };
+    return { data: orders, total: count, page, take };
   }
 
   async findOne(id: number) {
@@ -631,6 +667,7 @@ export class OrderService {
         return {
           where: { id: item?.id ?? 0, order_id: id },
           update: {
+            item_notes: item?.item_notes,
             item_name: item?.item_name ?? '',
             item_code: item?.item_code ?? '',
             item_id: item?.item_id ?? undefined,
@@ -642,6 +679,7 @@ export class OrderService {
             updated_at: new Date(),
           },
           create: {
+            item_notes: item?.item_notes,
             item: { connect: { id: item?.item_id ?? undefined } },
             sales: {
               connect: { id: updateOrderDto.sales_id ?? order.sales_id },

@@ -552,6 +552,8 @@ model status {
   order_history       order_histories[]
   invoices            invoices[]
   compliant_histories complaint_histories[]
+  reschedule          reschedule[]
+  reschedule_status   reschedule_status[]
 }
 
 model orders {
@@ -592,6 +594,7 @@ model orders {
   work_orders     work_orders?
   order_files     order_files[]
   order_history   order_histories[]
+  reschedule      reschedule[]
 }
 
 model order_histories {
@@ -632,9 +635,9 @@ model order_files {
 }
 
 model m_order_details {
-  id       Int @id @default(autoincrement())
+  id       Int  @id @default(autoincrement())
   order_id Int
-  item_id  Int
+  item_id  Int?
   sales_id Int
 
   item_code  String? @db.VarChar(200)
@@ -643,6 +646,7 @@ model m_order_details {
   quantity   Int
   total      Decimal @db.Decimal(32, 2)
   comission  Decimal @db.Decimal(32, 2)
+  item_notes String? @default("") @db.VarChar(200)
 
   created_by Int?
   updated_by Int?
@@ -654,7 +658,7 @@ model m_order_details {
 
   sales sales  @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   order orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  item  items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  item  items? @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model prices {
@@ -979,9 +983,10 @@ model work_order_status {
   status_id     Int
   parent_id     Int?
 
-  work_date_time DateTime?
-  time_spent     String?
-  description    String    @default("")
+  work_date_time  DateTime?
+  work_start_date DateTime?
+  work_end_date   DateTime?
+  description     String    @default("")
 
   created_by Int?
   updated_by Int?
@@ -1007,6 +1012,7 @@ model work_order_items {
   tukang_name String? @db.VarChar(40)
   name        String? @db.VarChar(40)
   quantity    Int     @default(0)
+  unit        String  @default("")
 
   created_by Int?
   updated_by Int?
@@ -1078,6 +1084,67 @@ model invoice_evidence {
   invoices   invoices  @relation(fields: [invoice_id], references: [id])
 }
 
+model reschedule {
+  id Int @id @default(autoincrement())
+
+  order_id  Int
+  status_id Int
+
+  reschedule_date DateTime @db.Date()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  order  orders @relation(fields: [order_id], references: [id])
+  status status @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  reschedule_status    reschedule_status[]
+  reschedule_evidences reschedule_evidences[]
+}
+
+model reschedule_status {
+  id Int @id @default(autoincrement())
+
+  reschedule_id Int
+  status_id     Int
+
+  description String? @db.Text()
+  status_by   String  @db.VarChar(50)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  reschedule reschedule @relation(fields: [reschedule_id], references: [id])
+  status     status     @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model reschedule_evidences {
+  id Int @id @default(autoincrement())
+
+  reschedule_id     Int
+  evidence_location String
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  reschedule reschedule @relation(fields: [reschedule_id], references: [id])
+}
+
 model refund {
   id Int @id @default(autoincrement())
 
@@ -1120,4 +1187,20 @@ model refund_evidences {
   deleted_at DateTime? @db.DateTime()
 
   refund refund @relation(fields: [refund_id], references: [id])
+}
+
+model csi_dummy {
+  id Int @id @default(autoincrement())
+
+  csi      Int
+  csi_date DateTime @db.Date()
+  name     String   @db.VarChar(100)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 }

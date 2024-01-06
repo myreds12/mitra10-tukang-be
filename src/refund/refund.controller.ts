@@ -69,13 +69,14 @@ export class RefundController {
   @Get()
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
-      const { data, total, skip, page, take } =
+      const { data, total, skip, page, take, takeTotal } =
         await this.refundService.findAll(query);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Refund',
         data,
         total,
+        takeTotal,
         skip,
         page,
         take,

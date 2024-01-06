@@ -4,11 +4,11 @@ import { IsNotEmpty, ValidateNested } from 'class-validator';
 import { InvoiceDetails } from './invoice-details.dto';
 
 export class CreateInvoiceDto {
-  @ApiProperty()
-  request_work_time: string;
-  survey_date: string;
-  work_start_date: string;
-  work_end_date: string;
+  // @ApiProperty()
+  // request_work_time: string;
+  // survey_date: string;
+  // work_start_date: string;
+  // work_end_date: string;
 
   @ValidateNested({ each: true })
   @Type(() => InvoiceDetails)
