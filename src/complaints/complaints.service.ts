@@ -153,8 +153,16 @@ export class ComplaintsService {
         },
       },
     });
+    const complaintGrandTotal = await this.dbService.complaints.findMany({
+      include: {
+        orders: true,
+      }
+    }).then((data) => data.reduce((acc, curr) => acc + Number(curr.orders.grand_total), 0));
 
-    return complaint;
+    return {
+      complaint,
+      complaintGrandTotal
+    };
   }
 
   async findOne(id: number) {

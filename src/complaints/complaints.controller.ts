@@ -122,11 +122,12 @@ export class ComplaintsController {
   @Get('/')
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
-      const complaint = await this.complaintsService.findAll(query);
+      const {complaint, complaintGrandTotal} = await this.complaintsService.findAll(query);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Complaint',
         data: complaint,
+        complaintGrandTotal
       });
     } catch (error) {
       console.log(error);

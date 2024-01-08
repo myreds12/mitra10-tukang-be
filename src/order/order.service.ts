@@ -399,8 +399,14 @@ export class OrderService {
       },
     });
     const count = await this.dbService.orders.count()
+    const orderGrandTotal = await this.dbService.orders.aggregate({
+      _sum: {
+        grand_total: true,
+      },
+    }).then((data) => data._sum.grand_total);
+    
 
-    return { data: orders, total: count, page, take };
+    return { data: orders, total: count, page, take, orderGrandTotal };
   }
 
   async findOne(id: number) {

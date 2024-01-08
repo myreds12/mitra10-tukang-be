@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
+import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 
 @Injectable()
 export class ReportsService {
+  constructor(private readonly googleSheetConnectorService: GoogleSheetConnectorService) {}
   create(createReportDto: CreateReportDto) {
     return 'This action adds a new report';
   }

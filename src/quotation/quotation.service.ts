@@ -199,12 +199,22 @@ export class QuotationService {
       },
     });
 
+    const quotationGrandTotal = await this.dbService.quotation
+      .aggregate({
+        _sum: {
+          quotation_grand_total: true,
+        },
+      })
+      .then((data) => data._sum.quotation_grand_total);
+    const total = await this.dbService.quotation.count();
     return {
       data: quotation,
       skip,
       take,
       page,
-      total: quotation.length,
+      takeTotal: quotation.length,
+      quotationGrandTotal,
+      total,
     };
   }
 

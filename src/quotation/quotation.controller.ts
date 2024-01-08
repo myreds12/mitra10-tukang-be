@@ -133,17 +133,21 @@ export class QuotationController {
         page,
         skip,
         take,
-        total: countTotal,
+        total,
+        takeTotal,
+        quotationGrandTotal
       } = await this.quotationService.findAll(queryParamsDto);
 
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Quotation',
         data,
-        total: countTotal,
+        total,
         page,
         take,
         skip,
+        quotationGrandTotal,
+        takeTotal
       });
     } catch (error) {
       console.log(error);
