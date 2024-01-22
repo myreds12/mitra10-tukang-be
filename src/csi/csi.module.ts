@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ReportsService } from './reports.service';
-import { ReportsController } from './reports.controller';
-import { OrderModule } from 'src/order/order.module';
-import { GoogleSheetModule } from 'nest-google-sheet-connector';
+import { CsiService } from './csi.service';
+import { CsiController } from './csi.controller';
 import { HttpModule } from '@nestjs/axios';
+import { GoogleSheetModule } from 'nest-google-sheet-connector';
 
 @Module({
-  controllers: [ReportsController],
-  providers: [ReportsService],
+  controllers: [CsiController],
+  providers: [CsiService],
   imports: [
     HttpModule,
-    OrderModule,
     GoogleSheetModule.register({
       auth_uri: process.env.AUTH_URI,
       client_id: process.env.CLIENT_ID,
@@ -25,4 +23,4 @@ import { HttpModule } from '@nestjs/axios';
     }),
   ],
 })
-export class ReportsModule {}
+export class CsiModule {}

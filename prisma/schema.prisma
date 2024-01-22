@@ -362,13 +362,13 @@ model store {
   deleted_by Int?
 
   sales     sales[]
-  prices    prices[]
   employee  employee[]
   orders    orders[]
   quotation quotation[]
   members   members[]
 
-  city city? @relation(fields: [city_id], references: [id])
+  city         city?          @relation(fields: [city_id], references: [id])
+  price_stores price_stores[]
 }
 
 model tukang {
@@ -658,14 +658,13 @@ model m_order_details {
 
   sales sales  @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   order orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  item  items? @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  item  items? @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
 }
 
 model prices {
   id Int @id @default(autoincrement())
 
   item_id        Int
-  store_id       Int?
   periodic_start DateTime?
   periodic_end   DateTime?
   price          Decimal   @db.Decimal(32, 2)
@@ -679,8 +678,26 @@ model prices {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  store store? @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  items items  @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  items        items          @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  price_stores price_stores[]
+}
+
+model price_stores {
+  id Int @id @default(autoincrement())
+
+  price_id Int
+  store_id Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  store store  @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  price prices @relation(fields: [price_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model units {
@@ -923,8 +940,8 @@ model work_orders {
   request_work_time DateTime? @default(now()) @db.DateTime()
   survey_date       DateTime  @db.Date()
 
-  work_start_date DateTime @db.Date()
-  work_end_date   DateTime @db.Date()
+  work_start_date DateTime? @db.Date()
+  work_end_date   DateTime? @db.Date()
 
   created_by Int?
   updated_by Int?
@@ -1033,8 +1050,9 @@ model invoices {
   vendor_id Int @map("vendorId")
   status_id Int @map("statusId")
 
-  invoice_number String
-  description    String? @db.VarChar(400)
+  total_quotation_grand_total Decimal? @db.Decimal(32, 2)
+  invoice_number              String
+  description                 String?  @db.VarChar(400)
 
   created_by Int?
   updated_by Int?
@@ -1189,12 +1207,19 @@ model refund_evidences {
   refund refund @relation(fields: [refund_id], references: [id])
 }
 
-model csi_dummy {
+model csi {
   id Int @id @default(autoincrement())
 
-  csi      Int
-  csi_date DateTime @db.Date()
-  name     String   @db.VarChar(100)
+  store_name            String @db.VarChar(250)
+  member_id             Int
+  vendor_name           String @db.VarChar(250)
+  member_name           String @db.VarChar(250)
+  performance_rate      Int    @map("performanceRate")
+  delivery_rate         Int    @map("deliveryRate")
+  invoicing_rate        Int    @map("invoicingRate")
+  customer_service_rate Int    @map("customerServiceRate")
+  notes                 String? @db.NText
+  email_address         String @map("emailAddress") @db.VarChar(50)
 
   created_by Int?
   updated_by Int?

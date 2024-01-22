@@ -19,7 +19,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) { }
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -64,11 +64,11 @@ export class OrderService {
     });
     console.log(orderDetailItems, 'Details Item');
 
-    if (orderDetailItems.some((item) => item === null)) throw new BadRequestException('Item not found!');
+    if (orderDetailItems.some((item) => item === null))
+      throw new BadRequestException('Item not found!');
 
     let grand_total = 0;
     let grand_total_comission = 0;
-    let project_number = (await this.dbService.orders.count()) + 1;
 
     const files: Array<Prisma.order_filesCreateManyOrderInput> =
       order_files.map((item) => ({
@@ -95,7 +95,9 @@ export class OrderService {
         );
         const itemPrice =
           currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
-            ?.price ?? currentItem.default_price;
+            ?.price ??
+          currentItem?.default_price ??
+          0;
         const comission = Number(
           salesUser?.sales?.sales_categories?.find(
             ({ category_id }) => currentItem.category_id === category_id,
@@ -137,7 +139,7 @@ export class OrderService {
 
     const orderData = {
       project_address: createOrderDto.project_address,
-      project_number: project_number.toString(),
+      project_number: createOrderDto.project_number,
       receipt_number: createOrderDto.receipt_number,
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
@@ -181,7 +183,8 @@ export class OrderService {
       date_to,
       order_by,
       sales_id,
-      payment_type
+      payment_type,
+      store_id,
     } = queryParams;
     const skip = page * take - take;
     console.log(status);
@@ -192,27 +195,34 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { request_survey: { equals: new Date(search) } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { request_survey: { equals: new Date(search) } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
+        store_id
+          ? {
+              store_id: {
+                equals: store_id,
+              },
+            }
+          : undefined,
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -329,6 +339,7 @@ export class OrderService {
             order_id: true,
             item_code: true,
             item_name: true,
+            item_notes: true,
             item_id: true,
             item: {
               select: {
@@ -358,10 +369,10 @@ export class OrderService {
           include: {
             quotation_details: {
               include: {
-                item: true
-              }
-            }
-          }
+                item: true,
+              },
+            },
+          },
         },
         work_orders: {
           include: {
@@ -398,15 +409,26 @@ export class OrderService {
         order_files: true,
       },
     });
-    const count = await this.dbService.orders.count()
-    const orderGrandTotal = await this.dbService.orders.aggregate({
-      _sum: {
-        grand_total: true,
-      },
-    }).then((data) => data._sum.grand_total);
-    
+    const count = await this.dbService.orders.count();
+    const takeTotal = await this.dbService.orders.count({
+      where
+    })
+    const orderGrandTotal = await this.dbService.orders
+      .aggregate({
+        _sum: {
+          grand_total: true,
+        },
+      })
+      .then((data) => data._sum.grand_total);
 
-    return { data: orders, total: count, page, take, orderGrandTotal };
+    return {
+      data: orders,
+      total: count,
+      page,
+      take,
+      orderGrandTotal,
+      takeTotal,
+    };
   }
 
   async findOne(id: number) {
@@ -442,6 +464,7 @@ export class OrderService {
                 service_name: true,
               },
             },
+            item_notes: true,
             unit_price: true,
             quantity: true,
             total: true,
@@ -452,7 +475,11 @@ export class OrderService {
             updated_at: true,
           },
         },
-        order_files: true,
+        order_files: {
+          where: {
+            deleted_at: null
+          }
+        },
         complaints: true,
         work_orders: {
           include: {
@@ -585,10 +612,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-        where: {
-          id: updateOrderDto.project_status_id,
-        },
-      })
+          where: {
+            id: updateOrderDto.project_status_id,
+          },
+        })
       : null;
 
     let projectStatusDefault = order.status;
@@ -644,19 +671,31 @@ export class OrderService {
       updateOrderDto.order_details.map((item) => {
         let total = 0;
         const currentItem = items?.find(({ id }) => id === item?.item_id);
+
         console.log('Details Item', items);
         console.log('Current Item', currentItem);
 
-        const itemPrice = (
+        const itemPrice =
           currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
-            ?.price ?? currentItem.default_price
-        ).toString();
+            ?.price ??
+          currentItem?.default_price ??
+          0;
 
-        console.log(currentItem.default_price);
+        console.log(itemPrice);
+
+        // console.log(currentItem.default_price);
+
+        // const comission = Number(
+        //   salesUser?.sales_categories?.find(
+        //     ({ category_id }) => currentItem?.category_id === category_id,
+        //   )?.commission ?? salesUser?.sales_categories?.find(
+        //     ({ category_id }) => item.category_id === category_id,
+        //   )?.commission,
+        // );
 
         const comission = Number(
           salesUser?.sales_categories?.find(
-            ({ category_id }) => currentItem.category_id === category_id,
+            ({ category_id }) => currentItem?.category_id === category_id,
           )?.commission ?? 0,
         );
 
@@ -686,7 +725,13 @@ export class OrderService {
           },
           create: {
             item_notes: item?.item_notes,
-            item: { connect: { id: item?.item_id ?? undefined } },
+            ...(item.item_id ? {
+              item: {
+                connect: {
+                  id: item.item_id
+                }
+              }
+            } : undefined),
             sales: {
               connect: { id: updateOrderDto.sales_id ?? order.sales_id },
             },
@@ -701,6 +746,8 @@ export class OrderService {
           },
         };
       });
+      console.log(orderDetailUpsert, "Upsert");
+      
 
     const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
       member_id: updateOrderDto?.member_id,
@@ -725,18 +772,44 @@ export class OrderService {
       },
     };
 
+    const deletedDetailsId = updateOrderDto.order_details
+      .filter((x) => Boolean(x?.id))
+      .map((item) => {
+        return item.id;
+      });
+    // ...deletedDetailsId.length ?
+    //        null :  id: {
+    //         notIn: updateOrderDto.order_details
+    //           .filter((x) => Boolean(x?.id))
+    //           .map((item) => {
+    //             return item.id;
+    //           }),
+    //       },
+    // await this.dbService.orders.update({
+    //   where: {
+    //     id: order.id,
+    //   },
+    //   data: {
+    //     ...orderUpdateData,
+    //     m_order_details: {
+    //       upsert: orderDetailUpsert,
+    //     },
+    //   },
+    // });
+    // return console.log("success");
+    
     const [syncDetails, syncFiles, orderQuery] =
       await this.dbService.$transaction([
         this.dbService.m_order_details.updateMany({
           where: {
             order_id: id,
-            id: {
-              notIn: updateOrderDto.order_details
-                .filter((x) => Boolean(x?.id))
-                .map((item) => {
-                  return item.id;
-                }),
-            },
+            ...(deletedDetailsId.length
+              ? {
+                  id: {
+                    notIn: deletedDetailsId,
+                  },
+                }
+              : undefined),
           },
           data: {
             deleted_at: new Date(),

@@ -34,8 +34,7 @@ export class WorkOrdersService {
       | undefined[] =
       work_order_evidences?.map((evidences) => ({
         evidence_location: evidences.filename,
-        updated_at: new Date(),
-        updated_by: user.id,
+        created_by: user.id,
       })) ?? [];
 
     const workOrderTukang: Prisma.work_order_tukangCreateManyWork_ordersInput[] =
@@ -57,10 +56,16 @@ export class WorkOrdersService {
 
     const work_order_data: Prisma.work_ordersCreateArgs = {
       data: {
-        request_work_time: new Date(dataDto.request_work_time),
+        request_work_time: dataDto.request_work_time
+          ? new Date(dataDto.request_work_time)
+          : undefined,
         survey_date: new Date(dataDto.survey_date),
-        work_start_date: new Date(dataDto.work_start_date),
-        work_end_date: new Date(dataDto.work_end_date),
+        work_start_date: dataDto.work_start_date
+          ? new Date(dataDto.work_start_date)
+          : undefined,
+        work_end_date: dataDto.work_end_date
+          ? new Date(dataDto.work_end_date)
+          : undefined,
         status: {
           connect: {
             id: dataDto.work_order_status,
@@ -109,7 +114,6 @@ export class WorkOrdersService {
     const { page, take, search, date_from, date_to, status, order_by } =
       queryParamsDto;
     const skip = page * take - take;
-    const total = await this.dbService.work_orders.count();
     const where: Prisma.work_ordersWhereInput = {
       AND: [
         search
@@ -135,19 +139,29 @@ export class WorkOrdersService {
       deleted_at: null,
     };
 
+    const total = await this.dbService.work_orders.count({
+      where,
+    });
+
     const work_orders = await this.dbService.work_orders.findMany({
       skip,
       take: take <= 0 ? undefined : take,
       where,
       orderBy: {
-        created_at: order_by,
+        created_at: 'desc',
       },
       include: {
         order: {
           include: {
+            m_order_details: {
+              include: {
+                item: true,
+              }
+            },
             store: true,
             sales: true,
             members: true,
+            quotation: true,
           },
         },
         work_order_tukang: {
@@ -177,7 +191,7 @@ export class WorkOrdersService {
       },
     });
 
-    return { data: work_orders, skip, page, take, total, takeTotal: work_orders.length };
+    return { data: work_orders, skip, page, take, total };
   }
 
   async findOne(id: number) {
@@ -186,7 +200,19 @@ export class WorkOrdersService {
         id,
       },
       include: {
-        order: true,
+        order: {
+          include: {
+            m_order_details: {
+              include: {
+                item: true,
+              }
+            },
+            store: true,
+            sales: true,
+            members: true,
+            quotation: true,
+          },
+        },
         work_order_tukang: {
           include: {
             tukang: true,
@@ -212,10 +238,10 @@ export class WorkOrdersService {
         work_order_evidences: true,
       },
     });
-
+    
     return work_orders;
   }
-
+  
   async update(
     id: number,
     dataDto: UpdateWorkOrderDto,
@@ -261,8 +287,8 @@ export class WorkOrdersService {
             id: item.id ?? 0,
           },
           update: {
-            type: item.type,
-            tukang_id: item.tukang_id,
+            type: item?.type,
+            tukang_id: item?.tukang_id,
           },
           create: {
             type: item.type,
@@ -282,8 +308,12 @@ export class WorkOrdersService {
         work_date_time: dataDto?.status_details?.work_date_time
           ? new Date(dataDto.status_details.work_date_time)
           : undefined,
-        work_start_date: dataDto?.status_details?.work_end_date,
-        work_end_date: dataDto?.status_details?.work_end_date,
+        work_start_date: dataDto?.status_details?.work_start_date
+          ? new Date(dataDto?.status_details?.work_start_date)
+          : undefined,
+        work_end_date: dataDto?.status_details?.work_end_date
+          ? new Date(dataDto?.status_details?.work_end_date)
+          : undefined,
         description: dataDto?.status_details?.description,
       };
 
@@ -366,6 +396,8 @@ export class WorkOrdersService {
       work_order_after?: Express.Multer.File[];
     },
   ): Promise<work_orders> {
+    console.log('PAYLOAD', updateData);
+
     const { id: user_id } = user;
     const workOrder = await this.findOne(id);
 

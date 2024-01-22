@@ -5,6 +5,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, invoices, status, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { MulterError } from 'multer';
+import { throws } from 'assert';
+import { curry } from 'lodash';
+import { objectEnumValues } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class InvoicesService {
@@ -23,7 +26,6 @@ export class InvoicesService {
           };
         })
       : undefined;
-
     const providedQuotation = createInvoiceDto.invoice_details.map(
       ({ quotation_id }) => quotation_id,
     );
@@ -34,6 +36,10 @@ export class InvoicesService {
         },
       },
     });
+    const totalQuotation = quotations.reduce((accumulator, currentQuotation) => {
+      // Lakukan operasi penambahan grand total di sini, misalnya:
+      return accumulator + Number(currentQuotation.quotation_grand_total);
+    }, 0);
 
     const checkQuotation = providedQuotation.filter(
       (i) => !quotations.some((y) => y.id === i),
@@ -55,12 +61,13 @@ export class InvoicesService {
 
     const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
-    const invoiceDetails: Prisma.invoice_detailsCreateManyInvoicesInput[] =
-      createInvoiceDto.invoice_details.map((item) => {
-        return {
-          quotation_id: item.quotation_id,
-        };
-      });
+    const invoiceDetails  = createInvoiceDto.invoice_details.map((item) => {
+      return {
+        quotation_id: item.quotation_id,
+      };
+    });
+    
+    
 
     const data: Prisma.invoicesCreateInput = {
       vendor: {
@@ -74,6 +81,7 @@ export class InvoicesService {
         },
       },
       invoice_number: `${invoicesCount}`,
+      total_quotation_grand_total: totalQuotation,
       invoice_evidence: {
         createMany: {
           data: evidences,
@@ -104,6 +112,7 @@ export class InvoicesService {
       order_by,
       vendor_id,
       monthly,
+      status,
     } = query;
     const skip = page * take - take;
     const now = new Date();
@@ -140,6 +149,7 @@ export class InvoicesService {
               },
             }
           : undefined,
+        ...(status ? [{ status: { id: { in: status } } }] : []),
         monthly
           ? {
               created_at: {
@@ -187,57 +197,30 @@ export class InvoicesService {
         },
       },
     });
-    const count = await this.dbService.invoices.count();
-    // const month = invoices.map((x) => ({
-    //   january: invoices
-    //     .filter((x) => x.created_at.getMonth() === 0)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   february: invoices
-    //     .filter((x) => x.created_at.getMonth() === 1)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   march: invoices
-    //     .filter((x) => x.created_at.getMonth() === 2)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   april: invoices
-    //     .filter((x) => x.created_at.getMonth() === 3)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   may: invoices
-    //     .filter((x) => x.created_at.getMonth() === 4)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   june: invoices
-    //     .filter((x) => x.created_at.getMonth() === 5)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   july: invoices
-    //     .filter((x) => x.created_at.getMonth() === 6)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   august: invoices
-    //     .filter((x) => x.created_at.getMonth() === 7)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   september: invoices
-    //     .filter((x) => x.created_at.getMonth() === 8)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   october: invoices
-    //     .filter((x) => x.created_at.getMonth() === 9)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   november: invoices
-    //     .filter((x) => x.created_at.getMonth() === 10)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    //   december: invoices
-    //     .filter((x) => x.created_at.getMonth() === 11)
-    //     .map((x) => x.invoice_details.length)
-    //     .reduce((accumulator, currentValue) => accumulator + currentValue, 0),
-    // }));
+    const data = await this.dbService.invoices.findMany({
+      include: {
+        invoice_details: {
+          include: {
+            quotation: {
+              select: {
+                quotation_grand_total: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const totalQuotationValues = data.reduce((acc, item) => {
+      const invoiceTotal = item.invoice_details.reduce(
+        (invoiceAcc, i) =>
+          invoiceAcc + Number(i.quotation.quotation_grand_total),
+        0,
+      );
+      return acc + invoiceTotal;
+    }, 0);
+
+    console.log(totalQuotationValues);
+
     const month = invoices.reduce((acc, curr) => {
       const monthNames = [
         'January',
@@ -255,7 +238,7 @@ export class InvoicesService {
       ];
       const month = curr.created_at.getMonth();
       console.log(month);
-      
+
       const monthName = monthNames[month];
 
       if (!acc[monthName]) acc[monthName] = 0;
@@ -271,8 +254,9 @@ export class InvoicesService {
       skip,
       page,
       take,
-      total: count,
+      total: data.length,
       takeTotal: invoices.length,
+      totalQuotationGrandTotal: totalQuotationValues,
       month,
     };
   }
@@ -301,6 +285,7 @@ export class InvoicesService {
                 order: {
                   include: {
                     members: true,
+                    store: true,
                   },
                 },
                 quotation_details: true,
@@ -336,11 +321,17 @@ export class InvoicesService {
       //   },
       // },
     });
+    const totalQuotationValues = invoice?.invoice_details?.reduce(
+      (acc, item) => acc + Number(item?.quotation?.quotation_grand_total || 0),
+      0,
+    );
 
-    return invoice;
+    return{
+      invoice,
+      totalQuotation: totalQuotationValues
+    }
   }
 
-  //FIXME : FILE SYNC STILL DELETING ALL DATA
   async update(
     invoice: invoices,
     updateInvoiceDto: UpdateInvoiceDto,
@@ -509,13 +500,30 @@ export class InvoicesService {
   }
 
   async nextCode() {
-    const vendor = await this.dbService.vendor.findMany({
+    const invoices = await this.dbService.invoices.findMany({
       orderBy: {
         id: 'desc',
       },
       take: 1,
     });
 
-    return vendor[0] || null;
+    return invoices[0] || null;
+  }
+
+  async updateInvoicesPayment(dto: UpdateInvoiceDto) {
+    const request = {
+      where: {
+        id: {
+          in: dto.invoice_id,
+        },
+      },
+      data: {
+        status_id: dto.status_id,
+      },
+    };
+    const [invoices] = await this.dbService.$transaction([
+      this.dbService.invoices.updateMany(request),
+    ]);
+    return invoices;
   }
 }

@@ -1,33 +1,45 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, Validate, ValidateNested } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Validate, ValidateNested } from 'class-validator';
 import { InvoiceDetails } from './invoice-details.dto';
 
 export class UpdateInvoiceDto {
+  @IsOptional()
+  @Type(() => Number)
+  invoice_id?:number[]
+  @IsOptional()
   @IsString()
-  request_work_time: string;
+  request_work_time?: string;
+  @IsOptional()
   @IsString()
-  survey_date: string;
-
+  survey_date?: string;
+  
+  @IsOptional()
   @IsString()
-  work_start_date: string;
-
+  work_start_date?: string;
+  
+  @IsOptional()
   @IsString()
-  work_end_date: string;
-
+  work_end_date?: string;
+  
+  @IsOptional()
   @IsString()
-  description: string;
-
+  description?: string;
+  
+  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => InvoiceDetails)
-  invoice_details: InvoiceDetails[];
-
+  invoice_details?: InvoiceDetails[];
+  
+  @IsOptional()
   @Type(() => Number)
-  status_id: number;
-
+  status_id?: number;
+  
+  @IsOptional()
   @Type(() => Number)
-  order_id: number;
-
+  order_id?: number;
+  
+  @IsOptional()
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   invoice_evidences?: Array<Express.Multer.File>;
 }

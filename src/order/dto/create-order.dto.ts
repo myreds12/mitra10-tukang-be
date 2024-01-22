@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -36,6 +37,10 @@ export class CreateOrderDto {
 
   @ApiProperty()
   project_address: string;
+
+  @IsNotEmpty()
+  @IsString()
+  project_number: string;
 
   @ApiProperty()
   receipt_number?: string;

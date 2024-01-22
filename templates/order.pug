@@ -50,7 +50,7 @@ section#preview-email
             tr
               td= item.item_id
               td= item.unit
-              td= item.status.description
+              td= item.item_code
               td= item.quantity
               td= `Rp ${parseInt(item.unit_price || 0).toLocaleString('id')}`
               td= `Rp. ${item.total.toLocaleString('id')}`

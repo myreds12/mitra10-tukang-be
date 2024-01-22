@@ -25,8 +25,8 @@ export class UpdateWorkOrderDto {
   vendor_id?: number;
 
   @ApiProperty({ type: [WorkOrderTukang] }) // This represents an array of VendorService
-  @Type(() => WorkOrderTukang)
   @IsOptional()
+  @Type(() => WorkOrderTukang)
   @ValidateNested({ each: true })
   work_order_tukang?: WorkOrderTukang[];
 
@@ -42,7 +42,6 @@ export class UpdateWorkOrderDto {
   // @IsNotEmpty()
   // @IsString()
   @IsOptional()
-  @IsDateString()
   @Transform(({ value }) => new Date(value))
   survey_date: string | Date;
 
@@ -51,12 +50,10 @@ export class UpdateWorkOrderDto {
   work_order_status: number;
 
   @IsOptional()
-  @IsDateString()
   @Transform(({ value }) => new Date(value))
   work_start_date: string;
 
   @IsOptional()
-  @IsDateString()
   @Transform(({ value }) => new Date(value))
   work_end_date: string;
 

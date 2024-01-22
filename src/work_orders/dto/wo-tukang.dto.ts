@@ -3,16 +3,17 @@ import { Type } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class WorkOrderTukang {
-  @IsNumber()
   @IsOptional()
   @Type(() => Number)
+  @IsNumber()
   id?: number;
 
   @Type(() => Number)
   type?: number;
 
+  @IsOptional()
   @ApiProperty({ type: Number })
   @Type(() => Number)
   @IsNumber()
-  tukang_id: number;
+  tukang_id?: number;
 }

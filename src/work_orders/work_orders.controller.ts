@@ -122,7 +122,7 @@ export class WorkOrdersController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { data, skip, page, take, total, takeTotal } =
+      const { data, skip, page, take, total } =
         await this.workOrdersService.findAll(queryParamsDto);
 
       return res.status(200).json({

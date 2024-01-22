@@ -6,7 +6,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { SalesBrandsDto } from './sales-brands.dto';
+// import { SalesBrandsDto } from './sales-brands.dto';
 import { SalesCategoriesDto } from './sales-categories.dto';
 
 export class UpdateSalesDto {
@@ -40,11 +40,12 @@ export class UpdateSalesDto {
   @IsOptional()
   account_name?: string;
 
+  @IsOptional()
   @IsString()
   sales_brand: string;
 
-  @ApiProperty()
-  sales_brands?: SalesBrandsDto[];
+  // @ApiProperty()
+  // sales_brands?: SalesBrandsDto[];
 
   @ApiProperty()
   sales_categories?: SalesCategoriesDto[];

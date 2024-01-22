@@ -7,7 +7,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { SalesBrandsDto } from './sales-brands.dto';
+// import { SalesBrandsDto } from './sales-brands.dto';
 import { SalesCategoriesDto } from './sales-categories.dto';
 import { Type } from 'class-transformer';
 
@@ -41,16 +41,20 @@ export class CreateSalesDto {
   phone_number: string;
 
   @IsOptional()
+  @IsString()
+  default_password: string;
+  
+  @IsOptional()
   account_name?: string;
 
   @IsOptional()
   @IsString()
   sales_brand: string;
 
-  @IsOptional()
-  @Type(() => SalesBrandsDto)
-  @ValidateNested({ each: true })
-  sales_brands?: SalesBrandsDto[];
+  // @IsOptional()
+  // @Type(() => SalesBrandsDto)
+  // @ValidateNested({ each: true })
+  // sales_brands?: SalesBrandsDto[];
 
   @ApiProperty()
   @Type(() => SalesCategoriesDto)

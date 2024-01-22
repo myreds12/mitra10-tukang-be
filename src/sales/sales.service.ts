@@ -46,14 +46,6 @@ export class SalesService {
       },
     });
 
-    const sales_brands: Prisma.sales_brandsCreateManySalesInput[] =
-      createSalesDto?.sales_brands?.map((item) => {
-        return {
-          brands_id: item.brand_id,
-          created_by: user_id,
-        };
-      });
-
     const sales_categories: Prisma.sales_categoriesCreateManyInput[] =
       createSalesDto.sales_categories.map((item) => {
         return {
@@ -63,7 +55,7 @@ export class SalesService {
         };
       });
 
-    const saltedPassword = hashSync('password', 12);
+    const saltedPassword = hashSync(createSalesDto.default_password, 12);
 
     const sales_data: Prisma.salesCreateInput = {
       full_name: createSalesDto.full_name,
@@ -71,6 +63,7 @@ export class SalesService {
       account_name: createSalesDto.account_name,
       phone_number: createSalesDto.phone_number,
       account_number: createSalesDto.account_number,
+      sales_brand: createSalesDto.sales_brand,
       created_by: user_id,
       nik: createSalesDto.nik,
       store: {
@@ -83,11 +76,6 @@ export class SalesService {
           id: createSalesDto.bank_id,
         },
       },
-      // sales_brands: {
-      //   createMany: {
-      //     data: sales_brands,
-      //   },
-      // },
       sales_categories: {
         createMany: {
           data: sales_categories,
@@ -242,22 +230,22 @@ export class SalesService {
       },
     };
 
-    const upsertSalesBrands: Prisma.sales_brandsUpsertWithWhereUniqueWithoutSalesInput[] =
-      updateSalesDto.sales_brands.map((i) => ({
-        where: {
-          id: i?.id ?? 0,
-          brands_id: i.brand_id,
-        },
-        update: {
-          brands_id: i.brand_id,
-          updated_at: new Date(),
-          updated_by: user_id,
-        },
-        create: {
-          brands_id: i.brand_id,
-          created_by: user_id,
-        },
-      }));
+    // const upsertSalesBrands: Prisma.sales_brandsUpsertWithWhereUniqueWithoutSalesInput[] =
+    //   updateSalesDto.sales_brands.map((i) => ({
+    //     where: {
+    //       id: i?.id ?? 0,
+    //       brands_id: i.brand_id,
+    //     },
+    //     update: {
+    //       brands_id: i.brand_id,
+    //       updated_at: new Date(),
+    //       updated_by: user_id,
+    //     },
+    //     create: {
+    //       brands_id: i.brand_id,
+    //       created_by: user_id,
+    //     },
+    //   }));
     const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
       updateSalesDto.sales_categories.map(
         ({ id, category_id, commission }) => ({

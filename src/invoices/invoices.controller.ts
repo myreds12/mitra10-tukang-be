@@ -42,12 +42,47 @@ export class InvoicesController {
     private readonly invoicesService: InvoicesService,
   ) {}
 
+  @Post('/payment')
+  @UseInterceptors(FilesInterceptor('invoice_evidences'))
+  async updateInvoiceToPayment(
+    @Body() dto: UpdateInvoiceDto,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const updated = await this.invoicesService.updateInvoicesPayment(
+       dto
+      );
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Invoice Updated',
+        data: updated,
+      });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.messages ?? error?.messages ?? 'Error while update',
+        stack: error,
+      });
+    }
+  }
+
   @Get('next-code')
-  async nextCode(@Request() req: IExpressRequest, @Res() res: IExpressResponse) {
+  async nextCode(
+    @Request() req: IExpressRequest,
+    @Res() res: IExpressResponse,
+  ) {
     try {
       const invoices = await this.invoicesService.nextCode();
       let nextCode: number;
-      if (invoices) nextCode = invoices.id + 1;
+      if (invoices) {
+        nextCode = invoices.id + 1;
+      } else {
+        nextCode = 0 + 1;
+      }
+
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Next Code',
@@ -56,6 +91,8 @@ export class InvoicesController {
         },
       });
     } catch (error) {
+      console.log(error);
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
@@ -115,7 +152,7 @@ export class InvoicesController {
       });
     } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
@@ -135,6 +172,8 @@ export class InvoicesController {
         data: invoice,
       });
     } catch (error) {
+      console.log(error);
+      
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',

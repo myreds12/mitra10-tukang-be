@@ -21,15 +21,23 @@ export class CreateItemDto {
   prices: Prices[];
 }
 class Prices {
-  @Type(() => Number)
-  store_id: number;
-
+  @Type(() => PriceStore)
+  @IsNotEmpty()
+  @ValidateNested({ each: true })
+  price_store: PriceStore[];
+  
+  
   periodic_start: string;
   periodic_end: string;
-
+  
   @Type(() => Number)
   price: number;
 
   @Type(() => Number)
   min_order: number;
+}
+
+class PriceStore {
+  @Type(() => Number)
+  store_id: number;
 }

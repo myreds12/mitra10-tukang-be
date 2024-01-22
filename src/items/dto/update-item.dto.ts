@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, ValidateNested } from 'class-validator';
 
 export class UpdateItemDto {
   item_code?: string;
@@ -25,9 +25,10 @@ export class Prices {
   @IsOptional()
   @IsNumber()
   id?: number;
-
-  @Type(() => Number)
-  store_id?: number;
+  
+  @Type(() => PriceStore)
+  @ValidateNested({ each: true })
+  price_store?: PriceStore[];
 
   @IsOptional()
   periodic_start?: string;
@@ -39,4 +40,13 @@ export class Prices {
 
   @Type(() => Number)
   min_order?: number;
+}
+
+class PriceStore {
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+  @Type(() => Number)
+  store_id?: number;
 }

@@ -11,49 +11,65 @@ export class ItemsService {
   constructor(
     private readonly eventEmitter: EventEmitter2,
     private readonly dbService: PrismaService,
-  ) { }
+  ) {}
   async create(createItemDto: CreateItemDto, user_id: number) {
-    const prices = createItemDto.prices.map((price) => {
-      return {
-        ...price,
-        periodic_start: new Date(price.periodic_start),
-        periodic_end: new Date(price.periodic_end),
-        created_by: user_id,
-      };
+    const {
+      item_code,
+      item_name,
+      name: service_name,
+      default_price,
+      category_id,
+      prices,
+    } = createItemDto;
+
+    const createdItem = await this.dbService.items.create({
+      data: {
+        item_code,
+        item_name,
+        service_name,
+        default_price,
+        category: { connect: { id: category_id } },
+      },
     });
 
-    const itemDataOptions: Prisma.itemsCreateInput = {
-      item_code: createItemDto?.item_code,
-      item_name: createItemDto?.item_name,
-      service_name: createItemDto.name,
-      default_price: createItemDto.default_price,
-      category: {
-        connect: {
-          id: createItemDto.category_id,
-        },
-      },
-      prices: {
-        createMany: {
-          data: prices,
-        },
-      },
-    };
+    const createPricePromises = prices.map(async (price) => {
+      const {
+        periodic_start,
+        periodic_end,
+        min_order,
+        price: priceValue,
+      } = price;
 
-    const [{ id: items_id }] = await this.dbService.$transaction([
-      this.dbService.items.create({
-        data: itemDataOptions,
-      }),
-    ]);
+      const createdPrice = await this.dbService.prices.create({
+        data: {
+          item_id: createdItem.id,
+          periodic_start: new Date(periodic_start),
+          periodic_end: new Date(periodic_end),
+          min_order,
+          price: priceValue,
+          created_by: user_id,
+        },
+      });
 
-    // this.eventEmitter.emit('create.logger', {
-    //   module_id: items.id,
-    //   module_type: 'items',
-    //   issuer_id: user_id,
-    //   issuer_type: 'users',
-    //   properties: { properties: items, status: 'CREATE' },
-    // });
+      await Promise.all(
+        price.price_store.map((store) =>
+          this.dbService.price_stores.create({
+            data: {
+              price_id: createdPrice.id,
+              store_id: store.store_id,
+              created_by: user_id,
+            },
+          }),
+        ),
+      );
+
+      return createdPrice;
+    });
+
+    await Promise.all(createPricePromises);
+
     return {
-      id: items_id,
+      id: createdItem.id,
       ...createItemDto,
     };
   }
@@ -82,39 +98,41 @@ export class ItemsService {
       take: take > 0 ? take : undefined,
       where: {
         AND: [
-          search
-            ? {
-              OR: [
+          ...(search
+            ? [
                 {
-                  service_name: {
-                    contains: search,
-                  },
-                },
-                category_id
-                  ? {
-                    category_id: {
-                      equals: category_id,
+                  OR: [
+                    {
+                      service_name: {
+                        contains: search,
+                      },
                     },
-                  }
-                  : undefined,
-              ],
-            }
+                  ],
+                },
+              ]
+            : []),
+          category_id
+            ? {
+                category_id: {
+                  equals: category_id,
+                },
+              }
             : undefined,
           sales.sales
             ? {
-              category: {
-                id: {
-                  in: sales.sales.sales_categories.map(
-                    ({ category_id }) => category_id,
-                  ),
+                category: {
+                  id: {
+                    in: sales.sales.sales_categories.map(
+                      ({ category_id }) => category_id,
+                    ),
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           {
             deleted_at: null,
           },
-        ],
+        ].filter(Boolean), // Membersihkan nilai-nilai undefined dari array
       },
       include: {
         prices: {
@@ -125,10 +143,17 @@ export class ItemsService {
           select: {
             id: true,
             item_id: true,
-            store_id: true,
-            store: true,
             periodic_start: true,
             periodic_end: true,
+            price_stores: {
+              select: {
+                store: {
+                  select: {
+                    store_name: true,
+                  },
+                },
+              },
+            },
             price: true,
             min_order: true,
             created_at: true,
@@ -158,10 +183,17 @@ export class ItemsService {
           select: {
             id: true,
             item_id: true,
-            store_id: true,
-            store: true,
             periodic_start: true,
             periodic_end: true,
+            price_stores: {
+              select: {
+                store: {
+                  select: {
+                    store_name: true,
+                  },
+                },
+              },
+            },
             price: true,
             min_order: true,
             created_at: true,
@@ -177,40 +209,67 @@ export class ItemsService {
     console.log(UpdateDataDto);
 
     // update or insert
+
+
     const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
-      UpdateDataDto.prices.map((item) => ({
-        where: {
-          item_id: id,
-          // If id is not present set it to zero to be created
-          id: item?.id ?? 0,
-        },
-        update: {
-          store_id: item?.store_id,
-          periodic_start: item?.periodic_start
-            ? new Date(item.periodic_start)
-            : undefined,
-          periodic_end: item?.periodic_end
-            ? new Date(item.periodic_end)
-            : undefined,
-          min_order: item?.min_order,
-          price: item?.price,
-          updated_by: user_id,
-          updated_at: new Date(),
-        },
-        create: {
-          store_id: item?.store_id,
-          periodic_start: item?.periodic_start
-            ? new Date(item.periodic_start)
-            : undefined,
-          periodic_end: item?.periodic_end
-            ? new Date(item.periodic_end)
-            : undefined,
-          min_order: item?.min_order,
-          price: item?.price,
-          created_at: new Date(),
-          created_by: user_id,
-        },
-      }));
+      UpdateDataDto.prices.map((item) => {
+        const priceStoreCreate: Prisma.price_storesCreateManyPriceInput[] = item.price_store.map((price) => ({
+          store_id: price.store_id
+        }))
+        const priceStoreUpsert: Prisma.price_storesUpsertWithWhereUniqueWithoutPriceInput[] =
+          item.price_store.map((price) => ({
+            where: {
+              id: price.id ?? 0
+            },
+            update: {
+              store_id: price.store_id
+            },
+            create: {
+              store_id: price.store_id
+            }
+          })
+          );
+        return {
+
+          where: {
+            item_id: id,
+            // If id is not present set it to zero to be created
+            id: item?.id ?? 0,
+          },
+          update: {
+            periodic_start: item?.periodic_start
+              ? new Date(item.periodic_start)
+              : undefined,
+            periodic_end: item?.periodic_end
+              ? new Date(item.periodic_end)
+              : undefined,
+            min_order: item?.min_order,
+            price_store: {
+              upsert: priceStoreUpsert
+            },
+            price: item?.price,
+            updated_by: user_id,
+            updated_at: new Date(),
+          },
+          create: {
+            periodic_start: item?.periodic_start
+              ? new Date(item.periodic_start)
+              : undefined,
+            periodic_end: item?.periodic_end
+              ? new Date(item.periodic_end)
+              : undefined,
+            min_order: item?.min_order,
+            price: item?.price,
+            created_at: new Date(),
+            created_by: user_id,
+            price_store: {
+              createMany: {
+                data: priceStoreCreate
+              }
+            }
+          },
+        }
+      });
 
     const [syncPrices, items_query] = await this.dbService.$transaction([
       this.dbService.prices.updateMany({

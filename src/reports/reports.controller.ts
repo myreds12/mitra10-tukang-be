@@ -10,6 +10,7 @@ import {
   Query,
   Res,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -22,6 +23,7 @@ import {
   Response as IExpressResponse,
 } from 'express';
 import { users } from '@prisma/client';
+import { FormDto } from './dto/create-form.dto';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -34,6 +36,11 @@ export class ReportsController {
     private readonly reportsService: ReportsService,
     private readonly orderService: OrderService,
   ) {}
+
+  @Post('/create-form')
+  createForm(@Body() dto: FormDto, @Req() req: Request) {
+    return this.reportsService.createForm(dto);
+  }
 
   @Post()
   create(@Body() createReportDto: CreateReportDto) {

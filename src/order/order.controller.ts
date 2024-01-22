@@ -160,7 +160,7 @@ export class OrderController {
   // @CheckPermissions([PermissionAction.READ, menuName])
   async findAll(@Query() query: QueryParamsDto) {
     try {
-      const { data, page, take, total, orderGrandTotal } = await this.orderService.findAll(
+      const { data, page, take, total, orderGrandTotal, takeTotal } = await this.orderService.findAll(
         query,
       );
       return {
@@ -170,7 +170,8 @@ export class OrderController {
         page,
         take,
         total,
-        orderGrandTotal
+        orderGrandTotal,
+        takeTotal
       };
     } catch (error) {
       console.log(error.message);

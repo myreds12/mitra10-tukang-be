@@ -12,7 +12,6 @@ export class OrderDetailDto {
   // order_id: number;
 
   @Type(() => Number)
-  @IsNumber()
   item_id?: number;
 
   @IsOptional()
@@ -30,4 +29,8 @@ export class OrderDetailDto {
   @IsOptional()
   @IsString()
   item_name?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  category_id: number
 }

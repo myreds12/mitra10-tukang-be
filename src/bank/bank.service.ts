@@ -128,4 +128,16 @@ export class BankService {
       };
     }
   }
+
+  
+  async getCode() {
+    const bank = await this.dbService.bank.findMany({
+      orderBy: {
+        id: 'desc',
+      },
+      take: 1,
+    });
+
+    return bank[0] || null;
+  }
 }
