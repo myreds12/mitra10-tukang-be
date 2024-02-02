@@ -123,7 +123,7 @@ export class ComplaintsService {
     };
     console.log(where);
 
-    const complaint: complaints[] = await this.dbService.complaints.findMany({
+    const complaint = await this.dbService.complaints.findMany({
       take: take <= 0 ? undefined : take,
       skip,
       where,
@@ -147,7 +147,6 @@ export class ComplaintsService {
             store: true,
             status: true,
             vendor: true,
-
             m_order_details: true,
           },
         },
@@ -158,10 +157,38 @@ export class ComplaintsService {
         orders: true,
       }
     }).then((data) => data.reduce((acc, curr) => acc + Number(curr.orders.grand_total), 0));
+    const totalComplaintPerMonth = {};
+    const totalComplaintGrandTotalPerMonth = {};
+    const allMonths = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    allMonths.forEach(month => {
+      totalComplaintGrandTotalPerMonth[month] = 0;
+    });
+
+    complaint.forEach(complaint => {
+      const month = new Date(complaint.created_at).toLocaleString('id-ID', { month: 'long' });
+      const grandTotalPerMonth = Number(complaint.orders.grand_total);
+
+      if (!totalComplaintPerMonth[month]) {
+        totalComplaintPerMonth[month] = 0;
+      }
+
+      totalComplaintPerMonth[month]++;
+      totalComplaintGrandTotalPerMonth[month] += grandTotalPerMonth;
+    });
+
+    const monthlyComplaint = allMonths.map(month => ({
+      month,
+      totalOrder: totalComplaintPerMonth[month] || 0,
+      totalOrderGrandTotalPerMonth: totalComplaintGrandTotalPerMonth[month] || 0
+    }));
 
     return {
       complaint,
-      complaintGrandTotal
+      complaintGrandTotal,
+      monthlyComplaint
     };
   }
 

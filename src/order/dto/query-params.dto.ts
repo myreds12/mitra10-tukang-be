@@ -26,6 +26,8 @@ export class QueryParamsDto {
   search_date_from: string;
   search_date_to: string;
 
+  top_best: boolean;
+
   group_by?: string;
 
   order_by: 'asc' | 'desc' = 'asc';

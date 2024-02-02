@@ -19,7 +19,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) {}
+  ) { }
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -35,7 +35,7 @@ export class OrderService {
     const STORE_ROLES = ROLES.find(({ name }) =>
       name.toLowerCase().includes('store staff'),
     );
-    const ADMIN_HO_ROLES = ROLES.find(({name}) => name.toLowerCase().includes('admin ho'))
+    const ADMIN_HO_ROLES = ROLES.find(({ name }) => name.toLowerCase().includes('admin ho'))
 
     const salesUser = await this.dbService.users.findFirst({
       where: { id: user_id },
@@ -159,7 +159,7 @@ export class OrderService {
       },
     };
 
-    const [salesOrder ,order] = await this.dbService.$transaction([
+    const [salesOrder, order] = await this.dbService.$transaction([
       this.dbService.sales.update({
         where: {
           id: salesUser?.id ?? createOrderDto.sales_id,
@@ -208,43 +208,43 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { request_survey: { equals: new Date(search) } },
-                  { members: { full_name: { contains: search } } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { receipt_number: { contains: search } },
+                { request_survey: { equals: new Date(search) } },
+                { members: { full_name: { contains: search } } },
+              ],
+            },
+          ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
         store_id
           ? {
-              store_id: {
-                equals: store_id,
+            store_id: {
+              equals: store_id,
+            },
+          } : undefined,
+        vendor_id
+          ? {
+            vendor: {
+              id: {
+                equals: vendor_id
               },
-            }: undefined,
-            vendor_id
-            ? {
-                vendor: {
-                  id: {
-                    equals: vendor_id
-                  },
-                  deleted_at: null,
-                },
-              }
+              deleted_at: null,
+            },
+          }
           : undefined,
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -446,6 +446,33 @@ export class OrderService {
         },
       })
       .then((data) => data._sum.grand_total);
+    const totalOrdersPerMonth = {};
+    const totalOrderGrandTotalPerMonth = {};
+    const allMonths = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    allMonths.forEach(month => {
+      totalOrderGrandTotalPerMonth[month] = 0;
+    });
+
+    orders.forEach(order => {
+      const month = new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
+      const grandTotalPerMonth = Number(order.grand_total);
+
+      if (!totalOrdersPerMonth[month]) {
+        totalOrdersPerMonth[month] = 0;
+      }
+
+      totalOrdersPerMonth[month]++;
+      totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
+    });
+
+    const monthlyOrders = allMonths.map(month => ({
+      month,
+      totalOrder: totalOrdersPerMonth[month] || 0,
+      totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0
+    }));
 
     return {
       data: orders,
@@ -454,6 +481,7 @@ export class OrderService {
       take,
       orderGrandTotal,
       takeTotal: orders.length,
+      monthlyOrders
     };
   }
 
@@ -657,10 +685,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-          where: {
-            id: updateOrderDto.project_status_id,
-          },
-        })
+        where: {
+          id: updateOrderDto.project_status_id,
+        },
+      })
       : null;
 
     let projectStatusDefault = order.status;
@@ -771,12 +799,12 @@ export class OrderService {
             item_notes: item?.item_notes,
             ...(item.item_id
               ? {
-                  item: {
-                    connect: {
-                      id: item.item_id,
-                    },
+                item: {
+                  connect: {
+                    id: item.item_id,
                   },
-                }
+                },
+              }
               : undefined),
             sales: {
               connect: { id: updateOrderDto.sales_id ?? order.sales_id },
@@ -823,13 +851,13 @@ export class OrderService {
       });
     const deletedOrderFile = updateOrderDto.existing_order_files
       ? updateOrderDto?.existing_order_files
-          .filter((x) => Boolean(x?.order_file_id))
-          .map((item) => {
-            return Number(item.order_file_id);
-          })
+        .filter((x) => Boolean(x?.order_file_id))
+        .map((item) => {
+          return Number(item.order_file_id);
+        })
       : undefined;
     console.log(deletedOrderFile);
-    
+
 
 
     // ...deletedDetailsId.length ?
@@ -852,8 +880,8 @@ export class OrderService {
     //   },
     // });
     // return console.log("success");
-    
-    
+
+
 
     const [syncDetails, syncFiles, orderQuery] =
       await this.dbService.$transaction([
@@ -862,10 +890,10 @@ export class OrderService {
             order_id: id,
             ...(deletedDetailsId.length
               ? {
-                  id: {
-                    notIn: deletedDetailsId,
-                  },
-                }
+                id: {
+                  notIn: deletedDetailsId,
+                },
+              }
               : undefined),
           },
           data: {
@@ -877,12 +905,12 @@ export class OrderService {
           where: {
             ...(deletedOrderFile
               ? {
-                  id: {
-                    notIn: deletedOrderFile,
-                  },
-                }
-                : undefined),
-                order_id: id,
+                id: {
+                  notIn: deletedOrderFile,
+                },
+              }
+              : undefined),
+            order_id: id,
           },
           data: {
             deleted_at: new Date(),
@@ -1138,7 +1166,7 @@ export class OrderService {
 
     return {
       data: order,
-      redirect_url:`${process.env.API_URL}/detail-order/${member}/${id}`
+      redirect_url: `${process.env.API_URL}/detail-order/${member}/${id}`
     };
   }
 }

@@ -248,7 +248,7 @@ export class OrderController {
   @UseGuards(JwtAuthGuard)
   async findAll(@Query() query: QueryParamsDto) {
     try {
-      const { data, page, take, total, orderGrandTotal, takeTotal } =
+      const { data, page, take, total, orderGrandTotal, takeTotal, monthlyOrders } =
         await this.orderService.findAll(query);
       return {
         status: HttpStatus.OK,
@@ -259,6 +259,7 @@ export class OrderController {
         total,
         orderGrandTotal,
         takeTotal,
+        monthlyOrders
       };
     } catch (error) {
       console.log(error.message);
