@@ -18,6 +18,6 @@ export class SendEmailService {
       html: pug.renderFile('templates/index.pug', { data }),
     });
 
-    console.log('mailer', mail);
+    console.log('SUCCESS');
   }
 }

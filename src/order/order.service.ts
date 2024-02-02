@@ -158,11 +158,13 @@ export class OrderService {
         order_files: { createMany: { data: files } },
       },
     };
+    console.log(salesUser.sales.id);
+    
 
-    const [salesOrder, order] = await this.dbService.$transaction([
+    const [salesOrder ,order] = await this.dbService.$transaction([
       this.dbService.sales.update({
         where: {
-          id: salesUser?.id ?? createOrderDto.sales_id,
+          id: salesUser?.sales.id ?? createOrderDto.sales_id,
         },
         data: {
           order_total: {

@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
+  ParseIntPipe,
   Post,
   Req,
   UseGuards,
@@ -33,6 +35,11 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: CreateLoginDto) {
     return await this.authService.login(dto);
+  }
+  @HttpCode(200)
+  @Post('reset-password/:id')
+  async resetPassword(@Param('id', ParseIntPipe) id: number ,@Body() dto: CreateLoginDto) {
+    return await this.authService.resetPassword(id, dto);
   }
 
   @UseGuards(JwtAuthGuard)

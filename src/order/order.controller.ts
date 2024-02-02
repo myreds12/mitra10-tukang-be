@@ -226,6 +226,7 @@ export class OrderController {
         req.user,
         order_files,
       );
+      await this.sendEmailService.sendMail(order.id)
 
       return res.status(201).json({
         status: HttpStatus.CREATED,

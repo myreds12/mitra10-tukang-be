@@ -2,12 +2,13 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { compare } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, users } from '@prisma/client';
 import { PermissionAction } from 'src/casl/enum/permission-action.enum';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 // import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()
@@ -127,6 +128,19 @@ export class AuthService {
         },
       },
     });
+  }
+ 
+  async resetPassword(id: number, dto: ResetPasswordDto){
+    const updatePassword = await this.dbService.users.update({
+      where: {
+        id
+      },
+      data: {
+        password: await hash(dto.password, 14)
+      }
+    })
+
+    return updatePassword
   }
 
   async generateJwt(

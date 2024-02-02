@@ -69,7 +69,7 @@ export class VendorService {
     })
     const users = await this.dbService.users.create({
       data: {
-        username: `${createVendorDto.pic_name.toLowerCase().replace(' ', '_')}`,
+        username: `${createVendorDto.company_name.toLowerCase().replace(' ', '_')}`,
         password: await hash('password', 10),
         role_id: role.id,
       },
@@ -123,7 +123,6 @@ export class VendorService {
       },
     };
 
-    console.log('Vendor Data', vendorData);
 
     const [vendor] = await this.dbService.$transaction([
       this.dbService.vendor.create({
