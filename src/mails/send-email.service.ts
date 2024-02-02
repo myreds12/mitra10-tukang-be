@@ -12,7 +12,7 @@ export class SendEmailService {
     const mail = await this.mailerService.sendMail({
       to: data.members.email, // list of receivers
       from: 'kreasisawalanusantara@gmail.com', // sender address
-      subject: 'Testing Nest MailerModule ✔', // Subject line
+      subject: 'Email Order', // Subject line
       template: 'order',
       context: data,
       html: pug.renderFile('templates/index.pug', { data }),
