@@ -237,7 +237,7 @@ model users {
   roles    roles     @relation(fields: [role_id], references: [id])
   sales    sales?
   employee employee?
-  vendor   vendor[]
+  vendor   vendor?
   tukang   tukang[]
 }
 
@@ -254,6 +254,7 @@ model sales {
   account_number String? @db.VarChar(255)
   phone_number   String? @db.VarChar(50)
   sales_brand    String? @default("")
+  order_total    Int?    @default(0)
 
   is_active Boolean @default(true)
 
@@ -440,7 +441,7 @@ model tukang_service {
 
 model vendor {
   id            Int       @id @default(autoincrement())
-  user_id       Int?
+  user_id       Int?      @unique
   company_name  String    @db.VarChar(45)
   address       String    @db.VarChar(200)
   phone_number  String    @db.VarChar(30)
@@ -595,6 +596,7 @@ model orders {
   order_files     order_files[]
   order_history   order_histories[]
   reschedule      reschedule[]
+  invoice_orders  invoice_orders[]
 }
 
 model order_histories {
@@ -938,7 +940,7 @@ model work_orders {
   status_id Int
 
   request_work_time DateTime? @default(now()) @db.DateTime()
-  survey_date       DateTime  @db.Date()
+  survey_date       DateTime? @db.Date()
 
   work_start_date DateTime? @db.Date()
   work_end_date   DateTime? @db.Date()
@@ -1066,13 +1068,14 @@ model invoices {
   status           status             @relation(fields: [status_id], references: [id])
   invoice_evidence invoice_evidence[]
   invoice_details  invoice_details[]
+  invoice_orders   invoice_orders[]
 }
 
 model invoice_details {
   id Int @id @default(autoincrement())
 
-  invoice_id   Int @map("invoiceId")
-  quotation_id Int @map("quotationId")
+  invoice_id   Int  @map("invoiceId")
+  quotation_id Int? @map("quotationId")
 
   created_by Int? @map("createdBy")
   updated_by Int? @map("updatedBy")
@@ -1082,8 +1085,26 @@ model invoice_details {
   updated_at DateTime? @map("updatedAt") @db.DateTime()
   deleted_at DateTime? @map("deletedAt") @db.DateTime()
 
-  quotation quotation @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  invoices  invoices  @relation(fields: [invoice_id], references: [id])
+  quotation quotation? @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoices  invoices   @relation(fields: [invoice_id], references: [id])
+}
+
+model invoice_orders {
+  id Int @id @default(autoincrement())
+
+  invoice_id Int  @map("invoiceId")
+  order_id   Int? @map("orderId")
+
+  created_by Int? @map("createdBy")
+  updated_by Int? @map("updatedBy")
+  deleted_by Int? @map("deletedBy")
+
+  created_at DateTime  @default(now()) @map("createdAt") @db.DateTime()
+  updated_at DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+
+  orders   orders?  @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoices invoices @relation(fields: [invoice_id], references: [id])
 }
 
 model invoice_evidence {
@@ -1210,16 +1231,17 @@ model refund_evidences {
 model csi {
   id Int @id @default(autoincrement())
 
-  store_name            String @db.VarChar(250)
+  store_name            String  @db.VarChar(250)
   member_id             Int
-  vendor_name           String @db.VarChar(250)
-  member_name           String @db.VarChar(250)
-  performance_rate      Int    @map("performanceRate")
-  delivery_rate         Int    @map("deliveryRate")
-  invoicing_rate        Int    @map("invoicingRate")
-  customer_service_rate Int    @map("customerServiceRate")
+  vendor_name           String  @db.VarChar(250)
+  member_name           String  @db.VarChar(250)
+  performance_rate      Int     @map("performanceRate")
+  delivery_rate         Int     @map("deliveryRate")
+  invoicing_rate        Int     @map("invoicingRate")
+  customer_service_rate Int     @map("customerServiceRate")
+  knowledge_rate        Int     @map("knowledgeRate")
   notes                 String? @db.NText
-  email_address         String @map("emailAddress") @db.VarChar(50)
+  email_address         String  @map("emailAddress") @db.VarChar(50)
 
   created_by Int?
   updated_by Int?

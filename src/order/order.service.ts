@@ -35,6 +35,7 @@ export class OrderService {
     const STORE_ROLES = ROLES.find(({ name }) =>
       name.toLowerCase().includes('store staff'),
     );
+    const ADMIN_HO_ROLES = ROLES.find(({name}) => name.toLowerCase().includes('admin ho'))
 
     const salesUser = await this.dbService.users.findFirst({
       where: { id: user_id },
@@ -129,7 +130,7 @@ export class OrderService {
       Object.entries({
         members: { connect: { id: createOrderDto.member_id } },
         store: { connect: { id: createOrderDto.store_id } },
-        status: { connect: { id: ROLE_STATUS.id } },
+        status: { connect: { id: createOrderDto.project_status_id } },
         sales: { connect: { id: createOrderDto.sales_id } },
         vendor: createOrderDto.vendor_id
           ? { connect: { id: createOrderDto.vendor_id } }
@@ -158,7 +159,17 @@ export class OrderService {
       },
     };
 
-    const [order] = await this.dbService.$transaction([
+    const [salesOrder ,order] = await this.dbService.$transaction([
+      this.dbService.sales.update({
+        where: {
+          id: salesUser?.id ?? createOrderDto.sales_id,
+        },
+        data: {
+          order_total: {
+            increment: 1
+          },
+        },
+      }),
       this.dbService.orders.create(ordersOptions),
     ]);
 
@@ -185,6 +196,8 @@ export class OrderService {
       sales_id,
       payment_type,
       store_id,
+      vendor_id,
+      invoice_status
     } = queryParams;
     const skip = page * take - take;
     console.log(status);
@@ -212,7 +225,16 @@ export class OrderService {
               store_id: {
                 equals: store_id,
               },
-            }
+            }: undefined,
+            vendor_id
+            ? {
+                vendor: {
+                  id: {
+                    equals: vendor_id
+                  },
+                  deleted_at: null,
+                },
+              }
           : undefined,
         ...(date_from && date_to
           ? [
@@ -281,6 +303,13 @@ export class OrderService {
             created_by: true,
             updated_by: true,
           },
+        },
+        invoice_orders: {
+          select: {
+            id: true,
+            invoice_id: true,
+            invoices: true
+          }
         },
         store: {
           where: {
@@ -410,9 +439,6 @@ export class OrderService {
       },
     });
     const count = await this.dbService.orders.count();
-    const takeTotal = await this.dbService.orders.count({
-      where
-    })
     const orderGrandTotal = await this.dbService.orders
       .aggregate({
         _sum: {
@@ -427,7 +453,7 @@ export class OrderService {
       page,
       take,
       orderGrandTotal,
-      takeTotal,
+      takeTotal: orders.length,
     };
   }
 
@@ -477,10 +503,29 @@ export class OrderService {
         },
         order_files: {
           where: {
-            deleted_at: null
+            deleted_at: null,
+          },
+        },
+        invoice_orders: {
+          select: {
+            id: true,
+            invoice_id: true,
+            invoices: true
           }
         },
         complaints: true,
+        quotation: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          include: {
+            quotation_details: true,
+          },
+        },
         work_orders: {
           include: {
             vendor: true,
@@ -681,7 +726,6 @@ export class OrderService {
           currentItem?.default_price ??
           0;
 
-        console.log(itemPrice);
 
         // console.log(currentItem.default_price);
 
@@ -725,13 +769,15 @@ export class OrderService {
           },
           create: {
             item_notes: item?.item_notes,
-            ...(item.item_id ? {
-              item: {
-                connect: {
-                  id: item.item_id
+            ...(item.item_id
+              ? {
+                  item: {
+                    connect: {
+                      id: item.item_id,
+                    },
+                  },
                 }
-              }
-            } : undefined),
+              : undefined),
             sales: {
               connect: { id: updateOrderDto.sales_id ?? order.sales_id },
             },
@@ -746,8 +792,6 @@ export class OrderService {
           },
         };
       });
-      console.log(orderDetailUpsert, "Upsert");
-      
 
     const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
       member_id: updateOrderDto?.member_id,
@@ -759,7 +803,7 @@ export class OrderService {
       grand_total_comission: grand_total_comission,
       updated_by: user_id,
       payment_type: updateOrderDto?.payment_type,
-      project_status_id: projectStatusDefault.id,
+      project_status_id: updateOrderDto?.project_status_id,
       print_counter: 0,
       updated_at: new Date(),
       request_survey: updateOrderDto?.request_survey
@@ -777,6 +821,17 @@ export class OrderService {
       .map((item) => {
         return item.id;
       });
+    const deletedOrderFile = updateOrderDto.existing_order_files
+      ? updateOrderDto?.existing_order_files
+          .filter((x) => Boolean(x?.order_file_id))
+          .map((item) => {
+            return Number(item.order_file_id);
+          })
+      : undefined;
+    console.log(deletedOrderFile);
+    
+
+
     // ...deletedDetailsId.length ?
     //        null :  id: {
     //         notIn: updateOrderDto.order_details
@@ -798,6 +853,8 @@ export class OrderService {
     // });
     // return console.log("success");
     
+    
+
     const [syncDetails, syncFiles, orderQuery] =
       await this.dbService.$transaction([
         this.dbService.m_order_details.updateMany({
@@ -818,7 +875,14 @@ export class OrderService {
         }),
         this.dbService.order_files.updateMany({
           where: {
-            order_id: id,
+            ...(deletedOrderFile
+              ? {
+                  id: {
+                    notIn: deletedOrderFile,
+                  },
+                }
+                : undefined),
+                order_id: id,
           },
           data: {
             deleted_at: new Date(),
@@ -959,5 +1023,122 @@ export class OrderService {
         created_by: user.id,
       },
     });
+  }
+
+  async orderDetailsPublic(member: string, id: number) {
+    let where: Prisma.ordersWhereInput;
+    if (member.includes('@')) {
+      where = {
+        members: {
+          email: member,
+        },
+        id,
+      };
+    } else if (/^\d+$/.test(member)) {
+      where = {
+        members: {
+          member_number: member,
+        },
+        id,
+      };
+    } else {
+      throw new BadRequestException('Member must be email or number!');
+    }
+
+    const order = await this.dbService.orders.findFirst({
+      where,
+      include: {
+        members: true,
+        sales: true,
+        status: true,
+        vendor: true,
+        store: true,
+        m_order_details: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          select: {
+            id: true,
+            order_id: true,
+            item_code: true,
+            item_name: true,
+            item_id: true,
+            item: {
+              select: {
+                id: true,
+                item_name: true,
+                category: true,
+                prices: true,
+                default_price: true,
+                service_name: true,
+              },
+            },
+            unit_price: true,
+            quantity: true,
+            total: true,
+            comission: true,
+            created_by: true,
+            updated_by: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
+        quotation: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          include: {
+            quotation_details: {
+              include: {
+                item: true,
+              },
+            },
+          },
+        },
+        order_files: true,
+        complaints: true,
+        work_orders: {
+          include: {
+            vendor: true,
+            work_order_evidences: true,
+            work_order_tukang: {
+              include: {
+                tukang: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+            work_order_status: {
+              include: {
+                status: true,
+                work_order_items: {
+                  include: {
+                    item: true,
+                  },
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
+                  },
+                },
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) throw new Error('Order was not found !');
+
+    return {
+      data: order,
+      redirect_url:`${process.env.API_URL}/detail-order/${member}/${id}`
+    };
   }
 }

@@ -5,8 +5,11 @@ export class InvoiceDetails {
   @Type(() => Number)
   id?: number;
 
-  @IsNotEmpty()
-  @IsNumber()
+  // @IsNotEmpty()
+  // @IsNumber()
   @Type(() => Number)
-  quotation_id: number;
+  quotation_id?: number;
+
+  @Type(() => Number)
+  order_id?: number;
 }

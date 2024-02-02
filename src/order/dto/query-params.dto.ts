@@ -52,4 +52,7 @@ export class QueryParamsDto {
   @IsNumber()
   @Type(() => Number)
   monthly: number ;
+
+  @IsOptional()
+  invoice_status: string;
 }

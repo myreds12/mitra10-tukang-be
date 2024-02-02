@@ -18,7 +18,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Status')
-@UseGuards(JwtAuthGuard)
+@UseGuards()
 @Controller('status')
 export class StatusController {
   constructor(private readonly statusService: StatusService) {}

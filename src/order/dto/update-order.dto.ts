@@ -6,13 +6,19 @@ import {
   IsOptional,
   IsNumber,
   IsEnum,
+  ValidateNested,
 } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { OrderDetailDto } from './order-details.dto';
+import { UpdatedOrderFiles } from './update.order.files.dto';
 
 export class UpdateOrderDto {
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   order_files: Array<Express.Multer.File>;
+
+  @ValidateNested({ each: true })
+  @Type(() => UpdatedOrderFiles)
+  existing_order_files?: UpdatedOrderFiles[];
 
   @ApiProperty()
   @Type(() => Number)

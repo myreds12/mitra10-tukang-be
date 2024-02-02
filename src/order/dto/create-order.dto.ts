@@ -23,6 +23,10 @@ export class CreateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
+  project_status_id: number;
+
+  @ApiProperty()
+  @Type(() => Number)
   @IsNumber()
   store_id: number;
 

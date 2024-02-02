@@ -42,7 +42,6 @@ const menuName = 'orders';
 
 @ApiTags('Orders')
 @Controller(menuName)
-@UseGuards(JwtAuthGuard)
 // @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrderController {
   constructor(
@@ -50,7 +49,56 @@ export class OrderController {
     private readonly sendEmailService: SendEmailService,
   ) {}
 
+  @Get('/public/:member/:id')
+  @UseGuards()
+  async getOrderDetailPublic(
+    @Param('member') member: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const {redirect_url} = await this.orderService.orderDetailsPublic(member ,id);
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Url Order Tracking',
+        redirect_url,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      });
+    }
+  }
+
+  @Get('/data/:member/:id')
+  @UseGuards()
+  async dataOrderDetailPublic(
+    @Param('member') member: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const {data} = await this.orderService.orderDetailsPublic(member ,id);
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Order Details',
+        data
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      });
+    }
+  }
+
   @Post(':id/set-status/:status_id')
+  @UseGuards(JwtAuthGuard)
   async setStatus(
     @Param('id', ParseIntPipe) id: number,
     @Param('status_id', ParseIntPipe) status_id: number,
@@ -75,22 +123,60 @@ export class OrderController {
     }
   }
 
-  @Get('/testmail')
-  async testMail() {
+  @Get('/public/get')
+  // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards()
+  async publicGetAll(@Query() query: QueryParamsDto) {
     try {
-      const testMail = this.sendEmailService.sendMail(
-        'test@email.com',
-        'test!',
-      );
-
-      return 'success';
+      const { data, page, take, total, orderGrandTotal, takeTotal } =
+        await this.orderService.findAll(query);
+      return {
+        status: HttpStatus.OK,
+        messages: 'Ok',
+        data,
+        page,
+        take,
+        total,
+        orderGrandTotal,
+        takeTotal,
+      };
     } catch (error) {
-      console.log(error);
+      console.log(error.message);
+
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      };
     }
   }
 
+  @Get('/send-mail/:id')
+  @UseGuards(JwtAuthGuard)
+  async testMail(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const order = await this.orderService.findOne(id);
+      const mail = await this.sendEmailService.sendMail(order.id)
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        messages: 'Email Order Success',
+        data: mail,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      });
+    }
+  }
 
   @Post(':id/counter')
+  @UseGuards(JwtAuthGuard)
   async counter(
     @Param('id', ParseIntPipe) id: number,
     @Res() res: IExpressResponse,
@@ -117,6 +203,7 @@ export class OrderController {
   @Post('/')
   // @CheckPermissions([PermissionAction.CREATE, menuName])
   @UseInterceptors(FilesInterceptor('order_files'))
+  @UseGuards(JwtAuthGuard)
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @Req() req: UserRequest,
@@ -158,11 +245,11 @@ export class OrderController {
 
   @Get('/')
   // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards(JwtAuthGuard)
   async findAll(@Query() query: QueryParamsDto) {
     try {
-      const { data, page, take, total, orderGrandTotal, takeTotal } = await this.orderService.findAll(
-        query,
-      );
+      const { data, page, take, total, orderGrandTotal, takeTotal } =
+        await this.orderService.findAll(query);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
@@ -171,7 +258,7 @@ export class OrderController {
         take,
         total,
         orderGrandTotal,
-        takeTotal
+        takeTotal,
       };
     } catch (error) {
       console.log(error.message);
@@ -186,18 +273,20 @@ export class OrderController {
 
   //FIXME : UNTUK PUG TIDAK BISA MEN INCLUDE CSS DAN IMAGE, MENGGUNAKAN CONTROLLER FIND ONE AGAR MUDAH FETCH DATANYA
   @Get(':id')
-  // @Render('order')
   // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards(JwtAuthGuard)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const order = await this.orderService.findOne(id);
+      console.log(order);
+      
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
         data: order,
       };
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
 
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -210,6 +299,7 @@ export class OrderController {
   @Post(':id')
   // @CheckPermissions([PermissionAction.UPDATE, menuName])
   @UseInterceptors(FilesInterceptor('order_files'))
+  @UseGuards(JwtAuthGuard)
   async update(
     @UploadedFiles() order_files: Array<Express.Multer.File>,
     @Param('id', ParseIntPipe) id: number,

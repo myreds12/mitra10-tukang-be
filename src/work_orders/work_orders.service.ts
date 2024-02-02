@@ -56,10 +56,12 @@ export class WorkOrdersService {
 
     const work_order_data: Prisma.work_ordersCreateArgs = {
       data: {
-        request_work_time: dataDto.request_work_time
+        request_work_time: dataDto?.request_work_time
           ? new Date(dataDto.request_work_time)
           : undefined,
-        survey_date: new Date(dataDto.survey_date),
+        survey_date: dataDto?.survey_date
+          ? new Date(dataDto.survey_date)
+          : undefined,
         work_start_date: dataDto.work_start_date
           ? new Date(dataDto.work_start_date)
           : undefined,
@@ -156,7 +158,7 @@ export class WorkOrdersService {
             m_order_details: {
               include: {
                 item: true,
-              }
+              },
             },
             store: true,
             sales: true,
@@ -205,7 +207,7 @@ export class WorkOrdersService {
             m_order_details: {
               include: {
                 item: true,
-              }
+              },
             },
             store: true,
             sales: true,
@@ -238,10 +240,10 @@ export class WorkOrdersService {
         work_order_evidences: true,
       },
     });
-    
+
     return work_orders;
   }
-  
+
   async update(
     id: number,
     dataDto: UpdateWorkOrderDto,
@@ -272,11 +274,15 @@ export class WorkOrdersService {
     const { id: user_id } = user;
     const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
       {
-        data: work_order_evidences.map((evidences) => ({
-          evidence_location: evidences.filename,
-          updated_at: new Date(),
-          updated_by: user_id,
-        })),
+        ...(work_order_evidences
+          ? {
+              data: work_order_evidences.map((evidences) => ({
+                evidence_location: evidences.filename,
+                updated_at: new Date(),
+                updated_by: user_id,
+              })),
+            }
+          : undefined),
       };
 
     const tukangUpsert: Prisma.work_order_tukangUpsertWithWhereUniqueWithoutWork_ordersInput[] =
@@ -341,17 +347,30 @@ export class WorkOrdersService {
         work_order_tukang: { upsert: tukangUpsert },
       },
     };
+    const deletedWorkOrderEvidences = dataDto.existing_work_order_evidences
+      ? dataDto?.existing_work_order_evidences
+          .filter((x) => Boolean(x?.work_order_evidence_id))
+          .map((item) => {
+            return Number(item.work_order_evidence_id);
+          })
+      : undefined;
+
+    const deletedWorkOrderTukang = dataDto.work_order_tukang ? dataDto?.work_order_tukang
+      .filter((x) => Boolean(x.id))
+      .map((x) => x.id) : undefined;
 
     const [syncTukang, syncEvidence, work_order] =
       await this.dbService.$transaction([
         this.dbService.work_order_tukang.updateMany({
           where: {
-            id: {
-              notIn: dataDto?.work_order_tukang
-                .filter((x) => Boolean(x.id))
-                .map((x) => x.id),
-            },
-            work_order_id: id,
+            ...(deletedWorkOrderTukang
+              ? {
+                  id: {
+                    notIn: deletedWorkOrderTukang,
+                  },
+                  work_order_id: id,
+                }
+              : undefined),
           },
           data: {
             deleted_at: new Date(),
@@ -361,7 +380,14 @@ export class WorkOrdersService {
 
         this.dbService.work_order_evidences.updateMany({
           where: {
-            work_order_id: id,
+            ...(deletedWorkOrderEvidences
+              ? {
+                  id: {
+                    notIn: deletedWorkOrderEvidences,
+                  },
+                  work_order_id: id
+                }
+              : undefined),
           },
           data: {
             deleted_at: new Date(),
@@ -409,7 +435,7 @@ export class WorkOrdersService {
     });
 
     const evidencesBefore: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
-      files.work_order_after?.map((evidences) => ({
+      files.work_order_before?.map((evidences) => ({
         evidence_location: evidences.filename,
         created_by: user_id,
         type: 2,

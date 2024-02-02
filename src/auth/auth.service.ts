@@ -85,6 +85,7 @@ export class AuthService {
             }
           }
         },
+        vendor: true,
       },
     });
     console.log(user, dto.username);

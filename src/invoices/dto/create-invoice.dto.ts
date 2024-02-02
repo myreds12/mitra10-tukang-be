@@ -12,7 +12,9 @@ export class CreateInvoiceDto {
 
   @ValidateNested({ each: true })
   @Type(() => InvoiceDetails)
-  invoice_details: InvoiceDetails[];
+  invoice_details?: InvoiceDetails[];
+
+  order_id?: number;
 
   @IsNotEmpty()
   @Type(() => Number)
@@ -20,4 +22,15 @@ export class CreateInvoiceDto {
 
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   invoice_evidences?: Array<Express.Multer.File>;
+
+  @ApiProperty()
+  @Type(() => InvoiceOrder)
+  invoice_orders?: InvoiceOrder[];
+}
+
+
+class InvoiceOrder {
+  @ApiProperty()
+  @Type(() => Number)
+  order_id: number;
 }

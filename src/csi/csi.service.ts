@@ -40,26 +40,51 @@ export class CsiService {
 
     const data = await sheets.spreadsheets.values
       .get({
-        spreadsheetId: '1ZMHyrKZPQNu_2quV4-h2Qbm-LLQg3IwUgAxazlTvixg',
+        spreadsheetId: process.env.SPREADSHEET_ID,
         range: `B${res.data.values[0][0]}:L${res.data.values[0][1]}`,
       })
       .then((data) => data.data.values);
 
       const response = data.map((row) => {
         return {
-          "NamaToko": row[0],
-          "MemberId": row[1],
-          "NamaMember": row[2],
-          "Performance": row[3],
-          "Delivery": row[4],
-          "Invoicing": row[5],
-          "CustomerService": row[6],
-          "Knowledge": row[7],
-          "CatatanTambahan": row[8],
-          "EmailAdress": row[9]
+          "Nama Toko": row[0],
+          "Member Id": row[1],
+          "Nama Member": row[2],
+          "Nama Vendor": row[3],
+          "Performance Rate": row[4],
+          "Delivery Rate": row[5],
+          "Invoicing Rate": row[6],
+          "Customer Service Rate": row[7],
+          "Knowledge Rate": row[8],
+          "Catatan Tambahan": row[9],
+          "Email Adress Pemberi Jawaban": row[10]
         };
       });
 
     return response;
+  }
+
+  async insertCSIToDatabase(){
+    const data = await this.getDataCsi();
+    const dataToInsert: Prisma.csiCreateManyInput[] = data.map((row) => {
+      return {
+        store_name: row["Nama Toko"],
+        member_id: Number(row["Member Id"]),
+        member_name: row["Nama Member"],
+        vendor_name: row["Nama Vendor"],
+        performance_rate: Number(row["Performance Rate"]),
+        delivery_rate: Number(row["Delivery Rate"]),
+        invoicing_rate: Number(row["Invoicing Rate"]),
+        customer_service_rate: Number(row["Customer Service Rate"]),
+        knowledge_rate: Number(row["Knowledge Rate"]),
+        notes: row["Catatan Tambahan"],
+        email_address: row["Email Adress Pemberi Jawaban"],
+      }
+    });
+    await this.dbService.csi.deleteMany();
+    const result = await this.dbService.csi.createMany({
+      data: dataToInsert
+    });
+    return result;
   }
 }

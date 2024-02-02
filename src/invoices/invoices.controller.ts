@@ -143,12 +143,19 @@ export class InvoicesController {
   @Get()
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
-      const invoice = await this.invoicesService.findAll(query);
+      const {data, month, page, skip, take, takeTotal, total, totalQuotationGrandTotal} = await this.invoicesService.findAll(query);
 
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Invoice',
-        data: invoice,
+        data,
+        page,
+        skip,
+        take,
+        takeTotal,
+        total,
+        month,
+        totalQuotationGrandTotal
       });
     } catch (error) {
       console.log(error);

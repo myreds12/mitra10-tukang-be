@@ -37,7 +37,7 @@ export class QuotationService {
       createQuotationDto.quotation_details.map((item) => {
         const prices = Number(item.is_customer ? 0 : item.price);
         const quantity = item.is_customer ? 0 : item.quantity;
-        const final_price = prices * quantity + +item.margin;
+        const final_price = prices * quantity - +item.margin;
         grandTotal += final_price;
         return {
           category_id: item?.category_id,

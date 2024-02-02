@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { WorkOrderTukang } from './wo-tukang.dto';
 import { StatusDetails } from './work-order-status.dto';
+import { UpdatedWorkOrderEvidences } from './update.work-order-evidences.dto';
 
 export class UpdateWorkOrderDto {
   @ApiProperty()
@@ -58,4 +59,10 @@ export class UpdateWorkOrderDto {
   work_end_date: string;
 
   work_order_evidences?: Array<Express.Multer.File>;
+
+  @ApiProperty({ type: [UpdatedWorkOrderEvidences] }) // This represents an array of VendorService
+  @IsOptional()
+  @Type(() => UpdatedWorkOrderEvidences)
+  @ValidateNested({ each: true })
+  existing_work_order_evidences: UpdatedWorkOrderEvidences[];
 }

@@ -7,6 +7,7 @@ import {
   Response as IExpressResponse,
 } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { Cron } from '@nestjs/schedule';
 
 @UseGuards(JwtAuthGuard)
 @Controller('csi')
@@ -46,6 +47,27 @@ export class CsiController {
         status: HttpStatus.OK,
         message: 'Next Code',
         data: getData
+      });
+    } catch (error) {
+      console.log(error);
+
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  // @Cron('0 18 * * *')
+  @Post('/insert/spreadsheet')
+  async postDataSpreadsheet(@Res() res: IExpressResponse){
+    try{ 
+      const postData = await this.csiService.insertCSIToDatabase()
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Next Code',
+        data: postData
       });
     } catch (error) {
       console.log(error);

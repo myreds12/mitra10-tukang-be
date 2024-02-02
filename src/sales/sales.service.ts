@@ -109,7 +109,7 @@ export class SalesService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { search, take, page, date_from, date_to } = query;
+    const { search, take, page, date_from, date_to, order_by } = query;
     const skip = page * take - take;
 
     const where: Prisma.salesWhereInput = {
@@ -138,6 +138,16 @@ export class SalesService {
               },
             ]
           : []),
+        ...(date_from && date_to
+          ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
+                },
+              },
+            ]
+          : []),
       ].filter(Boolean),
       deleted_at: null,
     };
@@ -145,6 +155,9 @@ export class SalesService {
       where,
       skip,
       take: take <= 0 ? undefined : take,
+      orderBy: {
+        created_at: order_by
+      },
       include: {
         bank: true,
         store: true,

@@ -100,10 +100,11 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
         },
       },
       defaults: {
-        from: '"nest-modules" <modules@nestjs.com>',
+        from: '"Mitra 10 - Instalasi" <noreply@instalasimitra10.com>',
       },
+      preview: true,
       template: {
-        dir: './templates',
+        dir: './dist/templates/',
         adapter: new PugAdapter(),
         options: {
           strict: true,

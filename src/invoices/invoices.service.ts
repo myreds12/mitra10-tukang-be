@@ -26,30 +26,49 @@ export class InvoicesService {
           };
         })
       : undefined;
-    const providedQuotation = createInvoiceDto.invoice_details.map(
-      ({ quotation_id }) => quotation_id,
-    );
-    const quotations = await this.dbService.quotation.findMany({
-      where: {
-        id: {
-          in: providedQuotation,
+    const providedQuotation = createInvoiceDto.invoice_details
+      ? createInvoiceDto.invoice_details.map(({ quotation_id }) =>
+          Number(quotation_id),
+        )
+      : undefined;
+    const providedOrder = createInvoiceDto.invoice_orders
+      ? createInvoiceDto.invoice_orders.map(({ order_id }) => Number(order_id))
+      : undefined;
+
+    let quotations;
+    let order;
+    if (providedQuotation) {
+      quotations = await this.dbService.quotation.findMany({
+        where: {
+          id: {
+            in: providedQuotation,
+          },
         },
-      },
-    });
-    const totalQuotation = quotations.reduce((accumulator, currentQuotation) => {
-      // Lakukan operasi penambahan grand total di sini, misalnya:
-      return accumulator + Number(currentQuotation.quotation_grand_total);
-    }, 0);
-
-    const checkQuotation = providedQuotation.filter(
-      (i) => !quotations.some((y) => y.id === i),
-    );
-
-    if (checkQuotation.length)
-      throw new NotFoundException({
-        messages: 'The provided quotation id not found',
-        errorIds: checkQuotation,
       });
+    }
+    if (providedOrder) {
+      order = await this.dbService.orders.findMany({
+        where: {
+          id: {
+            in: providedOrder,
+          },
+        },
+        include: {
+          m_order_details: true
+        }
+      });
+    }
+    console.log(order);
+    
+    const totalQuotation = providedQuotation
+      ? quotations.reduce((accumulator, currentQuotation) => {
+          // Lakukan operasi penambahan grand total di sini, misalnya:
+          return accumulator + Number(currentQuotation.quotation_grand_total);
+        }, 0)
+      : order.reduce((accumulator, currentOrder) => {
+          // Lakukan operasi penambahan grand total di sini, misalnya:
+          return accumulator + Number(currentOrder.grand_total);
+        }, 0);
 
     const status = await this.dbService.status.findFirst({
       where: {
@@ -61,13 +80,21 @@ export class InvoicesService {
 
     const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
-    const invoiceDetails  = createInvoiceDto.invoice_details.map((item) => {
-      return {
-        quotation_id: item.quotation_id,
-      };
-    });
-    
-    
+    const invoiceDetails = createInvoiceDto.invoice_details
+      ? createInvoiceDto.invoice_details.map((item) => {
+          return {
+            quotation_id: item.quotation_id,
+          };
+        })
+      : undefined;
+
+    const invoiceOrder = createInvoiceDto.invoice_orders
+      ? createInvoiceDto.invoice_orders.map((item) => {
+          return {
+            order_id: item.order_id,
+          };
+        })
+      : undefined;
 
     const data: Prisma.invoicesCreateInput = {
       vendor: {
@@ -87,11 +114,24 @@ export class InvoicesService {
           data: evidences,
         },
       },
-      invoice_details: {
-        createMany: {
-          data: invoiceDetails,
-        },
-      },
+      ...(invoiceDetails
+        ? {
+            invoice_details: {
+              createMany: {
+                data: invoiceDetails,
+              },
+            },
+          }
+        : undefined),
+      ...(invoiceOrder
+        ? {
+            invoice_orders: {
+              createMany: {
+                data: invoiceOrder,
+              },
+            },
+          }
+        : undefined),
       created_by: user_id,
     };
 
@@ -180,12 +220,37 @@ export class InvoicesService {
           },
         },
         status: true,
+        invoice_orders: {
+          include: {
+            orders: {
+              include: {
+                members: true,
+                store: true,
+              },
+            },
+          },
+        },
         invoice_details: {
           include: {
             quotation: {
               include: {
                 order: {
                   include: {
+                    m_order_details: {
+                      include: {
+                        item: true
+                      }
+                    },
+                    work_orders: {
+                      include:{
+                        work_order_status: {
+                          include: {
+                            work_order_items: true
+                          }
+                        },
+                        work_order_tukang: true
+                      }
+                    },
                     store: true,
                     members: true,
                   },
@@ -210,13 +275,26 @@ export class InvoicesService {
         },
       },
     });
+    console.log(data);
+
     const totalQuotationValues = data.reduce((acc, item) => {
-      const invoiceTotal = item.invoice_details.reduce(
-        (invoiceAcc, i) =>
-          invoiceAcc + Number(i.quotation.quotation_grand_total),
-        0,
-      );
-      return acc + invoiceTotal;
+      const invoiceDetails = item.invoice_details;
+
+      if (
+        invoiceDetails &&
+        Array.isArray(invoiceDetails) &&
+        invoiceDetails.length > 0
+      ) {
+        const invoiceTotal = invoiceDetails.reduce(
+          (invoiceAcc, i) =>
+            invoiceAcc + Number(i.quotation?.quotation_grand_total || 0),
+          0,
+        );
+
+        return acc + invoiceTotal;
+      }
+
+      return acc;
     }, 0);
 
     console.log(totalQuotationValues);
@@ -278,6 +356,31 @@ export class InvoicesService {
           },
         },
         status: true,
+        invoice_orders: {
+          include: {
+            orders: {
+              include: {
+                m_order_details: {
+                  include: {
+                    item: true
+                  }
+                },
+                work_orders: {
+                  include:{
+                    work_order_status: {
+                      include: {
+                        work_order_items: true
+                      }
+                    },
+                    work_order_tukang: true
+                  }
+                },
+                members: true,
+                store: true,
+              },
+            },
+          },
+        },
         invoice_details: {
           include: {
             quotation: {
@@ -326,10 +429,10 @@ export class InvoicesService {
       0,
     );
 
-    return{
+    return {
       invoice,
-      totalQuotation: totalQuotationValues
-    }
+      totalQuotation: totalQuotationValues,
+    };
   }
 
   async update(
