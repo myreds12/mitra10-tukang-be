@@ -6,6 +6,6 @@ import { OrderService } from 'src/order/order.service';
   controllers: [],
   providers: [SendEmailService],
   exports: [SendEmailService],
-  imports:[OrderService]
+  imports:[OrderService],
 })
 export class SendEmailModule {}

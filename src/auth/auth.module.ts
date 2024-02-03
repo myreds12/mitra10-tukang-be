@@ -6,6 +6,9 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { JwtConfig } from 'src/jwt.config';
 import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SendEmailService } from 'src/mails/send-email.service';
+import { OrderService } from 'src/order/order.service';
+import { StatusService } from 'src/status/status.service';
 
 @Module({
   imports: [
@@ -22,7 +25,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtService, PrismaService],
+  providers: [AuthService, JwtStrategy, JwtService, PrismaService, SendEmailService, OrderService, StatusService],
   exports: [AuthService],
 })
 export class AuthModule {}

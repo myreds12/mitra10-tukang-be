@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -130,10 +130,31 @@ export class AuthService {
     });
   }
  
-  async resetPassword(id: number, dto: ResetPasswordDto){
+  async updatePassword(username: string, dto: ResetPasswordDto){
+    const user = await this.dbService.users.findFirst({
+      where: {
+        username
+      }
+    });
+    if(!user) throw new NotFoundException('User Not Found!')
+    const twoHoursAgo = new Date();
+    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+
+    if (user.forget_password && user.forget_password < twoHoursAgo) {
+      await this.dbService.users.update({
+        where: {
+          id: user.id
+        },
+        data: {
+          forget_password: null
+        }
+      })
+      throw new Error('Forgot password link has expired');
+    }
+
     const updatePassword = await this.dbService.users.update({
       where: {
-        id
+        id: user.id
       },
       data: {
         password: await hash(dto.password, 14)
@@ -205,6 +226,30 @@ export class AuthService {
       name: PermissionAction[x.permissions.name.toUpperCase()],
     }));
 
+
+
     return permissions;
+  }
+
+
+  async resetPassword(username: string){
+    const user = await this.dbService.users.findFirst({
+      where: {
+        username:  username,
+      }
+    })
+
+    if(!user) throw new NotFoundException('User Not Found!!')
+
+    const userUpdate = await this.dbService.users.update({
+      where: {
+        id:  user.id,
+      },
+      data: {
+        forget_password: new Date()
+      }
+    })
+
+    return userUpdate
   }
 }

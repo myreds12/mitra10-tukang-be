@@ -42,3 +42,39 @@
               h3.fs-6.fw-normal Transaksi Anda telah berhasil dengan nomor Order ID #{data.id}
               h3.fs-6.fw-normal Silahkan unduh file yang terlampir pada email ini untuk mencetak Tanda Terima transaksi Anda.
               h3.fs-6.fw-normal Untuk menghubungi Admin Instalasi kami melalui Whatsapp melalui nomor 087884821089
+            .row.mt-5
+              .col
+                h3.fs-6.fw-bold.mb-1 Syarat & Ketentuan
+                ol
+                  li.fs-7.fw-normal Jadwal survey/pengerjaan akan ditentukan oleh teknisi, setelah material tersedia dan barang diterima customer, serta barang yang akan dikerjakan jasa instalasi adalah barang dari Mitra10.
+                  li.fs-7.fw-normal Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
+                  li.fs-7.fw-normal Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
+                  li.fs-7.fw-normal Semua jasa pemasangan wajib dilakukan survey. Biaya survey akan dikembalikan apabila biaya jasa instalasi/service minimal Rp 500.000.
+                  li.fs-7.fw-normal Quotation diberikan kepada customer maksimal H+2 hari kerja setelah survey selesai.
+                  li.fs-7.fw-normal Garansi 7 (Tujuh) hari untuk instalasi/service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses instalasi/service.
+                  li.fs-7.fw-normal Biaya transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya transportasi Rp 25.000 Max 40KM
+            .row
+              .col
+                h3.fs-6.fw-bold.mb-1 Informasi
+
+                ol
+                  li.fw-normal Kontak layanan pelanggan Instalasi/Service (WA Only) : 0878-8482-1089.
+                  li.fw-normal Operasional hari senin s/d jumat - Office hour 09:00 s/d 16:00.
+                  li.fw-normal Orderan instalasi/service yang masuk diluar jam operasional akan diproses pada jam
+                    operasional.
+
+            .payment-bank.mb-2
+              h3.fs-6.fw-semibold Silahkan melakukan pembayaran di account di bawah ini :
+              h3.fs-6.fw-normal= data.store.bank_account
+              h3.fs-6.fw-normal= data.store.bank_name
+              h3.fs-6.fw-normal= data.store.bank_number
+
+            .store-information.mb-5
+              h3.fs-6.fw-semibold Silahkan kirim bukti bayar anda melalui :
+              h3.fs-6.fw-normal= `Telp : ${data.store.phone_number_1 ? data.store.phone_number_1 : data.store.phone_number_2}`
+              h3.fs-6.fw-normal= `Email : ${data.store.email ? data.store.email : 'Email belum tersedia'}`
+
+            .footer-card
+              h1.fs-6.fw-semibold Hormat Kami, Mitra10
+              h3.fs-6.fw-normal Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
+                Kunjungi Help Centre kami untuk informasi lebih lanjut : customer.relation@mitra10.com
