@@ -275,8 +275,6 @@ export class OrderController {
 
   //FIXME : UNTUK PUG TIDAK BISA MEN INCLUDE CSS DAN IMAGE, MENGGUNAKAN CONTROLLER FIND ONE AGAR MUDAH FETCH DATANYA
   @Get(':id')
-  // @CheckPermissions([PermissionAction.READ, menuName])
-  @Render('reset-password')
   @UseGuards(JwtAuthGuard)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {

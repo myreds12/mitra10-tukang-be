@@ -4,10 +4,13 @@ import { TukangController } from './tukang.controller';
 import { diskStorage } from 'multer';
 import { MulterModule } from '@nestjs/platform-express';
 import { extname } from 'path';
+import { SendEmailService } from 'src/mails/send-email.service';
+import { OrderService } from 'src/order/order.service';
+import { StatusService } from 'src/status/status.service';
 
 @Module({
   controllers: [TukangController],
-  providers: [TukangService],
+  providers: [TukangService, SendEmailService, OrderService, StatusService],
   imports: [
     MulterModule.register({
       limits: {

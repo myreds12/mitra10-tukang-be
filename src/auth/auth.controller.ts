@@ -42,8 +42,23 @@ export class AuthController {
   }
   @HttpCode(201)
   @Post('update-password/:username')
-  async updatePassword(@Param('username') username: string, @Body() dto: ResetPasswordDto) {
-    return await this.authService.updatePassword(username, dto);
+  async updatePassword(@Param('username') username: string, @Body() dto: ResetPasswordDto, @Res() res: IExpressResponse) {
+    try {
+      const users = await this.authService.updatePassword(username, dto);
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: users
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error While Check Username',
+        stack: error
+      });
+    } 
   }
 
   @HttpCode(201)
@@ -71,5 +86,26 @@ export class AuthController {
   @Get('permission')
   async getUserPermission(@Req() req: UserRequest) {
     return this.authService.getUserPermission(req.user);
+  }
+
+  @HttpCode(201)
+  @Post('/get-user/:username')
+  async getUsers(@Body() body: { username: string }, @Res() res: IExpressResponse) {
+    try {
+      const { username } = body;
+      const resetPassword = await this.authService.getUsers(username);
+      return res.status(201).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error ',
+        stack: error
+      });
+    }
   }
 }

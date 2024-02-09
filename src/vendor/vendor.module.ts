@@ -4,10 +4,13 @@ import { VendorController } from './vendor.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path/posix';
+import { SendEmailService } from 'src/mails/send-email.service';
+import { OrderService } from 'src/order/order.service';
+import { StatusService } from 'src/status/status.service';
 
 @Module({
   controllers: [VendorController],
-  providers: [VendorService],
+  providers: [VendorService, SendEmailService, OrderService, StatusService],
   exports: [VendorService],
   imports: [
     MulterModule.register({

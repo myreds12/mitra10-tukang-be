@@ -93,4 +93,7 @@ export class CreateVendorDto {
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   suip_file?: Array<Express.Multer.File> | Express.Multer.File;
+
+  @IsOptional()
+  password?: string;
 }

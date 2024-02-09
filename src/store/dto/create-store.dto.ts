@@ -43,4 +43,7 @@ export class CreateStoreDto {
   @IsString()
   @IsNotEmpty()
   email: string;
+
+  @IsOptional()
+  default_password?: string;
 }

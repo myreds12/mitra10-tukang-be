@@ -35,10 +35,10 @@ export class QuotationService {
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
       createQuotationDto.quotation_details.map((item) => {
-        const prices = Number(item.is_customer ? 0 : item.price);
+        const prices = Number(item.is_customer ? 0 : item?.price ?? 0 );
         const quantity = item.is_customer ? 0 : item.quantity;
-        const final_price = prices * quantity - +item.margin;
-        grandTotal += final_price;
+        const final_price = ((prices * quantity) - (+item?.margin ?? 0)) || 0;
+        grandTotal += final_price ?? 0;
         return {
           category_id: item?.category_id,
           item_id: item?.item_id,
@@ -51,7 +51,7 @@ export class QuotationService {
           quantity: quantity,
           work_order_items_id: item?.work_order_item_id,
           is_customer: Boolean(item.is_customer),
-          final_price,
+          final_price: final_price ?? 0,
         };
       });
 
@@ -63,7 +63,6 @@ export class QuotationService {
       },
     });
 
-    // console.log("Discount" ,(createQuotationDto.quotation_disc ? +createQuotationDto.quotation_disc : 0 + createQuotationDto.quotation_promotion ? +createQuotationDto.quotation_promotion : 0));
 
     const quotation_data: Prisma.quotationCreateInput = {
       order: {
@@ -97,7 +96,10 @@ export class QuotationService {
       created_by: user_id,
     };
 
-    console.log(quotation_data);
+    console.log(createQuotationDto, "DTOOO");
+    console.log(quotation_data, "QUOT DAT");
+    console.log(quotaionDetails, "DETAILSS");
+    console.log(grandTotal, "GRAND TOTAL");
 
     const quotation_options: Prisma.quotationCreateArgs = {
       data: {
@@ -114,6 +116,7 @@ export class QuotationService {
         },
       },
     };
+
 
     const [quotation] = await this.dbService.$transaction([
       this.dbService.quotation.create(quotation_options),
@@ -436,14 +439,14 @@ export class QuotationService {
   }
 
   async getCode() {
-    const complaints = await this.dbService.complaints.findMany({
+    const quotation = await this.dbService.quotation.findMany({
       orderBy: {
         id: 'desc',
       },
       take: 1,
     });
 
-    return complaints[0] || null;
+    return quotation[0] || null;
   }
 
   async setStatus(id: number, status_id: number, user: users) {

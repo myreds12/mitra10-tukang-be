@@ -1,13 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { OrderService } from 'src/order/order.service';
 import * as pug from 'pug';
 import * as fs from 'fs';
 import * as pdfkit from 'pdfkit';
-import 'jspdf-autotable';
 import { PrismaService } from 'src/prisma/prisma.service';
 import path from 'path';
-
 @Injectable()
 export class SendEmailService {
   constructor(private readonly mailerService: MailerService, private readonly orderService: OrderService, private readonly dbService: PrismaService) { }
@@ -36,7 +34,7 @@ export class SendEmailService {
 
   async sendMail(order_id: number) {
     const data = await this.orderService.findOne(order_id)
-    const generatePdf = await this.generatePDF(data)
+    // const generatePdf = await this.generatePDF(data)
 
     await this.mailerService.sendMail({
       to: data.members.email, // list of receivers
@@ -45,14 +43,14 @@ export class SendEmailService {
       template: 'order',
       context: data,
       html: pug.renderFile('templates/index.pug', { data }),
-      attachments: [
-        {
-            filename: 'order.pdf',
-            content: generatePdf,
-            encoding: 'base64',
-            cid: 'unique@kreasisawalanusantara.com', // Ganti dengan CID yang unik
-        },
-    ],
+    //   attachments: [
+    //     {
+    //         filename: 'order.pdf',
+    //         content: generatePdf,
+    //         encoding: 'base64',
+    //         cid: 'unique@kreasisawalanusantara.com', // Ganti dengan CID yang unik
+    //     },
+    // ],
     });
 
 
@@ -90,6 +88,43 @@ export class SendEmailService {
       template: 'reset-password',
       context: data,
       html: pug.renderFile('templates/reset-password.pug', { data }),
+    });
+  }
+
+  async sendCredentialMail(username: string, password: string) {
+    const data = {
+      username,
+      password
+    }
+    const users = await this.dbService.users.findFirst({
+      where: {
+        username
+      },
+      include: {
+        employee: true,
+        vendor: true,
+        sales: true,
+        tukang: true
+      }
+    });
+    if(!users) throw new NotFoundException('User  not found!');
+
+    let userEmail
+    if (users.username.includes('@')) userEmail = users.username
+    const to =
+      userEmail ??
+      users.employee?.email ??
+      users.vendor?.email_address ??
+      users.tukang[0]?.email ??
+      'example@example.com';
+
+    await this.mailerService.sendMail({
+      to,
+      from: 'kreasisawalanusantara@gmail.com', // sender address
+      subject: 'Credential Mail', // Subject line
+      template: 'credential-mail',
+      context: [data, users],
+      html: pug.renderFile('templates/credential-mail.pug', { data }),
     });
   }
 }

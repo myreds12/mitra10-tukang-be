@@ -137,27 +137,24 @@ export class AuthService {
       }
     });
     if(!user) throw new NotFoundException('User Not Found!')
-    const twoHoursAgo = new Date();
-    twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
-
-    if (user.forget_password && user.forget_password < twoHoursAgo) {
+    if (user.forget_password && new Date(user.forget_password) < new Date(new Date().getTime() - (2 * 60 * 60 * 1000))) {
       await this.dbService.users.update({
         where: {
           id: user.id
         },
         data: {
           forget_password: null
-        }
-      })
-      throw new Error('Forgot password link has expired');
-    }
+      }})
+      throw new Error('Forget password link has expired');
+  }
 
     const updatePassword = await this.dbService.users.update({
       where: {
         id: user.id
       },
       data: {
-        password: await hash(dto.password, 14)
+        password: await hash(dto.password, 14),
+        forget_password: null
       }
     })
 
@@ -240,6 +237,8 @@ export class AuthService {
     })
 
     if(!user) throw new NotFoundException('User Not Found!!')
+    console.log(new Date());
+    
 
     const userUpdate = await this.dbService.users.update({
       where: {
@@ -251,5 +250,17 @@ export class AuthService {
     })
 
     return userUpdate
+  }
+
+  async getUsers(username: string){
+    const user = await this.dbService.users.findFirst({
+      where: {
+        username: username
+      }
+    })
+
+    if(!user) throw new NotFoundException('User Not Found!!')
+
+    return user
   }
 }

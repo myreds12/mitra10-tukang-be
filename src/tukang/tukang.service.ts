@@ -5,10 +5,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
 import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService) { }
   async create(
     createTukangDto: CreateTukangDto,
     user: users,
@@ -54,6 +55,8 @@ export class TukangService {
         role_id: roles.id,
       },
     });
+    
+    
 
     const tukangData: Prisma.tukangCreateInput = {
       users: {
@@ -93,14 +96,15 @@ export class TukangService {
           },
         }
         : undefined),
-    };
+      };
 
     const [tukang] = await this.dbService.$transaction([
       this.dbService.tukang.create({
         data: tukangData,
       }),
     ]);
-
+    
+    await this.sendMailService.sendCredentialMail(createTukangDto.username,  createTukangDto.password);
     return { tukang, userData };
   }
 

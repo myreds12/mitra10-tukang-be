@@ -49,7 +49,7 @@ export class QuotationController {
 
       return res.status(200).json({
         status: HttpStatus.OK,
-        message: 'Complaint code pulled',
+        message: 'Quotation code pulled',
         data: { code: nextCode },
       });
     } catch (error) {

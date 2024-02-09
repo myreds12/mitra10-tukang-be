@@ -37,6 +37,28 @@ export class ReportsController {
     private readonly orderService: OrderService,
   ) {}
 
+  @Get('/complaints')
+  async complaintReport(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
+    try {
+      const {complaint, complaintGrandTotal, monthlyComplaint} = await this.reportsService.complaintReport(queryParamsDto);
+      return response.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Complaint',
+        data: complaint,
+        complaintGrandTotal,
+        monthlyComplaint
+      });
+    } catch (error) {
+      console.log(error);
+
+      return response.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
   @Post('/create-form')
   createForm(@Body() dto: FormDto, @Req() req: Request) {
     return this.reportsService.createForm(dto);
@@ -48,23 +70,29 @@ export class ReportsController {
   }
 
   @Get('/orders')
-  async getOrders(
-    @Query() query: QueryParamsDto,
-    @Res() res: IExpressResponse,
-  ) {
+  // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards(JwtAuthGuard)
+  async reportOrders(@Query() query: QueryParamsDto) {
     try {
-      const orders = await this.orderService.findAll(query);
-      return res.status(200).json({
+      const { data, total, orderGrandTotal, takeTotal, monthlyOrders  } =
+        await this.reportsService.reportOrder(query);
+      return {
         status: HttpStatus.OK,
-        message: 'Get Order',
-        data: orders,
-      });
+        messages: 'Ok',
+        data,
+        total,
+        orderGrandTotal,
+        takeTotal,
+        monthlyOrders,
+      };
     } catch (error) {
-      return res.status(400).json({
+      console.log(error.message);
+
+      return {
         status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
+        messages: error.message,
         stack: error,
-      });
+      };
     }
   }
 
@@ -87,4 +115,6 @@ export class ReportsController {
   remove(@Param('id') id: string) {
     return this.reportsService.remove(+id);
   }
+
+  
 }

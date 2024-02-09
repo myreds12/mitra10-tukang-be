@@ -5,10 +5,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { isNumber } from 'class-validator';
 import { Prisma } from '@prisma/client';
+import { hash } from 'bcrypt';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService) { }
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const store = await this.dbService.store.create({
@@ -21,7 +23,24 @@ export class StoreService {
           created_by: user_id,
         },
       });
+      const role = await this.dbService.roles.findFirst({
+        where: {
+          name: {
+            equals: 'Store CS'
+          }
+        }
+      });
+      const usernameStore = `${dto.store_name.toLowerCase().replace(' ', '_') + '_cs'}`
+       await this.dbService.users.create({
+        data: {
+          username: usernameStore,
+          password: await hash(dto.default_password, 10),
+          role_id: role.id
+        }
+      });
 
+      
+      await this.sendMailService.sendCredentialMail(usernameStore,  dto.default_password);
       return {
         status: HttpStatus.CREATED,
         message: 'Store Successfully Created',

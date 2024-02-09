@@ -6,9 +6,10 @@ import { hash } from 'bcrypt';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { UpdateOrderDto } from 'src/order/dto/update-order.dto';
+import { SendEmailService } from 'src/mails/send-email.service';
 @Injectable()
 export class VendorService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService) { }
   async create(
     files: VendorFiles,
     createVendorDto: CreateVendorDto,
@@ -70,7 +71,7 @@ export class VendorService {
     const users = await this.dbService.users.create({
       data: {
         username: `${createVendorDto.company_name.toLowerCase().replace(' ', '_')}`,
-        password: await hash('password', 10),
+        password: await hash(createVendorDto.password, 10),
         role_id: role.id,
       },
     });
@@ -129,6 +130,8 @@ export class VendorService {
         data: vendorData,
       }),
     ]);
+    await this.sendMailService.sendCredentialMail(users.username,  createVendorDto.password);
+
 
     return { vendor, users };
   }
