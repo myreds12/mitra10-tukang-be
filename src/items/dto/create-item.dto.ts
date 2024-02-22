@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, ValidateNested } from 'class-validator';
 
 export class CreateItemDto {
   item_code?: string;
@@ -38,6 +38,10 @@ class Prices {
 }
 
 class PriceStore {
+  @IsOptional()
   @Type(() => Number)
-  store_id: number;
+  store_id?: number;
+
+  @IsOptional()
+  store_group_id?:number;
 }

@@ -5,6 +5,9 @@ export class CreateStoreDto {
   @IsNotEmpty()
   store_name: string;
 
+  @IsOptional()
+  store_group_id?: number;
+
   @IsString()
   @IsNotEmpty()
   address: string;

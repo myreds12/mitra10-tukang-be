@@ -89,14 +89,14 @@ export class AuthController {
   }
 
   @HttpCode(201)
-  @Post('/get-user/:username')
-  async getUsers(@Body() body: { username: string }, @Res() res: IExpressResponse) {
+  @Get('/get-user/:username')
+  async getUsers(@Param('username') username:string, @Res() res: IExpressResponse) {
     try {
-      const { username } = body;
       const resetPassword = await this.authService.getUsers(username);
       return res.status(201).json({
         status: HttpStatus.OK,
         message: 'Success',
+        data: resetPassword
       });
     } catch (error) {
       console.log(error);

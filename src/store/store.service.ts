@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, NotFoundException } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -16,6 +16,7 @@ export class StoreService {
       const store = await this.dbService.store.create({
         data: {
           store_name: dto.store_name,
+          store_group_id: dto.store_group_id,
           address: dto.address,
           additional_address: dto.additional_address,
           city_id: dto.city_id,
@@ -64,6 +65,7 @@ export class StoreService {
       date_to,
       order_by,
       city_id,
+      store_group_id
     } = query;
 
     const skip = page * take - take;
@@ -79,6 +81,13 @@ export class StoreService {
             },
           ]
           : []),
+          ...(store_group_id ? [
+            {
+              OR: [
+                {store_group_id: { equals: store_group_id}}
+              ]
+            }
+          ]: []),
       ]
     };
 
@@ -175,4 +184,6 @@ export class StoreService {
 
     return stores[0] || null;
   }
+
+  
 }

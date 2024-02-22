@@ -37,7 +37,10 @@ export class QuotationService {
       createQuotationDto.quotation_details.map((item) => {
         const prices = Number(item.is_customer ? 0 : item?.price ?? 0 );
         const quantity = item.is_customer ? 0 : item.quantity;
-        const final_price = ((prices * quantity) - (+item?.margin ?? 0)) || 0;
+        const margin = item.margin_type === 1 ?   (+item.margin >= 1 && +item.margin <= 100 ? (prices * quantity) - ((prices * quantity) * (+item.margin / 100)) : 0) : +item.margin;
+        const final_price = ((prices * quantity) + margin) ;
+        console.log(prices, "Prices", quantity, "Quantity", final_price, "Final Price", margin);
+        
         grandTotal += final_price ?? 0;
         return {
           category_id: item?.category_id,
@@ -55,6 +58,8 @@ export class QuotationService {
         };
       });
 
+      console.log(quotaionDetails, "QUOTATION DETAILS");
+      
     const status = await this.dbService.status.findFirst({
       where: {
         category: {

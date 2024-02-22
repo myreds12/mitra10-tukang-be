@@ -35,6 +35,9 @@ import { users } from '@prisma/client';
 export class StoreController {
   constructor(private readonly storeService: StoreService) { }
 
+
+ 
+
   @Get('next-code')
   async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
     try {

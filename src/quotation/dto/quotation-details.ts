@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsIn, IsNotEmpty, ValidateIf } from 'class-validator';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
+import { MarginType } from './margin-type.enum';
 
 export default class QuotationDetails {
   @Type(() => Number)
@@ -23,7 +24,7 @@ export default class QuotationDetails {
   work_order_item_id?: number;
 
   @Transform(({ value }) => Number(value))
-  @IsEnum(WorkOrderMaterialType)
+  // @IsEnum(WorkOrderMaterialType)
   type: WorkOrderMaterialType;
 
   description?: string;
@@ -37,11 +38,15 @@ export default class QuotationDetails {
   @Transform(({ value }) => Number(value))
   margin: string | number;
 
+  @Transform(({ value }) => Number(value))
+  @IsEnum(MarginType)
+  margin_type: MarginType;
+
   @Type(() => Number)
   quantity: number;
 
   @IsNotEmpty()
   @Type(() => Number)
-  @IsIn([0, 1])
+  // @IsIn([0, 1])
   is_customer: number;
 }

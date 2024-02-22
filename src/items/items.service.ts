@@ -5,6 +5,7 @@ import { Prisma, users } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { Store } from 'src/store/entities/store.entity';
 
 @Injectable()
 export class ItemsService {
@@ -38,6 +39,7 @@ export class ItemsService {
         periodic_end,
         min_order,
         price: priceValue,
+        price_store,
       } = price;
 
       const createdPrice = await this.dbService.prices.create({
@@ -52,15 +54,36 @@ export class ItemsService {
       });
 
       await Promise.all(
-        price.price_store.map((store) =>
-          this.dbService.price_stores.create({
-            data: {
-              price_id: createdPrice.id,
-              store_id: store.store_id,
-              created_by: user_id,
-            },
-          }),
-        ),
+        price_store.map(async (storeItem) => {
+          let storeIds: number[] = [];
+          if (storeItem.store_id) {
+            storeIds.push(storeItem.store_id);
+          } else if (storeItem.store_group_id) {
+            const storeGroup = await this.dbService.store_group.findFirst({
+              where: {
+                id: storeItem.store_group_id,
+              },
+              include: {
+                store: true,
+              },
+            });
+            if (storeGroup) {
+              storeIds = storeGroup.store.map((store) => store.id);
+            }
+          }
+
+          await Promise.all(
+            storeIds.map((storeId) =>
+              this.dbService.price_stores.create({
+                data: {
+                  price_id: createdPrice.id,
+                  store_id: storeId,
+                  created_by: user_id,
+                },
+              }),
+            ),
+          );
+        }),
       );
 
       return createdPrice;
@@ -210,27 +233,25 @@ export class ItemsService {
 
     // update or insert
 
-
     const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
       UpdateDataDto.prices.map((item) => {
-        const priceStoreCreate: Prisma.price_storesCreateManyPriceInput[] = item.price_store.map((price) => ({
-          store_id: price.store_id
-        }))
+        const priceStoreCreate: Prisma.price_storesCreateManyPriceInput[] =
+          item.price_store.map((price) => ({
+            store_id: price.store_id,
+          }));
         const priceStoreUpsert: Prisma.price_storesUpsertWithWhereUniqueWithoutPriceInput[] =
           item.price_store.map((price) => ({
             where: {
-              id: price.id ?? 0
+              id: price.id ?? 0,
             },
             update: {
-              store_id: price.store_id
+              store_id: price.store_id,
             },
             create: {
-              store_id: price.store_id
-            }
-          })
-          );
+              store_id: price.store_id,
+            },
+          }));
         return {
-
           where: {
             item_id: id,
             // If id is not present set it to zero to be created
@@ -245,7 +266,7 @@ export class ItemsService {
               : undefined,
             min_order: item?.min_order,
             price_store: {
-              upsert: priceStoreUpsert
+              upsert: priceStoreUpsert,
             },
             price: item?.price,
             updated_by: user_id,
@@ -264,11 +285,11 @@ export class ItemsService {
             created_by: user_id,
             price_store: {
               createMany: {
-                data: priceStoreCreate
-              }
-            }
+                data: priceStoreCreate,
+              },
+            },
           },
-        }
+        };
       });
 
     const [syncPrices, items_query] = await this.dbService.$transaction([
@@ -284,7 +305,7 @@ export class ItemsService {
         data: {
           deleted_at: new Date(),
           deleted_by: user_id,
-        }
+        },
       }),
       this.dbService.items.update({
         where: {

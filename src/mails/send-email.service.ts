@@ -4,33 +4,36 @@ import { OrderService } from 'src/order/order.service';
 import * as pug from 'pug';
 import * as fs from 'fs';
 import * as pdfkit from 'pdfkit';
+import * as pdf from 'html-pdf';
 import { PrismaService } from 'src/prisma/prisma.service';
-import path from 'path';
+import * as path from 'path';
+
 @Injectable()
 export class SendEmailService {
   constructor(private readonly mailerService: MailerService, private readonly orderService: OrderService, private readonly dbService: PrismaService) { }
 
-  async generatePDF(data: any): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        const pdfStream = new pdfkit();
-        const buffers: Buffer[] = [];
+  async generatePDF(data: any): Promise<string> {
+    const folderPath = './uploads/file/';
+    const filePath = path.join(folderPath, `order${data.id}.pdf`);
+    const template = pug.renderFile('templates/index.pug', { data });
 
-        pdfStream.on('data', (buffer) => {
-            buffers.push(buffer);
-        });
+    const options: pdf.CreateOptions = {
+      format: 'A4',
+      border: '10mm',
+    };
 
-        pdfStream.on('end', () => {
-            resolve(Buffer.concat(buffers));
-        });
-
-        pdfStream.on('error', (error) => {
-            reject(error);
-        });
-
-        pdfStream.pipe(fs.createWriteStream('uploads/pdf/')); 
-        pdfStream.end();
+    await new Promise<void>((resolve, reject) => {
+      pdf.create(template, options).toFile(filePath, (err, res) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
-}
+
+    return filePath;
+  }
 
   async sendMail(order_id: number) {
     const data = await this.orderService.findOne(order_id)

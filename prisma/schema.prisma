@@ -220,14 +220,14 @@ model role_permissions {
 }
 
 model users {
-  id              Int       @id @default(autoincrement())
-  role_id         Int
-  
+  id      Int @id @default(autoincrement())
+  role_id Int
+
   username        String    @db.VarChar(255)
   password        String    @db.VarChar(255)
   forget_password DateTime? @db.DateTime()
 
-  is_active       Boolean   @default(true)
+  is_active Boolean @default(true)
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -345,6 +345,7 @@ model service_type {
 model store {
   id      Int  @id @default(autoincrement())
   city_id Int?
+  store_group_id Int? @map("store_groupId")
 
   email              String  @default("")
   store_name         String  @db.VarChar(45)
@@ -371,8 +372,24 @@ model store {
   quotation quotation[]
   members   members[]
 
-  city         city?          @relation(fields: [city_id], references: [id])
-  price_stores price_stores[]
+  city          city?          @relation(fields: [city_id], references: [id])
+  store_group   store_group?    @relation(fields: [store_group_id], references: [id])
+  price_stores  price_stores[]
+}
+
+model store_group {
+  id Int @id @default(autoincrement())
+
+  group_name String @db.VarChar(255)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+  store      store[]
 }
 
 model tukang {

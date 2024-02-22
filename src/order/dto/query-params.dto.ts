@@ -5,6 +5,8 @@ export class QueryParamsDto {
   @Type(() => Number)
   take?: number = 10;
 
+  store_group_id?:number
+
   search?: string;
 
   @Type(() => Number)
