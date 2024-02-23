@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ComplaintChannelDto } from './dto/complaint_channel.dto';
 
 @Injectable()
 export class ComplaintChannelsService {
@@ -19,5 +20,15 @@ export class ComplaintChannelsService {
     });
 
     return channels;
+  }
+
+  async create(dto: ComplaintChannelDto, user_id: number){
+    const channel = await this.dbService.complaint_channels.create({
+      data: {
+        ...dto,
+        created_by: user_id
+      }
+    });
+    return channel
   }
 }

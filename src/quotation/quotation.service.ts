@@ -24,6 +24,7 @@ export class QuotationService {
 
     const { id: user_id } = user;
     let grandTotal = 0;
+    let comission
 
     const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
       quotation_files
@@ -57,7 +58,8 @@ export class QuotationService {
           final_price: final_price ?? 0,
         };
       });
-
+      if(grandTotal >= 500000) comission = (grandTotal  *  2.5/100)
+      
       console.log(quotaionDetails, "QUOTATION DETAILS");
       
     const status = await this.dbService.status.findFirst({
@@ -122,9 +124,20 @@ export class QuotationService {
       },
     };
 
+    console.log(comission);
+    
 
-    const [quotation] = await this.dbService.$transaction([
+
+    const [quotation, order] = await this.dbService.$transaction([
       this.dbService.quotation.create(quotation_options),
+      this.dbService.orders.update({
+        where: {
+          id: createQuotationDto.order_id
+        },
+        data: {
+          grand_total_comission: comission ?? undefined
+        }
+      })
     ]);
 
     this.orderService.setStatus(
@@ -132,7 +145,7 @@ export class QuotationService {
       quotation.quotation_status,
       user,
     );
-    return quotation;
+    return {quotation, sales_comission: comission ?? 0};
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {

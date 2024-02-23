@@ -104,7 +104,7 @@ export class ReportsService {
         store_id
           ? {
             store_id: {
-              equals: store_id,
+              in: store_id,
             },
           } : undefined,
         vendor_id

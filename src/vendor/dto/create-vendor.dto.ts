@@ -4,8 +4,10 @@ import {
   IsDate,
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateVendorDto {
@@ -96,4 +98,16 @@ export class CreateVendorDto {
 
   @IsOptional()
   password?: string;
+
+  @Type(() => VendorStore)
+  @ValidateNested({ each: true })
+  vendor_store: VendorStore[]
+}
+
+
+class VendorStore{
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  store_id: number
 }

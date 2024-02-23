@@ -67,7 +67,14 @@ export class VendorService {
           contains: 'admin vendor'
         }
       }
-    })
+    });
+
+    const vendorStore: Prisma.vendor_storeCreateManyVendorInput[] = createVendorDto.vendor_store.map((item) => {
+      return {
+        store_id: item.store_id
+      }
+    });
+
     const users = await this.dbService.users.create({
       data: {
         username: `${createVendorDto.company_name.toLowerCase().replace(' ', '_')}`,
@@ -119,6 +126,11 @@ export class VendorService {
           },
         }
         : undefined),
+      vendor_store: {
+        createMany: {
+          data: vendorStore
+        }
+      },
       vendor_bank: {
         create: vendorBankData,
       },
@@ -130,14 +142,14 @@ export class VendorService {
         data: vendorData,
       }),
     ]);
-    await this.sendMailService.sendCredentialMail(users.username,  createVendorDto.password);
+    await this.sendMailService.sendCredentialMail(users.username, createVendorDto.password);
 
 
     return { vendor, users };
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to } = query;
+    const { take, page, search, status, date_from, date_to, store_id } = query;
     const skip = page * take - take;
 
     const where: Prisma.vendorWhereInput = {
@@ -153,6 +165,12 @@ export class VendorService {
             },
           ]
           : []),
+        ...(store_id
+          ? [
+            {
+              vendor_store: { some: { store_id:{in: store_id} } },
+            }
+          ] : []),
         ...(date_from && date_to
           ? [
             {
@@ -189,6 +207,27 @@ export class VendorService {
           include: {
             service_type: true,
           },
+        },
+        vendor_store: {
+          select: {
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                additional_address: true,
+                address: true,
+                bank_account: true,
+                bank_name: true,
+                bank_number: true,
+                email: true,
+                phone_number_1: true,
+                phone_number_2: true,
+                city_id: true,
+                city: true,
+
+              }
+            }
+          }
         },
         work_orders: true,
       },

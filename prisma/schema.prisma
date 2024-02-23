@@ -343,8 +343,8 @@ model service_type {
 }
 
 model store {
-  id      Int  @id @default(autoincrement())
-  city_id Int?
+  id             Int  @id @default(autoincrement())
+  city_id        Int?
   store_group_id Int? @map("store_groupId")
 
   email              String  @default("")
@@ -372,9 +372,10 @@ model store {
   quotation quotation[]
   members   members[]
 
-  city          city?          @relation(fields: [city_id], references: [id])
-  store_group   store_group?    @relation(fields: [store_group_id], references: [id])
-  price_stores  price_stores[]
+  city         city?          @relation(fields: [city_id], references: [id])
+  store_group  store_group?   @relation(fields: [store_group_id], references: [id])
+  price_stores price_stores[]
+  vendor_store vendor_store[]
 }
 
 model store_group {
@@ -487,6 +488,24 @@ model vendor {
   orders          orders[]
   work_orders     work_orders[]
   invoices        invoices[]
+  vendor_store    vendor_store[]
+}
+
+model vendor_store {
+  id Int @id @default(autoincrement())
+
+  store_id  Int @map("storeId")
+  vendor_id Int @map("vendorId")
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+  store      store     @relation(fields: [store_id], references: [id])
+  vendor     vendor    @relation(fields: [vendor_id], references: [id])
 }
 
 model vendor_area {
