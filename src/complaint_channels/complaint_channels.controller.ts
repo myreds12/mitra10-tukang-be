@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpStatus, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ComplaintChannelsService } from './complaint_channels.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { ComplaintChannelDto } from './dto/complaint_channel.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('complaint-channels')
 export class ComplaintChannelsController {
@@ -9,7 +10,8 @@ export class ComplaintChannelsController {
     private readonly complaintChannelsService: ComplaintChannelsService,
   ) {}
 
-  @Post('')
+  @UseGuards(JwtAuthGuard)
+  @Post()
   async create(@Body() dto: ComplaintChannelDto, @Req() req, @Res() res){
     try{
       const user_id = req.user.id
