@@ -25,6 +25,6 @@ async function bootstrap() {
   app.setBaseViewsDir(join('templates'));
   app.setViewEngine('pug');
 
-  await app.listen(3030);
+  await app.listen(3093);
 }
 bootstrap();
