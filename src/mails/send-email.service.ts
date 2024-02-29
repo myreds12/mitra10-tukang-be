@@ -39,7 +39,6 @@ export class SendEmailService {
 
   async sendMail(order_id: number) {
     const data = await this.orderService.findOne(order_id);
-    // const generatePdf = await this.generatePDF(data)
 
     await this.mailerService.sendMail({
       to: data.members.email, // list of receivers
@@ -47,7 +46,7 @@ export class SendEmailService {
       subject: 'Email Order', // Subject line
       template: 'order',
       context: data,
-      html: pug.renderFile('templates/index.pug', { data }),
+      // html: pug.renderFile('templates/index.pug', { data }),
       //   attachments: [
       //     {
       //         filename: 'order.pdf',
@@ -71,25 +70,22 @@ export class SendEmailService {
         tukang: true,
       },
     });
-    console.log(data);
 
-    let userEmail;
-    if (data.username.includes('@')) userEmail = data.username;
-    const to =
-      userEmail ??
-      data.employee?.email ??
-      data.vendor?.email_address ??
-      data.tukang[0]?.email ??
-      'example@example.com';
+    let to = data.username.includes('@')
+      ? data.username
+      : data.employee?.email ??
+        data.vendor?.email_address ??
+        data.tukang[0]?.email ??
+        'example@example.com';
     console.log(to);
 
-    const mail = await this.mailerService.sendMail({
+    await this.mailerService.sendMail({
       to,
       from: 'noreply@mitra10.com', // sender address
       subject: 'Email Reset Password', // Subject line
       template: 'reset-password',
       context: data,
-      html: pug.renderFile('templates/reset-password.pug', { data }),
+      // html: pug.renderFile('templates/reset-password.pug', { data }),
     });
   }
 
@@ -111,13 +107,12 @@ export class SendEmailService {
     });
     if (!users) throw new NotFoundException('User  not found!');
 
-    let userEmail;
-    if (users.username.includes('@')) userEmail = users.username;
+    const userEmail = users.username.includes('@') ? users.username : null;
     const to =
-      userEmail ??
-      users.employee?.email ??
-      users.vendor?.email_address ??
-      users.tukang[0]?.email ??
+      userEmail ||
+      users.employee?.email ||
+      users.vendor?.email_address ||
+      users.tukang[0]?.email ||
       'example@example.com';
 
     await this.mailerService.sendMail({

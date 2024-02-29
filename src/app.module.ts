@@ -39,6 +39,7 @@ import { RescheduleModule } from './reschedule/reschedule.module';
 import { GoogleSheetModule } from 'nest-google-sheet-connector';
 import { CsiModule } from './csi/csi.module';
 import { StoreGroupModule } from './store_group/store_group.module';
+import { join } from 'path';
 
 // TODO : Dynamic for production Setu
 const user = 'f22c1f963daf4c';
@@ -105,7 +106,7 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
       },
       preview: true,
       template: {
-        dir: './dist/templates/',
+        dir: join(process.cwd(), '/templates/'),
         adapter: new PugAdapter(),
         options: {
           strict: true,
