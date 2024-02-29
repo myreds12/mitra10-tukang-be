@@ -12,7 +12,7 @@ export class SendEmailService {
     private readonly mailerService: MailerService,
     private readonly orderService: OrderService,
     private readonly dbService: PrismaService,
-  ) {}
+  ) { }
 
   async generatePDF(data: any): Promise<string> {
     const folderPath = './uploads/file/';
@@ -40,20 +40,23 @@ export class SendEmailService {
   async sendMail(order_id: number) {
     const data = await this.orderService.findOne(order_id);
 
+    console.log('Email Order Data : ');
+    console.log(data, data.members.full_name);
+
     await this.mailerService.sendMail({
       to: data.members.email, // list of receivers
       from: 'noreply@mitra10.com', // sender address
       subject: 'Email Order', // Subject line
       template: 'order',
-      context: data,
+      context: { data },
       // html: pug.renderFile('templates/index.pug', { data }),
-      //   attachments: [
-      //     {
-      //         filename: 'order.pdf',
-      //         content: generatePdf,
-      //         encoding: 'base64',
-      //         cid: 'noreply@mitra10.com', // Ganti dengan CID yang unik
-      //     },
+      // attachments: [
+      //   {
+      //     filename: 'order.pdf',
+      //     content: generatePdf,
+      //     encoding: 'base64',
+      //     cid: 'noreply@mitra10.com', // Ganti dengan CID yang unik
+      //   },
       // ],
     });
   }
@@ -74,9 +77,9 @@ export class SendEmailService {
     let to = data.username.includes('@')
       ? data.username
       : data.employee?.email ??
-        data.vendor?.email_address ??
-        data.tukang[0]?.email ??
-        'example@example.com';
+      data.vendor?.email_address ??
+      data.tukang[0]?.email ??
+      'example@example.com';
     console.log(to);
 
     await this.mailerService.sendMail({
@@ -84,7 +87,7 @@ export class SendEmailService {
       from: 'noreply@mitra10.com', // sender address
       subject: 'Email Reset Password', // Subject line
       template: 'reset-password',
-      context: data,
+      context: { data },
       // html: pug.renderFile('templates/reset-password.pug', { data }),
     });
   }
@@ -120,8 +123,8 @@ export class SendEmailService {
       from: 'noreply@mitra10.com', // sender address
       subject: 'Credential Mail', // Subject line
       template: 'credential-mail',
-      context: [data, users],
-      html: pug.renderFile('templates/credential-mail.pug', { data }),
+      context: { data },
+      // html: pug.renderFile('templates/credential-mail.pug', { data }),
     });
   }
 }

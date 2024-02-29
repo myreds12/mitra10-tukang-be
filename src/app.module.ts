@@ -107,7 +107,9 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
       preview: true,
       template: {
         dir: join(process.cwd(), '/templates/'),
-        adapter: new PugAdapter(),
+        adapter: new PugAdapter({
+          inlineCssEnabled: false
+        }),
         options: {
           strict: true,
         },
@@ -122,4 +124,4 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
 })
-export class AppModule {}
+export class AppModule { }
