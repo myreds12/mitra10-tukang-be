@@ -43,7 +43,7 @@ export class SendEmailService {
 
     await this.mailerService.sendMail({
       to: data.members.email, // list of receivers
-      from: 'kreasisawalanusantara@gmail.com', // sender address
+      from: 'noreply@mitra10.com', // sender address
       subject: 'Email Order', // Subject line
       template: 'order',
       context: data,
@@ -53,7 +53,7 @@ export class SendEmailService {
       //         filename: 'order.pdf',
       //         content: generatePdf,
       //         encoding: 'base64',
-      //         cid: 'unique@kreasisawalanusantara.com', // Ganti dengan CID yang unik
+      //         cid: 'noreply@mitra10.com', // Ganti dengan CID yang unik
       //     },
       // ],
     });
@@ -85,7 +85,7 @@ export class SendEmailService {
 
     const mail = await this.mailerService.sendMail({
       to,
-      from: 'kreasisawalanusantara@gmail.com', // sender address
+      from: 'noreply@mitra10.com', // sender address
       subject: 'Email Reset Password', // Subject line
       template: 'reset-password',
       context: data,
@@ -122,7 +122,7 @@ export class SendEmailService {
 
     await this.mailerService.sendMail({
       to,
-      from: 'kreasisawalanusantara@gmail.com', // sender address
+      from: 'noreply@mitra10.com', // sender address
       subject: 'Credential Mail', // Subject line
       template: 'credential-mail',
       context: [data, users],
