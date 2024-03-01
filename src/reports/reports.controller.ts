@@ -59,6 +59,25 @@ export class ReportsController {
     }
   }
 
+  @Get('/sales-comission')
+  salesComission(@Res() response, @Query() queryParamsDto: QueryParamsDto){
+    try {
+      const salesComission = this.reportsService.salesComissionReport(queryParamsDto);
+      return response.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Sales Comission',
+        data: salesComission
+      });
+    } catch (error) {
+      console.log(error);
+
+      return response.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
   @Post('/create-form')
   createForm(@Body() dto: FormDto, @Req() req: Request) {
     return this.reportsService.createForm(dto);

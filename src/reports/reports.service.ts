@@ -23,6 +23,40 @@ export class ReportsService {
 
   }
 
+  async salesComissionReport(query: QueryParamsDto) {
+    const sales = await this.dbService.sales.findMany({
+      where:{
+        deleted_at: null,
+      },
+      orderBy: {
+        created_at: "desc"
+      },
+      include: {
+        orders: {
+          where: {
+            deleted_at: null,
+          },
+          include: {
+            members: true,
+            store: true,
+            status: true,
+            vendor: true,
+            m_order_details: true,
+          }
+        }
+      }
+    });
+    const comissionSalesInOrder = sales.map(sale => {
+      const comission = sale.orders.reduce((acc, curr) => acc + Number(curr.grand_total_comission), 0);
+      return {
+        ...sale,
+        comission
+      }
+    });
+
+    return comissionSalesInOrder;
+  }
+
   findOne(id: number) {
     return `This action returns a #${id} report`;
   }

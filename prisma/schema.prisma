@@ -500,12 +500,12 @@ model vendor_store {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
-  
+
   created_by Int?
   updated_by Int?
   deleted_by Int?
-  store      store     @relation(fields: [store_id], references: [id])
-  vendor     vendor    @relation(fields: [vendor_id], references: [id])
+  store      store  @relation(fields: [store_id], references: [id])
+  vendor     vendor @relation(fields: [vendor_id], references: [id])
 }
 
 model vendor_area {
@@ -612,6 +612,7 @@ model orders {
   grand_total           Decimal?  @db.Decimal(32, 2)
   grand_total_comission Decimal?  @db.Decimal(32, 2)
   print_counter         Int       @default(0) @db.TinyInt()
+  is_overdistance       Boolean   @default(false)
 
   created_by Int?
   updated_by Int?
@@ -1289,4 +1290,55 @@ model csi {
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
+}
+
+model email_messages {
+  id Int @id @default(autoincrement())
+
+  email_type  String @db.VarChar(50)
+  greetings   String @db.VarChar(100)
+  terms       String @db.Text()
+  information String @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at         DateTime             @default(now()) @db.DateTime()
+  updated_at         DateTime?            @db.DateTime()
+  deleted_at         DateTime?            @db.DateTime()
+  terms_detail       terms_detail[]
+  information_detail information_detail[]
+}
+
+model terms_detail {
+  id Int @id @default(autoincrement())
+
+  email_messages_id Int
+  terms             String @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at     DateTime       @default(now()) @db.DateTime()
+  updated_at     DateTime?      @db.DateTime()
+  deleted_at     DateTime?      @db.DateTime()
+  email_messages email_messages @relation(fields: [email_messages_id], references: [id])
+}
+
+model information_detail {
+  id Int @id @default(autoincrement())
+
+  email_messages_id Int
+  information       String @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at     DateTime       @default(now()) @db.DateTime()
+  updated_at     DateTime?      @db.DateTime()
+  deleted_at     DateTime?      @db.DateTime()
+  email_messages email_messages @relation(fields: [email_messages_id], references: [id])
 }

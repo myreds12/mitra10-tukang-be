@@ -59,4 +59,6 @@ export class CreateOrderDto {
   order_details?: OrderDetailDto[];
 
   request_survey: string;
+
+  is_overdistance: boolean;
 }

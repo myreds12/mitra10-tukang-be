@@ -40,6 +40,7 @@ import { GoogleSheetModule } from 'nest-google-sheet-connector';
 import { CsiModule } from './csi/csi.module';
 import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
+import { EmailMessagesModule } from './email-messages/email-messages.module';
 
 // TODO : Dynamic for production Setu
 const user = 'f22c1f963daf4c';
@@ -118,6 +119,7 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
     BrandsModule,
     CsiModule,
     StoreGroupModule,
+    EmailMessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

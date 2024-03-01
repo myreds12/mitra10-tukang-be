@@ -125,6 +125,7 @@ export class OrderService {
           sales_id: salesUser?.sales?.id ?? createOrderDto.sales_id,
         };
       });
+    if(createOrderDto.is_overdistance === true) grand_total += 25000; 
 
     const orderConnection = Object.fromEntries(
       Object.entries({
@@ -144,6 +145,7 @@ export class OrderService {
       receipt_number: createOrderDto.receipt_number,
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
+      is_overdistance: createOrderDto.is_overdistance,
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
       print_counter: 0,
