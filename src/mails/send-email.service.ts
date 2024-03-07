@@ -38,16 +38,37 @@ export class SendEmailService {
   }
 
   async sendMail(order_id: number) {
-    const data = await this.orderService.findOne(order_id);
+    const order = await this.orderService.findOne(order_id);
 
     console.log('Email Order Data : ');
-    console.log(data, data.members.full_name);
+    // console.log(data, data.members.full_name);
+
+    const message = await this.dbService.email_messages.findFirst({
+      where: {
+        is_active: true,
+        email_type: {
+          contains: 'order',
+        },
+      },
+      include: {
+        terms_detail: true,
+        information_detail: true
+      }
+    });
+
+    const data = {
+      order,
+      message,
+    };
+
+    console.log(data.order, data.message);
+    
 
     await this.mailerService.sendMail({
-      to: data.members.email, // list of receivers
+      to: data.order.members.email, // list of receivers
       from: 'noreply@mitra10.com', // sender address
       subject: 'Email Order', // Subject line
-      template: 'order',
+      template: 'index',
       context: { data },
       // html: pug.renderFile('templates/index.pug', { data }),
       // attachments: [

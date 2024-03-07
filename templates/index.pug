@@ -1,164 +1,156 @@
 doctype html
 html(lang="en")
   head
-   meta(charset='UTF-8')
-   meta(name='viewport' content='width=device-width, initial-scale=1.0')
-   link(href='https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC' crossorigin='anonymous')
-   title Preview Email Order
+    meta(charset='UTF-8')
+    meta(name='viewport' content='width=device-width, initial-scale=1.0')
+    link(href='https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC' crossorigin='anonymous')
+    title Preview Email Order
 
   style.
-      #preview-email {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
+    #preview-email {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-      #preview-email .card {
-        width: 900px;
-      }
+    #preview-email .card {
+      width: 900px;
+    }
 
-      #preview-email .card .card-body {
-        min-height: 100vh;
-        padding: 3rem 3rem !important;
-      }
+    #preview-email .card .card-body {
+      min-height: 100vh;
+      padding: 3rem 3rem !important;
+    }
 
-      #preview-email .card-header {
-        display: block !important;
-        background-color: #183383;
-        min-height: 80px;
-      }
+    #preview-email .card-header {
+      display: block !important;
+      background-color: #183383;
+      min-height: 80px;
+    }
 
-      #preview-email .content-header.row {
-        margin: 20px;
-      }
+    #preview-email .content-header.row {
+      margin: 20px;
+    }
 
+    #preview-email .header-logo {
+      display: flex;
+      align-items: center;
+    }
+
+    @media screen and (max-width: 400px) {
       #preview-email .header-logo {
         display: flex;
+        flex-direction: column;
         align-items: center;
       }
 
-      @media screen and (max-width: 400px) {
-        #preview-email .header-logo {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        #preview-email .header-information {
-          text-align: center;
-        }
-
-        #preview-email .header-logo img {
-          height: 50px !important;
-          padding-right: 0 !important;
-        }
-
-        #preview-email .header-logo h1 {
-          margin-bottom: 15px !important;
-          padding-left: 0 !important;
-        }
+      #preview-email .header-information {
+        text-align: center;
       }
+
+      #preview-email .header-logo img {
+        height: 50px !important;
+        padding-right: 0 !important;
+      }
+
+      #preview-email .header-logo h1 {
+        margin-bottom: 15px !important;
+        padding-left: 0 !important;
+      }
+    }
 
   body
     section#preview-email
-        .card
-          .card-header
-            .content-header.row
-              .col-md-6.col-sm-12
-                .header-logo
-                  img.h-30px.logo.mb-3.pe-1(src=('https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png'), alt='Logo Mitra10' style="width: 100px; heigth: 50px;")
-                  h1.ps-1.fs-5.fw-bold.text-white Instalasi & Service Mitra 10
-              .col-md-6.col-sm-12
-                .header-information
-                  h1.fs-6.fw-bold.mb-2.text-white
-                   | #{data.payment_type === 'survey' ? 'Request Survey' : data.payment_type === 'gratis' ? 'Request Pemasangan' : data.payment_type === 'pemasangan_tanpa_survey' ? 'Request Pemasangan' : ''}
-                   | :
-                   span.fw-normal.text-white= data ? new Date(data.request_survey).toLocaleDateString('en-US') : '-'
-                  h1.fs-6.fw-bold.mb-2.text-white Order ID :
-                   span.fw-normal.text-white=  data.id
+      .card
+        .card-header
+          .content-header.row
+            .col-md-6.col-sm-12
+              .header-logo
+                img.h-30px.logo.mb-3.pe-1(src=('https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png'), alt='Logo Mitra10' style="width: 100px; heigth: 50px;")
+                h1.ps-1.fs-5.fw-bold.text-white Instalasi & Service Mitra 10
+            .col-md-6.col-sm-12
+              .header-information
+                h1.fs-6.fw-bold.mb-2.text-white
+                  | #{data.order.payment_type === 'survey' ? 'Request Survey' : data.order.payment_type === 'gratis' ? 'Request Pemasangan' : data.order.payment_type === 'pemasangan_tanpa_survey' ? 'Request Pemasangan' : ''}
+                  | :
+                  span.fw-normal.text-white= data.order.request_survey ? new Date(data.order.request_survey).toLocaleDateString('en-US') : '-'
+                h1.fs-6.fw-bold.mb-2.text-white Order ID :
+                  span.fw-normal.text-white=  data.order.id
 
-                  //-  a(href=`uploads/pdf/order/order_${data.id}.pdf`, download=`order_${data.id}.pdf`) Unduh PDF
-          .col-md-12.col-sm-12
-          .card-body
-            h3.fs-6.fw-normal.mb-1 Hi, #{data.members.full_name}
-            h3.fs-6.fw-bold.mb-5 Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
-            h3.fs-6.fw-bold.mb-1 Detail Pemesanan
-            table.table.table-hover.table-responsive.table-bordered
-              thead
+                //-  a(href=`uploads/pdf/order/order_${data.order.id}.pdf`, download=`order_${data.order.id}.pdf`) Unduh PDF
+        .col-md-12.col-sm-12
+        .card-body
+          h3.fs-6.fw-normal.mb-1 #{data.message.greetings}
+          h3.fs-6.fw-bold.mb-5 Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
+          h3.fs-6.fw-bold.mb-1 Detail Pemesanan
+          table.table.table-hover.table-responsive.table-bordered
+            thead
+              tr
+                th Item Code
+                th Item Name
+                th Nama Jasa Pemasangan
+                th QTY Pemasangan
+                if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
+                  th Harga Jasa
+                  th Jumlah
+            tbody
+              each item, index in data.order.order_details
+                tr(key=`${index} - order_detail`)
+                  td= item.item_code === 'null' ? '-' : (item.item_code || '-')
+                  td= item.item_name === 'null' ? '-' : (item.item_name || '-')
+                  td= data.order.payment_type === 'survey' ? item.item_notes : item.item.service_name
+                  td= item.quantity || 0
+                  if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
+                    td= `Rp. ${parseInt(item.unit_price || 0).toLocaleString('id')}`
+                    td= `Rp. ${parseInt(item.total || 0).toLocaleString('id')}`
+              if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'pemasangan_tanpa_survey'
                 tr
-                  th Item Code
-                  th Item Name
-                  th Nama Jasa Pemasangan
-                  th QTY Pemasangan
-                  if data.payment_type !== 'gratis' && data.payment_type !== 'survey'
-                    th Harga Jasa
-                    th Jumlah
-              tbody
-                each item, index in data.order_details
-                  tr(key=`${index} - order_detail`)
-                    td= item.item_code === 'null' ? '-' : (item.item_code || '-')
-                    td= item.item_name === 'null' ? '-' : (item.item_name || '-')
-                    td= data.payment_type === 'survey' ? item.item_notes : item.item.service_name
-                    td= item.quantity || 0
-                    if data.payment_type !== 'gratis' && data.payment_type !== 'survey'
-                      td= `Rp. ${parseInt(item.unit_price || 0).toLocaleString('id')}`
-                      td= `Rp. ${parseInt(item.total || 0).toLocaleString('id')}`
-                if data.payment_type !== 'gratis' && data.payment_type !== 'pemasangan_tanpa_survey'
-                  tr
-                    td(colspan=3, class='text-end fw-bolder') Biaya Survey
-                    td(class='fw-bolder')= data.payment_type === 'gratis' || data.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${(0).toLocaleString('id')}` : data.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${0}`
-                if data.payment_type !== 'survey'
-                  tr
-                    td(colspan=data.payment_type !== 'gratis' ? 5 : 3, class='text-end fw-bolder') Grand Total
-                    td(class='fw-bolder')= data.payment_type === 'gratis' ? `Rp. ${(0).toLocaleString('id')}` : data.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${parseInt(data.grand_total).toLocaleString('id')}` : data.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${(0).toLocaleString('id')}`
-            h3.fs-6.fw-bold.mb-1 Detail Pemasangan
-            .row.mb-5
-              .col
-                h3.fs-6.fw-semibold.mb-1= data.members.full_name
-                h3.fs-6.fw-normal.mb-1= data.project_address
-                h3.fs-6.fw-normal.mb-1 Telp : #{data.project_number}
-              .col
-            .announcement.mb-3
-              h3.fs-6.fw-normal Transaksi Anda telah berhasil dengan nomor Order ID #{data.id}
-              h3.fs-6.fw-normal Silahkan unduh file yang terlampir pada email ini untuk mencetak Tanda Terima transaksi Anda.
-              h3.fs-6.fw-normal Untuk menghubungi Admin Instalasi kami melalui Whatsapp melalui nomor 087884821089
-            .row.mt-5
-              .col
-                h3.fs-6.fw-bold.mb-1 Syarat & Ketentuan
-                ol
-                  li.fs-7.fw-normal Jadwal survey/pengerjaan akan ditentukan oleh teknisi, setelah material tersedia dan barang diterima customer, serta barang yang akan dikerjakan jasa instalasi adalah barang dari Mitra10.
-                  li.fs-7.fw-normal Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
-                  li.fs-7.fw-normal Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
-                  li.fs-7.fw-normal Semua jasa pemasangan wajib dilakukan survey. Biaya survey akan dikembalikan apabila biaya jasa instalasi/service minimal Rp 500.000.
-                  li.fs-7.fw-normal Quotation diberikan kepada customer maksimal H+2 hari kerja setelah survey selesai.
-                  li.fs-7.fw-normal Garansi 7 (Tujuh) hari untuk instalasi/service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses instalasi/service.
-                  li.fs-7.fw-normal Biaya transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya transportasi Rp 25.000 Max 40KM
-            .row
-              .col
-                h3.fs-6.fw-bold.mb-1 Informasi
+                  td(colspan=3, class='text-end fw-bolder') Biaya Survey
+                  td(class='fw-bolder')= data.order.payment_type === 'gratis' || data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${0}`
+              if data.order.payment_type !== 'survey'
+                tr
+                  td(colspan=data.order.payment_type !== 'gratis' ? 5 : 3, class='text-end fw-bolder') Grand Total
+                  td(class='fw-bolder')= data.order.payment_type === 'gratis' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${parseInt(data.order.grand_total).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${(0).toLocaleString('id')}`
+          h3.fs-6.fw-bold.mb-1 Detail Pemasangan
+          .row.mb-5
+            .col
+              h3.fs-6.fw-semibold.mb-1= data.order.members.full_name
+              h3.fs-6.fw-normal.mb-1= data.order.project_address
+              h3.fs-6.fw-normal.mb-1 Telp : #{data.order.project_number}
+            .col
+          .announcement.mb-3
+            h3.fs-6.fw-normal Transaksi Anda telah berhasil dengan nomor Order ID #{data.order.id}
+            h3.fs-6.fw-normal Silahkan unduh file yang terlampir pada email ini untuk mencetak Tanda Terima transaksi Anda.
+            h3.fs-6.fw-normal Untuk menghubungi Admin Instalasi kami melalui Whatsapp melalui nomor 087884821089
+          .row.mt-5
+            .col
+              h3.fs-6.fw-bold.mb-1 Syarat & Ketentuan
+              ol
+              each item in data.message.terms_detail
+                li.fs-7.fw-normal #{item.terms}
+          .row
+            .col
+              h3.fs-6.fw-bold.mb-1 Informasi
 
-                ol
-                  li.fw-normal Kontak layanan pelanggan Instalasi/Service (WA Only) : 0878-8482-1089.
-                  li.fw-normal Operasional hari senin s/d jumat - Office hour 09:00 s/d 16:00.
-                  li.fw-normal Orderan instalasi/service yang masuk diluar jam operasional akan diproses pada jam
-                    operasional.
+              ol
+              each item in data.message.information_detail
+                li.fw-normal #{data.message.information}
 
-            .payment-bank.mb-2
-              h3.fs-6.fw-semibold Silahkan melakukan pembayaran di account di bawah ini :
-              h3.fs-6.fw-normal= data.store.bank_account
-              h3.fs-6.fw-normal= data.store.bank_name
-              h3.fs-6.fw-normal= data.store.bank_number
+          .payment-bank.mb-2
+            h3.fs-6.fw-semibold Silahkan melakukan pembayaran di account di bawah ini :
+            h3.fs-6.fw-normal= data.order.store.bank_account
+            h3.fs-6.fw-normal= data.order.store.bank_name
+            h3.fs-6.fw-normal= data.order.store.bank_number
 
-            .store-information.mb-5
-              h3.fs-6.fw-semibold Silahkan kirim bukti bayar anda melalui :
-              h3.fs-6.fw-normal= `Telp : ${data.store.phone_number_1 ? data.store.phone_number_1 : data.store.phone_number_2}`
-              h3.fs-6.fw-normal= `Email : ${data.store.email ? data.store.email : 'Email belum tersedia'}`
+          .store-information.mb-5
+            h3.fs-6.fw-semibold Silahkan kirim bukti bayar anda melalui :
+            h3.fs-6.fw-normal= `Telp : ${data.order.store.phone_number_1 ? data.order.store.phone_number_1 : data.order.store.phone_number_2}`
+            h3.fs-6.fw-normal= `Email : ${data.order.store.email ? data.order.store.email : 'Email belum tersedia'}`
 
-            .footer-card
-              h1.fs-6.fw-semibold Hormat Kami, Mitra10
-              h3.fs-6.fw-normal Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
-                Kunjungi Help Centre kami untuk informasi lebih lanjut : customer.relation@mitra10.com
-            
+          .footer-card
+            h1.fs-6.fw-semibold Hormat Kami, Mitra10
+            h3.fs-6.fw-normal #{data.message.footer}
+
 
     script(src="https://code.jquery.com/jquery-3.5.1.slim.min.js", integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj", crossorigin="anonymous")
     script(src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js", integrity="sha384-ZMP7rVo3mIEX16tBdNveZPnhYH4bwe5Xz0xq3Q8rU2dKAfMXz1Fq2E4PYF9Gj5M9", crossorigin="anonymous")

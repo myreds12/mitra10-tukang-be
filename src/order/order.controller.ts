@@ -275,12 +275,12 @@ export class OrderController {
 
   //FIXME : UNTUK PUG TIDAK BISA MEN INCLUDE CSS DAN IMAGE, MENGGUNAKAN CONTROLLER FIND ONE AGAR MUDAH FETCH DATANYA
   @Get(':id')
+  // @Render('index')
   @UseGuards(JwtAuthGuard)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
       const order = await this.orderService.findOne(id);
-      console.log(order);
-      
+      // console.log(order);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',

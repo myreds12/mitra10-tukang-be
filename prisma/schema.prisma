@@ -1295,10 +1295,12 @@ model csi {
 model email_messages {
   id Int @id @default(autoincrement())
 
-  email_type  String @db.VarChar(50)
-  greetings   String @db.VarChar(100)
-  terms       String @db.Text()
-  information String @db.Text()
+  email_type     String @db.VarChar(50)
+  greetings      String @db.Text
+  welcome_header String @db.Text
+  footer         String @db.Text
+
+  is_active Boolean @default(true)
 
   created_by Int?
   updated_by Int?

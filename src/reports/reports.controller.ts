@@ -60,9 +60,9 @@ export class ReportsController {
   }
 
   @Get('/sales-comission')
-  salesComission(@Res() response, @Query() queryParamsDto: QueryParamsDto){
+  async salesComission(@Res() response, @Query() queryParamsDto: QueryParamsDto){
     try {
-      const salesComission = this.reportsService.salesComissionReport(queryParamsDto);
+      const salesComission = await  this.reportsService.salesComissionReport(queryParamsDto);
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Sales Comission',

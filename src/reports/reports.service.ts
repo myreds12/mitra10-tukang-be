@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { HttpService } from '@nestjs/axios';
 import { FormDto } from './dto/create-form.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { log } from 'console';
 
 @Injectable()
 export class ReportsService {
@@ -46,13 +47,24 @@ export class ReportsService {
         }
       }
     });
+    // console.log(sales);
+    
     const comissionSalesInOrder = sales.map(sale => {
+      // console.log(sale, "SALE");
+      
       const comission = sale.orders.reduce((acc, curr) => acc + Number(curr.grand_total_comission), 0);
+      console.log(comission);
+      
+      
       return {
         ...sale,
         comission
       }
     });
+
+    console.log(comissionSalesInOrder);
+
+    
 
     return comissionSalesInOrder;
   }
