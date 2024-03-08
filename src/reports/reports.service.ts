@@ -55,6 +55,7 @@ export class ReportsService {
             order_id: true,
             item_code: true,
             item_name: true,
+            item_notes: true,
             item_id: true,
             item: {
               select: {
