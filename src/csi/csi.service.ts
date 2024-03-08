@@ -4,6 +4,7 @@ import { UpdateCsiDto } from './dto/update-csi.dto';
 import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class CsiService {
@@ -86,5 +87,25 @@ export class CsiService {
       data: dataToInsert
     });
     return result;
+  }
+
+  async getCsiFromDatabase(query: QueryParamsDto){
+    const { page,  take,skip, store_name, vendor_name, member_name } = query;
+
+  //    const where: Prisma.ordersWhereInput = {
+  //     AND: [
+       
+  //       ...(store_name ? [{ store_name: { contains: store_name } }] : []),
+  //       ...(vendor_name ? [{ vendor_name: {contains: vendor_name}}] : []),
+  //       ...(member_name ? [{ member_name: { contains: member_name } }] : []),
+  //       deleted_at: null,
+  //     ]
+  //   };
+
+  //   const orders = await this.dbService.csi.findMany({
+  //     where,
+  //     skip,
+  //     take: take > 0 ? take : undefined,
+  // })
   }
 }

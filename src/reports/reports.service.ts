@@ -25,48 +25,109 @@ export class ReportsService {
   }
 
   async salesComissionReport(query: QueryParamsDto) {
-    const sales = await this.dbService.sales.findMany({
-      where:{
-        deleted_at: null,
-      },
+    const {
+      sales_id,
+    } = query;
+    const where: Prisma.ordersWhereInput = {
+      AND: [
+        ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
+      ].filter(Boolean),
+      deleted_at: null,
+    };
+    const order = await this.dbService.orders.findMany({
+      where,
       orderBy: {
         created_at: "desc"
       },
       include: {
-        orders: {
+        members: true,
+        sales: true,
+        status: true,
+        vendor: true,
+        store: true,
+        m_order_details: {
           where: {
             deleted_at: null,
+            deleted_by: null,
+          },
+          select: {
+            id: true,
+            order_id: true,
+            item_code: true,
+            item_name: true,
+            item_id: true,
+            item: {
+              select: {
+                id: true,
+                item_name: true,
+                category: true,
+                prices: true,
+                default_price: true,
+                service_name: true,
+              },
+            },
+            unit_price: true,
+            quantity: true,
+            total: true,
+            comission: true,
+            created_by: true,
+            updated_by: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
+        quotation: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
           },
           include: {
-            members: true,
-            store: true,
-            status: true,
+            quotation_details: {
+              include: {
+                item: true,
+              },
+            },
+          },
+        },
+        order_files: true,
+        complaints: true,
+        work_orders: {
+          include: {
             vendor: true,
-            m_order_details: true,
-          }
-        }
-      }
+            work_order_evidences: true,
+            work_order_tukang: {
+              include: {
+                tukang: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+            work_order_status: {
+              include: {
+                status: true,
+                work_order_items: {
+                  include: {
+                    item: true,
+                  },
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
+                  },
+                },
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
+          },
+        },
+      },
     });
     // console.log(sales);
     
-    const comissionSalesInOrder = sales.map(sale => {
-      // console.log(sale, "SALE");
-      
-      const comission = sale.orders.reduce((acc, curr) => acc + Number(curr.grand_total_comission), 0);
-      console.log(comission);
-      
-      
-      return {
-        ...sale,
-        comission
-      }
-    });
-
-    console.log(comissionSalesInOrder);
-
-    
-
-    return comissionSalesInOrder;
+   return order;
   }
 
   findOne(id: number) {
@@ -128,8 +189,14 @@ export class ReportsService {
       invoice_status
     } = query;
     console.log(status);
-    let statusDone = await this.dbService.status.findMany();
-    statusDone = statusDone.filter(({ category }) => category === 'DONE');
+    const statuses = await this.dbService.status.findMany();
+
+    const statusDone = statuses.find((i) => i.category.toLocaleLowerCase().includes("done"));
+    const statusUnpaid = statuses.find((i) => i.category.toLocaleLowerCase().includes("unpaid"));
+    const statusSurveyStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("surveystart"));
+    const statusSurveyReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("surveyreq"));
+    const statusSurveyDone = statuses.find((i) => i.category.toLocaleLowerCase().includes("surveydone"));
+    
 
     const where: Prisma.ordersWhereInput = {
       AND: [
@@ -374,12 +441,22 @@ export class ReportsService {
     const totalOrdersPerMonth = {};
     const ordersMonth = {};
     const totalOrderGrandTotalPerMonth = {};
+    const totalCompleteOrderPerMonth = {}; 
+    const totalUnpaidOrderPerMonth = {}; 
+    const totalSurveyStartOrderPerMonth = {}; 
+    const totalSurveyReqOrderPerMonth = {}; 
+    const totalSurveyDoneOrderPerMonth = {}; 
     const allMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
 
     allMonths.forEach(month => {
       totalOrderGrandTotalPerMonth[month] = 0;
+      totalUnpaidOrderPerMonth[month] = 0;
+      totalCompleteOrderPerMonth[month] = 0; 
+      totalSurveyStartOrderPerMonth[month] = 0; 
+      totalSurveyReqOrderPerMonth[month] = 0; 
+      totalSurveyDoneOrderPerMonth[month] = 0; 
     });
 
     orders.forEach(order => {
@@ -390,17 +467,39 @@ export class ReportsService {
         totalOrdersPerMonth[month] = 0;
       }
 
-      totalOrdersPerMonth[month]++;
+      totalOrdersPerMonth[month]++; 
       totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
       ordersMonth[month] = ordersMonth[month] || [];
       ordersMonth[month].push(order);
+      
+      if (order.status.category === statusDone.category) {
+        totalCompleteOrderPerMonth[month]++;
+      }
+      if (order.status.category === statusUnpaid.category) {
+        totalUnpaidOrderPerMonth[month]++;
+      }
+      if (order.status.category === statusSurveyStart.category) {
+        totalSurveyStartOrderPerMonth[month]++;
+      }
+      if (order.status.category === statusSurveyDone.category) {
+        totalSurveyDoneOrderPerMonth[month]++;
+      }
+      if (order.status.category === statusSurveyReq.category) {
+        totalSurveyReqOrderPerMonth[month]++;
+      }
     });
 
     const monthlyOrders = allMonths.map(month => ({
       month,
       totalOrder: totalOrdersPerMonth[month] || 0,
       totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0,
-      ordersMonth: ordersMonth[month] || []
+      totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0, 
+      totalUnpaidOrder: totalUnpaidOrderPerMonth[month] || 0, 
+      totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0, 
+      totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0, 
+      totalSurveyDoneOrder: totalSurveyDoneOrderPerMonth[month] || 0, 
+      ordersMonth: ordersMonth[month] || [],
+
     }));
 
     return {
@@ -412,10 +511,14 @@ export class ReportsService {
     };
   }
 
+
   async complaintReport(queryParamsDto: QueryParamsDto) {
     const { take, page, search, status, date_from, date_to, order_by } = queryParamsDto;
     const skip = page * take - take;
 
+    const statuses = await this.dbService.status.findMany();
+
+    const statusCancel = statuses.find((i) => i.category.toLocaleLowerCase().includes("cancel"))
     const where: Prisma.complaintsWhereInput = {
       AND: [
         status ? { status: { id: { in: status } } } : null,
@@ -468,6 +571,7 @@ export class ReportsService {
     }).then((data) => data.reduce((acc, curr) => acc + Number(curr.orders.grand_total), 0));
     const totalComplaintPerMonth = {};
     const totalComplaintGrandTotalPerMonth = {};
+    const totalCancelComplaintPerMonth = {};
     const complaintMonth = {} ;
     const allMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -485,6 +589,10 @@ export class ReportsService {
         totalComplaintPerMonth[month] = 0;
       }
 
+      if(complaint.status.category === statusCancel.category){
+        totalCancelComplaintPerMonth[month]++;
+      }
+
       totalComplaintPerMonth[month]++;
       totalComplaintGrandTotalPerMonth[month] += grandTotalPerMonth;
       complaintMonth[month] = complaintMonth[month] || [];
@@ -495,6 +603,7 @@ export class ReportsService {
       month,
       totalOrder: totalComplaintPerMonth[month] || 0,
       totalOrderGrandTotalPerMonth: totalComplaintGrandTotalPerMonth[month] || 0,
+      totalCancelComplaint: totalCancelComplaintPerMonth,
       complaintMonth: complaintMonth[month] || []
     }));
 
@@ -502,6 +611,7 @@ export class ReportsService {
       complaint,
       complaintGrandTotal,
       monthlyComplaint
-    };
-  }
+    };
+  }
+
 }

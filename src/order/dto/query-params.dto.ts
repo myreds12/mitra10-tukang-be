@@ -58,4 +58,10 @@ export class QueryParamsDto {
 
   @IsOptional()
   invoice_status: string;
+
+  store_name?: string;
+
+  vendor_name?: string;
+  
+  member_name?: string;
 }

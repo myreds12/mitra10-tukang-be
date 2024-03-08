@@ -60,5 +60,8 @@ export class CreateOrderDto {
 
   request_survey: string;
 
-  is_overdistance: boolean;
+  is_overdistance: string;
+
+  @Type(() => Number)
+  additional_fee: number;
 }

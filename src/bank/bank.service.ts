@@ -11,7 +11,7 @@ export class BankService {
     try {
       const banks = await this.dbService.bank.create({
         data: {
-          ...createBankDto,
+          bank_name: createBankDto.bank_name,
           created_by: user_id,
         },
       });
@@ -19,6 +19,7 @@ export class BankService {
       return {
         status: HttpStatus.CREATED,
         message: 'Successfully Create Data',
+        data: banks
       };
     } catch (error) {
       return {
@@ -39,6 +40,7 @@ export class BankService {
           bank_name: {
             contains: search ? search : undefined,
           },
+          deleted_at: null
         },
       });
 

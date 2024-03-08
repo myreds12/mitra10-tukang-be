@@ -19,7 +19,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) { }
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -35,7 +35,9 @@ export class OrderService {
     const STORE_ROLES = ROLES.find(({ name }) =>
       name.toLowerCase().includes('store staff'),
     );
-    const ADMIN_HO_ROLES = ROLES.find(({ name }) => name.toLowerCase().includes('admin ho'))
+    const ADMIN_HO_ROLES = ROLES.find(({ name }) =>
+      name.toLowerCase().includes('admin ho'),
+    );
 
     const salesUser = await this.dbService.users.findFirst({
       where: { id: user_id },
@@ -88,6 +90,7 @@ export class OrderService {
       grand_total += 99000;
     }
 
+
     const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
       createOrderDto.order_details.map((item) => {
         let total = 0;
@@ -125,7 +128,11 @@ export class OrderService {
           sales_id: salesUser?.sales?.id ?? createOrderDto.sales_id,
         };
       });
-    if(createOrderDto.is_overdistance === true) grand_total += 25000; 
+    if (createOrderDto.is_overdistance === "true")
+      grand_total += createOrderDto.additional_fee ?? 25000;
+
+    console.log(createOrderDto.is_overdistance === "true");
+      
 
     const orderConnection = Object.fromEntries(
       Object.entries({
@@ -145,7 +152,8 @@ export class OrderService {
       receipt_number: createOrderDto.receipt_number,
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
-      is_overdistance: createOrderDto.is_overdistance,
+      is_overdistance: createOrderDto.is_overdistance === "true",
+      additional_fee: createOrderDto.additional_fee ,
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
       print_counter: 0,
@@ -160,16 +168,15 @@ export class OrderService {
         order_files: { createMany: { data: files } },
       },
     };
-    
 
-    const [salesOrder ,order] = await this.dbService.$transaction([
+    const [salesOrder, order] = await this.dbService.$transaction([
       this.dbService.sales.update({
         where: {
           id: salesUser?.sales?.id ?? createOrderDto.sales_id,
         },
         data: {
           order_total: {
-            increment: 1
+            increment: 1,
           },
         },
       }),
@@ -200,7 +207,7 @@ export class OrderService {
       payment_type,
       store_id,
       vendor_id,
-      invoice_status
+      invoice_status,
     } = queryParams;
     const skip = page * take - take;
     console.log(status);
@@ -211,43 +218,44 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { request_survey: { equals: new Date(search) } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { request_survey: { equals: new Date(search) } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
         store_id
           ? {
-            store_id: {
-              in: store_id,
-            },
-          } : undefined,
+              store_id: {
+                in: store_id,
+              },
+            }
+          : undefined,
         vendor_id
           ? {
-            vendor: {
-              id: {
-                equals: vendor_id
+              vendor: {
+                id: {
+                  equals: vendor_id,
+                },
+                deleted_at: null,
               },
-              deleted_at: null,
-            },
-          }
+            }
           : undefined,
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -311,8 +319,8 @@ export class OrderService {
           select: {
             id: true,
             invoice_id: true,
-            invoices: true
-          }
+            invoices: true,
+          },
         },
         store: {
           where: {
@@ -452,15 +460,28 @@ export class OrderService {
     const totalOrdersPerMonth = {};
     const totalOrderGrandTotalPerMonth = {};
     const allMonths = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
 
-    allMonths.forEach(month => {
+    allMonths.forEach((month) => {
       totalOrderGrandTotalPerMonth[month] = 0;
     });
 
-    orders.forEach(order => {
-      const month = new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
+    orders.forEach((order) => {
+      const month = new Date(order.created_at).toLocaleString('id-ID', {
+        month: 'long',
+      });
       const grandTotalPerMonth = Number(order.grand_total);
 
       if (!totalOrdersPerMonth[month]) {
@@ -471,10 +492,10 @@ export class OrderService {
       totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
     });
 
-    const monthlyOrders = allMonths.map(month => ({
+    const monthlyOrders = allMonths.map((month) => ({
       month,
       totalOrder: totalOrdersPerMonth[month] || 0,
-      totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0
+      totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0,
     }));
 
     return {
@@ -484,7 +505,7 @@ export class OrderService {
       take,
       orderGrandTotal,
       takeTotal: orders.length,
-      monthlyOrders
+      monthlyOrders,
     };
   }
 
@@ -541,8 +562,8 @@ export class OrderService {
           select: {
             id: true,
             invoice_id: true,
-            invoices: true
-          }
+            invoices: true,
+          },
         },
         complaints: true,
         quotation: {
@@ -688,10 +709,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-        where: {
-          id: updateOrderDto.project_status_id,
-        },
-      })
+          where: {
+            id: updateOrderDto.project_status_id,
+          },
+        })
       : null;
 
     let projectStatusDefault = order.status;
@@ -757,7 +778,6 @@ export class OrderService {
           currentItem?.default_price ??
           0;
 
-
         // console.log(currentItem.default_price);
 
         // const comission = Number(
@@ -802,12 +822,12 @@ export class OrderService {
             item_notes: item?.item_notes,
             ...(item.item_id
               ? {
-                item: {
-                  connect: {
-                    id: item.item_id,
+                  item: {
+                    connect: {
+                      id: item.item_id,
+                    },
                   },
-                },
-              }
+                }
               : undefined),
             sales: {
               connect: { id: updateOrderDto.sales_id ?? order.sales_id },
@@ -854,14 +874,12 @@ export class OrderService {
       });
     const deletedOrderFile = updateOrderDto.existing_order_files
       ? updateOrderDto?.existing_order_files
-        .filter((x) => Boolean(x?.order_file_id))
-        .map((item) => {
-          return Number(item.order_file_id);
-        })
+          .filter((x) => Boolean(x?.order_file_id))
+          .map((item) => {
+            return Number(item.order_file_id);
+          })
       : undefined;
     console.log(deletedOrderFile);
-
-
 
     // ...deletedDetailsId.length ?
     //        null :  id: {
@@ -884,8 +902,6 @@ export class OrderService {
     // });
     // return console.log("success");
 
-
-
     const [syncDetails, syncFiles, orderQuery] =
       await this.dbService.$transaction([
         this.dbService.m_order_details.updateMany({
@@ -893,10 +909,10 @@ export class OrderService {
             order_id: id,
             ...(deletedDetailsId.length
               ? {
-                id: {
-                  notIn: deletedDetailsId,
-                },
-              }
+                  id: {
+                    notIn: deletedDetailsId,
+                  },
+                }
               : undefined),
           },
           data: {
@@ -908,10 +924,10 @@ export class OrderService {
           where: {
             ...(deletedOrderFile
               ? {
-                id: {
-                  notIn: deletedOrderFile,
-                },
-              }
+                  id: {
+                    notIn: deletedOrderFile,
+                  },
+                }
               : undefined),
             order_id: id,
           },
@@ -1056,28 +1072,11 @@ export class OrderService {
     });
   }
 
-  async orderDetailsPublic(member: string, id: number) {
-    let where: Prisma.ordersWhereInput;
-    if (member.includes('@')) {
-      where = {
-        members: {
-          email: member,
-        },
-        id,
-      };
-    } else if (/^\d+$/.test(member)) {
-      where = {
-        members: {
-          member_number: member,
-        },
-        id,
-      };
-    } else {
-      throw new BadRequestException('Member must be email or number!');
-    }
-
+  async orderDetailsPublic(id: number) {
     const order = await this.dbService.orders.findFirst({
-      where,
+      where: {
+        id
+      },
       include: {
         members: true,
         sales: true,
@@ -1094,6 +1093,7 @@ export class OrderService {
             order_id: true,
             item_code: true,
             item_name: true,
+            item_notes: true,
             item_id: true,
             item: {
               select: {
@@ -1169,7 +1169,7 @@ export class OrderService {
 
     return {
       data: order,
-      redirect_url: `${process.env.API_URL}/detail-order/${member}/${id}`
+      redirect_url: `${process.env.API_URL}/detail-order/${id}`,
     };
   }
 }

@@ -613,6 +613,7 @@ model orders {
   grand_total_comission Decimal?  @db.Decimal(32, 2)
   print_counter         Int       @default(0) @db.TinyInt()
   is_overdistance       Boolean   @default(false)
+  additional_fee      Decimal?  @default(0) @db.Decimal(32, 2)
 
   created_by Int?
   updated_by Int?

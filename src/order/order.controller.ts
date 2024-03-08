@@ -49,15 +49,14 @@ export class OrderController {
     private readonly sendEmailService: SendEmailService,
   ) {}
 
-  @Get('/public/:member/:id')
+  @Get('/public/:id')
   @UseGuards()
   async getOrderDetailPublic(
-    @Param('member') member: string,
     @Param('id', ParseIntPipe) id: number,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const {redirect_url} = await this.orderService.orderDetailsPublic(member ,id);
+      const {redirect_url} = await this.orderService.orderDetailsPublic(id);
 
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -73,15 +72,14 @@ export class OrderController {
     }
   }
 
-  @Get('/data/:member/:id')
+  @Get('/data/:id')
   @UseGuards()
   async dataOrderDetailPublic(
-    @Param('member') member: string,
     @Param('id', ParseIntPipe) id: number,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const {data} = await this.orderService.orderDetailsPublic(member ,id);
+      const {data} = await this.orderService.orderDetailsPublic(id);
 
       return res.status(200).json({
         status: HttpStatus.OK,
