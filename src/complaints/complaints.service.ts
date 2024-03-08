@@ -78,7 +78,7 @@ export class ComplaintsService {
       complaint_histories: {
         create: {
           status_id: COMPLAINT_STATUS.id,
-          reason: createComplaintDto.complaint_histories.reason ?? undefined,
+          reason: createComplaintDto?.complaint_histories?.reason ?? "",
           created_by: user_id,
           complaint_evidence: {
             createMany: { data: evidences },
