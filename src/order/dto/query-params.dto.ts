@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { LargeNumberLike } from 'crypto';
 
 export class QueryParamsDto {
   @Type(() => Number)
@@ -46,6 +47,8 @@ export class QueryParamsDto {
   @Transform((value) => value.value.split(',').map(Number))
   @Type(() => String)
   store_id?: number[];
+
+  storeId: number;
   
   @IsOptional()
   @IsString()
@@ -63,5 +66,9 @@ export class QueryParamsDto {
 
   vendor_name?: string;
   
-  member_name?: string;
+  member_id?: number;
+
+  order_id?:number;
+
+  phone_number?: string; 
 }

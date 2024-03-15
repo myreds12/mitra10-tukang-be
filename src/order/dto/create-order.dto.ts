@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -60,7 +61,10 @@ export class CreateOrderDto {
 
   request_survey: string;
 
-  is_overdistance: string;
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
+  is_overdistance?: number;
 
   @Type(() => Number)
   additional_fee: number;

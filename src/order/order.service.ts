@@ -128,10 +128,9 @@ export class OrderService {
           sales_id: salesUser?.sales?.id ?? createOrderDto.sales_id,
         };
       });
-    if (createOrderDto.is_overdistance === "true")
+    if (createOrderDto.is_overdistance === 1)
       grand_total += createOrderDto.additional_fee ?? 25000;
 
-    console.log(createOrderDto.is_overdistance === "true");
       
 
     const orderConnection = Object.fromEntries(
@@ -152,8 +151,10 @@ export class OrderService {
       receipt_number: createOrderDto.receipt_number,
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
-      is_overdistance: createOrderDto.is_overdistance === "true",
-      additional_fee: createOrderDto.additional_fee ,
+      is_overdistance: createOrderDto.is_overdistance,
+      ...(createOrderDto.is_overdistance === 0 ? {
+        additional_fee: createOrderDto.additional_fee 
+      } : undefined),
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
       print_counter: 0,
@@ -1072,11 +1073,36 @@ export class OrderService {
     });
   }
 
-  async orderDetailsPublic(id: number) {
+  async orderDetailsPublic(query: QueryParamsDto) {
+    const { order_id, phone_number, date_from, date_to } = query;
+    const where : Prisma.ordersWhereInput = {
+      AND: [
+        ...(order_id ? [
+          {
+            id: order_id
+          }
+        ]: []
+        ),
+        ...(phone_number ? [{
+          members: {
+            phone_number: phone_number
+          }
+        }] : []),
+        ...(date_from && date_to
+          ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+          : []),
+      ].filter(Boolean),
+      deleted_at: null,
+    };
     const order = await this.dbService.orders.findFirst({
-      where: {
-        id
-      },
+      where,
       include: {
         members: true,
         sales: true,
@@ -1167,9 +1193,11 @@ export class OrderService {
 
     if (!order) throw new Error('Order was not found !');
 
+    const redirect_url = order_id ? `${process.env.API_URL}/detail-order/${order_id}` : `${process.env.API_URL}/detail-order/${phone_number}`;
+
     return {
       data: order,
-      redirect_url: `${process.env.API_URL}/detail-order/${id}`,
+      redirect_url,
     };
   }
 }

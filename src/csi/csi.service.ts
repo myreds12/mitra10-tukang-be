@@ -5,6 +5,7 @@ import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class CsiService {
@@ -32,6 +33,7 @@ export class CsiService {
     return `This action removes a #${id} csi`;
   }
 
+  @Cron(CronExpression.EVERY_DAY_AT_6PM)
   async getDataCsi() {
     const sheets = this.googleSheetConnectorService.getGoogleSheetConnect();
     const res = await sheets.spreadsheets.values.get({
@@ -65,6 +67,7 @@ export class CsiService {
     return response;
   }
 
+  @Cron(CronExpression.EVERY_DAY_AT_6PM)
   async insertCSIToDatabase(){
     const data = await this.getDataCsi();
     const dataToInsert: Prisma.csiCreateManyInput[] = data.map((row) => {
@@ -89,23 +92,61 @@ export class CsiService {
     return result;
   }
 
-  async getCsiFromDatabase(query: QueryParamsDto){
-    const { page,  take,skip, store_name, vendor_name, member_name } = query;
+  async getCsiFromDatabase(query: QueryParamsDto) {
+    const { page, take, vendor_id, storeId, member_id, date_from, date_to } = query;
+    const skip = page * take - take;
+  
+    let vendor, store, member;
+  
+    if (vendor_id) {
+      vendor = await this.dbService.vendor.findFirst({ where: { id: +vendor_id } });
+      if (!vendor) throw new Error('Vendor not found');
+    }
+  
+    if (storeId) {
+      store = await this.dbService.store.findFirst({ where: { id: +storeId } });
+      if (!store) throw new Error('Store not found');
+    }
+  
+    if (member_id) {
+      member = await this.dbService.members.findFirst({ where: { id: +member_id } });
+      if (!member) throw new Error('Member not found');
+    }
 
-  //    const where: Prisma.ordersWhereInput = {
-  //     AND: [
-       
-  //       ...(store_name ? [{ store_name: { contains: store_name } }] : []),
-  //       ...(vendor_name ? [{ vendor_name: {contains: vendor_name}}] : []),
-  //       ...(member_name ? [{ member_name: { contains: member_name } }] : []),
-  //       deleted_at: null,
-  //     ]
-  //   };
-
-  //   const orders = await this.dbService.csi.findMany({
-  //     where,
-  //     skip,
-  //     take: take > 0 ? take : undefined,
-  // })
+    console.log(vendor, store, member);
+    
+  
+    const where: Prisma.csiWhereInput = {
+      AND: [
+        ...(store ? [{ store_name: {contains: store.store_name} }] : []),
+        ...(vendor ? [{ vendor_name: {contains: vendor.company_name} }] : []),
+        ...(date_from && date_to
+          ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+          : []),
+        ...(member ? [{ member_id:  member.id }] : []),
+      ],
+    };
+  
+    const csi = await this.dbService.csi.findMany({
+      skip,
+      where:{
+        store_name: {
+          contains: store.store_name
+        }
+      },
+      take: take > 0 ? take : undefined,
+      orderBy: { created_at: 'desc' },
+    });
+  
+    return csi;
   }
+  
+  
 }

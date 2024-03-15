@@ -52,11 +52,11 @@ export class OrderController {
   @Get('/public/:id')
   @UseGuards()
   async getOrderDetailPublic(
-    @Param('id', ParseIntPipe) id: number,
+    @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const {redirect_url} = await this.orderService.orderDetailsPublic(id);
+      const {redirect_url} = await this.orderService.orderDetailsPublic(query);
 
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -79,7 +79,7 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const {data} = await this.orderService.orderDetailsPublic(id);
+      const data = await this.orderService.findOne(id);
 
       return res.status(200).json({
         status: HttpStatus.OK,

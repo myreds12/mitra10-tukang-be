@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { OrderService } from 'src/order/order.service';
 import * as pug from 'pug';
-import * as pdf from 'html-pdf';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as path from 'path';
 
@@ -14,27 +13,8 @@ export class SendEmailService {
     private readonly dbService: PrismaService,
   ) { }
 
-  async generatePDF(data: any): Promise<string> {
-    const folderPath = './uploads/file/';
-    const filePath = path.join(folderPath, `order${data.id}.pdf`);
-    const template = pug.renderFile('templates/index.pug', { data });
-
-    const options: pdf.CreateOptions = {
-      format: 'A4',
-      border: '10mm',
-    };
-
-    await new Promise<void>((resolve, reject) => {
-      pdf.create(template, options).toFile(filePath, (err, res) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-
-    return filePath;
+  async generatePDF(data: any){
+   
   }
 
   async sendMail(order_id: number) {
