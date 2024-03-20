@@ -115,6 +115,31 @@ export class ReportsController {
     }
   }
 
+  @Get('/work-orders')
+  // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards(JwtAuthGuard)
+  async reportWorkOrder(@Query() query: QueryParamsDto) {
+    try {
+      const { data, total,  takeTotal, monthlyWorkOrders  } =
+        await this.reportsService.reportWorkOrder(query);
+      return {
+        status: HttpStatus.OK,
+        messages: 'Ok',
+        data,
+        total,
+        takeTotal,
+        monthlyWorkOrders,
+      };
+    } catch (error) {
+      console.log(error.message);
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      };
+    }
+  }
+
   @Get()
   findAll() {
     return this.reportsService.findAll();

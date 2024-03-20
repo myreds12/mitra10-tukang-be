@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 
 class VendorBank {
@@ -36,8 +37,10 @@ class VendorArea {
 
   @IsNotEmpty()
   default_discount: string;
+  
   @IsNotEmpty()
   default_markup: string;
+  
   default_unit?: string;
 }
 
@@ -109,4 +112,20 @@ export class UpdateVendorDto {
   @ApiProperty({ type: [VendorService] }) // This represents an array of VendorService
   @Type(() => VendorService)
   vendor_service?: VendorService[];
+
+  @Type(() => VendorStore)
+  @ValidateNested({ each: true })
+  vendor_store: VendorStore[]
+}
+
+class VendorStore{
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  id?: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  store_id: number
 }

@@ -53,7 +53,7 @@ export class OrderController {
   @Get('/public/:id')
   @UseGuards()
   async getOrderDetailPublic(
-    @Param('id', ParseIntPipe) id: number,
+    @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse,
   ) {
     try {

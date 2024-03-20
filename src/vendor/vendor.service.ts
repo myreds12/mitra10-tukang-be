@@ -264,6 +264,27 @@ export class VendorService {
           },
         },
         work_orders: true,
+        vendor_store: {
+          select: {
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                additional_address: true,
+                address: true,
+                bank_account: true,
+                bank_name: true,
+                bank_number: true,
+                email: true,
+                phone_number_1: true,
+                phone_number_2: true,
+                city_id: true,
+                city: true,
+
+              }
+            }
+          }
+        },
       },
     });
 
@@ -308,7 +329,22 @@ export class VendorService {
         created_by: user_id,
         created_at: new Date()
       }
-    }))
+    }));
+
+    const vendorStoreUpsert : Prisma.vendor_storeUpsertWithWhereUniqueWithoutVendorInput[] = updateVendorDto.vendor_store.map((item) => ({
+      where: {
+        id: item.id ?? 0,
+      },
+      create: {
+        store_id: item.store_id,
+        created_by: user_id,
+      },
+      update: {
+        store_id: item.store_id,
+        updated_by: user_id,
+        updated_at: new Date()
+      }
+    }));
 
     const vendorAreaUpsert: Prisma.vendor_areaUpsertWithWhereUniqueWithoutVendorInput[] = updateVendorDto.vendor_area.map((item) => ({
       where: {
@@ -330,14 +366,17 @@ export class VendorService {
         updated_by: user_id,
         updated_at: new Date(),
       }
-    }))
+    }));
+
+    console.log(updateVendorDto);
+    
 
     const vendorData: Prisma.vendorUpdateInput = {
-      users: {
-        connect: {
-          id: user_id,
-        },
-      },
+      // users: {
+      //   connect: {
+      //     id: user_id,
+      //   },
+      // },
       address: updateVendorDto.address,
       company_name: updateVendorDto.company_name,
       email_address: updateVendorDto.email_address,
@@ -375,10 +414,31 @@ export class VendorService {
           },
         }
         : undefined),
+      vendor_store: {
+        upsert: vendorStoreUpsert
+      }
     };
+    
+    
 
-    const [syncArea, syncService, syncDocument, vendor] =
+    const [syncVendorStore ,syncArea, syncService, syncDocument, vendor] =
       await this.dbService.$transaction([
+        this.dbService.vendor_store.updateMany({
+          where: {
+            vendor_id: id,
+            NOT: updateVendorDto.vendor_store
+              ? updateVendorDto.vendor_store.map((item) => {
+                return {
+                  store_id: item.store_id,
+                };
+              })
+              : undefined,
+          },
+          data: {
+            deleted_by: user_id,
+            deleted_at: new Date()
+          }
+        }),
         this.dbService.vendor_area.updateMany({
           where: {
             vendor_id: id,

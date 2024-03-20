@@ -615,4 +615,106 @@ export class ReportsService {
     };
   }
 
+async reportWorkOrder(query: QueryParamsDto){
+  const {
+    status,
+    date_from,
+    date_to,
+    order_by,
+  } = query;
+  console.log(status);
+  const statuses = await this.dbService.status.findMany();
+
+  const statusWorkReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("workreq"));
+  const statusWorkStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("workstart"));
+  const statusWIP = statuses.find((i) => i.category.toLocaleLowerCase().includes("wip"));
+  const statusWorkEnd = statuses.find((i) => i.category.toLocaleLowerCase().includes("workend"));
+  
+
+  const where: Prisma.work_ordersWhereInput = {
+    AND: [
+      ...(date_from && date_to
+        ? [
+          {
+            created_at: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          },
+        ]
+        : []),
+    ].filter(Boolean),
+    deleted_at: null,
+  };
+
+  const workOrders = await this.dbService.work_orders.findMany({
+    where,
+    orderBy: {
+      created_at: order_by,
+    },
+    include: {
+      status: true
+    }
+  });
+  const count = await this.dbService.orders.count();
+  const totalWorkOrdersPerMonth = {};
+  const ordersMonth = {};
+  const totalCompleteOrderPerMonth = {}; 
+  const totalWorkStartWorkOrdersPerMonth = {}; 
+  const totalSurveyStartOrderPerMonth = {}; 
+  const totalSurveyReqOrderPerMonth = {}; 
+  const allMonths = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  allMonths.forEach(month => {
+    totalWorkStartWorkOrdersPerMonth[month] = 0;
+    totalCompleteOrderPerMonth[month] = 0; 
+    totalSurveyStartOrderPerMonth[month] = 0; 
+    totalSurveyReqOrderPerMonth[month] = 0; 
+  });
+
+  workOrders.forEach(order => {
+    const month = new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
+
+    if (!totalWorkOrdersPerMonth[month]) {
+      totalWorkOrdersPerMonth[month] = 0;
+    }
+
+    totalWorkOrdersPerMonth[month]++; 
+    ordersMonth[month] = ordersMonth[month] || [];
+    ordersMonth[month].push(order);
+    
+    if (order.status.category === statusWorkReq.category) {
+      totalCompleteOrderPerMonth[month]++;
+    }
+    if (order.status.category === statusWorkStart.category) {
+      totalWorkStartWorkOrdersPerMonth[month]++;
+    }
+    if (order.status.category === statusWIP.category) {
+      totalSurveyStartOrderPerMonth[month]++;
+    }
+    if (order.status.category === statusWorkEnd.category) {
+      totalSurveyReqOrderPerMonth[month]++;
+    }
+  });
+
+  const monthlyWorkOrders = allMonths.map(month => ({
+    month,
+    totalOrder: totalWorkOrdersPerMonth[month] || 0,
+    totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0, 
+    totalUnpaidOrder: totalWorkStartWorkOrdersPerMonth[month] || 0, 
+    totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0, 
+    totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0, 
+    workOrdersMonth: ordersMonth[month] || [],
+
+  }));
+
+  return {
+    data: workOrders,
+    total: count,
+    takeTotal: workOrders.length,
+    monthlyWorkOrders,
+  };
+}
 }

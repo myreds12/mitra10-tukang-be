@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Res, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Res, HttpStatus, UseGuards, Query } from '@nestjs/common';
 import { CsiService } from './csi.service';
 import { CreateCsiDto } from './dto/create-csi.dto';
 import { UpdateCsiDto } from './dto/update-csi.dto';
@@ -8,6 +8,7 @@ import {
 } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Cron } from '@nestjs/schedule';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('csi')
@@ -17,11 +18,6 @@ export class CsiController {
   @Post()
   create(@Body() createCsiDto: CreateCsiDto) {
     return this.csiService.create(createCsiDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.csiService.findAll();
   }
 
   @Get(':id')
@@ -59,7 +55,7 @@ export class CsiController {
     }
   }
 
-  // @Cron('0 18 * * *')
+  @Cron('0 18 * * *')
   @Post('/insert/spreadsheet')
   async postDataSpreadsheet(@Res() res: IExpressResponse){
     try{ 
@@ -72,6 +68,25 @@ export class CsiController {
     } catch (error) {
       console.log(error);
 
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  }
+
+  @Get('/')
+  async getCSIData(@Query() query: QueryParamsDto, @Res() res: IExpressResponse){
+    try{
+      const getData = await this.csiService.getCsiFromDatabase(query)
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: getData
+      });
+    } catch (error) {
+      console.log(error);
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
