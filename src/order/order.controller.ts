@@ -48,7 +48,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly sendEmailService: SendEmailService,
-  ) { }
+  ) {}
 
   @Get('/public/:id')
   @UseGuards()
@@ -57,7 +57,9 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { redirect_url } = await this.orderService.orderDetailsPublic(id);
+      const { redirect_url } = await this.orderService.orderDetailsPublic(
+        query,
+      );
 
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -76,17 +78,19 @@ export class OrderController {
   @Get('/data/:id')
   @UseGuards()
   async dataOrderDetailPublic(
-    @Param('id', ParseIntPipe) id: number,
+    @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { data, redirect_url } = await this.orderService.orderDetailsPublic(id);
+      const { data, redirect_url } = await this.orderService.orderDetailsPublic(
+        query,
+      );
 
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Order Details',
         data,
-        redirect_url
+        redirect_url,
       });
     } catch (error) {
       console.log(error);
@@ -167,7 +171,7 @@ export class OrderController {
   ) {
     try {
       const order = await this.orderService.findOne(id);
-      const mail = await this.sendEmailService.sendMail(order.id)
+      const mail = await this.sendEmailService.sendMail(order.id);
 
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -234,7 +238,7 @@ export class OrderController {
         req.user,
         order_files,
       );
-      await this.sendEmailService.sendMail(order.id)
+      await this.sendEmailService.sendMail(order.id);
 
       return res.status(201).json({
         status: HttpStatus.CREATED,
@@ -257,8 +261,15 @@ export class OrderController {
   @UseGuards(JwtAuthGuard)
   async findAll(@Query() query: QueryParamsDto) {
     try {
-      const { data, page, take, total, orderGrandTotal, takeTotal, monthlyOrders } =
-        await this.orderService.findAll(query);
+      const {
+        data,
+        page,
+        take,
+        total,
+        orderGrandTotal,
+        takeTotal,
+        monthlyOrders,
+      } = await this.orderService.findAll(query);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
@@ -268,7 +279,7 @@ export class OrderController {
         total,
         orderGrandTotal,
         takeTotal,
-        monthlyOrders
+        monthlyOrders,
       };
     } catch (error) {
       console.log(error.message);

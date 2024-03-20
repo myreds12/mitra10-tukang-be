@@ -90,7 +90,6 @@ export class OrderService {
       grand_total += 99000;
     }
 
-
     const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
       createOrderDto.order_details.map((item) => {
         let total = 0;
@@ -131,8 +130,6 @@ export class OrderService {
     if (createOrderDto.is_overdistance === 1)
       grand_total += createOrderDto.additional_fee ?? 25000;
 
-      
-
     const orderConnection = Object.fromEntries(
       Object.entries({
         members: { connect: { id: createOrderDto.member_id } },
@@ -152,9 +149,11 @@ export class OrderService {
       grand_total: grand_total.toFixed(2),
       grand_total_comission: grand_total_comission.toFixed(2),
       is_overdistance: createOrderDto.is_overdistance,
-      ...(createOrderDto.is_overdistance === 0 ? {
-        additional_fee: createOrderDto.additional_fee 
-      } : undefined),
+      ...(createOrderDto.is_overdistance === 0
+        ? {
+            additional_fee: createOrderDto.additional_fee,
+          }
+        : undefined),
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
       print_counter: 0,
@@ -1075,19 +1074,24 @@ export class OrderService {
 
   async orderDetailsPublic(query: QueryParamsDto) {
     const { order_id, phone_number, date_from, date_to } = query;
-    const where : Prisma.ordersWhereInput = {
+    const where: Prisma.ordersWhereInput = {
       AND: [
-        ...(order_id ? [
-          {
-            id: order_id
-          }
-        ]: []
-        ),
-        ...(phone_number ? [{
-          members: {
-            phone_number: phone_number
-          }
-        }] : []),
+        ...(order_id
+          ? [
+              {
+                id: order_id,
+              },
+            ]
+          : []),
+        ...(phone_number
+          ? [
+              {
+                members: {
+                  phone_number: phone_number,
+                },
+              },
+            ]
+          : []),
         ...(date_from && date_to
           ? [
               {
@@ -1195,7 +1199,7 @@ export class OrderService {
 
     return {
       data: order,
-      redirect_url: `${process.env.FE_URL}/detail-order?order_id=${id}`,
+      redirect_url: `${process.env.FE_URL}/detail-order?order_id=${order_id}`,
     };
   }
 }
