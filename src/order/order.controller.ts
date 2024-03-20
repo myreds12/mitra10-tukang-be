@@ -50,7 +50,7 @@ export class OrderController {
     private readonly sendEmailService: SendEmailService,
   ) {}
 
-  @Get('/public')
+  @Get('/check')
   @UseGuards()
   async getOrderDetailPublic(
     @Query() query: QueryParamsDto,
@@ -82,15 +82,14 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { data, redirect_url } = await this.orderService.orderDetailsPublic(
+      const { data } = await this.orderService.orderDetailsPublic(
         query,
       );
 
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Order Details',
-        data,
-        redirect_url,
+        data
       });
     } catch (error) {
       console.log(error);
