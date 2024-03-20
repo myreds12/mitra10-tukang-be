@@ -1165,11 +1165,11 @@ export class OrderService {
       },
     });
 
-    if (!order) throw new Error('Order was not found !');
+    if (!order) throw new NotFoundException('Order not found !');
 
     return {
       data: order,
-      redirect_url: `${process.env.API_URL}/detail-order/${id}`,
+      redirect_url: `${process.env.FE_URL}/detail-order?order_id=${id}`,
     };
   }
 }

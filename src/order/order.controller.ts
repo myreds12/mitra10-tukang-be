@@ -17,6 +17,7 @@ import {
   BadRequestException,
   Render,
   UploadedFiles,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -47,7 +48,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly sendEmailService: SendEmailService,
-  ) {}
+  ) { }
 
   @Get('/public/:id')
   @UseGuards()
@@ -56,7 +57,7 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const {redirect_url} = await this.orderService.orderDetailsPublic(id);
+      const { redirect_url } = await this.orderService.orderDetailsPublic(id);
 
       return res.status(200).json({
         status: HttpStatus.OK,
@@ -79,14 +80,23 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const {data} = await this.orderService.orderDetailsPublic(id);
+      const { data, redirect_url } = await this.orderService.orderDetailsPublic(id);
 
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Order Details',
-        data
+        data,
+        redirect_url
       });
     } catch (error) {
+      console.log(error);
+      if (error instanceof NotFoundException) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          status: HttpStatus.NOT_FOUND,
+          messages: error.message,
+        });
+      }
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         messages: error.message,
