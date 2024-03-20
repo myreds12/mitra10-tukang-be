@@ -50,7 +50,7 @@ export class OrderController {
     private readonly sendEmailService: SendEmailService,
   ) {}
 
-  @Get('/public/:id')
+  @Get('/public')
   @UseGuards()
   async getOrderDetailPublic(
     @Query() query: QueryParamsDto,
@@ -75,7 +75,7 @@ export class OrderController {
     }
   }
 
-  @Get('/data/:id')
+  @Get('/data')
   @UseGuards()
   async dataOrderDetailPublic(
     @Query() query: QueryParamsDto,

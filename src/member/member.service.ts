@@ -100,9 +100,7 @@ export class MemberService {
         },
       });
       return {
-        data: {
-          member,
-        },
+        data: member,
         status: HttpStatus.OK,
         message: 'Successfully get data',
       };
@@ -157,7 +155,7 @@ export class MemberService {
       });
 
       return {
-        data: { updated_member },
+        data: updated_member ,
         status: HttpStatus.CREATED,
         message: 'Successfully update member data',
       };

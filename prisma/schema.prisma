@@ -1288,6 +1288,8 @@ model csi {
   updated_by Int?
   deleted_by Int?
 
+  is_active Boolean @default(true)
+
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()

@@ -1073,13 +1073,22 @@ export class OrderService {
   }
 
   async orderDetailsPublic(query: QueryParamsDto) {
-    const { order_id, phone_number, date_from, date_to } = query;
+    const { order_id, phone_number, email_member,date_from, date_to } = query;
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(order_id
           ? [
               {
-                id: order_id,
+                id: +order_id,
+              },
+            ]
+          : []),
+        ...(email_member
+          ? [
+              {
+                members: {
+                  email: email_member
+                },
               },
             ]
           : []),
@@ -1087,7 +1096,7 @@ export class OrderService {
           ? [
               {
                 members: {
-                  phone_number: phone_number,
+                  member_number: phone_number,
                 },
               },
             ]
@@ -1197,9 +1206,11 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found !');
 
+    const redirect_url = phone_number ? `${process.env.FE_URL}/detail-order?order_id=${order_id}&phone_number=${phone_number}` : email_member ? `${process.env.FE_URL}/detail-order?order_id=${order_id}&email_member=${email_member}` : `${process.env.FE_URL}/detail-order?order_id=${order_id}`;
+
     return {
       data: order,
-      redirect_url: `${process.env.FE_URL}/detail-order?order_id=${order_id}`,
+      redirect_url
     };
   }
 }

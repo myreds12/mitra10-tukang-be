@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Res, HttpStatus, Query } from '@nestjs/common';
 import { EmailMessagesService } from './email-messages.service';
 import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {Request, Response} from 'express';
 import { users } from '@prisma/client';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 interface UserRequest extends Request {
   user: users;
 
@@ -38,9 +39,9 @@ export class EmailMessagesController {
   }
 
   @Get()
-  async findAll(@Res() res : Response) {
+  async findAll(@Res() res : Response, @Query() query: QueryParamsDto) {
     try{
-      const emailMessages = await this.emailMessagesService.findAll();
+      const emailMessages = await this.emailMessagesService.findAll(query );
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Successfully',
@@ -84,6 +85,8 @@ export class EmailMessagesController {
         data: emailMessage
       })
     }catch(error){
+      console.log(error);
+      
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message ?? 'Error',

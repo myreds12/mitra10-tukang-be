@@ -3,6 +3,7 @@ import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class EmailMessagesService {
@@ -46,8 +47,21 @@ export class EmailMessagesService {
     return emailMessage;
   }
 
-  async findAll() {
+  async findAll(query : QueryParamsDto) {
+    const {type_email_message} = query;
+    const where : Prisma.email_messagesWhereInput = {
+      AND: [
+        ...(type_email_message ? 
+          [{
+            email_type : {
+              equals: type_email_message
+            }
+          } ]
+        : [])
+      ]
+    }
     const emailMessage = await this.dbService.email_messages.findMany({
+      where,
       include: {
         terms_detail: true,
         information_detail: true
@@ -70,7 +84,7 @@ export class EmailMessagesService {
     const termsDetail : Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] = updateEmailMessageDto.terms_detail.map((item) => {
       return{
         where: {
-          id: item.id
+          id: item.id ?? 0
         },
         update: {
           terms: item.term
@@ -84,7 +98,7 @@ export class EmailMessagesService {
     const informationDetail : Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] = updateEmailMessageDto.information_detail.map((item) => {
       return{
         where: {
-          id: item.id
+          id: item.id ?? 0
         },
         update: {
           information: item.information

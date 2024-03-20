@@ -36,6 +36,10 @@ export class QueryParamsDto {
   order_by: 'asc' | 'desc' = 'asc';
   order_field: string = 'created_at';
 
+  email_member: string;
+
+  type_email_message: string;
+
   @IsOptional()
   @Type(() => Number)
   city_id?: number = 0;
