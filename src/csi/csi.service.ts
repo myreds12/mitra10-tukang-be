@@ -136,11 +136,7 @@ export class CsiService {
   
     const csi = await this.dbService.csi.findMany({
       skip,
-      where:{
-        store_name: {
-          contains: store.store_name
-        }
-      },
+      where,
       take: take > 0 ? take : undefined,
       orderBy: { created_at: 'desc' },
     });

@@ -74,6 +74,10 @@ export class EmailMessagesService {
     const emailMessage = await this.dbService.email_messages.findFirst({
       where: {
       id
+      },
+      include: {
+        terms_detail: true,
+        information_detail: true
       }
     });
 
