@@ -10,7 +10,10 @@ import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService) { }
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly sendMailService: SendEmailService,
+  ) {}
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const store = await this.dbService.store.create({
@@ -33,21 +36,23 @@ export class StoreService {
       const role = await this.dbService.roles.findFirst({
         where: {
           name: {
-            equals: 'Store CS'
-          }
-        }
+            equals: 'Store CS',
+          },
+        },
       });
-      const usernameStore = dto.default_username ? dto.default_username : `${dto.store_name.toLowerCase().replace(' ', '_') + '_cs'}`
-       const user = await this.dbService.users.create({
+      const username = dto.default_username ? dto.default_username : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
+      const user = await this.dbService.users.create({
         data: {
-          username: usernameStore,
-          password: await hash(dto.default_password, 10),
-          role_id: role.id
-        }
+          username,
+          password: await hash(dto?.default_password ?? 'password', 10),
+          role_id: role.id,
+        },
       });
 
-      
-      await this.sendMailService.sendCredentialMail(usernameStore,  dto.default_password);
+      await this.sendMailService.sendCredentialMail(
+        username,
+        dto.default_password,
+      );
       return {
         status: HttpStatus.CREATED,
         message: 'Store Successfully Created',
@@ -74,7 +79,7 @@ export class StoreService {
       date_to,
       order_by,
       city_id,
-      store_group_id
+      store_group_id,
     } = query;
 
     const skip = page * take - take;
@@ -83,12 +88,10 @@ export class StoreService {
       AND: [
         ...(city_id
           ? [
-            {
-              OR: [
-                { city_id: { equals: city_id } },
-              ],
-            },
-          ]
+              {
+                OR: [{ city_id: { equals: city_id } }],
+              },
+            ]
           : []),
           ...(store_group_id ? [
             {
@@ -131,7 +134,7 @@ export class StoreService {
         message: 'Succesfully find store',
         data: store,
       };
-    } catch (error) { }
+    } catch (error) {}
   }
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {
@@ -194,6 +197,4 @@ export class StoreService {
 
     return stores[0] || null;
   }
-
-  
 }
