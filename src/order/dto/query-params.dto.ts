@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { LargeNumberLike } from 'crypto';
 
 export class QueryParamsDto {
@@ -74,5 +74,10 @@ export class QueryParamsDto {
 
   order_id?:number;
 
-  phone_number?: string; 
+  phone_number?: string;
+  
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn ([0, 1])
+  all_store?: number;
 }

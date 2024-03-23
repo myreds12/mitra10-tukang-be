@@ -104,7 +104,7 @@ export class TukangService {
       }),
     ]);
     
-    await this.sendMailService.sendCredentialMail(createTukangDto.username,  createTukangDto.password);
+    // await this.sendMailService.sendCredentialMail(createTukangDto.username,  createTukangDto.password);
     return { tukang, userData };
   }
 

@@ -717,4 +717,67 @@ async reportWorkOrder(query: QueryParamsDto){
     monthlyWorkOrders,
   };
 }
+
+async reportTukang(query: QueryParamsDto) {
+  const tukang = await this.dbService.tukang.findMany({
+    include: {
+      work_order_tukang: {
+        include: {
+          work_orders: {
+            include: {
+              order: {
+                include: {
+                  invoice_orders: {
+                    include: {
+                      invoices: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const tukangInvoiceSummary = await Promise.all(tukang.map(async tukangItem => {
+    const totalInvoices = await this.dbService.invoice_orders.count({
+      where: {
+        orders: {
+          work_orders: {
+            id: tukangItem.id
+          }
+        }
+      }
+    });
+  
+    const totalQuotations = await this.dbService.invoices.count({
+      where: {
+        invoice_orders: {
+          every: {
+            orders: {
+              work_orders: {
+                work_order_tukang: {
+                  some: {
+                    tukang_id: tukangItem.id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  
+    return {
+      tukang: tukangItem,
+      totalInvoices,
+      totalQuotations
+    };
+  }));
+  
+  return tukangInvoiceSummary;
+}
+
 }

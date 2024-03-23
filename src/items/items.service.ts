@@ -99,9 +99,14 @@ export class ItemsService {
 
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     const { id, role_id } = user;
-    const { search, take, page, skip, group_by } = queryParamsDto;
+    const { search, take, page, skip, group_by, all_store, store_id } = queryParamsDto;
     const category_id = +search ? Number.parseInt(search) : undefined;
     const now = new Date();
+
+    const allStore = await this.dbService.store.findMany().then((data) => data.map((x) => x.id));
+    console.log(allStore);
+    
+
     const sales = await this.dbService.users.findFirst({
       where: {
         id,
@@ -141,6 +146,19 @@ export class ItemsService {
                 },
               }
             : undefined,
+            ...(all_store === 0 ? [{
+              prices: {
+                every: {
+                  price_stores: {
+                    every: {
+                      store_id: {
+                        in: allStore
+                      }
+                    }
+                  }
+                }
+              }
+            }]: []),
           sales.sales
             ? {
                 category: {
@@ -155,7 +173,7 @@ export class ItemsService {
           {
             deleted_at: null,
           },
-        ].filter(Boolean), // Membersihkan nilai-nilai undefined dari array
+        ].filter(Boolean),  
       },
       include: {
         prices: {
@@ -185,7 +203,7 @@ export class ItemsService {
       },
     };
 
-    const items = await this.dbService.items.findMany({ ...itemsOptions });
+    const items = await this.dbService.items.findMany({...(itemsOptions)});
 
     return items;
   }
@@ -265,7 +283,7 @@ export class ItemsService {
               ? new Date(item.periodic_end)
               : undefined,
             min_order: item?.min_order,
-            price_store: {
+            price_stores: {
               upsert: priceStoreUpsert,
             },
             price: item?.price,
@@ -283,7 +301,7 @@ export class ItemsService {
             price: item?.price,
             created_at: new Date(),
             created_by: user_id,
-            price_store: {
+            price_stores: {
               createMany: {
                 data: priceStoreCreate,
               },
@@ -291,7 +309,6 @@ export class ItemsService {
           },
         };
       });
-
     const [syncPrices, items_query] = await this.dbService.$transaction([
       this.dbService.prices.updateMany({
         where: {

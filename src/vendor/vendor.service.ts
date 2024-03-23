@@ -75,9 +75,10 @@ export class VendorService {
       }
     });
 
+    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.company_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
     const users = await this.dbService.users.create({
       data: {
-        username: `${createVendorDto.company_name.toLowerCase().replace(' ', '_')}`,
+        username,
         password: await hash(createVendorDto.password, 10),
         role_id: role.id,
       },
@@ -142,7 +143,7 @@ export class VendorService {
         data: vendorData,
       }),
     ]);
-    await this.sendMailService.sendCredentialMail(users.username, createVendorDto.password);
+    // await this.sendMailService.sendCredentialMail(users.username, createVendorDto.password);
 
 
     return { vendor, users };

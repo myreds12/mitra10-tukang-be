@@ -37,6 +37,26 @@ export class ReportsController {
     private readonly orderService: OrderService,
   ) {}
 
+  @Get('/tukang')
+  async reportTukang(@Query() query: QueryParamsDto, @Res() response){
+    try {
+      const tukang = await this.reportsService.reportTukang(query);
+      return response.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Get Tukang',
+        data: tukang
+      });
+    } catch (error) {
+      console.log(error);
+
+      return response.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Get',
+        stack: error,
+      });
+    }
+  } 
+
   @Get('/complaints')
   async complaintReport(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
     try {
@@ -160,5 +180,5 @@ export class ReportsController {
     return this.reportsService.remove(+id);
   }
 
-  
+
 }

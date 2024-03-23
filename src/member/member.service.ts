@@ -68,9 +68,10 @@ export class MemberService {
     }
   }
 
-  async findAll(query: QueryParamsDto) {
+  async findAll(query: QueryParamsDto, user_id: number) {
     try {
-      const { search } = query;
+      const { search, date_from, date_to, store_id } = query;
+
       const where: Prisma.membersWhereInput = {
         AND: [
           ...(search
@@ -83,6 +84,25 @@ export class MemberService {
               },
             ]
             : []),
+            ...(store_id ? [
+              {
+                join_location_store: {
+                  id: {
+                    in: store_id
+                  }
+                }
+              }
+            ] : []),
+            ...(date_from && date_to
+              ? [
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
+                  },
+                ]
+              : [])
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -99,10 +119,22 @@ export class MemberService {
           },
         },
       });
+      const memberOrderSummary = member.map(item => ({
+        memberId: item.id,
+        totalOrder: item.order.reduce((total, order) => total + Number(order.grand_total), 0),
+      }));
+      
+      const dataMember = member.map(item => ({
+        ...item,
+        total_summary: memberOrderSummary.find(summary => summary.memberId === item.id)?.totalOrder || 0,
+      }));
+      
+      console.log(dataMember);
+      
       return {
-        data: member,
         status: HttpStatus.OK,
         message: 'Successfully get data',
+        data: dataMember,
       };
     } catch (error) {
       console.log(error);

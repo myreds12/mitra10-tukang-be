@@ -30,8 +30,9 @@ export class MemberController {
   }
 
   @Get('/')
-  findAll(@Query() query: QueryParamsDto) {
-    return this.memberService.findAll(query);
+  findAll(@Query() query: QueryParamsDto, @Req() req) {
+    const user_id = req.user.id;
+    return this.memberService.findAll(query, user_id);
   }
 
   @Get('/:id')

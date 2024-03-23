@@ -16,6 +16,8 @@ export class CreateVendorDto {
   @IsString()
   company_name: string;
 
+  default_username?: string;
+
   @ApiProperty()
   @IsNotEmpty()
   @IsString()

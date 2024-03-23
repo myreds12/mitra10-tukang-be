@@ -17,6 +17,12 @@ export class StoreService {
         data: {
           store_name: dto.store_name,
           store_group_id: dto.store_group_id,
+          bank_name: dto.bank_name,
+          bank_account: dto.bank_account,
+          bank_number: dto.bank_number,
+          email: dto.email,
+          phone_number_1: dto.phone_number_1,
+          phone_number_2: dto.phone_number_2,
           address: dto.address,
           additional_address: dto.additional_address,
           city_id: dto.city_id,
@@ -31,8 +37,8 @@ export class StoreService {
           }
         }
       });
-      const usernameStore = `${dto.store_name.toLowerCase().replace(' ', '_') + '_cs'}`
-       await this.dbService.users.create({
+      const usernameStore = dto.default_username ? dto.default_username : `${dto.store_name.toLowerCase().replace(' ', '_') + '_cs'}`
+       const user = await this.dbService.users.create({
         data: {
           username: usernameStore,
           password: await hash(dto.default_password, 10),
@@ -46,8 +52,11 @@ export class StoreService {
         status: HttpStatus.CREATED,
         message: 'Store Successfully Created',
         data: store,
+        user
       };
     } catch (error) {
+      console.log(error);
+      
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to create',
@@ -88,7 +97,8 @@ export class StoreService {
               ]
             }
           ]: []),
-      ]
+      ],
+      deleted_at: null
     };
 
     const store = await this.dbService.store.findMany({
