@@ -34,13 +34,11 @@ export class StoreService {
           },
         },
       });
-      const usernameStore = `${
-        dto.store_name.toLowerCase().replace(' ', '_')
-      }`;
+      const usernameStore = `${dto.store_name.toLowerCase().replace(' ', '_')}`;
       await this.dbService.users.create({
         data: {
           username: usernameStore,
-          password: await hash(dto.default_password, 10),
+          password: await hash(dto?.default_password ?? 'password', 10),
           role_id: role.id,
         },
       });

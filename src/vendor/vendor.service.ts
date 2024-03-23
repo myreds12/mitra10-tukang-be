@@ -84,7 +84,7 @@ export class VendorService {
         username: `${createVendorDto.company_name
           .toLowerCase()
           .replace(' ', '_')}`,
-        password: await hash(createVendorDto.password, 10),
+        password: await hash(createVendorDto?.password ?? 'password', 10),
         role_id: role.id,
       },
     });
