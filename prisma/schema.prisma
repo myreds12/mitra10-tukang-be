@@ -1276,18 +1276,48 @@ model csi {
   member_id             Int
   vendor_name           String  @db.VarChar(250)
   member_name           String  @db.VarChar(250)
-  performance_rate      Int     @map("performanceRate")
-  delivery_rate         Int     @map("deliveryRate")
-  invoicing_rate        Int     @map("invoicingRate")
-  customer_service_rate Int     @map("customerServiceRate")
-  knowledge_rate        Int     @map("knowledgeRate")
+  performance_rate      Int
+  delivery_rate         Int
+  invoicing_rate        Int
+  customer_service_rate Int
+  knowledge_rate        Int
   notes                 String? @db.NText
-  email_address         String  @map("emailAddress") @db.VarChar(50)
+  email_address         String  @db.VarChar(50)
 
   created_by Int?
   updated_by Int?
   deleted_by Int?
 
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+}
+
+model csi_settings {
+  id    Int     @id @default(autoincrement())
+  name  String
+  value String?
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+}
+
+model csi_template {
+  id Int @id @default(autoincrement())
+
+  name              String  @db.VarChar(50)
+  active            Boolean
+  survey_link       String  @db.VarChar(500)
+  spreadsheets_link String  @db.VarChar(500)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
