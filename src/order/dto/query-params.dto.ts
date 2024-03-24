@@ -80,4 +80,9 @@ export class QueryParamsDto {
   @Type(() => Number)
   @IsIn ([0, 1])
   all_store?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn ([0, 1])
+  is_free?: number;
 }

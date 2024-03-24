@@ -99,7 +99,7 @@ export class ItemsService {
 
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     const { id, role_id } = user;
-    const { search, take, page, skip, group_by, all_store, store_id } = queryParamsDto;
+    const { search, take, page, skip, group_by, all_store, store_id, is_free } = queryParamsDto;
     const category_id = +search ? Number.parseInt(search) : undefined;
     const now = new Date();
 
@@ -139,6 +139,13 @@ export class ItemsService {
                 },
               ]
             : []),
+            ...(is_free === 0 ? [{
+              prices: {
+                every: {
+                  price : 0
+                }
+              }
+            }] : []),
           category_id
             ? {
                 category_id: {
@@ -190,7 +197,9 @@ export class ItemsService {
               select: {
                 store: {
                   select: {
+                    id: true,
                     store_name: true,
+                    city: true, 
                   },
                 },
               },
@@ -204,7 +213,6 @@ export class ItemsService {
     };
 
     const items = await this.dbService.items.findMany({...(itemsOptions)});
-
     return items;
   }
 

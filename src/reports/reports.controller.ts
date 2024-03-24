@@ -37,6 +37,28 @@ export class ReportsController {
     private readonly orderService: OrderService,
   ) {}
 
+  @Get('/vendor')
+  // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards(JwtAuthGuard)
+  async reportVendor(@Query() query: QueryParamsDto) {
+    try {
+      const data =
+        await this.reportsService.reportVendor(query);
+      return {
+        status: HttpStatus.OK,
+        messages: 'Ok',
+        data
+      };
+    } catch (error) {
+      console.log(error.message);
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      };
+    }
+  }
+
   @Get('/tukang')
   async reportTukang(@Query() query: QueryParamsDto, @Res() response){
     try {
@@ -125,7 +147,7 @@ export class ReportsController {
         monthlyOrders,
       };
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
 
       return {
         status: HttpStatus.BAD_REQUEST,

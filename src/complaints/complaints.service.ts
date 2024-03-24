@@ -45,12 +45,15 @@ export class ComplaintsService {
         id: createComplaintDto.order_id,
       },
     });
+    const status = await this.dbService.status.findMany();
+
+    const statusDone = status.find((i) => i.category.toLocaleLowerCase().includes('done'));
 
     if (!findOrder) throw new BadRequestException('Order does not exist!');
     let now = new Date();
     now.setDate(now.getDate() + 7);
 
-    if (createComplaintDto.type === 2 && findOrder.created_at < now)
+    if (createComplaintDto.type === 2 && findOrder.created_at < now && findOrder.project_status_id !== statusDone.id)
       throw new BadRequestException('You cannot claim this order!'); //FIXME: FIX THE MESSAGE
 
     const complaintData: Prisma.complaintsCreateInput = {
