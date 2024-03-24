@@ -11,6 +11,7 @@ import {
   UseGuards,
   Query,
   HttpCode,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { CsiService } from './csi.service';
 import { CreateCsiDto } from './dto/create-csi.dto';
@@ -61,6 +62,37 @@ export class CsiController {
     }
   }
 
+  @Get('/:id/fetch-answer')
+  async getDataSpreadsheet(
+    @Res() res: IExpressResponse,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    try {
+      const { spreadsheets_link } = await this.csiService.findOne(id);
+      const spreadsheetId =
+        this.csiService.getSheetIdFromUrl(spreadsheets_link);
+
+      const getData = await this.csiService.fetchGFormAnswers(spreadsheetId);
+
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: getData,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While fetching',
+        stack: error,
+      });
+    }
+  }
+
+  @Get('/sync')
+  async sync() {
+    return this.csiService.syncAnswer();
+  }
+
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   async findOne(@Param('id') id: string) {
@@ -96,68 +128,5 @@ export class CsiController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.csiService.remove(+id);
-  }
-
-  @Get('/get/spreadsheet')
-  async getDataSpreadsheet(@Res() res: IExpressResponse) {
-    try {
-      const getData = await this.csiService.getDataCsi();
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Next Code',
-        data: getData,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
-  }
-
-  @Cron('0 18 * * *')
-  @Post('/insert/spreadsheet')
-  async postDataSpreadsheet(@Res() res: IExpressResponse) {
-    try {
-      const postData = await this.csiService.insertCSIToDatabase();
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Next Code',
-        data: postData,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
-  }
-
-  @Get('/')
-  async getCSIData(
-    @Query() query: QueryParamsDto,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const getData = await this.csiService.getCsiFromDatabase(query);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: getData,
-      });
-    } catch (error) {
-      console.log(error);
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
   }
 }

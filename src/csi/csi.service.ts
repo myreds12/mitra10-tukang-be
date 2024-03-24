@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCsiDto } from './dto/create-csi.dto';
 import { UpdateCsiDto } from './dto/update-csi.dto';
 import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
@@ -13,6 +13,8 @@ export class CsiService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
   ) {}
+
+  private readonly logger = new Logger(CsiService.name);
 
   async create(createCsiDto: CreateCsiDto) {
     const csi_data: Prisma.csi_templateCreateInput = createCsiDto;
@@ -69,7 +71,19 @@ export class CsiService {
         id,
         deleted_at: null,
       },
+      include: {
+        csi_answers: {
+          select: {
+            id: true,
+            data: true,
+          },
+        },
+      },
     });
+
+    if (!data) {
+      throw new NotFoundException('CSI Not Found');
+    }
 
     return data;
   }
@@ -89,118 +103,108 @@ export class CsiService {
     return `This action removes a #${id} csi`;
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_6PM)
-  async getDataCsi() {
-    const sheets = this.googleSheetConnectorService.getGoogleSheetConnect();
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: '1ZMHyrKZPQNu_2quV4-h2Qbm-LLQg3IwUgAxazlTvixg',
-      range: 'R2:S2',
+  async fetchGFormAnswers(id: string) {
+    const spreadsheetInstances =
+      this.googleSheetConnectorService.getGoogleSheetConnect();
+
+    const {
+      data: { sheets },
+    } = await spreadsheetInstances.spreadsheets.getByDataFilter({
+      spreadsheetId: id,
     });
 
-    const data = await sheets.spreadsheets.values
-      .get({
-        spreadsheetId: process.env.SPREADSHEET_ID,
-        range: `B${res.data.values[0][0]}:L${res.data.values[0][1]}`,
-      })
-      .then((data) => data.data.values);
+    const { properties } = sheets[0];
 
-    const response = data.map((row) => {
-      return {
-        'Nama Toko': row[0],
-        'Member Id': row[1],
-        'Nama Member': row[2],
-        'Nama Vendor': row[3],
-        'Performance Rate': row[4],
-        'Delivery Rate': row[5],
-        'Invoicing Rate': row[6],
-        'Customer Service Rate': row[7],
-        'Knowledge Rate': row[8],
-        'Catatan Tambahan': row[9],
-        'Email Adress Pemberi Jawaban': row[10],
-      };
+    const { data } = await spreadsheetInstances.spreadsheets.values.get({
+      spreadsheetId: id,
+      range: `A1:${this.numberToColumnLabel(
+        properties.gridProperties.columnCount,
+      )}${properties.gridProperties.rowCount}`,
+    });
+    const keys = data.values[0];
+    const parsedData = data.values.slice(1).map((row, rindex) => {
+      const obj = { Row: rindex + 1 };
+      keys.forEach((key, index) => {
+        obj[key] = row[index];
+      });
+
+      return obj;
     });
 
-    return response;
+    return parsedData;
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_6PM)
-  async insertCSIToDatabase() {
-    const data = await this.getDataCsi();
-    const dataToInsert: Prisma.csiCreateManyInput[] = data.map((row) => {
-      return {
-        store_name: row['Nama Toko'],
-        member_id: Number(row['Member Id']),
-        member_name: row['Nama Member'],
-        vendor_name: row['Nama Vendor'],
-        performance_rate: Number(row['Performance Rate']),
-        delivery_rate: Number(row['Delivery Rate']),
-        invoicing_rate: Number(row['Invoicing Rate']),
-        customer_service_rate: Number(row['Customer Service Rate']),
-        knowledge_rate: Number(row['Knowledge Rate']),
-        notes: row['Catatan Tambahan'],
-        email_address: row['Email Adress Pemberi Jawaban'],
-      };
+  @Cron(CronExpression.EVERY_MINUTE)
+  async syncAnswer() {
+    this.logger.verbose('Syncing CSI answers');
+
+    const templates = await this.dbService.csi_template.findMany({
+      where: {
+        deleted_at: null,
+        active: true,
+      },
+      include: {
+        csi_answers: true,
+      },
     });
-    await this.dbService.csi.deleteMany();
-    const result = await this.dbService.csi.createMany({
-      data: dataToInsert,
-    });
-    return result;
+
+    await Promise.all(
+      templates.map(async (row) => {
+        const { id, csi_answers, spreadsheets_link, name } = row;
+        this.logger.verbose(`On ${name} template.`);
+
+        const spreadsheetId = this.getSheetIdFromUrl(spreadsheets_link);
+        const fetched_answers = await this.fetchGFormAnswers(spreadsheetId);
+
+        const local_answer_ids = new Set(
+          csi_answers.map((answer) => JSON.parse(answer.data)['Row']),
+        );
+
+        const filtered = fetched_answers.filter(
+          (row) => !local_answer_ids.has(row['Row']),
+        );
+        this.logger.verbose(`Saving filtered answer (${filtered.length})...`);
+
+        await this.storeAnswer(id, filtered);
+      }),
+    );
   }
 
-  async getCsiFromDatabase(query: QueryParamsDto) {
-    const { page, take, vendor_id, storeId, member_id, date_from, date_to } =
-      query;
-    const skip = page * take - take;
-
-    let vendor, store, member;
-
-    if (vendor_id) {
-      vendor = await this.dbService.vendor.findFirst({
-        where: { id: +vendor_id },
+  async storeAnswer(templateId: number, data: object[]) {
+    if (data.length > 0) {
+      const saved = await this.dbService.csi_answers.createMany({
+        data: data.map((row) => ({
+          data: JSON.stringify(row),
+          csi_template_id: templateId,
+        })),
       });
-      if (!vendor) throw new Error('Vendor not found');
+
+      this.logger.log(`Saved ${saved.count} answers`);
+
+      return;
     }
 
-    if (storeId) {
-      store = await this.dbService.store.findFirst({ where: { id: +storeId } });
-      if (!store) throw new Error('Store not found');
+    this.logger.log(`Answer already up to date`);
+  }
+
+  numberToColumnLabel(num: number) {
+    let label = '';
+    while (num > 0) {
+      let remainder = (num - 1) % 26;
+      label = String.fromCharCode(65 + remainder) + label;
+      num = Math.floor((num - remainder) / 26);
     }
+    return label;
+  }
 
-    if (member_id) {
-      member = await this.dbService.members.findFirst({
-        where: { id: +member_id },
-      });
-      if (!member) throw new Error('Member not found');
+  getSheetIdFromUrl(url: string) {
+    const regex = /spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+    const match = url.match(regex);
+
+    if (match && match[1]) {
+      return match[1];
+    } else {
+      return null; // or handle invalid URL as needed
     }
-
-    console.log(vendor, store, member);
-
-    const where: Prisma.csiWhereInput = {
-      AND: [
-        ...(store ? [{ store_name: { contains: store.store_name } }] : []),
-        ...(vendor ? [{ vendor_name: { contains: vendor.company_name } }] : []),
-        ...(date_from && date_to
-          ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              },
-            ]
-          : []),
-        ...(member ? [{ member_id: member.id }] : []),
-      ],
-    };
-
-    const csi = await this.dbService.csi.findMany({
-      skip,
-      where,
-      take: take > 0 ? take : undefined,
-      orderBy: { created_at: 'desc' },
-    });
-
-    return csi;
   }
 }
