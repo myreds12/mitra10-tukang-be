@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Res, HttpStatus, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Res,
+  HttpStatus,
+  UseGuards,
+  Query,
+  HttpCode,
+} from '@nestjs/common';
 import { CsiService } from './csi.service';
 import { CreateCsiDto } from './dto/create-csi.dto';
 import { UpdateCsiDto } from './dto/update-csi.dto';
@@ -16,18 +29,68 @@ export class CsiController {
   constructor(private readonly csiService: CsiService) {}
 
   @Post()
-  create(@Body() createCsiDto: CreateCsiDto) {
-    return this.csiService.create(createCsiDto);
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() createCsiDto: CreateCsiDto) {
+    try {
+      const data = await this.csiService.create(createCsiDto);
+      return {
+        statusCode: HttpStatus.CREATED,
+        status: 'CREATED',
+        message: 'CSI Created',
+        data,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async findAll(@Query() query: QueryParamsDto) {
+    try {
+      const data = await this.csiService.findAll(query);
+      return {
+        statusCode: HttpStatus.OK,
+        status: 'OK',
+        message: 'Success',
+        data: data.data,
+        ...data.options,
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.csiService.findOne(+id);
+  @HttpCode(HttpStatus.OK)
+  async findOne(@Param('id') id: string) {
+    try {
+      const data = await this.csiService.findOne(+id);
+      return {
+        data,
+        statusCode: HttpStatus.OK,
+        status: 'OK',
+        message: 'Success',
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCsiDto: UpdateCsiDto) {
-    return this.csiService.update(+id, updateCsiDto);
+  @Post(':id')
+  @HttpCode(HttpStatus.OK)
+  async update(@Param('id') id: string, @Body() updateCsiDto: UpdateCsiDto) {
+    try {
+      const data = await this.csiService.update(+id, updateCsiDto);
+      return {
+        data,
+        statusCode: HttpStatus.OK,
+        status: 'OK',
+        message: 'Success',
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   @Delete(':id')
@@ -36,13 +99,13 @@ export class CsiController {
   }
 
   @Get('/get/spreadsheet')
-  async getDataSpreadsheet(@Res() res: IExpressResponse){
-    try{ 
-      const getData = await this.csiService.getDataCsi()
+  async getDataSpreadsheet(@Res() res: IExpressResponse) {
+    try {
+      const getData = await this.csiService.getDataCsi();
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Next Code',
-        data: getData
+        data: getData,
       });
     } catch (error) {
       console.log(error);
@@ -57,13 +120,13 @@ export class CsiController {
 
   @Cron('0 18 * * *')
   @Post('/insert/spreadsheet')
-  async postDataSpreadsheet(@Res() res: IExpressResponse){
-    try{ 
-      const postData = await this.csiService.insertCSIToDatabase()
+  async postDataSpreadsheet(@Res() res: IExpressResponse) {
+    try {
+      const postData = await this.csiService.insertCSIToDatabase();
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Next Code',
-        data: postData
+        data: postData,
       });
     } catch (error) {
       console.log(error);
@@ -77,13 +140,16 @@ export class CsiController {
   }
 
   @Get('/')
-  async getCSIData(@Query() query: QueryParamsDto, @Res() res: IExpressResponse){
-    try{
-      const getData = await this.csiService.getCsiFromDatabase(query)
+  async getCSIData(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const getData = await this.csiService.getCsiFromDatabase(query);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Success',
-        data: getData
+        data: getData,
       });
     } catch (error) {
       console.log(error);
