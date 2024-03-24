@@ -8,6 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { FormDto } from './dto/create-form.dto';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { log } from 'console';
+import { currentLineHeight } from 'pdfkit';
 
 @Injectable()
 export class ReportsService {
@@ -741,43 +742,48 @@ async reportTukang(query: QueryParamsDto) {
     }
   });
 
-  const tukangInvoiceSummary = await Promise.all(tukang.map(async tukangItem => {
-    const totalInvoices = await this.dbService.invoice_orders.count({
-      where: {
-        orders: {
-          work_orders: {
-            id: tukangItem.id
-          }
-        }
-      }
-    });
+  // const tukangInvoiceSummary = await Promise.all(tukang.map(async tukangItem => {
+  //   const totalInvoices = await this.dbService.invoice_orders.findMany({
+  //     where: {
+  //       orders: {
+  //         work_orders: {
+  //           work_order_tukang: {
+  //             some: {
+  //               tukang_id: tukangItem.id
+  //             }
+  //           }
+  //         }
+  //       }
+  //     },
+  //   });
+  //   totalInvoices.reduce((acc, curr) => acc + curr., 0)
   
-    const totalQuotations = await this.dbService.invoices.count({
-      where: {
-        invoice_orders: {
-          every: {
-            orders: {
-              work_orders: {
-                work_order_tukang: {
-                  some: {
-                    tukang_id: tukangItem.id
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
+  //   const totalQuotations = await this.dbService.invoices.count({
+  //     where: {
+  //       invoice_orders: {
+  //         every: {
+  //           orders: {
+  //             work_orders: {
+  //               work_order_tukang: {
+  //                 some: {
+  //                   tukang_id: tukangItem.id
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //   });
   
-    return {
-      tukang: tukangItem,
-      totalInvoices,
-      totalQuotations
-    };
-  }));
+  //   return {
+  //     tukang: tukangItem,
+  //     totalInvoices,
+  //     totalQuotations
+  //   };
+  // }));
   
-  return tukangInvoiceSummary;
+  // return tukangInvoiceSummary;
 }
 
 }
