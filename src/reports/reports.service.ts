@@ -15,13 +15,13 @@ export class ReportsService {
   constructor(
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
-    private readonly httpService : HttpService
-  ) {}
+    private readonly httpService: HttpService
+  ) { }
   async create(createReportDto: CreateReportDto) {
-    
+
   }
   //"1wLn20ycyAoKKyzZdSkoAfB2rPEjkTPG_ZWHzA6fVZaw"
-  async findAll() {   
+  async findAll() {
 
   }
 
@@ -99,7 +99,7 @@ export class ReportsService {
             work_order_evidences: true,
             work_order_tukang: {
               include: {
-                tukang: true,
+              tukang: true,
               },
               where: {
                 deleted_at: null,
@@ -128,8 +128,8 @@ export class ReportsService {
       },
     });
     // console.log(sales);
-    
-   return order;
+
+    return order;
   }
 
   findOne(id: number) {
@@ -144,7 +144,7 @@ export class ReportsService {
     return `This action removes a #${id} report`;
   }
 
-  async createForm(dto: FormDto){
+  async createForm(dto: FormDto) {
     const url = "https://forms.googleapis.com/v1/forms"
     const request = {
       "info": {
@@ -172,12 +172,12 @@ export class ReportsService {
       "Authorization": `Bearer ${access_token}`,
     };
 
-    const response = await this.httpService.post(url, request, {headers})
+    const response = await this.httpService.post(url, request, { headers })
 
     return response
   }
 
-  async reportOrder(query: QueryParamsDto){
+  async reportOrder(query: QueryParamsDto) {
     const {
       search,
       status,
@@ -188,7 +188,8 @@ export class ReportsService {
       payment_type,
       store_id,
       vendor_id,
-      invoice_status
+      invoice_status,
+      member_id
     } = query;
     console.log(status);
     const statuses = await this.dbService.status.findMany();
@@ -198,7 +199,7 @@ export class ReportsService {
     const statusSurveyStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("surveystart"));
     const statusSurveyReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("surveyreq"));
     const statusSurveyDone = statuses.find((i) => i.category.toLocaleLowerCase().includes("surveydone"));
-    
+
 
     const where: Prisma.ordersWhereInput = {
       AND: [
@@ -214,14 +215,14 @@ export class ReportsService {
           ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
+        ...(member_id ? [{ member_id: { equals: member_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
-        store_id
-          ? {
-            store_id: {
-              in: store_id,
-            },
-          } : undefined,
+        ...(store_id ? [{
+          store_id: {
+            in: store_id
+          }
+        }] : []),
         vendor_id
           ? {
             vendor: {
@@ -432,6 +433,8 @@ export class ReportsService {
         order_files: true,
       },
     });
+
+
     const count = await this.dbService.orders.count();
     const orderGrandTotal = await this.dbService.orders
       .aggregate({
@@ -443,11 +446,11 @@ export class ReportsService {
     const totalOrdersPerMonth = {};
     const ordersMonth = {};
     const totalOrderGrandTotalPerMonth = {};
-    const totalCompleteOrderPerMonth = {}; 
-    const totalUnpaidOrderPerMonth = {}; 
-    const totalSurveyStartOrderPerMonth = {}; 
-    const totalSurveyReqOrderPerMonth = {}; 
-    const totalSurveyDoneOrderPerMonth = {}; 
+    const totalCompleteOrderPerMonth = {};
+    const totalUnpaidOrderPerMonth = {};
+    const totalSurveyStartOrderPerMonth = {};
+    const totalSurveyReqOrderPerMonth = {};
+    const totalSurveyDoneOrderPerMonth = {};
     const allMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
@@ -455,25 +458,28 @@ export class ReportsService {
     allMonths.forEach(month => {
       totalOrderGrandTotalPerMonth[month] = 0;
       totalUnpaidOrderPerMonth[month] = 0;
-      totalCompleteOrderPerMonth[month] = 0; 
-      totalSurveyStartOrderPerMonth[month] = 0; 
-      totalSurveyReqOrderPerMonth[month] = 0; 
-      totalSurveyDoneOrderPerMonth[month] = 0; 
+      totalCompleteOrderPerMonth[month] = 0;
+      totalSurveyStartOrderPerMonth[month] = 0;
+      totalSurveyReqOrderPerMonth[month] = 0;
+      totalSurveyDoneOrderPerMonth[month] = 0;
     });
 
     orders.forEach(order => {
       const month = new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
       const grandTotalPerMonth = Number(order.grand_total);
 
+      console.log(order, "ORDER", order.status.category, "ORDER STATUS");
+
+
       if (!totalOrdersPerMonth[month]) {
         totalOrdersPerMonth[month] = 0;
       }
 
-      totalOrdersPerMonth[month]++; 
+      totalOrdersPerMonth[month]++;
       totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
       ordersMonth[month] = ordersMonth[month] || [];
       ordersMonth[month].push(order);
-      
+
       if (order.status.category === statusDone.category) {
         totalCompleteOrderPerMonth[month]++;
       }
@@ -495,11 +501,11 @@ export class ReportsService {
       month,
       totalOrder: totalOrdersPerMonth[month] || 0,
       totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0,
-      totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0, 
-      totalUnpaidOrder: totalUnpaidOrderPerMonth[month] || 0, 
-      totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0, 
-      totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0, 
-      totalSurveyDoneOrder: totalSurveyDoneOrderPerMonth[month] || 0, 
+      totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0,
+      totalUnpaidOrder: totalUnpaidOrderPerMonth[month] || 0,
+      totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0,
+      totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0,
+      totalSurveyDoneOrder: totalSurveyDoneOrderPerMonth[month] || 0,
       ordersMonth: ordersMonth[month] || [],
 
     }));
@@ -515,7 +521,7 @@ export class ReportsService {
 
 
   async complaintReport(queryParamsDto: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to, order_by } = queryParamsDto;
+    const { take, page, search, status, date_from, date_to, order_by, member_id, vendor_id } = queryParamsDto;
     const skip = page * take - take;
 
     const statuses = await this.dbService.status.findMany();
@@ -525,6 +531,18 @@ export class ReportsService {
       AND: [
         status ? { status: { id: { in: status } } } : null,
         search ? { complaint_channels: { name: { contains: search } } } : null,
+        ...(member_id ? [{
+          orders: {
+            member_id: member_id
+          }
+        }] : []),
+        ...(vendor_id ? [{
+          orders: {
+            vendor_id :{
+              equals: vendor_id
+            }
+          }
+        }] : []),
         date_from && date_to
           ? {
             complaint_date: {
@@ -574,7 +592,7 @@ export class ReportsService {
     const totalComplaintPerMonth = {};
     const totalComplaintGrandTotalPerMonth = {};
     const totalCancelComplaintPerMonth = {};
-    const complaintMonth = {} ;
+    const complaintMonth = {};
     const allMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
@@ -591,7 +609,7 @@ export class ReportsService {
         totalComplaintPerMonth[month] = 0;
       }
 
-      if(complaint.status.category === statusCancel.category){
+      if (complaint.status.category === statusCancel.category) {
         totalCancelComplaintPerMonth[month]++;
       }
 
@@ -613,124 +631,139 @@ export class ReportsService {
       complaint,
       complaintGrandTotal,
       monthlyComplaint
-    };
-  }
+    };
+  }
 
-async reportWorkOrder(query: QueryParamsDto){
-  const {
-    status,
-    date_from,
-    date_to,
-    order_by,
-  } = query;
-  console.log(status);
-  const statuses = await this.dbService.status.findMany();
+  async reportWorkOrder(query: QueryParamsDto) {
+    const {
+      status,
+      date_from,
+      date_to,
+      order_by,
+      member_id,
+      vendor_id
+    } = query;
+    console.log(status);
+    const statuses = await this.dbService.status.findMany();
 
-  const statusWorkReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("workreq"));
-  const statusWorkStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("workstart"));
-  const statusWIP = statuses.find((i) => i.category.toLocaleLowerCase().includes("wip"));
-  const statusWorkEnd = statuses.find((i) => i.category.toLocaleLowerCase().includes("workend"));
-  
+    const statusWorkReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("workreq"));
+    const statusWorkStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("workstart"));
+    const statusWIP = statuses.find((i) => i.category.toLocaleLowerCase().includes("wip"));
+    const statusWorkEnd = statuses.find((i) => i.category.toLocaleLowerCase().includes("workend"));
 
-  const where: Prisma.work_ordersWhereInput = {
-    AND: [
-      ...(date_from && date_to
-        ? [
-          {
-            created_at: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
+
+    const where: Prisma.work_ordersWhereInput = {
+      AND: [
+        ...(member_id ? [{
+          order: {
+            member_id: {
+              equals: member_id
+            }
+          }
+        }] : []),
+        ...(vendor_id ? [{
+          vendor_id: {
+            equals: vendor_id
+          }
+        }] : []),
+        ...(date_from && date_to
+          ? [
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
             },
-          },
-        ]
-        : []),
-    ].filter(Boolean),
-    deleted_at: null,
-  };
+          ]
+          : []),
+      ].filter(Boolean),
+      deleted_at: null,
+    };
 
-  const workOrders = await this.dbService.work_orders.findMany({
-    where,
-    orderBy: {
-      created_at: order_by,
-    },
-    include: {
-      status: true
-    }
-  });
-  const count = await this.dbService.orders.count();
-  const totalWorkOrdersPerMonth = {};
-  const ordersMonth = {};
-  const totalCompleteOrderPerMonth = {}; 
-  const totalWorkStartWorkOrdersPerMonth = {}; 
-  const totalSurveyStartOrderPerMonth = {}; 
-  const totalSurveyReqOrderPerMonth = {}; 
-  const allMonths = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
+    const workOrders = await this.dbService.work_orders.findMany({
+      where,
+      orderBy: {
+        created_at: order_by,
+      },
+      include: {
+        status: true
+      }
+    });
+    const count = await this.dbService.orders.count();
+    const totalWorkOrdersPerMonth = {};
+    const ordersMonth = {};
+    const totalCompleteOrderPerMonth = {};
+    const totalWorkStartWorkOrdersPerMonth = {};
+    const totalSurveyStartOrderPerMonth = {};
+    const totalSurveyReqOrderPerMonth = {};
+    const allMonths = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
 
-  allMonths.forEach(month => {
-    totalWorkStartWorkOrdersPerMonth[month] = 0;
-    totalCompleteOrderPerMonth[month] = 0; 
-    totalSurveyStartOrderPerMonth[month] = 0; 
-    totalSurveyReqOrderPerMonth[month] = 0; 
-  });
+    allMonths.forEach(month => {
+      totalWorkStartWorkOrdersPerMonth[month] = 0;
+      totalCompleteOrderPerMonth[month] = 0;
+      totalSurveyStartOrderPerMonth[month] = 0;
+      totalSurveyReqOrderPerMonth[month] = 0;
+    });
 
-  workOrders.forEach(order => {
-    const month = new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
+    workOrders.forEach(order => {
+      const month = new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
 
-    if (!totalWorkOrdersPerMonth[month]) {
-      totalWorkOrdersPerMonth[month] = 0;
-    }
+      if (!totalWorkOrdersPerMonth[month]) {
+        totalWorkOrdersPerMonth[month] = 0;
+      }
 
-    totalWorkOrdersPerMonth[month]++; 
-    ordersMonth[month] = ordersMonth[month] || [];
-    ordersMonth[month].push(order);
-    
-    if (order.status.category === statusWorkReq.category) {
-      totalCompleteOrderPerMonth[month]++;
-    }
-    if (order.status.category === statusWorkStart.category) {
-      totalWorkStartWorkOrdersPerMonth[month]++;
-    }
-    if (order.status.category === statusWIP.category) {
-      totalSurveyStartOrderPerMonth[month]++;
-    }
-    if (order.status.category === statusWorkEnd.category) {
-      totalSurveyReqOrderPerMonth[month]++;
-    }
-  });
+      totalWorkOrdersPerMonth[month]++;
+      ordersMonth[month] = ordersMonth[month] || [];
+      ordersMonth[month].push(order);
 
-  const monthlyWorkOrders = allMonths.map(month => ({
-    month,
-    totalOrder: totalWorkOrdersPerMonth[month] || 0,
-    totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0, 
-    totalUnpaidOrder: totalWorkStartWorkOrdersPerMonth[month] || 0, 
-    totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0, 
-    totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0, 
-    workOrdersMonth: ordersMonth[month] || [],
+      if (order.status.category === statusWorkReq.category) {
+        totalCompleteOrderPerMonth[month]++;
+      }
+      if (order.status.category === statusWorkStart.category) {
+        totalWorkStartWorkOrdersPerMonth[month]++;
+      }
+      if (order.status.category === statusWIP.category) {
+        totalSurveyStartOrderPerMonth[month]++;
+      }
+      if (order.status.category === statusWorkEnd.category) {
+        totalSurveyReqOrderPerMonth[month]++;
+      }
+    });
 
-  }));
+    const monthlyWorkOrders = allMonths.map(month => ({
+      month,
+      totalOrder: totalWorkOrdersPerMonth[month] || 0,
+      totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0,
+      totalUnpaidOrder: totalWorkStartWorkOrdersPerMonth[month] || 0,
+      totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0,
+      totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0,
+      workOrdersMonth: ordersMonth[month] || [],
 
-  return {
-    data: workOrders,
-    total: count,
-    takeTotal: workOrders.length,
-    monthlyWorkOrders,
-  };
-}
+    }));
 
-async reportTukang(query: QueryParamsDto) {
-  const tukang = await this.dbService.tukang.findMany({
-    include: {
-      work_order_tukang: {
-        include: {
-          work_orders: {
-            include: {
-              order: {
-                include: {
-                  invoice_orders: {
-                    include: {
-                      invoices: true
+    return {
+      data: workOrders,
+      total: count,
+      takeTotal: workOrders.length,
+      monthlyWorkOrders,
+    };
+  }
+
+  async reportTukang(query: QueryParamsDto) {
+    const tukang = await this.dbService.tukang.findMany({
+      include: {
+        work_order_tukang: {
+          include: {
+            work_orders: {
+              include: {
+                order: {
+                  include: {
+                    invoice_orders: {
+                      include: {
+                        invoices: true
+                      }
                     }
                   }
                 }
@@ -739,51 +772,83 @@ async reportTukang(query: QueryParamsDto) {
           }
         }
       }
-    }
-  });
+    });
 
-  // const tukangInvoiceSummary = await Promise.all(tukang.map(async tukangItem => {
-  //   const totalInvoices = await this.dbService.invoice_orders.findMany({
-  //     where: {
-  //       orders: {
-  //         work_orders: {
-  //           work_order_tukang: {
-  //             some: {
-  //               tukang_id: tukangItem.id
-  //             }
-  //           }
-  //         }
-  //       }
-  //     },
-  //   });
-  //   totalInvoices.reduce((acc, curr) => acc + curr., 0)
+    const tukangInvoiceSummary = await Promise.all(tukang.map(async tukangItem => {
+      
+      const totalInvoices = await this.dbService.invoices.aggregate({
+        where: {
+          invoice_orders: {
+            some: {
+              orders: {
+                work_orders:{
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukangItem.id
+                      }
+                    }
+                }
+              }
+            }
+          }
+        },
+        _sum: {
+          total_quotation_grand_total: true
+        }
+      });
   
-  //   const totalQuotations = await this.dbService.invoices.count({
-  //     where: {
-  //       invoice_orders: {
-  //         every: {
-  //           orders: {
-  //             work_orders: {
-  //               work_order_tukang: {
-  //                 some: {
-  //                   tukang_id: tukangItem.id
-  //                 }
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   });
+      const totalQuotations = await this.dbService.quotation.aggregate({
+        where: {
+          order:{
+            work_orders: {
+              work_order_tukang: {
+                some: {
+                  tukang_id: tukangItem.id
+                }
+              }
+            }
+          }
+        },
+        _sum: {
+          quotation_grand_total: true
+        }
+      });
   
-  //   return {
-  //     tukang: tukangItem,
-  //     totalInvoices,
-  //     totalQuotations
-  //   };
-  // }));
+      return {
+        tukang: tukangItem,
+        totalInvoices: totalInvoices._sum?.total_quotation_grand_total || 0,
+        totalQuotations: totalQuotations._sum?.quotation_grand_total || 0
+      };
+    }));
   
-  // return tukangInvoiceSummary;
-}
+    return tukangInvoiceSummary;
+  }
 
+
+  async reportVendor(query: QueryParamsDto){
+    const  vendors = await this.dbService.vendor.findMany({
+      include: {
+        orders: {
+          include: {
+            m_order_details: true
+          }
+        }
+      }
+    });
+
+    const vendorsSummary = vendors.map(vendor => {
+      const totalOrders = vendor.orders.length;
+      const totalGrandTotal = vendor.orders.reduce((acc, order) => {
+        return acc + Number(order.grand_total);
+      }, 0);
+    
+      return {
+        vendor,
+        totalOrders: totalOrders,
+        totalGrandTotal: totalGrandTotal
+      };
+    });
+
+    return vendorsSummary
+  }
 }
