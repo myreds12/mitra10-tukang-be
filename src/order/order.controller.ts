@@ -82,14 +82,12 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const { data } = await this.orderService.orderDetailsPublic(
-        query,
-      );
+      const { data } = await this.orderService.orderDetailsPublic(query);
 
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Order Details',
-        data
+        data,
       });
     } catch (error) {
       console.log(error);
@@ -282,12 +280,7 @@ export class OrderController {
       };
     } catch (error) {
       console.log(error.message);
-
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
+      throw new error();
     }
   }
 

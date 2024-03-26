@@ -43,29 +43,32 @@ model city {
 }
 
 model employee {
-  id              Int        @id @default(autoincrement())
-  position_id     Int?
-  store_id        Int?
-  user_id         Int?       @unique
-  first_name      String     @db.VarChar(50)
-  middle_name     String?    @db.VarChar(50)
-  last_name       String     @db.VarChar(50)
-  full_name       String     @db.VarChar(255)
-  email           String     @db.VarChar(255)
-  birth           DateTime   @db.DateTime()
-  gender          String     @db.VarChar(50)
-  nik             String     @db.VarChar(50)
-  phone_number    String     @db.VarChar(50)
-  whatsapp_number String     @db.VarChar(50)
-  created_at      DateTime?  @default(now()) @db.DateTime()
-  updated_at      DateTime?  @db.DateTime()
-  deleted_at      DateTime?  @db.DateTime()
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
-  positions       positions? @relation(fields: [position_id], references: [id])
-  store           store?     @relation(fields: [store_id], references: [id])
-  users           users?     @relation(fields: [user_id], references: [id])
+  id Int @id @default(autoincrement())
+
+  position_id Int?
+  store_id    Int?
+  user_id     Int? @unique
+
+  first_name      String   @db.VarChar(50)
+  middle_name     String?  @db.VarChar(50)
+  last_name       String   @db.VarChar(50)
+  full_name       String   @db.VarChar(255)
+  email           String   @db.VarChar(255)
+  birth           DateTime @db.DateTime()
+  gender          String   @db.VarChar(50)
+  nik             String   @db.VarChar(50)
+  phone_number    String   @db.VarChar(50)
+  whatsapp_number String   @db.VarChar(50)
+
+  created_at DateTime?  @default(now()) @db.DateTime()
+  updated_at DateTime?  @db.DateTime()
+  deleted_at DateTime?  @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+  positions  positions? @relation(fields: [position_id], references: [id])
+  store      store?     @relation(fields: [store_id], references: [id])
+  users      users?     @relation(fields: [user_id], references: [id])
 }
 
 model items {
@@ -220,8 +223,9 @@ model role_permissions {
 }
 
 model users {
-  id      Int @id @default(autoincrement())
-  role_id Int
+  id       Int  @id @default(autoincrement())
+  role_id  Int
+  store_id Int?
 
   username        String    @db.VarChar(255)
   password        String    @db.VarChar(255)
