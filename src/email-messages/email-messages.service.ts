@@ -15,6 +15,9 @@ export class EmailMessagesService {
       }
     });
 
+    console.log(createEmailMessageDto);
+    
+
     const informationDetail : Prisma.information_detailCreateManyEmail_messagesInput[] = createEmailMessageDto.information_detail.map((item) => {
       return{
         information: item.information
@@ -54,7 +57,7 @@ export class EmailMessagesService {
         ...(type_email_message ? 
           [{
             email_type : {
-              equals: type_email_message
+              equals: 1
             }
           } ]
         : [])

@@ -26,9 +26,7 @@ export class SendEmailService {
     const message = await this.dbService.email_messages.findFirst({
       where: {
         is_active: true,
-        email_type: {
-          contains: 'order',
-        },
+        email_type: 1,
       },
       include: {
         terms_detail: true,
@@ -63,7 +61,7 @@ export class SendEmailService {
   }
 
   async sendMailResetPassword(user_id: number) {
-    const data = await this.dbService.users.findFirst({
+    const users = await this.dbService.users.findFirst({
       where: {
         id: user_id,
       },
@@ -75,13 +73,28 @@ export class SendEmailService {
       },
     });
 
-    let to = data.username.includes('@')
-      ? data.username
-      : data.employee?.email ??
-      data.vendor?.email_address ??
-      data.tukang[0]?.email ??
+    const message = await this.dbService.email_messages.findFirst({
+      where: {
+        is_active: true,
+        email_type: 3,
+      },
+      include: {
+        terms_detail: true,
+        information_detail: true
+      }
+    });
+
+    let to = users.username.includes('@')
+      ? users.username
+      : users.employee?.email ??
+      users.vendor?.email_address ??
+      users.tukang[0]?.email ??
       'example@example.com';
     console.log(to);
+    const data = {
+      users,
+      message
+    }
 
     await this.mailerService.sendMail({
       to,
