@@ -44,6 +44,48 @@ export class AuthService {
     throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
   }
 
+  async updateUser(id: number, dto: CreateRegisterDto){
+    const user = await this.dbService.users.findFirst({
+      where: {
+        id
+      }
+    })
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const update = await this.dbService.users.update({
+      where: {
+        id
+      },
+      data: {
+        username: dto.username,
+        password: await hash(dto.password, 12)
+      }
+    })
+    return update
+  }
+
+  async deleteUser(id: number){
+    const user = await this.dbService.users.findFirst({
+      where: {
+        id
+      }
+    });
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const deleteUser = await this.dbService.users.delete({
+      where: {
+        id
+      }
+    });
+    return deleteUser;
+  }
+
   async login(dto: CreateLoginDto) {
     const user = await this.dbService.users.findFirst({
       where: {
@@ -250,6 +292,35 @@ export class AuthService {
     })
 
     return userUpdate
+  }
+
+  async findAll(){
+    const user = await this.dbService.users.findMany({
+      include: {
+        employee: true,
+        roles: true,
+        sales: true,
+        tukang: true,
+        vendor: true
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+
+    return user
+  }
+
+  async findOne(id:number){
+    const user = await this.dbService.users.findFirst({
+      where: {
+        id
+      }
+    });
+
+    if(!user) throw new NotFoundException('User Not Found!!')
+
+    return user
   }
 
   async getUsers(username: string){
