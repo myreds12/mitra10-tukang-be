@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
-import { users } from '@prisma/client';
+import { Prisma, users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 @Injectable()
 export class BrandsService {
@@ -18,10 +19,33 @@ export class BrandsService {
     return brands;
   }
 
-  async findAll() {
-    const brands = await this.dbService.brands.findMany();
+  async findAll(query: QueryParamsDto) {
+    const {search, take, page} = query;
+    const skip = page * take - take;
 
-    return brands;
+
+    const where : Prisma.brandsWhereInput = {
+    ...(search ? { name: {
+        contains: search
+      }}: {})
+    }
+    const brands = await this.dbService.brands.findMany({
+      where,
+      skip,
+      take: take <= 0 ? undefined : take,
+    });
+
+    const total = await this.dbService.brands.count({
+      where
+    })
+
+    return {
+      data: brands,
+      page,
+      take,
+      skip,
+      total
+    };
   }
 
   async findOne(id: number) {

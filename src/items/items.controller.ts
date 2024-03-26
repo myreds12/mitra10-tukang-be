@@ -67,12 +67,15 @@ export class ItemsController {
     try {
       const user = request.user;
 
-      const items = await this.itemsService.findAll(queryParamsDto, user);
+      const {data, total, page, take} = await this.itemsService.findAll(queryParamsDto, user);
 
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Item',
-        data: items,
+        data,
+        page,
+        take,
+        total
       });
     } catch (error) {
       return response.status(400).json({

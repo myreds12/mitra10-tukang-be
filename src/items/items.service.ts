@@ -119,10 +119,7 @@ export class ItemsService {
       },
     });
 
-    const itemsOptions: Prisma.itemsFindManyArgs = {
-      skip: skip ?? 0,
-      take: take > 0 ? take : undefined,
-      where: {
+    const where: Prisma.itemsWhereInput = {
         AND: [
           ...(search
             ? [
@@ -179,7 +176,12 @@ export class ItemsService {
             deleted_at: null,
           },
         ].filter(Boolean),  
-      },
+      };
+
+    const itemsOptions: Prisma.itemsFindManyArgs = {
+      skip: skip ?? 0,
+      take: take > 0 ? take : undefined,
+      where,
       include: {
         prices: {
           where: {
@@ -209,9 +211,17 @@ export class ItemsService {
         },
       },
     };
+    const total = await this.dbService.items.count({
+      where
+    })
 
     const items = await this.dbService.items.findMany({...(itemsOptions)});
-    return items;
+    return {
+      data: items,
+      page,
+      take,
+      total
+    };
   }
 
   async findOne(id: number) {

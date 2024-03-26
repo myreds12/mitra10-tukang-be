@@ -19,7 +19,7 @@ export class BankService {
       return {
         status: HttpStatus.CREATED,
         message: 'Successfully Create Data',
-        data: banks,
+        data: banks
       };
     } catch (error) {
       return {
@@ -33,24 +33,27 @@ export class BankService {
     try {
       const { take, page, search } = query;
       const skip = page * take - take;
-      const count = await this.dbService.bank.count();
-      const banks = await this.dbService.bank.findMany({
-        skip,
-        take: take <= 0 ? undefined : take,
-        where: {
+      const where = {
           bank_name: {
             contains: search ? search : undefined,
           },
-          deleted_at: null,
-        },
+          deleted_at: null
+        };
+      const banks = await this.dbService.bank.findMany({
+        skip,
+        take: take <= 0 ? undefined : take,
+        where
       });
+
+      const total = await this.dbService.bank.count({
+        where
+      })
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
         data: banks,
-        total: banks.length,
-        takeTotal: count,
+        total,
         page,
         take,
       };
@@ -133,6 +136,7 @@ export class BankService {
     }
   }
 
+  
   async getCode() {
     const bank = await this.dbService.bank.findMany({
       orderBy: {

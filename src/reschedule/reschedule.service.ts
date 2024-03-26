@@ -100,7 +100,7 @@ export class RescheduleService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to } = query;
+    const { take, page, search, status, date_from, date_to, order_by } = query;
     const skip = page * take - take;
 
     const where: Prisma.rescheduleWhereInput = {
@@ -122,6 +122,9 @@ export class RescheduleService {
       where,
       skip,
       take: take <= 0 ? undefined : take,
+      orderBy: {
+        created_at: order_by ?? 'desc'
+      },
       include: {
         status: true,
         reschedule_status: {
