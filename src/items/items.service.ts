@@ -104,8 +104,6 @@ export class ItemsService {
     const now = new Date();
 
     const allStore = await this.dbService.store.findMany().then((data) => data.map((x) => x.id));
-    console.log(allStore);
-    
 
     const sales = await this.dbService.users.findFirst({
       where: {
