@@ -105,6 +105,11 @@ export class RescheduleService {
 
     const where: Prisma.rescheduleWhereInput = {
       AND: [
+        ...(search ? [{
+          reschedule_date: {
+            lte: new Date(search)
+          }
+        }] : []),
         ...(date_from && date_to
           ? [
             {
