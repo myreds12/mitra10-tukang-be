@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -34,6 +35,86 @@ interface UserRequest extends IExpressRequest {
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService, private sendEmailService: SendEmailService) { }
+
+  @Get('/get')
+  async findAll(@Res() res: IExpressResponse) {
+    try {
+      const resetPassword = await this.authService.findAll();
+      return res.status(201).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: resetPassword
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error',
+        stack: error
+      });
+    }
+  }
+
+  @Get('/find-user/:id')
+  async findOne(@Param('id', ParseIntPipe) id:number, @Res() res: IExpressResponse) {
+    try {
+      const resetPassword = await this.authService.findOne(id);
+      return res.status(201).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: resetPassword
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error ',
+        stack: error
+      });
+    }
+  }
+
+  @Delete('/delete-user/:id')
+  async delete(@Param('id', ParseIntPipe) id:number, @Res() res: IExpressResponse) {
+    try {
+      const resetPassword = await this.authService.deleteUser(id);
+      return res.status(201).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: resetPassword
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error ',
+        stack: error
+      });
+    }
+  }
+
+  @Post('/update/:id')
+  async update(@Param('id', ParseIntPipe) id:number, @Res() res: IExpressResponse, @Body() registerDto: CreateRegisterDto) {
+    try {
+      const resetPassword = await this.authService.updateUser(id, registerDto);
+      return res.status(201).json({
+        status: HttpStatus.OK,
+        message: 'Success',
+        data: resetPassword
+      });
+    } catch (error) {
+      console.log(error);
+      
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error?.message ?? 'Error ',
+        stack: error
+      });
+    }
+  }
 
   @HttpCode(200)
   @Post('login')
@@ -108,4 +189,6 @@ export class AuthController {
       });
     }
   }
+
+ 
 }
