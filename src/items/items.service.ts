@@ -104,8 +104,6 @@ export class ItemsService {
     const now = new Date();
 
     const allStore = await this.dbService.store.findMany().then((data) => data.map((x) => x.id));
-    console.log(allStore);
-    
 
     const sales = await this.dbService.users.findFirst({
       where: {
@@ -267,10 +265,6 @@ export class ItemsService {
   }
 
   async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
-    console.log(UpdateDataDto);
-
-    // update or insert
-
     const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
       UpdateDataDto.prices.map((item) => {
         const priceStoreCreate: Prisma.price_storesCreateManyPriceInput[] =

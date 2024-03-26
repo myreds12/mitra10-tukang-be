@@ -34,6 +34,11 @@ export class BankService {
       const { take, page, search } = query;
       const skip = page * take - take;
       const where = {
+      const count = await this.dbService.bank.count();
+      const banks = await this.dbService.bank.findMany({
+        skip,
+        take: take <= 0 ? undefined : take,
+        where: {
           bank_name: {
             contains: search ? search : undefined,
           },
@@ -48,12 +53,16 @@ export class BankService {
       const total = await this.dbService.bank.count({
         where
       })
+          deleted_at: null,
+        },
+      });
 
       return {
         status: HttpStatus.OK,
         message: 'Successfully to Get Data',
         data: banks,
         total,
+        takeTotal: count,
         page,
         take,
       };

@@ -157,10 +157,6 @@ export class InvoicesService {
     const skip = page * take - take;
     const now = new Date();
     if (monthly) now.setFullYear(monthly);
-    console.log(
-      new Date(now.getFullYear(), 0, 1),
-      new Date(now.getFullYear(), 11, 31),
-    );
     const where: Prisma.invoicesWhereInput = {
       AND: [
         ...(search
@@ -275,7 +271,6 @@ export class InvoicesService {
         },
       },
     });
-    console.log(data);
 
     const totalQuotationValues = data.reduce((acc, item) => {
       const invoiceDetails = item.invoice_details;
@@ -296,8 +291,6 @@ export class InvoicesService {
 
       return acc;
     }, 0);
-
-    console.log(totalQuotationValues);
 
     const month = invoices.reduce((acc, curr) => {
       const monthNames = [
@@ -324,8 +317,6 @@ export class InvoicesService {
       acc[monthName] += curr.invoice_details.length;
       return acc;
     }, {});
-
-    // return console.log(monthlyData);
 
     return {
       data: invoices,
