@@ -8,6 +8,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -27,6 +28,7 @@ import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SendEmailService } from 'src/mails/send-email.service';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -37,9 +39,9 @@ export class AuthController {
   constructor(private authService: AuthService, private sendEmailService: SendEmailService) { }
 
   @Get('/get')
-  async findAll(@Res() res: IExpressResponse) {
+  async findAll(@Res() res: IExpressResponse, @Query() query: QueryParamsDto) {
     try {
-      const resetPassword = await this.authService.findAll();
+      const resetPassword = await this.authService.findAll(query);
       return res.status(201).json({
         status: HttpStatus.OK,
         message: 'Success',

@@ -51,26 +51,41 @@ export class EmailMessagesService {
   }
 
   async findAll(query : QueryParamsDto) {
-    const {type_email_message} = query;
+    const {type_email_message, page, take, order_by} = query;
     const where : Prisma.email_messagesWhereInput = {
       AND: [
         ...(type_email_message ? 
           [{
             email_type : {
-              equals: 1
+              equals: type_email_message
             }
           } ]
         : [])
       ]
     }
+    const skip = page * take - take;
     const emailMessage = await this.dbService.email_messages.findMany({
+      skip,
+      take: take > 0 ? take : undefined,
       where,
+      orderBy: {
+        created_at: order_by,
+      },
       include: {
         terms_detail: true,
         information_detail: true
       }
     });
-    return emailMessage
+    const total = await this.dbService.email_messages.count({
+      where
+    })
+    return {
+      total, 
+      data: emailMessage,
+      skip,
+      page,
+      take
+    }
   }
 
   async findOne(id: number) {

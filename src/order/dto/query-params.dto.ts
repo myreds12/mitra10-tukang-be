@@ -38,7 +38,7 @@ export class QueryParamsDto {
 
   email_member: string;
 
-  type_email_message: string;
+  type_email_message: number;
 
   @IsOptional()
   @Type(() => Number)

@@ -11,6 +11,7 @@ import {
   HttpStatus,
   BadRequestException,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -22,6 +23,7 @@ import {
 import { users } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 interface UserRequest extends IExpressRequest {
   user: users;
 }
@@ -56,13 +58,16 @@ export class BrandsController {
   }
 
   @Get('/')
-  async findAll(@Res() res: IExpressResponse) {
+  async findAll(@Res() res: IExpressResponse, @Query() query: QueryParamsDto) {
     try {
-      const brands = await this.brandsService.findAll();
+      const {data, page, skip, take, total} = await this.brandsService.findAll(query);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Data',
-        data: brands,
+        data,
+        page,
+        skip,
+        total
       });
     } catch (error) {
       return res.status(400).json({

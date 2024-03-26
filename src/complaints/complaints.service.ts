@@ -155,6 +155,9 @@ export class ComplaintsService {
         },
       },
     });
+    const total = await this.dbService.complaints.count({
+      where
+    })
     const complaintGrandTotal = await this.dbService.complaints.findMany({
       include: {
         orders: true,
@@ -190,6 +193,10 @@ export class ComplaintsService {
 
     return {
       complaint,
+      total,
+      page,
+      take,
+      skip,
       complaintGrandTotal,
       monthlyComplaint
     };

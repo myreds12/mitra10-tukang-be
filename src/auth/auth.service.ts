@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma, users } from '@prisma/client';
 import { PermissionAction } from 'src/casl/enum/permission-action.enum';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 // import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()
@@ -294,8 +295,13 @@ export class AuthService {
     return userUpdate
   }
 
-  async findAll(){
+  async findAll(query: QueryParamsDto){
+    const {page, take,  search} = query;
+    const skip = page * take - take;
+
     const user = await this.dbService.users.findMany({
+      skip,
+      take: take > 0 ? take : undefined,
       include: {
         employee: true,
         roles: true,
