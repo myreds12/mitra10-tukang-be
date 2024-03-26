@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { existsSync, readFileSync } from 'fs';
 
-export default registerAs('spreadsheets', () => {
+export default registerAs('SPREADSHEETS', () => {
   const filePath = './config/spreadsheets.json';
 
   if (!existsSync(filePath)) {
@@ -14,8 +14,10 @@ export default registerAs('spreadsheets', () => {
   const file = readFileSync(filePath);
   const data = JSON.parse(file.toString());
 
-  console.log(data);
-  
+  const upperKeyData = Object.keys(data).reduce((result, key) => {
+    result[key.toUpperCase()] = data[key];
+    return result;
+  }, {});
 
-  return data;
+  return upperKeyData;
 });
