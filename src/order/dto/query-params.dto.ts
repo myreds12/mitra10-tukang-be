@@ -51,8 +51,6 @@ export class QueryParamsDto {
   @Transform((value) => value.value.split(',').map(Number))
   @Type(() => String)
   store_id?: number[];
-
-  storeId: number;
   
   @IsOptional()
   @IsString()

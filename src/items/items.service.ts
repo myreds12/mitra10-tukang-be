@@ -236,6 +236,8 @@ export class ItemsService {
             periodic_end: true,
             price_stores: {
               select: {
+                id: true,
+                store_id: true,
                 store: {
                   select: {
                     store_name: true,
