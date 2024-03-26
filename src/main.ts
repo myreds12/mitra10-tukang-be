@@ -9,6 +9,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: true,
   });
+
   const swaggerConfig = new DocumentBuilder()
     .setTitle('INSTALASI REST API')
     .setDescription('The Instalasi REST API Documentation')

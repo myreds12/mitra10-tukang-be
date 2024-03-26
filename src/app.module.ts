@@ -36,11 +36,11 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { PugAdapter } from '@nestjs-modules/mailer/dist/adapters/pug.adapter';
 import { BrandsModule } from './brands/brands.module';
 import { RescheduleModule } from './reschedule/reschedule.module';
-import { GoogleSheetModule } from 'nest-google-sheet-connector';
 import { CsiModule } from './csi/csi.module';
 import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
 import { EmailMessagesModule } from './email-messages/email-messages.module';
+import { ConfigModule } from '@nestjs/config';
 
 // TODO : Dynamic for production Setu
 const user = 'f22c1f963daf4c';
@@ -50,6 +50,12 @@ const transporter = 'smtps';
 const query = '?pool=true';
 const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${query}`;
 
+const spreadsheetsConfig = {
+  provide: 'SPREADSHEETS_CONFIG',
+  useFactory: () => {
+    const configFile = 'config/spreadsheets.json';
+  }
+}
 @Module({
   imports: [
     PrismaModule,
@@ -109,7 +115,7 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
       template: {
         dir: join(process.cwd(), '/templates/'),
         adapter: new PugAdapter({
-          inlineCssEnabled: false
+          inlineCssEnabled: false,
         }),
         options: {
           strict: true,
@@ -120,10 +126,13 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
     CsiModule,
     StoreGroupModule,
     EmailMessagesModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
 })
-export class AppModule { }
+export class AppModule {}

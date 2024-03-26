@@ -28,6 +28,7 @@
     "@nestjs-modules/mailer": "^1.9.1",
     "@nestjs/axios": "^3.0.1",
     "@nestjs/common": "^9.0.0",
+    "@nestjs/config": "^3.2.1",
     "@nestjs/core": "^9.0.0",
     "@nestjs/event-emitter": "^2.0.2",
     "@nestjs/jwt": "^10.1.0",
