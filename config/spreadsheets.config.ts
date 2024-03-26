@@ -10,13 +10,9 @@ export default registerAs('spreadsheets', () => {
     );
     process.exit(1);
   }
-  const spreadsheetsConfig = {};
+
   const file = readFileSync(filePath);
   const data = JSON.parse(file.toString());
 
-  for (const key in data) {
-    spreadsheetsConfig[key] = data[key]
-  }
-
-  return spreadsheetsConfig
+  return data;
 });

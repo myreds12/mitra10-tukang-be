@@ -41,6 +41,7 @@ import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
 import { EmailMessagesModule } from './email-messages/email-messages.module';
 import { ConfigModule } from '@nestjs/config';
+import spreadsheetsConfig from 'config/spreadsheets.config';
 
 // TODO : Dynamic for production Setu
 const user = 'f22c1f963daf4c';
@@ -50,12 +51,6 @@ const transporter = 'smtps';
 const query = '?pool=true';
 const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${query}`;
 
-const spreadsheetsConfig = {
-  provide: 'SPREADSHEETS_CONFIG',
-  useFactory: () => {
-    const configFile = 'config/spreadsheets.json';
-  }
-}
 @Module({
   imports: [
     PrismaModule,
@@ -128,6 +123,7 @@ const spreadsheetsConfig = {
     EmailMessagesModule,
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [spreadsheetsConfig],
     }),
   ],
   controllers: [AppController],
