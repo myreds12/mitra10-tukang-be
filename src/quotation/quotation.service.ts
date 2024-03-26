@@ -5,12 +5,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class QuotationService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
+    private readonly sendMail: SendEmailService
   ) {}
 
   //TODO: FILE UPLOAD => DONE
@@ -145,6 +147,8 @@ export class QuotationService {
       quotation.quotation_status,
       user,
     );
+
+    await this.sendMail.sendQuotationMail(quotation.id);
     return {quotation, sales_comission: comission ?? 0};
   }
 
