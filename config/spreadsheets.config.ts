@@ -14,5 +14,8 @@ export default registerAs('spreadsheets', () => {
   const file = readFileSync(filePath);
   const data = JSON.parse(file.toString());
 
+  console.log(data);
+  
+
   return data;
 });

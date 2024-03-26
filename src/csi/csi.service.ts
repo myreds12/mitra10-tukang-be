@@ -104,6 +104,8 @@ export class CsiService {
   }
 
   async fetchGFormAnswers(id: string) {
+    console.log(process.env.spreadsheets);
+    
     const spreadsheetInstances =
       this.googleSheetConnectorService.getGoogleSheetConnect();
 
@@ -134,7 +136,7 @@ export class CsiService {
     return parsedData;
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   async syncAnswer() {
     this.logger.verbose('Syncing CSI answers');
 
