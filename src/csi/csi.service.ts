@@ -104,8 +104,6 @@ export class CsiService {
   }
 
   async fetchGFormAnswers(id: string) {
-    console.log(process.env.spreadsheets);
-    
     const spreadsheetInstances =
       this.googleSheetConnectorService.getGoogleSheetConnect();
 
