@@ -6,10 +6,12 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { OrderService } from 'src/order/order.service';
 import { OrderModule } from 'src/order/order.module';
+import { StatusService } from 'src/status/status.service';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Module({
   controllers: [QuotationController],
-  providers: [QuotationService],
+  providers: [QuotationService, StatusService, SendEmailService],
   imports: [
     OrderModule,
     MulterModule.register({

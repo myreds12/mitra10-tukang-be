@@ -26,9 +26,7 @@ export class SendEmailService {
     const message = await this.dbService.email_messages.findFirst({
       where: {
         is_active: true,
-        email_type: {
-          contains: 'order',
-        },
+        email_type: 1,
       },
       include: {
         terms_detail: true,
@@ -63,7 +61,7 @@ export class SendEmailService {
   }
 
   async sendMailResetPassword(user_id: number) {
-    const data = await this.dbService.users.findFirst({
+    const users = await this.dbService.users.findFirst({
       where: {
         id: user_id,
       },
@@ -75,13 +73,28 @@ export class SendEmailService {
       },
     });
 
-    let to = data.username.includes('@')
-      ? data.username
-      : data.employee?.email ??
-      data.vendor?.email_address ??
-      data.tukang[0]?.email ??
+    const message = await this.dbService.email_messages.findFirst({
+      where: {
+        is_active: true,
+        email_type: 3,
+      },
+      include: {
+        terms_detail: true,
+        information_detail: true
+      }
+    });
+
+    let to = users.username.includes('@')
+      ? users.username
+      : users.employee?.email ??
+      users.vendor?.email_address ??
+      users.tukang[0]?.email ??
       'example@example.com';
     console.log(to);
+    const data = {
+      users,
+      message
+    }
 
     await this.mailerService.sendMail({
       to,
@@ -126,6 +139,75 @@ export class SendEmailService {
       template: 'credential-mail',
       context: { data },
       // html: pug.renderFile('templates/credential-mail.pug', { data }),
+    });
+  }
+
+  async sendQuotationMail(quotation_id: number){
+    const quotation = await this.dbService.quotation.findFirst({
+      where: {
+        id: quotation_id,
+        deleted_at: null,
+      },
+      include: {
+        quotation_files: true,
+        quotation_details: {
+          include: {
+            category: true,
+          },
+        },
+        order: {
+          include: {
+            m_order_details: true,
+            members: true,
+            vendor: true,
+            work_orders: {
+              include: {
+                work_order_evidences: true,
+                work_order_status: {
+                  orderBy: {
+                    id: 'desc',
+                  },
+                  include: {
+                    work_order_items: {
+                      orderBy: {
+                        id: 'desc',
+                      },
+                    },
+                  },
+                },
+                work_order_tukang: true,
+                status: true,
+              },
+            },
+          },
+        },
+        status: true,
+        store: true,
+      },
+    });
+
+    const message = await this.dbService.email_messages.findFirst({
+      where: {
+        email_type: 4,
+        is_active: true
+      },
+      include: {
+        information_detail: true,
+        terms_detail: true
+      }
+    });
+
+    const data = {
+      quotation,
+      message
+    }
+
+    await this.mailerService.sendMail({
+      to: data.quotation.order.members.email, // list of receivers
+      from: 'noreply@mitra10.com', // sender address
+      subject: 'Email Order', // Subject line
+      template: 'quotation',
+      context: { data },
     });
   }
 }

@@ -1327,7 +1327,7 @@ model csi_template {
 model email_messages {
   id Int @id @default(autoincrement())
 
-  email_type     String @db.VarChar(50)
+  email_type     Int? 
   greetings      String @db.Text
   welcome_header String @db.Text
   footer         String @db.Text

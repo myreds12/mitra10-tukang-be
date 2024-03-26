@@ -1,10 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsOptional, IsString } from "class-validator";
+import { IsEnum, IsOptional, IsString } from "class-validator";
+import { EmailMessageType } from "../enum/email-message.enum";
 
 export class CreateEmailMessageDto {
   @ApiProperty()
-  email_type: string;
+  @IsEnum(EmailMessageType)
+  email_type: EmailMessageType;
 
   greetings: string;
 
