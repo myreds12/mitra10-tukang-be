@@ -122,9 +122,15 @@ export class RescheduleService {
       where,
       skip,
       take: take <= 0 ? undefined : take,
-      orderBy: {
-        created_at: order_by ?? 'desc'
-      },
+      ...(order_by ? {
+        orderBy: {
+          created_at: order_by
+        }
+      }: {
+        orderBy: {
+          created_at: 'desc'
+        },
+      }),
       include: {
         status: true,
         reschedule_status: {
