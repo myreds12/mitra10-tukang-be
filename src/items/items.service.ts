@@ -99,7 +99,7 @@ export class ItemsService {
 
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     const { id, role_id } = user;
-    const { search, take, page, skip, group_by, all_store, store_id, is_free } = queryParamsDto;
+    const { search, take, page, group_by, all_store, store_id, is_free } = queryParamsDto;
     const category_id = +search ? Number.parseInt(search) : undefined;
     const now = new Date();
 
@@ -118,6 +118,8 @@ export class ItemsService {
         },
       },
     });
+    const skip = page * take - take;
+
 
     const where: Prisma.itemsWhereInput = {
         AND: [
@@ -179,7 +181,7 @@ export class ItemsService {
       };
 
     const itemsOptions: Prisma.itemsFindManyArgs = {
-      skip: skip ?? 0,
+      skip,
       take: take > 0 ? take : undefined,
       where,
       include: {

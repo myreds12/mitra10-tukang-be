@@ -79,7 +79,7 @@ export class VendorService {
         };
       });
 
-    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.company_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
+    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.email_address}`; 
     const users = await this.dbService.users.create({
       data: {
         username,

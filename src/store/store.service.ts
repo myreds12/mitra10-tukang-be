@@ -113,9 +113,14 @@ export class StoreService {
       },
     });
 
+    const total = await this.dbService.store.count({
+      where
+    })
+
     return {
       data: store,
-      total: store.length,
+      total,
+      skip,
       page,
       take,
     };
@@ -144,18 +149,54 @@ export class StoreService {
           id,
         },
         data: {
-          ...dto,
+          store_name: dto.store_name,
+          store_group_id: dto.store_group_id,
+          bank_name: dto.bank_name,
+          bank_account: dto.bank_account,
+          bank_number: dto.bank_number,
+          email: dto.email,
+          phone_number_1: dto.phone_number_1,
+          phone_number_2: dto.phone_number_2,
+          address: dto.address,
+          additional_address: dto.additional_address,
+          city_id: dto.city_id,
+          zip_code: dto.zip_code,
           updated_by: user_id,
           updated_at: new Date(),
         },
       });
+      
+
+      const role = await this.dbService.roles.findFirst({
+        where: {
+          name: {
+            equals: 'Store CS',
+          },
+        },
+      });
+      const username = dto.default_username ? dto.default_username : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
+      const user = await this.dbService.users.create({
+        data: {
+          username,
+          password: await hash(dto?.default_password ?? 'password', 10),
+          role_id: role.id,
+        },
+      });
+
+      await this.sendMailService.sendCredentialMail(
+        username,
+        dto.default_password,
+      );
 
       return {
         status: HttpStatus.CREATED,
         data: store,
+        user,
         message: 'Successfully Update Data',
       };
     } catch (error) {
+      console.log(error);
+      
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to update data',
@@ -180,6 +221,8 @@ export class StoreService {
         message: 'Successfully delete store',
       };
     } catch (error) {
+      console.log(error);
+      
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to delete store',
