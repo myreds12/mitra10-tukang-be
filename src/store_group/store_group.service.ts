@@ -33,7 +33,7 @@ export class StoreGroupService {
         store_group_id: storeByGroup.id
       },
       include: {
-        city: true,
+        area: true,
         store_group: true
       }
     });

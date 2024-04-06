@@ -20,6 +20,8 @@ class VendorBank {
   @Type(() => Number)
   bank_id: number;
 
+
+
   account_name: string;
   account_number: string;
 }
@@ -33,7 +35,7 @@ class VendorArea {
   @ApiProperty()
   @IsNumber()
   @Type(() => Number)
-  city_id: number;
+  area_id: number;
 
   @IsNotEmpty()
   default_discount: string;
@@ -116,6 +118,10 @@ export class UpdateVendorDto {
   @Type(() => VendorStore)
   @ValidateNested({ each: true })
   vendor_store: VendorStore[]
+
+  @IsOptional()
+  @IsString()
+  pic_name?: string;
 }
 
 class VendorStore{

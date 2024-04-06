@@ -28,7 +28,7 @@ export class StoreService {
           phone_number_2: dto.phone_number_2,
           address: dto.address,
           additional_address: dto.additional_address,
-          city_id: dto.city_id,
+          area_id: dto.area_id,
           zip_code: dto.zip_code,
           created_by: user_id,
         },
@@ -89,7 +89,7 @@ export class StoreService {
         ...(city_id
           ? [
               {
-                OR: [{ city_id: { equals: city_id } }],
+                OR: [{ area_id: { equals: city_id } }],
               },
             ]
           : []),
@@ -109,7 +109,7 @@ export class StoreService {
       skip,
       take: take <= 0 ? undefined : take,
       include: {
-        city: true,
+        area: true,
       },
     });
 
@@ -159,7 +159,7 @@ export class StoreService {
           phone_number_2: dto.phone_number_2,
           address: dto.address,
           additional_address: dto.additional_address,
-          city_id: dto.city_id,
+          area_id: dto.area_id,
           zip_code: dto.zip_code,
           updated_by: user_id,
           updated_at: new Date(),

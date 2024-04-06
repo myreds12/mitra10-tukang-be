@@ -201,7 +201,7 @@ export class ItemsService {
                   select: {
                     id: true,
                     store_name: true,
-                    city: true, 
+                    area: true, 
                   },
                 },
               },

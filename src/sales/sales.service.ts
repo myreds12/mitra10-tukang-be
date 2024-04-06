@@ -109,7 +109,7 @@ export class SalesService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { search, take, page, date_from, date_to, order_by, top_best  } = query;
+    const { search, take, page, date_from, date_to, order_by, top_best, store_id  } = query;
     const skip = page * take - take;
 
     const where: Prisma.salesWhereInput = {
@@ -135,6 +135,15 @@ export class SalesService {
                     },
                   },
                 ],
+              },
+            ]
+          : []),
+        ...(store_id
+          ? [
+              {
+                store_id: {
+                  in : store_id
+                },
               },
             ]
           : []),

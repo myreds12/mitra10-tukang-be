@@ -15,7 +15,7 @@ export class CreateStoreDto {
   address: string;
 
   @IsInt()
-  city_id: number;
+  area_id: number;
 
   @IsString()
   @IsNotEmpty()
