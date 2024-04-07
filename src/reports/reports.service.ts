@@ -99,7 +99,7 @@ export class ReportsService {
             work_order_evidences: true,
             work_order_tukang: {
               include: {
-              tukang: true,
+                tukang: true,
               },
               where: {
                 deleted_at: null,
@@ -527,8 +527,17 @@ export class ReportsService {
     const skip = page * take - take;
 
     const statuses = await this.dbService.status.findMany();
+    console.log(statuses);
+    
 
-    const statusCancel = statuses.find((i) => i.category.toLocaleLowerCase().includes("cancel"))
+    const statusCancel = statuses.find((i) => i.category.toLocaleLowerCase().includes("cancel"));
+    const statusComplaintApprovedByHo = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintapprovedbyho"));
+    const statusComplaintApprovedByVendor = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintapprovedbyvendor"));
+    const statusRejectByHo = statuses.find((i) => i.category.toLocaleLowerCase().includes("rejectbyho"));
+    const statusRejectByVendor = statuses.find((i) => i.category.toLocaleLowerCase().includes("rejectbyvendor"));
+    const statusReworkStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("reworkstart"));
+    const statusReworkReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("reworkreq"));
+    const statusReworkEnd = statuses.find((i) => i.category.toLocaleLowerCase().includes("reworkend"));
     const where: Prisma.complaintsWhereInput = {
       AND: [
         status ? { status: { id: { in: status } } } : null,
@@ -540,7 +549,7 @@ export class ReportsService {
         }] : []),
         ...(vendor_id ? [{
           orders: {
-            vendor_id :{
+            vendor_id: {
               equals: vendor_id
             }
           }
@@ -594,6 +603,13 @@ export class ReportsService {
     const totalComplaintPerMonth = {};
     const totalComplaintGrandTotalPerMonth = {};
     const totalCancelComplaintPerMonth = {};
+    const totalApprovedByHOComplaintPerMonth = {};
+    const totalApprovedByVendorComplaintPerMonth = {};
+    const totalRejectByVendorComplaintPerMonth = {};
+    const totalRejectByHOComplaintPerMonth = {};
+    const totalReworkStartComplaintPerMonth = {};
+    const totalReworkEndComplaintPerMonth = {};
+    const totalReworkReqComplaintPerMonth = {};
     const complaintMonth = {};
     const allMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -611,8 +627,29 @@ export class ReportsService {
         totalComplaintPerMonth[month] = 0;
       }
 
-      if (complaint.status.category === statusCancel.category) {
+      if (complaint.status.category.toLocaleLowerCase() === statusCancel.category) {
         totalCancelComplaintPerMonth[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusComplaintApprovedByHo.category) {
+        totalApprovedByHOComplaintPerMonth[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusComplaintApprovedByVendor.category) {
+        totalApprovedByVendorComplaintPerMonth[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusRejectByHo.category) {
+        statusRejectByHo[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusRejectByVendor.category) {
+        statusRejectByVendor[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusReworkStart.category) {
+        statusReworkStart[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusReworkReq.category) {
+        statusReworkReq[month]++;
+      }
+      if (complaint.status.category.toLocaleLowerCase() === statusReworkEnd.category) {
+        statusReworkEnd[month]++;
       }
 
       totalComplaintPerMonth[month]++;
@@ -626,6 +663,13 @@ export class ReportsService {
       totalOrder: totalComplaintPerMonth[month] || 0,
       totalOrderGrandTotalPerMonth: totalComplaintGrandTotalPerMonth[month] || 0,
       totalCancelComplaint: totalCancelComplaintPerMonth,
+      totalApprovedByHO: totalApprovedByHOComplaintPerMonth,
+      totalApprovedByVendor: totalApprovedByVendorComplaintPerMonth,
+      totalRejectByHo: totalRejectByHOComplaintPerMonth,
+      totalRejectByVendor: totalRejectByVendorComplaintPerMonth,
+      totalReworkStart: totalReworkStartComplaintPerMonth,
+      totalReworkReq: totalReworkReqComplaintPerMonth,
+      totalReworkEnd: totalReworkEndComplaintPerMonth,
       complaintMonth: complaintMonth[month] || []
     }));
 
@@ -696,8 +740,8 @@ export class ReportsService {
     const ordersMonth = {};
     const totalCompleteOrderPerMonth = {};
     const totalWorkStartWorkOrdersPerMonth = {};
-    const totalSurveyStartOrderPerMonth = {};
-    const totalSurveyReqOrderPerMonth = {};
+    const totalWIPOrderPerMonth = {};
+    const totalWorkEndOrderPerMonth = {};
     const allMonths = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
@@ -705,8 +749,8 @@ export class ReportsService {
     allMonths.forEach(month => {
       totalWorkStartWorkOrdersPerMonth[month] = 0;
       totalCompleteOrderPerMonth[month] = 0;
-      totalSurveyStartOrderPerMonth[month] = 0;
-      totalSurveyReqOrderPerMonth[month] = 0;
+      totalWIPOrderPerMonth[month] = 0;
+      totalWorkEndOrderPerMonth[month] = 0;
     });
 
     workOrders.forEach(order => {
@@ -727,11 +771,15 @@ export class ReportsService {
         totalWorkStartWorkOrdersPerMonth[month]++;
       }
       if (order.status.category === statusWIP.category) {
-        totalSurveyStartOrderPerMonth[month]++;
+        totalWIPOrderPerMonth[month]++;
       }
       if (order.status.category === statusWorkEnd.category) {
-        totalSurveyReqOrderPerMonth[month]++;
+        totalWorkEndOrderPerMonth[month]++;
       }
+    });
+    const grandTotalSurveyOrderPerMonth = {};
+    allMonths.forEach(month => {
+      grandTotalSurveyOrderPerMonth[month] = ordersMonth[month] ? ordersMonth[month].filter(order => order.status.category.includes("survey")).length : 0;
     });
 
     const monthlyWorkOrders = allMonths.map(month => ({
@@ -739,8 +787,9 @@ export class ReportsService {
       totalOrder: totalWorkOrdersPerMonth[month] || 0,
       totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0,
       totalUnpaidOrder: totalWorkStartWorkOrdersPerMonth[month] || 0,
-      totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0,
-      totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0,
+      totalWIPOrder: totalWIPOrderPerMonth[month] || 0,
+      totalWorkEndOrder: totalWorkEndOrderPerMonth[month] || 0,
+      totalSurveyOrder: grandTotalSurveyOrderPerMonth[month] || 0,
       workOrdersMonth: ordersMonth[month] || [],
 
     }));
@@ -777,18 +826,18 @@ export class ReportsService {
     });
 
     const tukangInvoiceSummary = await Promise.all(tukang.map(async tukangItem => {
-      
+
       const totalInvoices = await this.dbService.invoices.aggregate({
         where: {
           invoice_orders: {
             some: {
               orders: {
-                work_orders:{
-                    work_order_tukang: {
-                      some: {
-                        tukang_id: tukangItem.id
-                      }
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukangItem.id
                     }
+                  }
                 }
               }
             }
@@ -798,10 +847,10 @@ export class ReportsService {
           total_quotation_grand_total: true
         }
       });
-  
+
       const totalQuotations = await this.dbService.quotation.aggregate({
         where: {
-          order:{
+          order: {
             work_orders: {
               work_order_tukang: {
                 some: {
@@ -815,20 +864,20 @@ export class ReportsService {
           quotation_grand_total: true
         }
       });
-  
+
       return {
         tukang: tukangItem,
         totalInvoices: totalInvoices._sum?.total_quotation_grand_total || 0,
         totalQuotations: totalQuotations._sum?.quotation_grand_total || 0
       };
     }));
-  
+
     return tukangInvoiceSummary;
   }
 
 
-  async reportVendor(query: QueryParamsDto){
-    const  vendors = await this.dbService.vendor.findMany({
+  async reportVendor(query: QueryParamsDto) {
+    const vendors = await this.dbService.vendor.findMany({
       include: {
         orders: {
           include: {
@@ -843,7 +892,7 @@ export class ReportsService {
       const totalGrandTotal = vendor.orders.reduce((acc, order) => {
         return acc + Number(order.grand_total);
       }, 0);
-    
+
       return {
         vendor,
         totalOrders: totalOrders,
