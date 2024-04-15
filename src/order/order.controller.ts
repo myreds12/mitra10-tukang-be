@@ -51,7 +51,6 @@ export class OrderController {
   ) {}
 
   @Get('/check')
-  @UseGuards()
   async getOrderDetailPublic(
     @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse,
@@ -63,10 +62,18 @@ export class OrderController {
 
       return res.status(200).json({
         status: HttpStatus.OK,
-        message: 'Url Order Tracking',
+        message: 'Success',
         redirect_url,
       });
     } catch (error) {
+      console.log(error);
+      if (error instanceof NotFoundException) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          status: HttpStatus.NOT_FOUND,
+          messages: error.message,
+        });
+      }
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         messages: error.message,

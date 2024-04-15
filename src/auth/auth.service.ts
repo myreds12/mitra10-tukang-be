@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -17,7 +22,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     const user = await this.dbService.users.findFirst({
@@ -45,12 +50,12 @@ export class AuthService {
     throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
   }
 
-  async updateUser(id: number, dto: CreateRegisterDto){
+  async updateUser(id: number, dto: CreateRegisterDto) {
     const user = await this.dbService.users.findFirst({
       where: {
-        id
-      }
-    })
+        id,
+      },
+    });
 
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
@@ -58,21 +63,21 @@ export class AuthService {
 
     const update = await this.dbService.users.update({
       where: {
-        id
+        id,
       },
       data: {
         username: dto.username,
-        password: await hash(dto.password, 12)
-      }
-    })
-    return update
+        password: await hash(dto.password, 12),
+      },
+    });
+    return update;
   }
 
-  async deleteUser(id: number){
+  async deleteUser(id: number) {
     const user = await this.dbService.users.findFirst({
       where: {
-        id
-      }
+        id,
+      },
     });
 
     if (!user) {
@@ -81,8 +86,8 @@ export class AuthService {
 
     const deleteUser = await this.dbService.users.delete({
       where: {
-        id
-      }
+        id,
+      },
     });
     return deleteUser;
   }
@@ -125,9 +130,9 @@ export class AuthService {
               select: {
                 id: true,
                 store_name: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
         vendor: true,
       },
@@ -172,36 +177,41 @@ export class AuthService {
       },
     });
   }
- 
-  async updatePassword(username: string, dto: ResetPasswordDto){
+
+  async updatePassword(username: string, dto: ResetPasswordDto) {
     const user = await this.dbService.users.findFirst({
       where: {
-        username
-      }
+        username,
+      },
     });
-    if(!user) throw new NotFoundException('User Not Found!')
-    if (user.forget_password && new Date(user.forget_password) < new Date(new Date().getTime() - (2 * 60 * 60 * 1000))) {
+    if (!user) throw new NotFoundException('User Not Found!');
+    if (
+      user.forget_password &&
+      new Date(user.forget_password) <
+        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+    ) {
       await this.dbService.users.update({
         where: {
-          id: user.id
+          id: user.id,
         },
         data: {
-          forget_password: null
-      }})
+          forget_password: null,
+        },
+      });
       throw new Error('Forget password link has expired');
-  }
+    }
 
     const updatePassword = await this.dbService.users.update({
       where: {
-        id: user.id
+        id: user.id,
       },
       data: {
         password: await hash(dto.password, 14),
-        forget_password: null
-      }
-    })
+        forget_password: null,
+      },
+    });
 
-    return updatePassword
+    return updatePassword;
   }
 
   async generateJwt(
@@ -266,40 +276,39 @@ export class AuthService {
       name: PermissionAction[x.permissions.name.toUpperCase()],
     }));
 
-
-
     return permissions;
   }
 
-
-  async resetPassword(username: string){
+  async resetPassword(username: string) {
     const user = await this.dbService.users.findFirst({
       where: {
-        username:  username,
-      }
-    })
+        username: username,
+      },
+    });
 
-    if(!user) throw new NotFoundException('User Not Found!!')
+    if (!user) throw new NotFoundException('User Not Found!!');
     console.log(new Date());
-    
 
     const userUpdate = await this.dbService.users.update({
       where: {
-        id:  user.id,
+        id: user.id,
       },
       data: {
-        forget_password: new Date()
-      }
-    })
+        forget_password: new Date(),
+      },
+    });
 
-    return userUpdate
+    return userUpdate;
   }
 
-  async findAll(query: QueryParamsDto){
-    const {page, take,  search} = query;
+  async findAll(query: QueryParamsDto) {
+    const { page, take, search } = query;
     const skip = page * take - take;
 
     const user = await this.dbService.users.findMany({
+      where: {
+        deleted_at: null,
+      },
       skip,
       take: take > 0 ? take : undefined,
       include: {
@@ -307,37 +316,37 @@ export class AuthService {
         roles: true,
         sales: true,
         tukang: true,
-        vendor: true
+        vendor: true,
       },
       orderBy: {
-        created_at: 'desc'
-      }
+        created_at: 'desc',
+      },
     });
 
-    return user
+    return user;
   }
 
-  async findOne(id:number){
+  async findOne(id: number) {
     const user = await this.dbService.users.findFirst({
       where: {
-        id
-      }
+        id,
+      },
     });
 
-    if(!user) throw new NotFoundException('User Not Found!!')
+    if (!user) throw new NotFoundException('User Not Found!!');
 
-    return user
+    return user;
   }
 
-  async getUsers(username: string){
+  async getUsers(username: string) {
     const user = await this.dbService.users.findFirst({
       where: {
-        username: username
-      }
-    })
+        username: username,
+      },
+    });
 
-    if(!user) throw new NotFoundException('User Not Found!!')
+    if (!user) throw new NotFoundException('User Not Found!!');
 
-    return user
+    return user;
   }
 }
