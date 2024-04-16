@@ -35,9 +35,9 @@ export class VendorService {
       : undefined;
 
     const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
-      createVendorDto.city_id
-        ? createVendorDto.city_id.map((city_id) => ({
-            city_id,
+      createVendorDto.area_id
+        ? createVendorDto.area_id.map((area_id) => ({
+            area_id,
             default_discount: createVendorDto.discount,
             default_markup: createVendorDto.markup,
             created_by: user_id,
@@ -79,7 +79,7 @@ export class VendorService {
         };
       });
 
-    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.company_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
+    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.email_address}`; 
     const users = await this.dbService.users.create({
       data: {
         username,
@@ -95,6 +95,7 @@ export class VendorService {
         },
       },
       address: createVendorDto.address,
+      pic_name: createVendorDto.pic_name,
       company_name: createVendorDto.company_name,
       email_address: createVendorDto.email_address,
       phone_number: createVendorDto.phone_number,
@@ -201,7 +202,7 @@ export class VendorService {
         users: true,
         vendor_area: {
           include: {
-            city: true,
+            area: true,
           },
         },
         vendor_bank: {
@@ -229,8 +230,8 @@ export class VendorService {
                 email: true,
                 phone_number_1: true,
                 phone_number_2: true,
-                city_id: true,
-                city: true,
+                area_id: true,
+                area: true,
               },
             },
           },
@@ -255,7 +256,7 @@ export class VendorService {
         users: true,
         vendor_area: {
           include: {
-            city: true,
+            area: true,
           },
         },
         vendor_bank: {
@@ -284,8 +285,8 @@ export class VendorService {
                 email: true,
                 phone_number_1: true,
                 phone_number_2: true,
-                city_id: true,
-                city: true,
+                area_id: true,
+                area: true,
               },
             },
           },
@@ -360,14 +361,14 @@ export class VendorService {
           vendor_id: id,
         },
         create: {
-          city_id: item.city_id,
+          area_id: item.area_id,
           default_discount: item.default_discount,
           default_markup: item.default_markup,
           default_unit: item.default_unit,
           created_by: user_id,
         },
         update: {
-          city_id: item.city_id,
+          area_id: item.area_id,
           default_discount: item.default_discount,
           default_markup: item.default_markup,
           default_unit: item.default_unit,
@@ -385,6 +386,7 @@ export class VendorService {
       //   },
       // },
       address: updateVendorDto.address,
+      pic_name: updateVendorDto.pic_name,
       company_name: updateVendorDto.company_name,
       email_address: updateVendorDto.email_address,
       phone_number: updateVendorDto.phone_number,
@@ -450,7 +452,7 @@ export class VendorService {
             NOT: updateVendorDto.vendor_area
               ? updateVendorDto.vendor_area.map((item) => {
                   return {
-                    city_id: item.city_id,
+                    area_id: item.area_id,
                   };
                 })
               : undefined,

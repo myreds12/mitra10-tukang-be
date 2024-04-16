@@ -99,8 +99,14 @@ export class StoreController {
     @Body() updateStoreDto: UpdateStoreDto,
     @Request() req,
   ) {
-    const user_id = req.user.id;
-    return this.storeService.update(+id, updateStoreDto, user_id);
+    try{
+
+      const user_id = req.user.id;
+      return this.storeService.update(+id, updateStoreDto, user_id);
+    }catch(err){
+      console.log(err);
+      
+    }
   }
 
   @Delete('/:id')

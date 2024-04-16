@@ -35,7 +35,7 @@ export class CreateVendorDto {
   @IsOptional()
   @ApiProperty({ type: [Number] })
   @Type(() => Number)
-  city_id?: number[];
+  area_id?: number[];
 
   @IsOptional()
   @ApiProperty({ type: [Number] })

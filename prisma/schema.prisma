@@ -24,6 +24,17 @@ model bank {
   vendor_bank vendor_bank[]
 }
 
+model area {
+  id          Int           @id @default(autoincrement())
+  area        String        @db.VarChar(50)
+  created_at  DateTime      @default(now()) @db.DateTime()
+  updated_at  DateTime?     @db.DateTime()
+  deleted_at  DateTime?     @db.DateTime()
+  members     members[]
+  store       store[]
+  vendor_area vendor_area[]
+}
+
 model city {
   id          Int    @id @default(autoincrement())
   province_id Int?
@@ -37,9 +48,7 @@ model city {
   updated_by Int?
   deleted_by Int?
 
-  province    province?     @relation(fields: [province_id], references: [id])
-  vendor_area vendor_area[]
-  store       store[]
+  province province? @relation(fields: [province_id], references: [id])
 }
 
 model employee {
@@ -107,7 +116,7 @@ model logs {
 
 model members {
   id            Int     @id @default(autoincrement())
-  city_id       Int?
+  area_id       Int?    @default(0)
   join_location Int?
   member_number String? @db.VarChar(20)
 
@@ -129,7 +138,8 @@ model members {
   deleted_by Int?
 
   order               orders[]
-  join_location_store store?   @relation(fields: [join_location], references: [id])
+  join_location_store store?   @relation(fields: [join_location], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  area                area?    @relation(fields: [area_id], references: [id])
 }
 
 model menus {
@@ -347,8 +357,8 @@ model service_type {
 }
 
 model store {
-  id             Int  @id @default(autoincrement())
-  city_id        Int?
+  id      Int  @id @default(autoincrement())
+  area_id Int? @default(0)
   store_group_id Int? @map("store_groupId")
 
   email              String  @default("")
@@ -376,16 +386,33 @@ model store {
   quotation quotation[]
   members   members[]
 
-  city         city?          @relation(fields: [city_id], references: [id])
+  area         area?          @relation(fields: [area_id], references: [id])
   store_group  store_group?   @relation(fields: [store_group_id], references: [id])
   price_stores price_stores[]
   vendor_store vendor_store[]
 }
 
+// model group {
+//   id Int @id @default(autoincrement())
+
+//   name String @db.VarChar(255)
+
+//   created_at DateTime  @default(now()) @db.DateTime()
+//   updated_at DateTime? @db.DateTime()
+//   deleted_at DateTime? @db.DateTime()
+
+//   created_by Int?
+//   updated_by Int?
+//   deleted_by Int?
+// }
+
 model store_group {
   id Int @id @default(autoincrement())
-
+  
   group_name String @db.VarChar(255)
+
+  // store_id Int
+  // group_id Int
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -467,6 +494,7 @@ model tukang_service {
 model vendor {
   id            Int       @id @default(autoincrement())
   user_id       Int?      @unique
+  pic_name      String    @default("") @db.VarChar(200)
   company_name  String    @db.VarChar(45)
   address       String    @db.VarChar(200)
   phone_number  String    @db.VarChar(30)
@@ -515,7 +543,7 @@ model vendor_store {
 model vendor_area {
   id               Int       @id @default(autoincrement())
   vendor_id        Int?
-  city_id          Int?
+  area_id          Int?      @default(0)
   default_discount Decimal   @default(0) @db.Decimal(32, 2)
   default_markup   String    @db.VarChar(45)
   default_unit     String    @default("unit") @db.VarChar(45)
@@ -527,7 +555,7 @@ model vendor_area {
   updated_by       Int?
   deleted_by       Int?
   vendor           vendor?   @relation(fields: [vendor_id], references: [id])
-  city             city?     @relation(fields: [city_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  area             area?     @relation(fields: [area_id], references: [id])
 }
 
 model vendor_bank {
@@ -1327,7 +1355,7 @@ model csi_template {
 model email_messages {
   id Int @id @default(autoincrement())
 
-  email_type     Int?  @default(1)
+  email_type     Int?   @default(1)
   greetings      String @db.Text
   welcome_header String @db.Text
   footer         String @db.Text
