@@ -1092,8 +1092,7 @@ export class OrderService {
   }
 
   async orderDetailsPublic(query: QueryParamsDto) {
-    const { order_id, phone_number, email_member, date_from, date_to } = query;
-    console.log(order_id, phone_number, email_member);
+    const { order_id, phone_number, email_member, member_number,date_from, date_to } = query;
     
     const where: Prisma.ordersWhereInput = {
       AND: [
@@ -1113,11 +1112,20 @@ export class OrderService {
             },
           ]
           : []),
+        ...(member_number
+          ? [
+            {
+              members: {
+                member_number: member_number,
+              },
+            },
+          ]
+          : []),
         ...(phone_number
           ? [
             {
               members: {
-                member_number: phone_number,
+                phone_number: phone_number,
               },
             },
           ]
@@ -1224,6 +1232,8 @@ export class OrderService {
         },
       },
     });
+    console.log();
+    
 
     if (!order) throw new NotFoundException('Order not found !');
 

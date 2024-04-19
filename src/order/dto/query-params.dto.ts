@@ -81,6 +81,7 @@ export class QueryParamsDto {
   order_id?:number;
 
   phone_number?: string;
+  member_number?: string;
   
   @IsOptional()
   @Type(() => Number)

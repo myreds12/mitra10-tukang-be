@@ -535,8 +535,8 @@ export class ReportsService {
     const statusCancel = statuses.find((i) => i.category.toLocaleLowerCase().includes("cancel"));
     const statusComplaintApprovedByHo = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintapprovedbyho"));
     const statusComplaintApprovedByVendor = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintapprovedbyvendor"));
-    const statusRejectByHo = statuses.find((i) => i.category.toLocaleLowerCase().includes("rejectbyho"));
-    const statusRejectByVendor = statuses.find((i) => i.category.toLocaleLowerCase().includes("rejectbyvendor"));
+    const statusRejectByHo = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintrejectedbyho"));
+    const statusRejectByVendor = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintrejectedbyvendor"));
     const statusReworkStart = statuses.find((i) => i.category.toLocaleLowerCase().includes("reworkstart"));
     const statusReworkReq = statuses.find((i) => i.category.toLocaleLowerCase().includes("reworkreq"));
     const statusReworkEnd = statuses.find((i) => i.category.toLocaleLowerCase().includes("reworkend"));
