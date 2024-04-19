@@ -70,7 +70,7 @@ export class UpdateVendorDto {
 
   join_date?: Date;
 
-  city_id?: number;
+  area_id?: number;
 
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   vendor_document: Array<Express.Multer.File>;

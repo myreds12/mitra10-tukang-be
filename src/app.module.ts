@@ -41,6 +41,7 @@ import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
 import { EmailMessagesModule } from './email-messages/email-messages.module';
 import { ConfigModule } from '@nestjs/config';
+import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 
 // TODO : Dynamic for production Setu
@@ -125,6 +126,7 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
       isGlobal: true,
       load: [spreadsheetsConfig],
     }),
+    AreaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -78,7 +78,7 @@ export class StoreService {
       date_from,
       date_to,
       order_by,
-      city_id,
+      area_id,
       store_group_id,
     } = query;
 
@@ -86,10 +86,10 @@ export class StoreService {
 
     const where: Prisma.storeWhereInput = {
       AND: [
-        ...(city_id
+        ...(area_id
           ? [
               {
-                OR: [{ area_id: { equals: city_id } }],
+                OR: [{ area_id: { equals: area_id } }],
               },
             ]
           : []),

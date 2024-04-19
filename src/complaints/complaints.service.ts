@@ -90,7 +90,7 @@ export class ComplaintsService {
       },
     };
 
-    
+
     const [complaint] = await this.dbService.$transaction([
       this.dbService.complaints.create({
         data: complaintData,
@@ -98,22 +98,33 @@ export class ComplaintsService {
     ]);
 
     await this.orderService.setStatus(
-     complaint.order_id,
-     complaint.complaint_status,
-     user,
-   );
+      complaint.order_id,
+      complaint.complaint_status,
+      user,
+    );
 
     return complaint;
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to, order_by } = query;
+    const { take, page, search, status, date_from, date_to, order_by, tukang_id } = query;
     const skip = page * take - take;
 
     const where: Prisma.complaintsWhereInput = {
       AND: [
         status ? { status: { id: { in: status } } } : null,
         search ? { complaint_channels: { name: { contains: search } } } : null,
+        tukang_id ? {
+          orders: {
+            work_orders: {
+              work_order_tukang: {
+                some: {
+                  tukang_id: tukang_id
+                }
+              }
+            }
+          }
+        } : undefined,
         date_from && date_to
           ? {
             complaint_date: {

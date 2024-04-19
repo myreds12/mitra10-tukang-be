@@ -323,7 +323,7 @@ export class AuthService {
       },
     });
 
-    return user;
+    return {data:user, total: user.length, page, take, skip};
   }
 
   async findOne(id: number) {

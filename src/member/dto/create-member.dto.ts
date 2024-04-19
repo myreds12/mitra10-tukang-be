@@ -26,7 +26,7 @@ export class CreateMemberDto {
 
   @IsInt()
   @IsOptional()
-  city_id?: number;
+  area_id?: number;
 
   zip_code: string;
 

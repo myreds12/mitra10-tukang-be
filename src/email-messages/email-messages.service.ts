@@ -57,7 +57,7 @@ export class EmailMessagesService {
         ...(type_email_message ? 
           [{
             email_type : {
-              equals: type_email_message
+              equals: Number(type_email_message)
             }
           } ]
         : [])
@@ -65,9 +65,9 @@ export class EmailMessagesService {
     }
     const skip = page * take - take;
     const emailMessage = await this.dbService.email_messages.findMany({
+      where,
       skip,
       take: take > 0 ? take : undefined,
-      where,
       orderBy: {
         created_at: order_by,
       },
@@ -103,7 +103,7 @@ export class EmailMessagesService {
   }
 
   async update(id: number, updateEmailMessageDto: UpdateEmailMessageDto, user_id: number) {
-    const termsDetail : Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] = updateEmailMessageDto.terms_detail.map((item) => {
+    const termsDetail : Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] = updateEmailMessageDto.terms_detail ? updateEmailMessageDto.terms_detail.map((item) => {
       return{
         where: {
           id: item.id ?? 0
@@ -115,9 +115,9 @@ export class EmailMessagesService {
           terms: item.term
         }
       }
-    });
+    }) : undefined;
 
-    const informationDetail : Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] = updateEmailMessageDto.information_detail.map((item) => {
+    const informationDetail : Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] = updateEmailMessageDto.information_detail ? updateEmailMessageDto.information_detail.map((item) => {
       return{
         where: {
           id: item.id ?? 0
@@ -129,13 +129,14 @@ export class EmailMessagesService {
           information: item.information
         }
       }      
-    });
+    }) : undefined;
 
     const data : Prisma.email_messagesUpdateInput = {
       email_type: updateEmailMessageDto.email_type,
       greetings: updateEmailMessageDto.greetings,
       welcome_header : updateEmailMessageDto.welcome_header,
       footer: updateEmailMessageDto.footer,
+      is_active: updateEmailMessageDto.is_active,
       updated_at: new Date(),
       updated_by: user_id,
       terms_detail: {

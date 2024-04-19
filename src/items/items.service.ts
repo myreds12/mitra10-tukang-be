@@ -10,7 +10,6 @@ import { Store } from 'src/store/entities/store.entity';
 @Injectable()
 export class ItemsService {
   constructor(
-    private readonly eventEmitter: EventEmitter2,
     private readonly dbService: PrismaService,
   ) {}
   async create(createItemDto: CreateItemDto, user_id: number) {
@@ -22,7 +21,7 @@ export class ItemsService {
       category_id,
       prices,
     } = createItemDto;
-
+  
     const createdItem = await this.dbService.items.create({
       data: {
         item_code,
@@ -32,7 +31,7 @@ export class ItemsService {
         category: { connect: { id: category_id } },
       },
     });
-
+  
     const createPricePromises = prices.map(async (price) => {
       const {
         periodic_start,
@@ -41,7 +40,7 @@ export class ItemsService {
         price: priceValue,
         price_store,
       } = price;
-
+  
       const createdPrice = await this.dbService.prices.create({
         data: {
           item_id: createdItem.id,
@@ -52,50 +51,69 @@ export class ItemsService {
           created_by: user_id,
         },
       });
-
-      await Promise.all(
-        price_store.map(async (storeItem) => {
-          let storeIds: number[] = [];
-          if (storeItem.store_id) {
-            storeIds.push(storeItem.store_id);
-          } else if (storeItem.store_group_id) {
-            const storeGroup = await this.dbService.store_group.findFirst({
-              where: {
-                id: storeItem.store_group_id,
+  
+      // Check if all_store is 1, then select all stores
+      if (price_store.every((storeItem) => storeItem.all_store === 1)) {
+        const allStores = await this.dbService.store.findMany();
+        const storeIds = allStores.map((store) => store.id);
+        await Promise.all(
+          storeIds.map((storeId) =>
+            this.dbService.price_stores.create({
+              data: {
+                price_id: createdPrice.id,
+                store_id: storeId,
+                created_by: user_id,
               },
-              include: {
-                store: true,
-              },
-            });
-            if (storeGroup) {
-              storeIds = storeGroup.store.map((store) => store.id);
-            }
-          }
-
-          await Promise.all(
-            storeIds.map((storeId) =>
-              this.dbService.price_stores.create({
-                data: {
-                  price_id: createdPrice.id,
-                  store_id: storeId,
-                  created_by: user_id,
+            }),
+          ),
+        );
+      } else {
+        // Iterate through price_store and handle each item accordingly
+        await Promise.all(
+          price_store.map(async (storeItem) => {
+            let storeIds: number[] = [];
+            if (storeItem.store_id) {
+              storeIds.push(storeItem.store_id);
+            } else if (storeItem.store_group_id) {
+              const storeGroup = await this.dbService.store_group.findFirst({
+                where: {
+                  id: storeItem.store_group_id,
                 },
-              }),
-            ),
-          );
-        }),
-      );
-
+                include: {
+                  store: true,
+                },
+              });
+              if (storeGroup) {
+                storeIds = storeGroup.store.map((store) => store.id);
+              }
+            }
+  
+            await Promise.all(
+              storeIds.map((storeId) =>
+                this.dbService.price_stores.create({
+                  data: {
+                    price_id: createdPrice.id,
+                    store_id: storeId,
+                    created_by: user_id,
+                  },
+                }),
+              ),
+            );
+          }),
+        );
+      }
+  
       return createdPrice;
     });
-
+  
     await Promise.all(createPricePromises);
-
+  
     return {
       id: createdItem.id,
       ...createItemDto,
     };
   }
+  
 
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     const { id, role_id } = user;
@@ -136,7 +154,7 @@ export class ItemsService {
                 },
               ]
             : []),
-            ...(is_free === 0 ? [{
+            ...(is_free === 1 ? [{
               prices: {
                 every: {
                   price : 0
@@ -150,7 +168,7 @@ export class ItemsService {
                 },
               }
             : undefined,
-            ...(all_store === 0 ? [{
+            ...(all_store === 1 ? [{
               prices: {
                 every: {
                   price_stores: {

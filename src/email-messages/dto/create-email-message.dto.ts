@@ -13,6 +13,8 @@ export class CreateEmailMessageDto {
   welcome_header: string;
 
   footer: string;
+
+  is_active?: boolean;
   
   @Type(() => TermsDetailDto)
   terms_detail: TermsDetailDto[];

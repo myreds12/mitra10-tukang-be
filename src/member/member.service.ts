@@ -5,10 +5,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma } from '@prisma/client';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService,
+  ) { }
 
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
@@ -28,6 +30,7 @@ export class MemberService {
           email: createMemberDto.email,
           member_number: numberMember,
           address_1: createMemberDto.address_1,
+          address_2: createMemberDto.address_2,
           join_date: createMemberDto.join_date
             ? new Date(createMemberDto.join_date)
             : undefined,
@@ -38,17 +41,25 @@ export class MemberService {
           join_location: createMemberDto.join_location
             ? createMemberDto.join_location
             : undefined,
+          area_id: createMemberDto.area_id,
+          rating: createMemberDto.rating,
+
           created_by: user_id,
         },
       });
 
       const user = await this.dbService.users.create({
         data: {
-          username: member.full_name,
+          username: member.email,
           password: await hash('tukanginwebsite165', 10),
           role_id: 7,
         },
       });
+
+      await this.sendMailService.sendCredentialMail(
+        user.username,
+        'tukanginwebsite165',
+      );
 
       return {
         data: {
@@ -84,25 +95,25 @@ export class MemberService {
               },
             ]
             : []),
-            ...(store_id ? [
-              {
-                join_location_store: {
-                  id: {
-                    in: store_id
-                  }
+          ...(store_id ? [
+            {
+              join_location_store: {
+                id: {
+                  in: store_id
                 }
               }
-            ] : []),
-            ...(date_from && date_to
-              ? [
-                  {
-                    created_at: {
-                      gte: new Date(date_from),
-                      lte: new Date(`${date_to}T23:59:59.000Z`),
-                    },
-                  },
-                ]
-              : [])
+            }
+          ] : []),
+          ...(date_from && date_to
+            ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+            : [])
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -123,14 +134,14 @@ export class MemberService {
         memberId: item.id,
         totalOrder: item.order.reduce((total, order) => total + Number(order.grand_total), 0),
       }));
-      
+
       const dataMember = member.map(item => ({
         ...item,
         total_summary: memberOrderSummary.find(summary => summary.memberId === item.id)?.totalOrder || 0,
       }));
-      
+
       console.log(dataMember);
-      
+
       return {
         status: HttpStatus.OK,
         message: 'Successfully get data',
@@ -180,17 +191,32 @@ export class MemberService {
       const updated_member = await this.dbService.members.update({
         where: { id: id },
         data: {
-          ...updateMemberDto,
+          full_name: updateMemberDto.full_name,
+          email: updateMemberDto.email,
+          address_1: updateMemberDto.address_1,
+          address_2: updateMemberDto.address_2,
+          join_date: updateMemberDto.join_date
+            ? new Date(updateMemberDto.join_date)
+            : undefined,
+          phone_number: updateMemberDto.phone_number,
+          whatsapp_number: updateMemberDto.whatsapp_number,
+          zip_code: updateMemberDto.zip_code,
+          join_location: updateMemberDto.join_location
+            ? updateMemberDto.join_location
+            : undefined,
+          area_id: updateMemberDto.area_id,
+          rating: updateMemberDto.rating,
           updated_at: new Date(),
           updated_by: user_id,
         },
       });
 
       return {
-        data: updated_member ,
+        data: updated_member,
         status: HttpStatus.CREATED,
         message: 'Successfully update member data',
       };
+
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,

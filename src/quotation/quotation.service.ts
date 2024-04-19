@@ -142,7 +142,7 @@ export class QuotationService {
       })
     ]);
 
-    this.orderService.setStatus(
+    await this.orderService.setStatus(
       quotation.order_id,
       quotation.quotation_status,
       user,

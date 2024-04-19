@@ -28,6 +28,7 @@ export class ReportsService {
   async salesComissionReport(query: QueryParamsDto) {
     const {
       sales_id,
+      store_id
     } = query;
     const where: Prisma.ordersWhereInput = {
       AND: [
@@ -440,6 +441,7 @@ export class ReportsService {
     const count = await this.dbService.orders.count();
     const orderGrandTotal = await this.dbService.orders
       .aggregate({
+        where,
         _sum: {
           grand_total: true,
         },
@@ -528,7 +530,7 @@ export class ReportsService {
 
     const statuses = await this.dbService.status.findMany();
     console.log(statuses);
-    
+
 
     const statusCancel = statuses.find((i) => i.category.toLocaleLowerCase().includes("cancel"));
     const statusComplaintApprovedByHo = statuses.find((i) => i.category.toLocaleLowerCase().includes("complaintapprovedbyho"));
@@ -617,11 +619,22 @@ export class ReportsService {
 
     allMonths.forEach(month => {
       totalComplaintGrandTotalPerMonth[month] = 0;
+      totalCancelComplaintPerMonth[month] = 0;
+      totalApprovedByHOComplaintPerMonth[month] = 0;
+      totalRejectByHOComplaintPerMonth[month] = 0;
+      totalRejectByVendorComplaintPerMonth[month] = 0;
+      totalReworkStartComplaintPerMonth[month] = 0;
+      totalReworkReqComplaintPerMonth[month] = 0;
+      totalReworkEndComplaintPerMonth[month] = 0;
     });
 
     complaint.forEach(complaint => {
       const month = new Date(complaint.created_at).toLocaleString('id-ID', { month: 'long' });
       const grandTotalPerMonth = Number(complaint.orders.grand_total);
+      totalComplaintPerMonth[month]++;
+      totalComplaintGrandTotalPerMonth[month] += grandTotalPerMonth;
+      complaintMonth[month] = complaintMonth[month] || [];
+      complaintMonth[month].push(complaint);
 
       if (!totalComplaintPerMonth[month]) {
         totalComplaintPerMonth[month] = 0;
@@ -652,24 +665,20 @@ export class ReportsService {
         statusReworkEnd[month]++;
       }
 
-      totalComplaintPerMonth[month]++;
-      totalComplaintGrandTotalPerMonth[month] += grandTotalPerMonth;
-      complaintMonth[month] = complaintMonth[month] || [];
-      complaintMonth[month].push(complaint);
     });
 
     const monthlyComplaint = allMonths.map(month => ({
       month,
       totalOrder: totalComplaintPerMonth[month] || 0,
       totalOrderGrandTotalPerMonth: totalComplaintGrandTotalPerMonth[month] || 0,
-      totalCancelComplaint: totalCancelComplaintPerMonth,
-      totalApprovedByHO: totalApprovedByHOComplaintPerMonth,
-      totalApprovedByVendor: totalApprovedByVendorComplaintPerMonth,
-      totalRejectByHo: totalRejectByHOComplaintPerMonth,
-      totalRejectByVendor: totalRejectByVendorComplaintPerMonth,
-      totalReworkStart: totalReworkStartComplaintPerMonth,
-      totalReworkReq: totalReworkReqComplaintPerMonth,
-      totalReworkEnd: totalReworkEndComplaintPerMonth,
+      totalCancelComplaint: totalCancelComplaintPerMonth[month] || 0,
+      totalApprovedByHO: totalApprovedByHOComplaintPerMonth[month] || 0,
+      totalApprovedByVendor: totalApprovedByVendorComplaintPerMonth[month] || 0,
+      totalRejectByHo: totalRejectByHOComplaintPerMonth[month] || 0,
+      totalRejectByVendor: totalRejectByVendorComplaintPerMonth[month] || 0,
+      totalReworkStart: totalReworkStartComplaintPerMonth[month] || 0,
+      totalReworkReq: totalReworkReqComplaintPerMonth[month] || 0,
+      totalReworkEnd: totalReworkEndComplaintPerMonth[month] || 0,
       complaintMonth: complaintMonth[month] || []
     }));
 

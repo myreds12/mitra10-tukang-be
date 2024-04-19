@@ -40,8 +40,14 @@ class Prices {
 class PriceStore {
   @IsOptional()
   @Type(() => Number)
-  store_id?: number;
+  all_store?: number;
+
 
   @IsOptional()
+  @Type(() => Number)
+  store_id?: number;
+  
+  @IsOptional()
+  @Type(() => Number)
   store_group_id?:number;
 }

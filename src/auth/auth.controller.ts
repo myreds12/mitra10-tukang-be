@@ -123,6 +123,12 @@ export class AuthController {
   async login(@Body() dto: CreateLoginDto) {
     return await this.authService.login(dto);
   }
+
+  @HttpCode(200)
+  @Post('register')
+  async register(@Body() dto: CreateRegisterDto) {
+    return await this.authService.register(dto);
+  }
   @HttpCode(201)
   @Post('update-password/:username')
   async updatePassword(@Param('username') username: string, @Body() dto: ResetPasswordDto, @Res() res: IExpressResponse) {

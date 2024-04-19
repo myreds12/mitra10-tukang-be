@@ -42,15 +42,23 @@ export class QueryParamsDto {
 
   @IsOptional()
   @Type(() => Number)
-  city_id?: number = 0;
+  area_id?: number = 0;
 
   @IsOptional()
   @Type(() => Number)
   sales_id?: number = 0;
+
+  @IsOptional()
+  @Type(() => Number)
+  tukang_id?: number = 0;
   
   @Transform((value) => value.value.split(',').map(Number))
   @Type(() => String)
   store_id?: number[];
+
+  @Transform((value) => value.value.split(',').map(Number))
+  @Type(() => String)
+  service_types?: number[];
   
   @IsOptional()
   @IsString()

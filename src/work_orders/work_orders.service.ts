@@ -113,8 +113,10 @@ export class WorkOrdersService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    const { page, take, search, date_from, date_to, status, order_by } =
+    const { page, take, search, date_from, date_to, status, order_by, tukang_id } =
       queryParamsDto;
+      console.log(tukang_id);
+      
     const skip = page * take - take;
     const where: Prisma.work_ordersWhereInput = {
       AND: [
@@ -129,6 +131,13 @@ export class WorkOrdersService {
             }
           : undefined,
         status ? { status: { id: { in: status } } } : undefined,
+        tukang_id ? {
+          work_order_tukang: {
+            some: {
+              tukang_id: tukang_id
+            }
+          }
+        } : undefined,
         date_from && date_to
           ? {
               created_at: {
