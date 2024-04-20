@@ -48,23 +48,9 @@ export class MemberService {
         },
       });
 
-      const user = await this.dbService.users.create({
-        data: {
-          username: member.email,
-          password: await hash('tukanginwebsite165', 10),
-          role_id: 7,
-        },
-      });
-
-      await this.sendMailService.sendCredentialMail(
-        user.username,
-        'tukanginwebsite165',
-      );
-
       return {
         data: {
           member,
-          user,
         },
         status: HttpStatus.CREATED,
         message: 'Successfully Create Data',

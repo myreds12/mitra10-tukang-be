@@ -58,16 +58,13 @@ model employee {
   store_id    Int?
   user_id     Int? @unique
 
-  first_name      String   @db.VarChar(50)
-  middle_name     String?  @db.VarChar(50)
-  last_name       String   @db.VarChar(50)
-  full_name       String   @db.VarChar(255)
-  email           String   @db.VarChar(255)
-  birth           DateTime @db.DateTime()
-  gender          String   @db.VarChar(50)
-  nik             String   @db.VarChar(50)
-  phone_number    String   @db.VarChar(50)
-  whatsapp_number String   @db.VarChar(50)
+  full_name        String    @db.VarChar(255)
+  email            String    @db.VarChar(255)
+  birth            DateTime  @db.DateTime()
+  nik              String    @db.VarChar(50)
+  phone_number     String?   @db.VarChar(50)
+  whatsapp_number  String?   @db.VarChar(50)
+  default_password String?   @db.VarChar(50)
 
   created_at DateTime?  @default(now()) @db.DateTime()
   updated_at DateTime?  @db.DateTime()
@@ -357,8 +354,8 @@ model service_type {
 }
 
 model store {
-  id      Int  @id @default(autoincrement())
-  area_id Int? @default(0)
+  id             Int  @id @default(autoincrement())
+  area_id        Int? @default(0)
   store_group_id Int? @map("store_groupId")
 
   email              String  @default("")
@@ -408,7 +405,7 @@ model store {
 
 model store_group {
   id Int @id @default(autoincrement())
-  
+
   group_name String @db.VarChar(255)
 
   // store_id Int

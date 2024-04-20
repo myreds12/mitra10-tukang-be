@@ -25,16 +25,19 @@ export class Prices {
   @IsOptional()
   @IsNumber()
   id?: number;
-  
+
   @Type(() => PriceStore)
   @ValidateNested({ each: true })
   price_store?: PriceStore[];
 
   @IsOptional()
   periodic_start?: string;
+  
   @IsOptional()
   periodic_end?: string;
 
+  @Type(() => Number)
+  is_free?: number;
   @Type(() => Number)
   price?: number;
 
@@ -47,6 +50,16 @@ class PriceStore {
   @IsOptional()
   @IsNumber()
   id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  all_store?: number;
+
+  @IsOptional()
   @Type(() => Number)
   store_id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  store_group_id?: number;
 }

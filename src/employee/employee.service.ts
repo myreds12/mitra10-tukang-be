@@ -7,30 +7,24 @@ import { createApiPropertyDecorator } from '@nestjs/swagger/dist/decorators/api-
 import { connect } from 'http2';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService, private readonly sendEmail: SendEmailService) { }
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
-      let full_name = createEmployeeDto.first_name;
+      const position = await this.dbService.positions.findFirst({
+        where: {
+          id: createEmployeeDto.position_id
+        }
+      });
 
-      if (createEmployeeDto.middle_name) {
-        full_name += ` ${createEmployeeDto.middle_name}`;
-      }
-
-      if (createEmployeeDto.last_name) {
-        full_name += ` ${createEmployeeDto.last_name}`;
-      }
       const employee = await this.dbService.employee.create({
         data: {
-          first_name: createEmployeeDto.first_name,
-          middle_name: createEmployeeDto.middle_name,
-          last_name: createEmployeeDto.middle_name,
-          full_name: full_name,
+          full_name: createEmployeeDto.full_name,
           birth: new Date(createEmployeeDto.birth),
           email: createEmployeeDto.email,
-          gender: createEmployeeDto.gender,
           nik: createEmployeeDto.nik,
           phone_number: createEmployeeDto.phone_number,
           whatsapp_number: createEmployeeDto.whatsapp_number,
@@ -46,19 +40,31 @@ export class EmployeeService {
           },
           positions: {
             connect: {
-              id: createEmployeeDto.position_id,
+              id: position.id,
             },
           },
           created_by: user_id,
         },
       });
+
+      const roles = await this.dbService.roles.findFirst({
+        where: {
+          name: {
+            contains: position.position_name
+          }
+        }
+      });
+      
       const user = await this.dbService.users.create({
         data: {
-          username: `${employee.first_name + employee.last_name}`,
-          password: await hash('tukanginwebsite165', 10),
-          role_id: 6,
+          username: createEmployeeDto.email,
+          password: await hash(createEmployeeDto.default_password, 10),
+          role_id: roles.id,
         },
       });
+
+      await this.sendEmail.sendCredentialMail(user.username, createEmployeeDto.default_password);
+
       // const create_user_roles = await this.dbService.user_roles.create({
       //   data: {
       //     users: {
@@ -90,8 +96,37 @@ export class EmployeeService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-
+    const {search, date_to, date_from, page, take} = queryParamsDto;
+    const skip = page * take - take;
+    const where: Prisma.employeeWhereInput = {
+      AND: [
+        ...(search
+          ? [
+            {
+              OR: [
+                {full_name: {contains: search}},
+                {email: {contains: search}},
+              ],
+            },
+          ]
+          : []),
+        ...(date_from && date_to
+          ? [
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            },
+          ]
+          : []),
+      ].filter(Boolean),
+      deleted_at: null,
+    };
     const employee = await this.dbService.employee.findMany({
+      where,
+      skip,
+      take: take > 0 ? take : undefined,
       include: {
         positions: true,
         store: true
@@ -128,27 +163,14 @@ export class EmployeeService {
     user_id: number,
   ) {
     try {
-      let full_name = updateEmployeeDto.first_name;
-
-      if (updateEmployeeDto.middle_name) {
-        full_name += ` ${updateEmployeeDto.middle_name}`;
-      }
-
-      if (updateEmployeeDto.last_name) {
-        full_name += ` ${updateEmployeeDto.last_name}`;
-      }
       const employee = await this.dbService.employee.update({
         where: {
           id,
         },
         data: {
-          first_name: updateEmployeeDto.first_name,
-          middle_name: updateEmployeeDto.middle_name,
-          last_name: updateEmployeeDto.middle_name,
-          full_name: full_name,
+          full_name: updateEmployeeDto.full_name,
           birth: new Date(updateEmployeeDto.birth),
           email: updateEmployeeDto.email,
-          gender: updateEmployeeDto.gender,
           nik: updateEmployeeDto.nik,
           phone_number: updateEmployeeDto.phone_number,
           whatsapp_number: updateEmployeeDto.whatsapp_number,

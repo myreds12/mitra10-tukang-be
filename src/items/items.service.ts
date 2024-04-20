@@ -11,7 +11,7 @@ import { Store } from 'src/store/entities/store.entity';
 export class ItemsService {
   constructor(
     private readonly dbService: PrismaService,
-  ) {}
+  ) { }
   async create(createItemDto: CreateItemDto, user_id: number) {
     const {
       item_code,
@@ -21,7 +21,7 @@ export class ItemsService {
       category_id,
       prices,
     } = createItemDto;
-  
+
     const createdItem = await this.dbService.items.create({
       data: {
         item_code,
@@ -31,27 +31,30 @@ export class ItemsService {
         category: { connect: { id: category_id } },
       },
     });
-  
+
     const createPricePromises = prices.map(async (price) => {
       const {
         periodic_start,
         periodic_end,
         min_order,
         price: priceValue,
+        is_free,
         price_store,
       } = price;
-  
+      const finalPriceValue = is_free === 1 ? 0 : priceValue;
+
+
       const createdPrice = await this.dbService.prices.create({
         data: {
           item_id: createdItem.id,
           periodic_start: new Date(periodic_start),
           periodic_end: new Date(periodic_end),
           min_order,
-          price: priceValue,
+          price: finalPriceValue,
           created_by: user_id,
         },
       });
-  
+
       // Check if all_store is 1, then select all stores
       if (price_store.every((storeItem) => storeItem.all_store === 1)) {
         const allStores = await this.dbService.store.findMany();
@@ -87,7 +90,7 @@ export class ItemsService {
                 storeIds = storeGroup.store.map((store) => store.id);
               }
             }
-  
+
             await Promise.all(
               storeIds.map((storeId) =>
                 this.dbService.price_stores.create({
@@ -102,18 +105,18 @@ export class ItemsService {
           }),
         );
       }
-  
+
       return createdPrice;
     });
-  
+
     await Promise.all(createPricePromises);
-  
+
     return {
       id: createdItem.id,
       ...createItemDto,
     };
   }
-  
+
 
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     const { id, role_id } = user;
@@ -140,63 +143,63 @@ export class ItemsService {
 
 
     const where: Prisma.itemsWhereInput = {
-        AND: [
-          ...(search
-            ? [
+      AND: [
+        ...(search
+          ? [
+            {
+              OR: [
                 {
-                  OR: [
-                    {
-                      service_name: {
-                        contains: search,
-                      },
-                    },
-                  ],
+                  service_name: {
+                    contains: search,
+                  },
                 },
-              ]
-            : []),
-            ...(is_free === 1 ? [{
-              prices: {
+              ],
+            },
+          ]
+          : []),
+        ...(is_free === 1 ? [{
+          prices: {
+            every: {
+              price: 0
+            }
+          }
+        }] : []),
+        category_id
+          ? {
+            category_id: {
+              equals: category_id,
+            },
+          }
+          : undefined,
+        ...(all_store === 1 ? [{
+          prices: {
+            every: {
+              price_stores: {
                 every: {
-                  price : 0
-                }
-              }
-            }] : []),
-          category_id
-            ? {
-                category_id: {
-                  equals: category_id,
-                },
-              }
-            : undefined,
-            ...(all_store === 1 ? [{
-              prices: {
-                every: {
-                  price_stores: {
-                    every: {
-                      store_id: {
-                        in: allStore
-                      }
-                    }
+                  store_id: {
+                    in: allStore
                   }
                 }
               }
-            }]: []),
-          sales.sales
-            ? {
-                category: {
-                  id: {
-                    in: sales.sales.sales_categories.map(
-                      ({ category_id }) => category_id,
-                    ),
-                  },
-                },
-              }
-            : undefined,
-          {
-            deleted_at: null,
-          },
-        ].filter(Boolean),  
-      };
+            }
+          }
+        }] : []),
+        sales.sales
+          ? {
+            category: {
+              id: {
+                in: sales.sales.sales_categories.map(
+                  ({ category_id }) => category_id,
+                ),
+              },
+            },
+          }
+          : undefined,
+        {
+          deleted_at: null,
+        },
+      ].filter(Boolean),
+    };
 
     const itemsOptions: Prisma.itemsFindManyArgs = {
       skip,
@@ -219,7 +222,7 @@ export class ItemsService {
                   select: {
                     id: true,
                     store_name: true,
-                    area: true, 
+                    area: true,
                   },
                 },
               },
@@ -235,7 +238,7 @@ export class ItemsService {
       where
     })
 
-    const items = await this.dbService.items.findMany({...(itemsOptions)});
+    const items = await this.dbService.items.findMany({ ...(itemsOptions) });
     return {
       data: items,
       page,
@@ -285,73 +288,57 @@ export class ItemsService {
   }
 
   async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
-    const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
-      UpdateDataDto.prices.map((item) => {
-        const priceStoreCreate: Prisma.price_storesCreateManyPriceInput[] =
-          item.price_store.map((price) => ({
-            store_id: price.store_id,
-          }));
-        const priceStoreUpsert: Prisma.price_storesUpsertWithWhereUniqueWithoutPriceInput[] =
-          item.price_store.map((price) => ({
-            where: {
-              id: price.id ?? 0,
-            },
-            update: {
-              store_id: price.store_id,
-            },
-            create: {
-              store_id: price.store_id,
-            },
-          }));
+    console.log(UpdateDataDto.prices[0], "DTO UPDATE");
+
+    const allStores = await this.dbService.store.findMany();
+
+    const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] = await Promise.all(UpdateDataDto.prices.map(async (item) => {
+      const priceStoreCreate: Prisma.price_storesCreateManyPriceInput[] = [];
+
+      const priceStoreUpsert: Prisma.price_storesUpsertWithWhereUniqueWithoutPriceInput[] = item.price_store.map((price) => {
+        if (price.all_store === 1) {
+          allStores.forEach((store) => {
+            priceStoreCreate.push({ store_id: store.id });
+          });
+        }
+
         return {
-          where: {
-            item_id: id,
-            // If id is not present set it to zero to be created
-            id: item?.id ?? 0,
-          },
-          update: {
-            periodic_start: item?.periodic_start
-              ? new Date(item.periodic_start)
-              : undefined,
-            periodic_end: item?.periodic_end
-              ? new Date(item.periodic_end)
-              : undefined,
-            min_order: item?.min_order,
-            price_stores: {
-              upsert: priceStoreUpsert,
-            },
-            price: item?.price,
-            updated_by: user_id,
-            updated_at: new Date(),
-          },
-          create: {
-            periodic_start: item?.periodic_start
-              ? new Date(item.periodic_start)
-              : undefined,
-            periodic_end: item?.periodic_end
-              ? new Date(item.periodic_end)
-              : undefined,
-            min_order: item?.min_order,
-            price: item?.price,
-            created_at: new Date(),
-            created_by: user_id,
-            price_stores: {
-              createMany: {
-                data: priceStoreCreate,
-              },
-            },
-          },
+          where: { id: price.id ?? 0 },
+          update: { store_id: price.store_id },
+          create: { store_id: price.store_id },
         };
       });
+
+      return {
+        where: { item_id: id, id: item?.id ?? 0 },
+        update: {
+          periodic_start: item?.periodic_start ? new Date(item.periodic_start) : undefined,
+          periodic_end: item?.periodic_end ? new Date(item.periodic_end) : undefined,
+          min_order: item?.min_order,
+          price: item.is_free === 1 ? 0 : item.price,
+          price_stores: { 
+            upsert: priceStoreUpsert 
+          },
+          updated_by: user_id,
+          updated_at: new Date(),
+        },
+        create: {
+          periodic_start: item?.periodic_start ? new Date(item.periodic_start) : undefined,
+          periodic_end: item?.periodic_end ? new Date(item.periodic_end) : undefined,
+          min_order: item?.min_order,
+          price: item.is_free === 1 ? 0 : item.price,
+          created_at: new Date(),
+          created_by: user_id,
+          price_stores: { createMany: { data: priceStoreCreate } },
+        },
+      };
+    }));
+
     const [syncPrices, items_query] = await this.dbService.$transaction([
       this.dbService.prices.updateMany({
         where: {
           item_id: id,
-          id: {
-            notIn: UpdateDataDto.prices
-              .filter((x) => Boolean(x.id))
-              .map((x) => x.id),
-          },
+          id: { notIn: UpdateDataDto.prices.filter((x) => Boolean(x.id)).map((x) => x.id) },
         },
         data: {
           deleted_at: new Date(),
@@ -359,23 +346,24 @@ export class ItemsService {
         },
       }),
       this.dbService.items.update({
-        where: {
-          id,
-        },
+        where: { id },
         data: {
           item_code: UpdateDataDto?.item_code,
           item_name: UpdateDataDto?.item_name,
           service_name: UpdateDataDto?.name,
           category_id: UpdateDataDto?.category_id,
-          prices: {
-            upsert: priceUpsert,
-          },
+          prices: { upsert: priceUpsert },
         },
       }),
     ]);
 
     return items_query;
   }
+
+
+
+
+
 
   async remove(id: number, user_id: number) {
     const prices = await this.dbService.prices.updateMany({

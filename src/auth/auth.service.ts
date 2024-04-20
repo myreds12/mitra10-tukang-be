@@ -109,7 +109,6 @@ export class AuthService {
             user_id: true,
             full_name: true,
             email: true,
-            gender: true,
             phone_number: true,
             nik: true,
             whatsapp_number: true,
@@ -302,13 +301,36 @@ export class AuthService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { page, take, search } = query;
+    const { page, take, search, date_from, date_to } = query;
     const skip = page * take - take;
 
+    const where: Prisma.usersWhereInput = {
+      AND: [
+        ...(search
+          ? [
+            {
+              OR: [
+                { username: { contains: search } },
+              ],
+            },
+          ]
+          : []),
+        ...(date_from && date_to
+          ? [
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            },
+          ]
+          : []),
+      ].filter(Boolean),
+      deleted_at: null,
+    };
+
     const user = await this.dbService.users.findMany({
-      where: {
-        deleted_at: null,
-      },
+      where,
       skip,
       take: take > 0 ? take : undefined,
       include: {
@@ -323,7 +345,13 @@ export class AuthService {
       },
     });
 
-    return {data:user, total: user.length, page, take, skip};
+    const total = await this.dbService.users.count({
+      where
+    });
+
+
+
+    return {data:user, total, page, take, skip};
   }
 
   async findOne(id: number) {
@@ -331,6 +359,13 @@ export class AuthService {
       where: {
         id,
       },
+      include: {
+        employee: true,
+        roles: true,
+        sales: true,
+        tukang: true,
+        vendor: true
+      }
     });
 
     if (!user) throw new NotFoundException('User Not Found!!');

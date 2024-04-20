@@ -26,12 +26,14 @@ class Prices {
   @ValidateNested({ each: true })
   price_store: PriceStore[];
   
-  
   periodic_start: string;
   periodic_end: string;
   
   @Type(() => Number)
-  price: number;
+  is_free?: number;
+
+  @Type(() => Number)
+  price?: number;
 
   @Type(() => Number)
   min_order: number;

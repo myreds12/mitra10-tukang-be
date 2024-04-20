@@ -24,8 +24,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         ),
         client_email: configService.get<string>('SPREADSHEETS.CLIENT_EMAIL'),
         private_key: configService
-          .get<string>('SPREADSHEETS.PRIVATE_KEY')
-          .replace(/\\n/g, '\n'),
+          .get<string>('SPREADSHEETS.PRIVATE_KEY'),
+          // .replace(/\\n/g, '\n'),
         private_key_id: configService.get<string>(
           'SPREADSHEETS.PRIVATE_KEY_ID',
         ),

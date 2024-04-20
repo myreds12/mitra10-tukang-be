@@ -22,17 +22,7 @@ export class CreateEmployeeDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  first_name: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  middle_name?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  last_name: string;
+  full_name: string;
 
   @ApiProperty()
   @IsString()
@@ -40,14 +30,15 @@ export class CreateEmployeeDto {
   email: string;
 
   @ApiProperty()
+  @IsString()
+  @IsOptional()
+  default_password?: string;
+
+  @ApiProperty()
   @IsDate()
   @IsNotEmpty()
   birth: Date;
 
-  @ApiProperty()
-  @IsEnum(['laki - laki', 'perempuan'])
-  @IsNotEmpty()
-  gender: string;
 
   @ApiProperty()
   @IsString()
