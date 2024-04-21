@@ -1,6 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 
 export class UpdateItemDto {
   item_code?: string;
@@ -18,26 +23,33 @@ export class UpdateItemDto {
   default_price?: number;
 
   @Type(() => Prices)
+  @IsNotEmpty()
+  @ValidateNested({ each: true })
   prices?: Prices[];
 }
 export class Prices {
-  @Type(() => Number)
+  @Transform(
+    // ({ value }) => (value !== null && value !== 0 ? Number(value) : undefined),
+    ({ value }) => Number(value),
+    {
+      toClassOnly: true,
+    },
+  )
   @IsOptional()
   @IsNumber()
-  id?: number;
+  id?: number | null;
 
   @Type(() => PriceStore)
+  @IsNotEmpty()
   @ValidateNested({ each: true })
-  price_store?: PriceStore[];
+  price_store: PriceStore[];
 
   @IsOptional()
   periodic_start?: string;
-  
+
   @IsOptional()
   periodic_end?: string;
 
-  @Type(() => Number)
-  is_free?: number;
   @Type(() => Number)
   price?: number;
 
@@ -46,10 +58,16 @@ export class Prices {
 }
 
 class PriceStore {
-  @Type(() => Number)
+  @Transform(
+    // ({ value }) => (value !== null && value !== 0 ? Number(value) : undefined),
+    ({ value }) => Number(value),
+    {
+      toClassOnly: true,
+    },
+  )
   @IsOptional()
   @IsNumber()
-  id?: number;
+  id?: number | null;
 
   @IsOptional()
   @Type(() => Number)

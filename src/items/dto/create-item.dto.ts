@@ -28,9 +28,6 @@ class Prices {
   
   periodic_start: string;
   periodic_end: string;
-  
-  @Type(() => Number)
-  is_free?: number;
 
   @Type(() => Number)
   price?: number;
@@ -43,7 +40,6 @@ class PriceStore {
   @IsOptional()
   @Type(() => Number)
   all_store?: number;
-
 
   @IsOptional()
   @Type(() => Number)
