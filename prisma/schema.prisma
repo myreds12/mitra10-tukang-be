@@ -250,7 +250,7 @@ model users {
 
   roles    roles     @relation(fields: [role_id], references: [id])
   store    store?    @relation(fields: [store_id], references: [id])
-  sales    sales?
+  sales    sales[]
   employee employee?
   vendor   vendor?
   tukang   tukang[]
@@ -259,7 +259,7 @@ model users {
 model sales {
   id       Int  @id @default(autoincrement())
   store_id Int?
-  user_id  Int? @unique
+  user_id  Int?
 
   full_name      String  @db.VarChar(255)
   nik            String? @default("") @db.VarChar(20)
@@ -491,8 +491,9 @@ model tukang_service {
 }
 
 model vendor {
-  id            Int       @id @default(autoincrement())
-  user_id       Int?      @unique
+  id      Int  @id @default(autoincrement())
+  user_id Int? @unique
+
   pic_name      String    @default("") @db.VarChar(200)
   company_name  String    @db.VarChar(45)
   address       String    @db.VarChar(200)
@@ -507,12 +508,14 @@ model vendor {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  users users? @relation(fields: [user_id], references: [id])
+
   tukang          tukang[]
   vendor_area     vendor_area[]
-  users           users?            @relation(fields: [user_id], references: [id])
   vendor_bank     vendor_bank[]
   vendor_document vendor_document[]
   vendor_service  vendor_service[]
@@ -540,21 +543,26 @@ model vendor_store {
 }
 
 model vendor_area {
-  id               Int       @id @default(autoincrement())
-  vendor_id        Int?
-  area_id          Int?      @default(0)
-  default_discount Decimal   @default(0) @db.Decimal(32, 2)
-  default_markup   String    @db.VarChar(45)
-  default_unit     String    @default("unit") @db.VarChar(45)
-  is_active        Boolean   @default(true)
-  created_at       DateTime  @default(now()) @db.DateTime()
-  updated_at       DateTime? @db.DateTime()
-  deleted_at       DateTime? @db.DateTime()
-  created_by       Int?
-  updated_by       Int?
-  deleted_by       Int?
-  vendor           vendor?   @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  area             area?     @relation(fields: [area_id], references: [id])
+  id Int @id @default(autoincrement())
+
+  vendor_id Int?
+  area_id   Int?
+
+  default_discount Decimal @default(0) @db.Decimal(32, 2)
+  default_markup   String  @db.VarChar(45)
+  default_unit     String  @default("unit") @db.VarChar(45)
+  is_active        Boolean @default(true)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  vendor vendor? @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  area   area?   @relation(fields: [area_id], references: [id])
 }
 
 model vendor_bank {
