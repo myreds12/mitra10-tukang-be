@@ -11,13 +11,16 @@ import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly dbService: PrismaService, private readonly sendEmail: SendEmailService) { }
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly sendEmail: SendEmailService,
+  ) {}
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
       const position = await this.dbService.positions.findFirst({
         where: {
-          id: createEmployeeDto.position_id
-        }
+          id: createEmployeeDto.position_id,
+        },
       });
 
       const employee = await this.dbService.employee.create({
@@ -50,11 +53,11 @@ export class EmployeeService {
       const roles = await this.dbService.roles.findFirst({
         where: {
           name: {
-            contains: position.position_name
-          }
-        }
+            contains: position.position_name,
+          },
+        },
       });
-      
+
       const user = await this.dbService.users.create({
         data: {
           username: createEmployeeDto.email,
@@ -63,7 +66,10 @@ export class EmployeeService {
         },
       });
 
-      await this.sendEmail.sendCredentialMail(user.username, createEmployeeDto.default_password);
+      await this.sendEmail.sendCredentialMail(
+        user.username,
+        createEmployeeDto.default_password,
+      );
 
       // const create_user_roles = await this.dbService.user_roles.create({
       //   data: {
@@ -96,29 +102,29 @@ export class EmployeeService {
   }
 
   async findAll(queryParamsDto: QueryParamsDto) {
-    const {search, date_to, date_from, page, take} = queryParamsDto;
+    const { search, date_to, date_from, page, take } = queryParamsDto;
     const skip = page * take - take;
     const where: Prisma.employeeWhereInput = {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                {full_name: {contains: search}},
-                {email: {contains: search}},
-              ],
-            },
-          ]
+              {
+                OR: [
+                  { full_name: { contains: search } },
+                  { email: { contains: search } },
+                ],
+              },
+            ]
           : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -129,7 +135,7 @@ export class EmployeeService {
       take: take > 0 ? take : undefined,
       include: {
         positions: true,
-        store: true
+        store: true,
       },
     });
 
