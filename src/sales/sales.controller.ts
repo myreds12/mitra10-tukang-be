@@ -85,7 +85,7 @@ export class SalesController {
   @Get()
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
     try {
-      const { data, total, page, take, takeTotal } = await this.salesService.findAll(
+      const { data, total, page, take } = await this.salesService.findAll(
         query,
       );
       return res.status(200).json({
@@ -95,7 +95,6 @@ export class SalesController {
         total,
         page,
         take,
-        takeTotal
       });
     } catch (error) {
       return res.status(400).json({

@@ -58,13 +58,13 @@ model employee {
   store_id    Int?
   user_id     Int? @unique
 
-  full_name        String    @db.VarChar(255)
-  email            String    @db.VarChar(255)
-  birth            DateTime  @db.DateTime()
-  nik              String    @db.VarChar(50)
-  phone_number     String?   @db.VarChar(50)
-  whatsapp_number  String?   @db.VarChar(50)
-  default_password String?   @db.VarChar(50)
+  full_name        String   @db.VarChar(255)
+  email            String   @db.VarChar(255)
+  birth            DateTime @db.DateTime()
+  nik              String   @db.VarChar(50)
+  phone_number     String?  @db.VarChar(50)
+  whatsapp_number  String?  @db.VarChar(50)
+  default_password String?  @db.VarChar(50)
 
   created_at DateTime?  @default(now()) @db.DateTime()
   updated_at DateTime?  @db.DateTime()
@@ -73,7 +73,7 @@ model employee {
   updated_by Int?
   deleted_by Int?
   positions  positions? @relation(fields: [position_id], references: [id])
-  store      store?     @relation(fields: [store_id], references: [id])
+  store      store?     @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users      users?     @relation(fields: [user_id], references: [id])
 }
 
@@ -249,6 +249,7 @@ model users {
   deleted_by Int?
 
   roles    roles     @relation(fields: [role_id], references: [id])
+  store    store?    @relation(fields: [store_id], references: [id])
   sales    sales?
   employee employee?
   vendor   vendor?
@@ -264,7 +265,7 @@ model sales {
   nik            String? @default("") @db.VarChar(20)
   bank_id        Int?
   bank_branch    String? @db.VarChar(50)
-  account_name   String  @db.VarChar(255)
+  account_name   String? @db.VarChar(255)
   account_number String? @db.VarChar(255)
   phone_number   String? @db.VarChar(50)
   sales_brand    String? @default("")
@@ -280,7 +281,7 @@ model sales {
   updated_by Int?
   deleted_by Int?
 
-  store            store?             @relation(fields: [store_id], references: [id])
+  store            store?             @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users            users?             @relation(fields: [user_id], references: [id])
   bank             bank?              @relation(fields: [bank_id], references: [id])
   orders           orders[]
@@ -387,6 +388,7 @@ model store {
   store_group  store_group?   @relation(fields: [store_group_id], references: [id])
   price_stores price_stores[]
   vendor_store vendor_store[]
+  users        users[]
 }
 
 // model group {
@@ -533,7 +535,7 @@ model vendor_store {
   created_by Int?
   updated_by Int?
   deleted_by Int?
-  store      store  @relation(fields: [store_id], references: [id])
+  store      store  @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   vendor     vendor @relation(fields: [vendor_id], references: [id])
 }
 
@@ -551,7 +553,7 @@ model vendor_area {
   created_by       Int?
   updated_by       Int?
   deleted_by       Int?
-  vendor           vendor?   @relation(fields: [vendor_id], references: [id])
+  vendor           vendor?   @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   area             area?     @relation(fields: [area_id], references: [id])
 }
 

@@ -438,7 +438,9 @@ export class ReportsService {
     });
 
 
-    const count = await this.dbService.orders.count();
+    const count = await this.dbService.orders.count({
+      where
+    });
     const orderGrandTotal = await this.dbService.orders
       .aggregate({
         where,
@@ -518,7 +520,6 @@ export class ReportsService {
       data: orders,
       total: count,
       orderGrandTotal,
-      takeTotal: orders.length,
       monthlyOrders,
     };
   }
@@ -744,7 +745,9 @@ export class ReportsService {
         status: true
       }
     });
-    const count = await this.dbService.orders.count();
+    const count = await this.dbService.work_orders.count({
+      where
+    });
     const totalWorkOrdersPerMonth = {};
     const ordersMonth = {};
     const totalCompleteOrderPerMonth = {};
@@ -806,7 +809,6 @@ export class ReportsService {
     return {
       data: workOrders,
       total: count,
-      takeTotal: workOrders.length,
       monthlyWorkOrders,
     };
   }

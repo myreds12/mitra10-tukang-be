@@ -135,7 +135,7 @@ export class ReportsController {
   @UseGuards(JwtAuthGuard)
   async reportOrders(@Query() query: QueryParamsDto) {
     try {
-      const { data, total, orderGrandTotal, takeTotal, monthlyOrders  } =
+      const { data, total, orderGrandTotal, monthlyOrders  } =
         await this.reportsService.reportOrder(query);
       return {
         status: HttpStatus.OK,
@@ -143,7 +143,6 @@ export class ReportsController {
         data,
         total,
         orderGrandTotal,
-        takeTotal,
         monthlyOrders,
       };
     } catch (error) {
@@ -162,14 +161,13 @@ export class ReportsController {
   @UseGuards(JwtAuthGuard)
   async reportWorkOrder(@Query() query: QueryParamsDto) {
     try {
-      const { data, total,  takeTotal, monthlyWorkOrders  } =
+      const { data, total,  monthlyWorkOrders  } =
         await this.reportsService.reportWorkOrder(query);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
         data,
         total,
-        takeTotal,
         monthlyWorkOrders,
       };
     } catch (error) {
