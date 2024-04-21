@@ -292,15 +292,29 @@ export class ItemsService {
   }
 
   async update(id: number, UpdateDataDto: UpdateItemDto, user_id: number) {
+    const item = await this.dbService.items.findFirst({
+      where: { id },
+      select: {
+        id: true,
+        prices: {
+          select: {
+            id: true,
+            item_id: true,
+            price_stores: true,
+          },
+        },
+      },
+    });
+
     const allStores = await this.dbService.store.findMany({
       select: {
         id: true,
         store_name: true,
       },
     });
-    // define it as and integer that have an array of objects
+    // define it as and number that have an array of objects
     const storeGroups = new Map<number, Array<store>>();
-    const pricesStoreIds = [];
+    const pricesStoreIds: Array<{ id: number; store_id: number }> = [];
 
     const priceUpsert: Prisma.pricesUpsertWithWhereUniqueWithoutItemsInput[] =
       await Promise.all(
@@ -311,7 +325,6 @@ export class ItemsService {
             [];
 
           for (const value of price.price_store) {
-            console.log(value.all_store);
             if (value.all_store) {
               priceStoreCreate.push(
                 ...allStores.map(({ id }) => ({ store_id: id })),
@@ -333,6 +346,7 @@ export class ItemsService {
                 ...storeGroup?.map(({ id }) => ({ store_id: id })),
               );
             } else {
+              pricesStoreIds.push({ id: value.id, store_id: value.store_id });
               priceStoreUpsert.push({
                 where: { id: value.id },
                 update: { store_id: value.store_id },
@@ -394,26 +408,39 @@ export class ItemsService {
       },
     };
 
-    console.log(itemQuery);
-    console.log(priceUpsert);
 
-    const [syncPrices, updateItem] = await this.dbService.$transaction([
-      this.dbService.prices.updateMany({
-        where: {
-          item_id: id,
-          id: {
-            notIn: UpdateDataDto.prices
-              .filter((x) => Boolean(x.id))
-              .map((x) => x.id),
+    const [_1, _2, updateItem] =
+      await this.dbService.$transaction([
+        this.dbService.price_stores.updateMany({
+          where: {
+            id: {
+              notIn: pricesStoreIds.map(({ id }) => id),
+            },
+            price_id: {
+              in: item.prices.map(({ id }) => id),
+            },
           },
-        },
-        data: {
-          deleted_at: new Date(),
-          deleted_by: user_id,
-        },
-      }),
-      this.dbService.items.update(itemQuery),
-    ]);
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+          },
+        }),
+        this.dbService.prices.updateMany({
+          where: {
+            item_id: id,
+            id: {
+              notIn: UpdateDataDto.prices
+                .filter((x) => Boolean(x.id))
+                .map((x) => x.id),
+            },
+          },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+          },
+        }),
+        this.dbService.items.update(itemQuery),
+      ]);
 
     return updateItem;
   }
