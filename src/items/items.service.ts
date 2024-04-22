@@ -359,7 +359,7 @@ export class ItemsService {
           console.log(priceStoreUpsert)
 
           return {
-            where: { item_id: id, id: price?.id },
+            where: { item_id: id, id: price?.id ?? 0 },
             update: {
               periodic_start: price?.periodic_start
                 ? new Date(price.periodic_start)
