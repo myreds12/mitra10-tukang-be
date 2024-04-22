@@ -346,14 +346,17 @@ export class ItemsService {
                 ...storeGroup?.map(({ id }) => ({ store_id: id })),
               );
             } else {
-              pricesStoreIds.push({ id: value.id, store_id: value.store_id });
+              pricesStoreIds.push({ id: value?.id, store_id: value.store_id });
               priceStoreUpsert.push({
-                where: { id: value.id },
+                where: { id: value?.id ?? 0 },
                 update: { store_id: value.store_id },
                 create: { store_id: value.store_id },
               });
             }
           }
+
+          console.log(priceStoreCreate)
+          console.log(priceStoreUpsert)
 
           return {
             where: { item_id: id, id: price?.id },
@@ -408,39 +411,41 @@ export class ItemsService {
       },
     };
 
+    console.log(itemQuery)
 
-    const [_1, _2, updateItem] =
-      await this.dbService.$transaction([
-        this.dbService.price_stores.updateMany({
-          where: {
-            id: {
-              notIn: pricesStoreIds.map(({ id }) => id),
-            },
-            price_id: {
-              in: item.prices.map(({ id }) => id),
-            },
+    const [_1, _2, updateItem] = await this.dbService.$transaction([
+      this.dbService.price_stores.updateMany({
+        where: {
+          id: {
+            notIn: pricesStoreIds
+              .filter(({ id }) => Boolean(id))
+              .map(({ id }) => id),
           },
-          data: {
-            deleted_at: new Date(),
-            deleted_by: user_id,
+          price_id: {
+            in: item.prices.map(({ id }) => id),
           },
-        }),
-        this.dbService.prices.updateMany({
-          where: {
-            item_id: id,
-            id: {
-              notIn: UpdateDataDto.prices
-                .filter((x) => Boolean(x.id))
-                .map((x) => x.id),
-            },
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id,
+        },
+      }),
+      this.dbService.prices.updateMany({
+        where: {
+          item_id: id,
+          id: {
+            notIn: UpdateDataDto.prices
+              .filter((x) => Boolean(x.id))
+              .map((x) => x.id),
           },
-          data: {
-            deleted_at: new Date(),
-            deleted_by: user_id,
-          },
-        }),
-        this.dbService.items.update(itemQuery),
-      ]);
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id,
+        },
+      }),
+      this.dbService.items.update(itemQuery),
+    ]);
 
     return updateItem;
   }
