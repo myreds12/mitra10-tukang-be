@@ -90,6 +90,8 @@ export class ItemsController {
   async findOne(@Param('id') id: string, @Res() response: IExpressResponse) {
     try {
       const items = await this.itemsService.findOne(+id);
+      console.log(items);
+      
 
       return response.status(200).json({
         status: HttpStatus.OK,
