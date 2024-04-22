@@ -13,8 +13,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { SalesService } from './sales.service';
-import { CreateSalesDto } from './dto/create-sale.dto';
-import { UpdateSalesDto } from './dto/update-sale.dto';
+import { CreateSalesDto } from './dto/create-sales.dto';
+import { UpdateSalesDto } from './dto/update-sales.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   Request as IExpressRequest,

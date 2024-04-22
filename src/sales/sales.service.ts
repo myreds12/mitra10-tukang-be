@@ -1,6 +1,6 @@
 import { Injectable, HttpStatus, HttpException } from '@nestjs/common';
-import { CreateSalesDto } from './dto/create-sale.dto';
-import { UpdateSalesDto } from './dto/update-sale.dto';
+import { CreateSalesDto } from './dto/create-sales.dto';
+import { UpdateSalesDto } from './dto/update-sales.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, roles, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
@@ -55,7 +55,7 @@ export class SalesService {
         };
       });
 
-    const saltedPassword = hashSync(createSalesDto.default_password, 12);
+    const saltedPassword = hashSync(createSalesDto?.password ?? 'password', 12);
 
     const sales_data: Prisma.salesCreateInput = {
       full_name: createSalesDto.full_name,
@@ -84,11 +84,11 @@ export class SalesService {
       users: {
         connectOrCreate: {
           where: {
-            username: createSalesDto.full_name.toLowerCase().replace(' ', '_'),
+            username: createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
             id: 0,
           },
           create: {
-            username: createSalesDto.full_name.toLowerCase().replace(' ', '_'),
+            username: createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
             password: saltedPassword,
             role_id: SALES_ROLES.id,
           },
@@ -109,7 +109,16 @@ export class SalesService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { search, take, page, date_from, date_to, order_by, top_best, store_id  } = query;
+    const {
+      search,
+      take,
+      page,
+      date_from,
+      date_to,
+      order_by,
+      top_best,
+      store_id,
+    } = query;
     const skip = page * take - take;
 
     const where: Prisma.salesWhereInput = {
@@ -142,7 +151,7 @@ export class SalesService {
           ? [
               {
                 store_id: {
-                  in : store_id
+                  in: store_id,
                 },
               },
             ]
@@ -165,11 +174,13 @@ export class SalesService {
       skip,
       take: take <= 0 ? undefined : take,
       orderBy: {
-        ...(top_best === true ? {
-          order_total: 'desc'
-        } : {
-          created_at: order_by
-        })
+        ...(top_best === true
+          ? {
+              order_total: 'desc',
+            }
+          : {
+              created_at: order_by,
+            }),
       },
       include: {
         bank: true,
@@ -188,12 +199,12 @@ export class SalesService {
       },
     });
     const count = await this.dbService.sales.count({
-      where
-    })
+      where,
+    });
 
     return {
       data: sales,
-      total:  count,
+      total: count,
       page,
       take,
     };
@@ -230,7 +241,14 @@ export class SalesService {
       where: {
         id,
       },
+      include: {
+        users: true,
+      },
     });
+
+    if (!sales) {
+      throw new HttpException('Sales not found', HttpStatus.NOT_FOUND);
+    }
 
     const SALES_ROLES: roles = await this.dbService.roles.findFirst({
       where: {
@@ -240,39 +258,27 @@ export class SalesService {
       },
     });
 
-    const usersConnectOrCreate: Prisma.usersCreateNestedOneWithoutSalesInput = {
-      connectOrCreate: {
-        where: {
-          id: sales?.user_id ?? 0,
-        },
-        create: {
-          username: updateSalesDto.full_name
-            ? updateSalesDto.full_name
-            : undefined,
-          password: updateSalesDto.nik
-            ? await hash(updateSalesDto.nik, 20)
-            : undefined,
-          role_id: SALES_ROLES.id,
-        },
-      },
-    };
+    let usersConnectOrCreate:
+      | Prisma.usersCreateNestedOneWithoutSalesInput
+      | undefined;
 
-    // const upsertSalesBrands: Prisma.sales_brandsUpsertWithWhereUniqueWithoutSalesInput[] =
-    //   updateSalesDto.sales_brands.map((i) => ({
-    //     where: {
-    //       id: i?.id ?? 0,
-    //       brands_id: i.brand_id,
-    //     },
-    //     update: {
-    //       brands_id: i.brand_id,
-    //       updated_at: new Date(),
-    //       updated_by: user_id,
-    //     },
-    //     create: {
-    //       brands_id: i.brand_id,
-    //       created_by: user_id,
-    //     },
-    //   }));
+    if (updateSalesDto?.password) {
+      usersConnectOrCreate = {
+        connectOrCreate: {
+          where: {
+            id: sales?.user_id ?? 0,
+          },
+          create: {
+            username: updateSalesDto?.username
+              ? updateSalesDto.username
+              : undefined,
+            password: await hash(updateSalesDto?.password, 12),
+            role_id: SALES_ROLES.id,
+          },
+        },
+      };
+    }
+
     const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
       updateSalesDto.sales_categories.map(
         ({ id, category_id, commission }) => ({
@@ -296,22 +302,19 @@ export class SalesService {
       );
 
     const salesData: Prisma.salesUpdateInput = {
-      users: {
-        ...usersConnectOrCreate,
-      },
+      ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
       bank: {
         connect: {
           id: updateSalesDto.bank_id,
         },
       },
       account_name: updateSalesDto.account_name,
+      account_number: updateSalesDto.account_number,
+      phone_number: updateSalesDto.phone_number,
       bank_branch: updateSalesDto.bank_branch,
       full_name: updateSalesDto.full_name,
       nik: updateSalesDto.nik,
       sales_brand: updateSalesDto.sales_brand,
-      // sales_brands: {
-      //   upsert: upsertSalesBrands,
-      // },
       sales_categories: {
         upsert: upsertSalesCategories,
       },
@@ -321,20 +324,6 @@ export class SalesService {
 
     const [syncSalesCategories, updatedSales] =
       await this.dbService.$transaction([
-        // this.dbService.sales_brands.updateMany({
-        //   where: {
-        //     sales_id: id,
-        //     id: {
-        //       notIn: updateSalesDto.sales_brands.map(
-        //         ({ brand_id }) => brand_id,
-        //       ),
-        //     },
-        //   },
-        //   data: {
-        //     deleted_at: new Date(),
-        //     deleted_by: user_id,
-        //   },
-        // }),
         this.dbService.sales_categories.updateMany({
           where: {
             sales_id: id,
@@ -357,6 +346,23 @@ export class SalesService {
         }),
       ]);
     return updatedSales;
+  }
+
+  async salesUser(store_id: number) {
+    const sales = await this.dbService.sales.findMany({
+      take: 10,
+      where: {
+        store_id,
+        user_id: null,
+        deleted_at: null,
+      },
+      include: {
+        users: true,
+      },
+    });
+    //create user with update sales witj user_id
+
+    return sales;
   }
 
   async remove(id: number, user: users) {

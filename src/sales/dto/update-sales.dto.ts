@@ -10,11 +10,23 @@ import {
 // import { SalesBrandsDto } from './sales-brands.dto';
 import { SalesCategoriesDto } from './sales-categories.dto';
 import { Type } from 'class-transformer';
+import { IsUsernameValid } from './is-username-valid.decorator';
 
-export class CreateSalesDto {
+export class UpdateSalesDto {
+  @ApiProperty()
+  @IsInt()
+  @IsOptional()
+  store_id?: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsOptional()
+  bank_id?: number;
+
   @ApiProperty()
   @IsString()
-  full_name: string;
+  @IsOptional()
+  full_name?: string;
 
   @ApiProperty()
   @IsString()
@@ -22,15 +34,14 @@ export class CreateSalesDto {
   nik?: string;
 
   @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  store_id?: number;
-
-  @IsOptional()
-  bank_id?: number;
-
+  @IsString()
   @IsOptional()
   bank_branch?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  account_name?: string;
 
   @IsOptional()
   @IsString()
@@ -42,22 +53,19 @@ export class CreateSalesDto {
 
   @IsOptional()
   @IsString()
-  default_password: string;
-  
-  @IsOptional()
-  account_name?: string;
+  sales_brand: string;
 
   @IsOptional()
   @IsString()
-  sales_brand: string;
+  @IsUsernameValid()
+  username: string;
 
-  // @IsOptional()
-  // @Type(() => SalesBrandsDto)
-  // @ValidateNested({ each: true })
-  // sales_brands?: SalesBrandsDto[];
+  @IsOptional()
+  @IsString()
+  password: string;
 
   @ApiProperty()
   @Type(() => SalesCategoriesDto)
   @ValidateNested({ each: true })
-  sales_categories: SalesCategoriesDto[];
+  sales_categories?: SalesCategoriesDto[];
 }
