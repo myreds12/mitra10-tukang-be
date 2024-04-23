@@ -276,9 +276,7 @@ export class OrderService {
     const orders = await this.dbService.orders.findMany({
       skip,
       take: take > 0 ? take : undefined,
-      where: {
-
-      },
+      where,
       orderBy: {
         created_at: order_by,
       },

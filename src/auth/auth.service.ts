@@ -335,6 +335,7 @@ export class AuthService {
       take: take > 0 ? take : undefined,
       include: {
         employee: true,
+        store: true,
         roles: true,
         sales: true,
         tukang: true,
@@ -363,6 +364,7 @@ export class AuthService {
         employee: true,
         roles: true,
         sales: true,
+        store: true,
         tukang: true,
         vendor: true
       }

@@ -210,6 +210,7 @@ export class ItemsService {
           where: {
             periodic_start: { lte: now },
             periodic_end: { gte: now },
+            deleted_at: null,
           },
           select: {
             id: true,
@@ -217,6 +218,9 @@ export class ItemsService {
             periodic_start: true,
             periodic_end: true,
             price_stores: {
+              where: {
+                deleted_at: null,
+              },
               select: {
                 store: {
                   select: {
@@ -260,6 +264,7 @@ export class ItemsService {
             periodic_start: { lte: now },
             periodic_end: { gte: now },
             deleted_at: null,
+            deleted_by: null,
           },
           select: {
             id: true,
@@ -269,6 +274,7 @@ export class ItemsService {
             price_stores: {
               where: {
                 deleted_at: null,
+                deleted_by: null,
               },
               select: {
                 id: true,
