@@ -208,8 +208,9 @@ export class ItemsService {
       include: {
         prices: {
           where: {
-            periodic_start: { lte: now },
-            periodic_end: { gte: now },
+            // periodic_start: { lte: now },
+            // periodic_end: { gte: now },
+            deleted_by: null,
             deleted_at: null,
           },
           select: {
@@ -219,6 +220,7 @@ export class ItemsService {
             periodic_end: true,
             price_stores: {
               where: {
+                deleted_by: null,
                 deleted_at: null,
               },
               select: {
@@ -261,8 +263,8 @@ export class ItemsService {
         category: true,
         prices: {
           where: {
-            periodic_start: { lte: now },
-            periodic_end: { gte: now },
+            // periodic_start: { lte: now },
+            // periodic_end: { gte: now },
             deleted_at: null,
             deleted_by: null,
           },
