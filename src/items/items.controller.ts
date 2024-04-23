@@ -67,7 +67,10 @@ export class ItemsController {
     try {
       const user = request.user;
 
-      const {data, total, page, take} = await this.itemsService.findAll(queryParamsDto, user);
+      const { data, total, page, take } = await this.itemsService.findAll(
+        queryParamsDto,
+        user,
+      );
 
       return response.status(200).json({
         status: HttpStatus.OK,
@@ -75,9 +78,10 @@ export class ItemsController {
         data,
         page,
         take,
-        total
+        total,
       });
     } catch (error) {
+      console.log(error);
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Get',
@@ -91,7 +95,6 @@ export class ItemsController {
     try {
       const items = await this.itemsService.findOne(+id);
       console.log(items);
-      
 
       return response.status(200).json({
         status: HttpStatus.OK,
@@ -99,6 +102,7 @@ export class ItemsController {
         data: items,
       });
     } catch (error) {
+      console.log(error);
       return response.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: 'Error While Find',

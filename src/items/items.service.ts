@@ -208,8 +208,6 @@ export class ItemsService {
       include: {
         prices: {
           where: {
-            // periodic_start: { lte: now },
-            // periodic_end: { gte: now },
             deleted_by: null,
             deleted_at: null,
           },
@@ -258,6 +256,8 @@ export class ItemsService {
     const items = await this.dbService.items.findFirst({
       where: {
         id,
+        deleted_at: null,
+        deleted_by: null,
       },
       include: {
         category: true,
