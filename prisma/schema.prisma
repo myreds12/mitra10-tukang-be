@@ -80,9 +80,9 @@ model employee {
 model items {
   id Int @id @default(autoincrement())
 
-  item_name     String? @db.VarChar(100)
-  item_code     String? @db.VarChar(100)
-  service_name  String  @db.VarChar(45)
+  item_name     String? @db.VarChar(255)
+  item_code     String? @db.VarChar(255)
+  service_name  String  @db.VarChar(255)
   default_price Decimal @default(0) @db.Decimal(32, 2)
   category_id   Int
 
@@ -250,7 +250,7 @@ model users {
 
   roles    roles     @relation(fields: [role_id], references: [id])
   store    store?    @relation(fields: [store_id], references: [id])
-  sales    sales[]
+  sales    sales?
   employee employee?
   vendor   vendor?
   tukang   tukang[]
@@ -259,7 +259,7 @@ model users {
 model sales {
   id       Int  @id @default(autoincrement())
   store_id Int?
-  user_id  Int?
+  user_id  Int? @unique
 
   full_name      String  @db.VarChar(255)
   nik            String? @default("") @db.VarChar(20)
