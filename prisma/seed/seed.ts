@@ -26,7 +26,7 @@ async function main() {
   // await ItemsSeed();
   // await UsersSeed();
   await MembersSeed();
-  // await PositionSeed();
+  // await PositionSeed();sa
   // await StoreSeed();
   // await BrandsSeed();
   // await ServiceTypeSeed();

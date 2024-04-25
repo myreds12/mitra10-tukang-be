@@ -45,9 +45,9 @@ import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 
 // TODO : Dynamic for production Setu
-const user = 'f22c1f963daf4c';
-const pass = 'e06400e91fc5d7';
-const smtpServ = 'sandbox.smtp.mailtrap.io';
+const user = 'jasa.service';
+const pass = 'Tukang@Mitra10';
+const smtpServ = 'mail5.mitra10.com';
 const transporter = 'smtps';
 const query = '?pool=true';
 const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${query}`;
@@ -97,11 +97,11 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
     ReportsModule,
     MailerModule.forRoot({
       transport: {
-        host: 'sandbox.smtp.mailtrap.io',
-        port: 2525,
+        host: 'mail5.mitra10.com',
+        port: 25,
         auth: {
-          user: 'f22c1f963daf4c',
-          pass: 'e06400e91fc5d7',
+          user: 'jasa.service',
+          pass: 'Tukang@Mitra10',
         },
       },
       defaults: {
