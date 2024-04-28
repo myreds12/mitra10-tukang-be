@@ -185,11 +185,11 @@ export class SalesService {
       include: {
         bank: true,
         store: true,
-        // sales_brands: {
-        //   include: {
-        //     brands: true,
-        //   },
-        // },
+        sales_brands: {
+          include: {
+            brands: true,
+          },
+        },
         sales_categories: {
           include: {
             categories: true,
@@ -218,11 +218,11 @@ export class SalesService {
       include: {
         bank: true,
         store: true,
-        // sales_brands: {
-        //   include: {
-        //     brands: true,
-        //   },
-        // },
+        sales_brands: {
+          include: {
+            brands: true,
+          },
+        },
         sales_categories: {
           include: {
             categories: true,

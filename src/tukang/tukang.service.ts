@@ -109,7 +109,7 @@ export class TukangService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { order_by, date_from, date_to, page, search, take, search_date_from, search_date_to, service_types } = query;
+    const { order_by, date_from, vendor_id,date_to, page, search, take, search_date_from, search_date_to, service_types } = query;
     const skip = page * take - take;
 
     const where: Prisma.tukangWhereInput = {
@@ -145,6 +145,9 @@ export class TukangService {
               }
             }
           }: undefined,
+          vendor_id ? {
+            vendor_id: vendor_id
+          } : undefined,
           search_date_from && search_date_to ? {
               join_date: {
                 gte: new Date(`${search_date_from}T00:00:00.000Z`),
