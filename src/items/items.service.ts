@@ -184,17 +184,17 @@ export class ItemsService {
               },
             ]
           : []),
-        sales.sales
-          ? {
-              category: {
-                id: {
-                  in: sales.sales.sales_categories.map(
-                    ({ category_id }) => category_id,
-                  ),
-                },
-              },
-            }
-          : undefined,
+        // sales.sales
+        //   ? {
+        //       category: {
+        //         id: {
+        //           in: sales.sales.sales_categories.map(
+        //             ({ category_id }) => category_id,
+        //           ),
+        //         },
+        //       },
+        //     }
+        //   : undefined,
         {
           deleted_at: null,
         },

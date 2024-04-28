@@ -13,6 +13,7 @@ import { QueryParamsDto } from './dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Item } from 'src/items/entities/item.entity';
+import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class OrderService {
@@ -46,7 +47,12 @@ export class OrderService {
           ...(role_id !== SALES_ROLES?.id
             ? { where: { id: createOrderDto.sales_id } }
             : undefined),
-          include: { sales_categories: true },
+          orderBy: {
+            created_at: 'desc'
+          },
+          include: {
+            sales_categories: true
+          },
         },
       },
     });
@@ -102,7 +108,7 @@ export class OrderService {
           currentItem?.default_price ??
           0;
         const comission = Number(
-          salesUser?.sales?.sales_categories?.find(
+          salesUser?.sales[0]?.sales_categories?.find(
             ({ category_id }) => currentItem.category_id === category_id,
           )?.commission ?? 0,
         );
@@ -124,7 +130,7 @@ export class OrderService {
           created_by: user_id,
           total,
           comission,
-          sales_id: salesUser?.sales?.id ?? createOrderDto.sales_id,
+          sales_id: salesUser?.sales[0]?.id ?? createOrderDto.sales_id,
         };
       });
     if (createOrderDto.is_overdistance === 1)
@@ -172,7 +178,7 @@ export class OrderService {
     const [salesOrder, order] = await this.dbService.$transaction([
       this.dbService.sales.update({
         where: {
-          id: salesUser?.sales?.id ?? createOrderDto.sales_id,
+          id: salesUser?.sales[0]?.id ?? createOrderDto.sales_id,
         },
         data: {
           order_total: {
@@ -193,7 +199,8 @@ export class OrderService {
     return order;
   }
 
-  async findAll(queryParams: QueryParamsDto) {
+  async findAll(queryParams: QueryParamsDto, users: users,) {
+    const { id: user_id, role_id } = users;
     // DO SEARCH AND PAGINATION LOGIC ...
     const {
       take,
@@ -209,9 +216,15 @@ export class OrderService {
       vendor_id,
       invoice_status,
     } = queryParams;
+    // const user = await this.dbService.users.findFirst({
+    //   where: {
+    //     id: user_id,
+    //     role_id
+    //   }
+    // });
     const skip = page * take - take;
-    console.log(status);
     let statusDone = await this.dbService.status.findMany();
+
     statusDone = statusDone.filter(({ category }) => category === 'DONE');
 
     const where: Prisma.ordersWhereInput = {
@@ -221,7 +234,8 @@ export class OrderService {
             {
               OR: [
                 { receipt_number: { contains: search } },
-                { request_survey: { equals: new Date(search) } },
+                // TODO: FIXME
+                // { request_survey: { equals: new Date(search) } },
                 { members: { full_name: { contains: search } } },
                 {
                   store: {
@@ -252,9 +266,7 @@ export class OrderService {
         vendor_id
           ? {
             vendor: {
-              id: {
-                equals: vendor_id,
-              },
+              id: vendor_id,
               deleted_at: null,
             },
           }
@@ -272,6 +284,8 @@ export class OrderService {
       ].filter(Boolean),
       deleted_at: null,
     };
+    console.log(JSON.stringify(where));
+    
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -467,62 +481,14 @@ export class OrderService {
       where,
     });
 
-    const orderGrandTotal = await this.dbService.orders
-      .aggregate({
-        _sum: {
-          grand_total: true,
-        },
-      })
-      .then((data) => data._sum.grand_total);
-    const totalOrdersPerMonth = {};
-    const totalOrderGrandTotalPerMonth = {};
-    const allMonths = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-
-    allMonths.forEach((month) => {
-      totalOrderGrandTotalPerMonth[month] = 0;
-    });
-
-    orders.forEach((order) => {
-      const month = new Date(order.created_at).toLocaleString('id-ID', {
-        month: 'long',
-      });
-      const grandTotalPerMonth = Number(order.grand_total);
-
-      if (!totalOrdersPerMonth[month]) {
-        totalOrdersPerMonth[month] = 0;
-      }
-
-      totalOrdersPerMonth[month]++;
-      totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
-    });
-
-    const monthlyOrders = allMonths.map((month) => ({
-      month,
-      totalOrder: totalOrdersPerMonth[month] || 0,
-      totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0,
-    }));
-
     return {
       data: orders,
       total: count,
       page,
       take,
-      orderGrandTotal,
+      // orderGrandTotal,
       takeTotal: orders.length,
-      monthlyOrders,
+      // monthlyOrders,
     };
   }
 
@@ -748,6 +714,7 @@ export class OrderService {
       order.status.category === 'BOOK' &&
       currentUser.roles.name.toLowerCase().includes('admin ho')
     ) {
+      await this
       projectStatusDefault = searchStatusInput;
     }
 
@@ -862,20 +829,20 @@ export class OrderService {
       });
 
     const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
-      member_id: updateOrderDto?.member_id,
-      store_id: updateOrderDto?.store_id,
-      vendor_id: updateOrderDto?.vendor_id,
-      project_address: updateOrderDto?.project_address,
-      receipt_number: updateOrderDto?.receipt_number,
+      member_id: updateOrderDto?.member_id ?? undefined,
+      store_id: updateOrderDto?.store_id ?? undefined,
+      vendor_id: updateOrderDto?.vendor_id ?? undefined,
+      project_address: updateOrderDto?.project_address ?? undefined,
+      receipt_number: updateOrderDto?.receipt_number ?? undefined,
       grand_total: grand_total,
       grand_total_comission: grand_total_comission,
       updated_by: user_id,
-      payment_type: updateOrderDto?.payment_type,
-      project_status_id: updateOrderDto?.project_status_id,
+      payment_type: updateOrderDto?.payment_type ?? undefined,
+      project_status_id: updateOrderDto?.project_status_id ?? undefined,
       print_counter: 0,
       updated_at: new Date(),
       request_survey: updateOrderDto?.request_survey
-        ? new Date(updateOrderDto?.request_survey)
+        ? new Date(updateOrderDto?.request_survey ?? undefined)
         : undefined,
       order_files: {
         createMany: {
@@ -963,8 +930,12 @@ export class OrderService {
               upsert: orderDetailUpsert,
             },
           },
+          include: {
+            status: true
+          }
         }),
       ]);
+   
     await this.addHistory(
       orderQuery.id,
       orderQuery.project_status_id,
@@ -1090,8 +1061,8 @@ export class OrderService {
   }
 
   async orderDetailsPublic(query: QueryParamsDto) {
-    const { order_id, phone_number, email_member, member_number,date_from, date_to } = query;
-    
+    const { order_id, phone_number, email_member, member_number, date_from, date_to } = query;
+
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(order_id
@@ -1231,7 +1202,7 @@ export class OrderService {
       },
     });
     console.log();
-    
+
 
     if (!order) throw new NotFoundException('Order not found !');
 

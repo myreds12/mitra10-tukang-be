@@ -48,7 +48,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly sendEmailService: SendEmailService,
-  ) {}
+  ) { }
 
   @Get('/check')
   async getOrderDetailPublic(
@@ -142,10 +142,10 @@ export class OrderController {
   @Get('/public/get')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards()
-  async publicGetAll(@Query() query: QueryParamsDto) {
+  async publicGetAll(@Query() query: QueryParamsDto, @Req() req: UserRequest) {
     try {
-      const { data, page, take, total, orderGrandTotal, takeTotal } =
-        await this.orderService.findAll(query);
+      const { data, page, take, total, takeTotal } =
+        await this.orderService.findAll(query, req.user);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
@@ -153,7 +153,6 @@ export class OrderController {
         page,
         take,
         total,
-        orderGrandTotal,
         takeTotal,
       };
     } catch (error) {
@@ -242,7 +241,7 @@ export class OrderController {
         req.user,
         order_files,
       );
-      await this.sendEmailService.sendMail(order.id);
+      // await this.sendEmailService.sendMail(order.id);
 
       return res.status(201).json({
         status: HttpStatus.CREATED,
@@ -263,17 +262,16 @@ export class OrderController {
   @Get('/')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)
-  async findAll(@Query() query: QueryParamsDto) {
+  async findAll(@Query() query: QueryParamsDto, @Req() req: UserRequest) {
     try {
       const {
         data,
         page,
         take,
         total,
-        orderGrandTotal,
         takeTotal,
-        monthlyOrders,
-      } = await this.orderService.findAll(query);
+        // monthlyOrders,
+      } = await this.orderService.findAll(query, req.user,);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
@@ -281,13 +279,15 @@ export class OrderController {
         page,
         take,
         total,
-        orderGrandTotal,
         takeTotal,
-        monthlyOrders,
       };
     } catch (error) {
-      console.log(error.message);
-      throw new error();
+      console.log(error);
+      return {
+        status: HttpStatus.BAD_REQUEST,
+        messages: error.message,
+        stack: error,
+      };
     }
   }
 
@@ -333,6 +333,9 @@ export class OrderController {
         req.user,
         order_files,
       );
+      if (order.status.category === 'BOOKED') {
+        await this.sendEmailService.sendMail(order.id)
+      }
 
       return res.status(200).json({
         status: HttpStatus.OK,

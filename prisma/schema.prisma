@@ -230,9 +230,8 @@ model role_permissions {
 }
 
 model users {
-  id       Int  @id @default(autoincrement())
-  role_id  Int
-  store_id Int?
+  id      Int @id @default(autoincrement())
+  role_id Int
 
   username        String    @db.VarChar(255)
   password        String    @db.VarChar(255)
@@ -249,8 +248,8 @@ model users {
   deleted_by Int?
 
   roles    roles     @relation(fields: [role_id], references: [id])
-  store    store?    @relation(fields: [store_id], references: [id])
-  sales    sales?
+  store    store[]
+  sales    sales[]
   employee employee?
   vendor   vendor?
   tukang   tukang[]
@@ -259,7 +258,7 @@ model users {
 model sales {
   id       Int  @id @default(autoincrement())
   store_id Int?
-  user_id  Int? @unique
+  user_id  Int? 
 
   full_name      String  @db.VarChar(255)
   nik            String? @default("") @db.VarChar(20)
@@ -357,7 +356,8 @@ model service_type {
 model store {
   id             Int  @id @default(autoincrement())
   area_id        Int? @default(0)
-  store_group_id Int? @map("store_groupId")
+  user_id        Int? 
+  store_group_id Int?
 
   email              String  @default("")
   store_name         String  @db.VarChar(45)
@@ -388,7 +388,7 @@ model store {
   store_group  store_group?   @relation(fields: [store_group_id], references: [id])
   price_stores price_stores[]
   vendor_store vendor_store[]
-  users        users[]
+  users        users?         @relation(fields: [user_id], references: [id])
 }
 
 // model group {

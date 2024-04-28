@@ -19,8 +19,8 @@ export class QueryParamsDto {
   @Type(() => Number)
   vendor_id?: number = 0;
 
-  @Transform((value) => value.value.split(',').map(Number))
-  @Type(() => String)
+  @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
+  @Type(() => Array<Number>)
   status?: number[];
 
   date_from?: string;

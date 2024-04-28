@@ -434,7 +434,49 @@ export class WorkOrdersService {
     console.log('PAYLOAD', updateData);
 
     const { id: user_id } = user;
-    const workOrder = await this.findOne(id);
+    const workOrder = await this.dbService.work_orders.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        order: {
+          include: {
+            m_order_details: {
+              include: {
+                item: true,
+              },
+            },
+            store: true,
+            sales: true,
+            members: true,
+            quotation: true,
+          },
+        },
+        // work_order_tukang: {
+        //   include: {
+        //     tukang: true,
+        //   },
+        // },
+        vendor: true,
+        work_order_status: {
+          orderBy: { created_at: 'desc' },
+          include: {
+            status: true,
+            work_order_items: {
+              include: {
+                item: true,
+              },
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+          },
+        },
+        status: true,
+        work_order_evidences: true,
+      },
+    });
 
     if (!workOrder) throw new BadRequestException('Work Order not exist');
 
