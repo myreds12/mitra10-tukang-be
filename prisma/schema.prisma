@@ -258,7 +258,7 @@ model users {
 model sales {
   id       Int  @id @default(autoincrement())
   store_id Int?
-  user_id  Int? 
+  user_id  Int?
 
   full_name      String  @db.VarChar(255)
   nik            String? @default("") @db.VarChar(20)
@@ -356,7 +356,7 @@ model service_type {
 model store {
   id             Int  @id @default(autoincrement())
   area_id        Int? @default(0)
-  user_id        Int? 
+  user_id        Int?
   store_group_id Int?
 
   email              String  @default("")
@@ -616,11 +616,14 @@ model vendor_service {
 }
 
 model status {
-  id                  Int                   @id @default(autoincrement())
-  category            String
-  description         String
-  created_at          DateTime              @default(now()) @db.DateTime()
-  updated_at          DateTime?
+  id Int @id @default(autoincrement())
+
+  category    String
+  description String
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime?
+
   order               orders[]
   complaints          complaints[]
   work_orders         work_orders[]
@@ -818,12 +821,12 @@ model quotation {
 
   store_id Int @db.Int
   order_id Int @db.Int
+  quotation_status      Int
 
   description           String   @db.Text()
   quotation_number      String
   quotation_date        DateTime @db.Date()
   quotation_validity    DateTime @db.Date()
-  quotation_status      Int
   quotation_disc        Decimal  @default(0) @db.Decimal(32, 2)
   quotation_promotion   Decimal  @default(0) @db.Decimal(32, 2)
   quotation_grand_total Decimal  @db.Decimal(32, 2)
