@@ -1108,8 +1108,8 @@ model work_order_items {
 
   type        Int     @db.Int
   is_customer Boolean @default(false)
-  tukang_name String? @db.VarChar(40)
-  name        String? @db.VarChar(40)
+  tukang_name String? @db.VarChar(250)
+  name        String? @db.VarChar(250)
   quantity    Int     @default(0)
   unit        String  @default("")
 

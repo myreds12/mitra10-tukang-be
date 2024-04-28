@@ -97,11 +97,11 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
     ReportsModule,
     MailerModule.forRoot({
       transport: {
-        host: 'mail5.mitra10.com',
-        port: 25,
+        host: 'sandbox.smtp.mailtrap.io',
+        port: 2525,
         auth: {
-          user: 'jasa.service',
-          pass: 'Tukang@Mitra10',
+          user: 'f22c1f963daf4c',
+          pass: 'e06400e91fc5d7',
         },
       },
       defaults: {

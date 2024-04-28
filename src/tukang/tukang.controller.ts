@@ -65,7 +65,7 @@ export class TukangController {
   @Post()
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'vendor_document', maxCount: 5 },
+      { name: 'tukang_document', maxCount: 5 },
       { name: 'npwp_file', maxCount: 1 },
       { name: 'ktp_file', maxCount: 1 },
     ]),

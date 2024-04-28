@@ -348,22 +348,49 @@ export class SalesService {
     return updatedSales;
   }
 
-  async salesUser(store_id: number) {
-    const sales = await this.dbService.sales.findMany({
-      take: 10,
-      where: {
-        store_id,
-        user_id: null,
-        deleted_at: null,
-      },
-      include: {
-        users: true,
-      },
-    });
-    //create user with update sales witj user_id
+  // async salesUser(store_id: number) {
+  //   const sales = await this.dbService.sales.findMany({
+  //     take: 10,
+  //     where: {
+  //       store_id,
+  //       user_id: null,
+  //       deleted_at: null,
+  //     },
+  //     include: {
+  //       users: true,
+  //     },
+  //   });
+  //   //create user with update sales 
+  //   sales.map(async (sale) => {
+  //     const { full_name, store_id, id } = sale;
+  //     const username = full_name.toLowerCase().replace(' ', '_');
+  //     const password = hashSync('password', 12);
+  //     const role_id = roles.id;
+    
+  //     // Create the user
+  //     const user = await this.dbService.users.create({
+  //       data: {
+  //         username,
+  //         password,
+  //         role_id,
+  //       },
+  //     });
+    
+  //     // Update the sale with the ID of the newly created user
+  //     await this.dbService.sales.update({
+  //       where: {
+  //         id,
+  //         store_id,
+  //       },
+  //       data: {
+  //         user_id: user.id,
+  //       },
+  //     });
+  //   });
+  //   .toLowerCase().replace(/ /g, '_')
 
-    return sales;
-  }
+  //   return sales;
+  // }
 
   async remove(id: number, user: users) {
     const sales = await this.dbService.sales.update({
