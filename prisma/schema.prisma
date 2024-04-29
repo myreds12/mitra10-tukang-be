@@ -431,7 +431,7 @@ model tukang {
   full_name    String    @db.VarChar(45)
   address      String    @db.VarChar(255)
   phone_number String    @db.VarChar(45)
-  ktp_number   String?    @db.VarChar(45)
+  ktp_number   String?    @db.VarChar(45) @default("")
   email        String    @db.VarChar(45)
   bod          DateTime  @db.DateTime()
   join_date    DateTime? @default(now()) @db.DateTime()
