@@ -2,15 +2,12 @@ import { Injectable, HttpStatus, BadRequestException } from '@nestjs/common';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { hash } from 'bcrypt';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma } from '@prisma/client';
-import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService,
-  ) { }
+  constructor(private readonly dbService: PrismaService) {}
 
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
@@ -73,33 +70,35 @@ export class MemberService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { whatsapp_number: { contains: search } },
-                  { member_number: { contains: search } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    { whatsapp_number: { contains: search } },
+                    { member_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
-          ...(store_id ? [
-            {
-              join_location_store: {
-                id: {
-                  in: store_id
-                }
-              }
-            }
-          ] : []),
+          ...(store_id
+            ? [
+                {
+                  join_location_store: {
+                    id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
-            : [])
+              ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -116,14 +115,19 @@ export class MemberService {
           },
         },
       });
-      const memberOrderSummary = member.map(item => ({
+      const memberOrderSummary = member.map((item) => ({
         memberId: item.id,
-        totalOrder: item.order.reduce((total, order) => total + Number(order.grand_total), 0),
+        totalOrder: item.order.reduce(
+          (total, order) => total + Number(order.grand_total),
+          0,
+        ),
       }));
 
-      const dataMember = member.map(item => ({
+      const dataMember = member.map((item) => ({
         ...item,
-        total_summary: memberOrderSummary.find(summary => summary.memberId === item.id)?.totalOrder || 0,
+        total_summary:
+          memberOrderSummary.find((summary) => summary.memberId === item.id)
+            ?.totalOrder || 0,
       }));
 
       console.log(dataMember);
@@ -202,7 +206,6 @@ export class MemberService {
         status: HttpStatus.CREATED,
         message: 'Successfully update member data',
       };
-
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,

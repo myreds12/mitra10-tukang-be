@@ -3,17 +3,16 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
-import { createApiPropertyDecorator } from '@nestjs/swagger/dist/decorators/api-property.decorator';
-import { connect } from 'http2';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class EmployeeService {
   constructor(
     private readonly dbService: PrismaService,
-    private readonly sendEmail: SendEmailService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
@@ -66,9 +65,15 @@ export class EmployeeService {
         },
       });
 
-      await this.sendEmail.sendCredentialMail(
-        user.username,
-        createEmployeeDto.default_password,
+      this.emailQueue.add(
+        'send-credential-mail',
+        {
+          username: user.username,
+          password: createEmployeeDto.default_password,
+        },
+        {
+          attempts: 3,
+        },
       );
 
       // const create_user_roles = await this.dbService.user_roles.create({

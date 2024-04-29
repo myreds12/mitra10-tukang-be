@@ -508,7 +508,7 @@ export class WorkOrdersService {
     console.log(recentWorkStatus);
 
     const upsertItems: Prisma.work_order_itemsUpsertWithWhereUniqueWithoutWork_order_statusInput[] =
-      updateData.work_order_items.map((x) => ({
+      updateData.work_order_items ? updateData.work_order_items.map((x) => ({
         where: {
           id: x?.id ?? 0,
           work_order_status_id: recentWorkStatus?.id ?? 0,
@@ -533,7 +533,7 @@ export class WorkOrdersService {
           is_customer: Boolean(x.is_customer),
           unit: x?.unit,
         },
-      }));
+      })) : undefined;
 
     const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
       {
@@ -549,9 +549,11 @@ export class WorkOrdersService {
           work_date_time: updateData.work_date_time,
           created_at: new Date(),
           created_by: user.id,
-          work_order_items: {
-            createMany: { data: upsertItems.map((x) => x.create) },
-          },
+          ...(updateData.work_order_items ? {
+            work_order_items: {
+              createMany: { data: upsertItems.map((x) => x.create) },
+            }
+          } : undefined) 
         },
         update: {
           description: updateData.description,
@@ -564,28 +566,29 @@ export class WorkOrdersService {
         },
       };
 
-    const [syncItems, syncStatus, work_order] =
       await this.dbService.$transaction([
-        this.dbService.work_order_items.updateMany({
-          where: {
-            id: {
-              notIn: updateData.work_order_items
-                .filter((x) => Boolean(x?.id))
-                .map((x) => x.id),
-            },
-            work_order_status_id: recentWorkStatus?.id ?? 0,
-            work_order_status: {
-              status_id: NEW_STATUS?.id ?? 0,
-              work_order: {
-                id,
+        ...(updateData.work_order_items ? [
+          this.dbService.work_order_items.updateMany({
+            where: {
+              id: {
+                notIn: updateData.work_order_items
+                  .filter((x) => Boolean(x?.id))
+                  .map((x) => x.id),
+              },
+              work_order_status_id: recentWorkStatus?.id ?? 0,
+              work_order_status: {
+                status_id: NEW_STATUS?.id ?? 0,
+                work_order: {
+                  id,
+                },
               },
             },
-          },
-          data: {
-            deleted_at: new Date(),
-            deleted_by: user.id,
-          },
-        }),
+            data: {
+              deleted_at: new Date(),
+              deleted_by: user.id,
+            },
+          }),
+        ] : []),
         this.dbService.work_order_status.updateMany({
           where: {
             id: NEW_STATUS?.id ?? 0,
@@ -601,14 +604,20 @@ export class WorkOrdersService {
           data: {
             status_id: NEW_STATUS.id,
             work_order_evidences: { createMany: { data: evidences } },
-            work_order_status: {
-              upsert: workOrderStatusUpsert,
-            },
+            ...(updateData.work_order_items ? {
+              work_order_status: {
+                upsert: workOrderStatusUpsert,
+              },
+            } : undefined) 
           },
         }),
       ]);
-
-    return work_order;
+      
+      const work_order = await this.dbService.work_orders.findUnique({
+        where: { id },
+      });
+      
+      return work_order;
   }
 
   async delete(id: number, user_id: number) {

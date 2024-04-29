@@ -1,12 +1,19 @@
 import { Module } from '@nestjs/common';
-import { SendEmailService } from './send-email.service';
-import { OrderService } from 'src/order/order.service';
+import { EmailProcessor } from './send-email.service';
 import { OrderModule } from 'src/order/order.module';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
-  imports: [OrderModule],
+  imports: [
+    OrderModule,
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+      },
+    }),
+  ],
   controllers: [],
-  providers: [SendEmailService],
-  exports: [SendEmailService],
+  providers: [EmailProcessor],
 })
 export class SendEmailModule {}

@@ -4,13 +4,12 @@ import { OrderController } from './order.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { StatusModule } from 'src/status/status.module';
 import { StatusService } from 'src/status/status.service';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [OrderController],
-  providers: [OrderService, StatusService, SendEmailService],
+  providers: [OrderService, StatusService],
   exports: [OrderService],
   imports: [
     MulterModule.register({
@@ -22,6 +21,12 @@ import { SendEmailService } from 'src/mails/send-email.service';
           callback(null, filename);
         },
       }),
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+      },
     }),
   ],
 })

@@ -5,14 +5,15 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class QuotationService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-    private readonly sendMail: SendEmailService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
   //TODO: FILE UPLOAD => DONE
@@ -158,7 +159,14 @@ export class QuotationService {
       user,
     );
 
-    await this.sendMail.sendQuotationMail(quotation.id);
+    // await this.sendMail.sendQuotationMail(quotation.id);
+    await this.emailQueue.add(
+      'send-quotation-mail',
+      { id: quotation.id },
+      {
+        attempts: 3,
+      },
+    );
     return { quotation, sales_comission: comission ?? 0 };
   }
 

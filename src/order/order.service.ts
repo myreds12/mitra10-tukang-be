@@ -13,7 +13,6 @@ import { QueryParamsDto } from './dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Item } from 'src/items/entities/item.entity';
-import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class OrderService {

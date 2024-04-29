@@ -1,17 +1,17 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
-import { UpdateOrderDto } from 'src/order/dto/update-order.dto';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 @Injectable()
 export class VendorService {
   constructor(
     private readonly dbService: PrismaService,
-    private readonly sendMailService: SendEmailService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
   async create(
     files: VendorFiles,
@@ -79,7 +79,9 @@ export class VendorService {
         };
       });
 
-    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.email_address}`; 
+    const username = createVendorDto.default_username
+      ? createVendorDto.default_username
+      : `${createVendorDto.email_address}`;
     const users = await this.dbService.users.create({
       data: {
         username,
@@ -147,9 +149,16 @@ export class VendorService {
         data: vendorData,
       }),
     ]);
-    await this.sendMailService.sendCredentialMail(
-      users.username,
-      createVendorDto.password,
+
+    await this.emailQueue.add(
+      'send-credential-mail',
+      {
+        username: users.username,
+        password: createVendorDto.password,
+      },
+      {
+        attempts: 3,
+      },
     );
 
     return { vendor, users };

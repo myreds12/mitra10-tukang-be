@@ -5,11 +5,10 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
 import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(
     createTukangDto: CreateTukangDto,
     user: users,
@@ -18,16 +17,16 @@ export class TukangService {
     const { id: user_id } = user;
     const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
       ? Object.entries(files).map((file) => {
-        if (file[0].length) {
-          const newFile = file[1].map((item) => ({
-            document_name: file[0],
-            path: item.filename,
-            created_by: user_id,
-          }));
+          if (file[0].length) {
+            const newFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
 
-          return newFile;
-        }
-      })
+            return newFile;
+          }
+        })
       : undefined;
 
     const roles = await this.dbService.roles.findFirst({
@@ -41,11 +40,11 @@ export class TukangService {
     const tukangServiceTypes: Prisma.tukang_serviceCreateManyTukangInput[] =
       createTukangDto.service_types
         ? createTukangDto.service_types.map((item) => {
-          return {
-            service_type_id: item.service_type_id,
-            created_by: user_id,
-          };
-        })
+            return {
+              service_type_id: item.service_type_id,
+              created_by: user_id,
+            };
+          })
         : undefined;
 
     const userData = await this.dbService.users.create({
@@ -55,8 +54,6 @@ export class TukangService {
         role_id: roles.id,
       },
     });
-    
-    
 
     const tukangData: Prisma.tukangCreateInput = {
       users: {
@@ -80,87 +77,103 @@ export class TukangService {
       bod: new Date(createTukangDto.bod),
       ...(tukangFiles
         ? {
-          tukang_document: {
-            createMany: {
-              data: tukangFiles.flat(),
+            tukang_document: {
+              createMany: {
+                data: tukangFiles.flat(),
+              },
             },
-          },
-        }
+          }
         : undefined),
       ...(tukangServiceTypes
         ? {
-          tukang_service: {
-            createMany: {
-              data: tukangServiceTypes,
+            tukang_service: {
+              createMany: {
+                data: tukangServiceTypes,
+              },
             },
-          },
-        }
+          }
         : undefined),
-      };
+    };
 
     const [tukang] = await this.dbService.$transaction([
       this.dbService.tukang.create({
         data: tukangData,
       }),
     ]);
-    
-    // await this.sendMailService.sendCredentialMail(createTukangDto.username,  createTukangDto.password);
+
+    // await this.sendEmailService.sendCredentialMail(createTukangDto.username,  createTukangDto.password);
     return { tukang, userData };
   }
 
   async findAll(query: QueryParamsDto) {
-    const { order_by, date_from, vendor_id,date_to, page, search, take, search_date_from, search_date_to, service_types } = query;
+    const {
+      order_by,
+      date_from,
+      vendor_id,
+      date_to,
+      page,
+      search,
+      take,
+      search_date_from,
+      search_date_to,
+      service_types,
+    } = query;
     const skip = page * take - take;
 
     const where: Prisma.tukangWhereInput = {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { address: { contains: search } },
-                { email: { contains: search } },
-                { phone_number: { contains: search } },
-                { full_name: { contains: search } },
-                { ktp_number: { contains: search } },
-                { vendor: { company_name: { contains: search } } },
-                {
-                  tukang_service: {
-                    every: {
-                      service_type: { service_type: { contains: search } },
+              {
+                OR: [
+                  { address: { contains: search } },
+                  { email: { contains: search } },
+                  { phone_number: { contains: search } },
+                  { full_name: { contains: search } },
+                  { ktp_number: { contains: search } },
+                  { vendor: { company_name: { contains: search } } },
+                  {
+                    tukang_service: {
+                      every: {
+                        service_type: { service_type: { contains: search } },
+                      },
                     },
                   },
-                },
-                
-              ],
-            },
-          ]
+                ],
+              },
+            ]
           : []),
-          service_types ?  {
-            tukang_service: {
-              some: {
-                service_type_id: {
-                  in: service_types
-                }
-              }
+        service_types
+          ? {
+              tukang_service: {
+                some: {
+                  service_type_id: {
+                    in: service_types,
+                  },
+                },
+              },
             }
-          }: undefined,
-          vendor_id ? {
-            vendor_id: vendor_id
-          } : undefined,
-          search_date_from && search_date_to ? {
+          : undefined,
+        vendor_id
+          ? {
+              vendor_id: vendor_id,
+            }
+          : undefined,
+        search_date_from && search_date_to
+          ? {
               join_date: {
                 gte: new Date(`${search_date_from}T00:00:00.000Z`),
                 lte: new Date(`${search_date_to}T23:59:59.000Z`),
-              }
-          } : undefined,
+              },
+            }
+          : undefined,
         date_from && date_to
           ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : undefined,
       ],
       deleted_at: null,
@@ -226,34 +239,35 @@ export class TukangService {
 
     const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
       ? Object.entries(files).map((file) => {
-        if (file[0].length) {
-          const newFile = file[1].map((item) => ({
-            document_name: file[0],
-            path: item.filename,
-            created_by: user_id,
-          }));
+          if (file[0].length) {
+            const newFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
 
-          return newFile;
-        }
-      })
+            return newFile;
+          }
+        })
       : undefined;
     console.log(updateTukangDto.service_types);
 
-    const tukangServiceTypesUpsert: Prisma.tukang_serviceUpsertWithWhereUniqueWithoutTukangInput[] = updateTukangDto.service_types.map((item) => ({
-      where: {
-        id: item.id ?? 0,
-        tukang_id: id
-      },
-      create: {
-        service_type_id: item.service_type_id,
-        created_by: user_id,
-      },
-      update: {
-        service_type_id: item.service_type_id,
-        updated_by: user_id,
-        updated_at: new Date()
-      }
-    }))
+    const tukangServiceTypesUpsert: Prisma.tukang_serviceUpsertWithWhereUniqueWithoutTukangInput[] =
+      updateTukangDto.service_types.map((item) => ({
+        where: {
+          id: item.id ?? 0,
+          tukang_id: id,
+        },
+        create: {
+          service_type_id: item.service_type_id,
+          created_by: user_id,
+        },
+        update: {
+          service_type_id: item.service_type_id,
+          updated_by: user_id,
+          updated_at: new Date(),
+        },
+      }));
 
     const tukangUpdate: Prisma.tukangUpdateInput = {
       vendor: {
@@ -271,16 +285,16 @@ export class TukangService {
       phone_number: updateTukangDto.phone_number,
       bod: new Date(updateTukangDto.bod),
       tukang_service: {
-        upsert: tukangServiceTypesUpsert
+        upsert: tukangServiceTypesUpsert,
       },
       ...(tukangFiles
         ? {
-          tukang_document: {
-            createMany: {
-              data: tukangFiles.flat(),
+            tukang_document: {
+              createMany: {
+                data: tukangFiles.flat(),
+              },
             },
-          },
-        }
+          }
         : undefined),
     };
 
@@ -292,25 +306,25 @@ export class TukangService {
           },
           data: {
             deleted_at: new Date(),
-            deleted_by: user_id
-          }
+            deleted_by: user_id,
+          },
         }),
         this.dbService.tukang_service.updateMany({
           where: {
             tukang_id: id,
             NOT: updateTukangDto.service_types
               ? updateTukangDto.service_types.map((item) => {
-                return {
-                  service_type_id: item.service_type_id,
-                  id: item?.id
-                };
-              })
+                  return {
+                    service_type_id: item.service_type_id,
+                    id: item?.id,
+                  };
+                })
               : undefined,
           },
           data: {
             deleted_at: new Date(),
-            deleted_by: user_id
-          }
+            deleted_by: user_id,
+          },
         }),
         this.dbService.tukang.update({
           where: {
