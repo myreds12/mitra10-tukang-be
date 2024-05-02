@@ -119,6 +119,9 @@ export class SalesService {
       top_best,
       store_id,
     } = query;
+    console.log(query)
+
+
     const skip = page * take - take;
 
     const where: Prisma.salesWhereInput = {

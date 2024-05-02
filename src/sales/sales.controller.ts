@@ -97,6 +97,7 @@ export class SalesController {
         take,
       });
     } catch (error) {
+      console.log(error)
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.messsage ?? 'Error While GET',

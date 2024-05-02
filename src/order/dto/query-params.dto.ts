@@ -1,12 +1,19 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { LargeNumberLike } from 'crypto';
 
 export class QueryParamsDto {
   @Type(() => Number)
   take?: number = 10;
 
-  store_group_id?:number
+  store_group_id?: number;
 
   search?: string;
 
@@ -23,7 +30,14 @@ export class QueryParamsDto {
   @Type(() => Array<Number>)
   status?: number[];
 
+  @IsOptional()
+  @IsNotEmpty()
+  @IsDateString()
   date_from?: string;
+
+  @IsOptional()
+  @IsNotEmpty()
+  @IsDateString()
   date_to?: string;
 
   search_date_from: string;
@@ -51,7 +65,7 @@ export class QueryParamsDto {
   @IsOptional()
   @Type(() => Number)
   tukang_id?: number = 0;
-  
+
   @Transform((value) => value.value.split(',').map(Number))
   @Type(() => String)
   store_id?: number[];
@@ -59,15 +73,15 @@ export class QueryParamsDto {
   @Transform((value) => value.value.split(',').map(Number))
   @Type(() => String)
   service_types?: number[];
-  
+
   @IsOptional()
   @IsString()
-  payment_type?: string
+  payment_type?: string;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  monthly: number ;
+  monthly: number;
 
   @IsOptional()
   invoice_status: string;
@@ -75,21 +89,21 @@ export class QueryParamsDto {
   store_name?: string;
 
   vendor_name?: string;
-  
+
   member_id?: number;
 
-  order_id?:number;
+  order_id?: number;
 
   phone_number?: string;
   member_number?: string;
-  
+
   @IsOptional()
   @Type(() => Number)
-  @IsIn ([0, 1])
+  @IsIn([0, 1])
   all_store?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn ([0, 1])
+  @IsIn([0, 1])
   is_free?: number;
 }
