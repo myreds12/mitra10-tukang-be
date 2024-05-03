@@ -79,7 +79,9 @@ export class VendorService {
         };
       });
 
-    const username = createVendorDto.default_username ? createVendorDto.default_username : `${createVendorDto.email_address}`; 
+    const username = createVendorDto.default_username
+      ? createVendorDto.default_username
+      : `${createVendorDto.email_address}`;
     const users = await this.dbService.users.create({
       data: {
         username,
@@ -94,6 +96,7 @@ export class VendorService {
           id: users.id,
         },
       },
+      max_order: createVendorDto.max_order,
       address: createVendorDto.address,
       pic_name: createVendorDto.pic_name,
       company_name: createVendorDto.company_name,
@@ -155,8 +158,26 @@ export class VendorService {
     return { vendor, users };
   }
 
+  /**
+   * Retrieves a list of vendors based on the provided query parameters.
+   * @param query - The query parameters for filtering and pagination.
+   * @returns An object containing the list of vendors, total count, and pagination details.
+   */
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to, store_id } = query;
+    const {
+      take,
+      page,
+      search,
+      date_from,
+      date_to,
+      store_id,
+      vendor_with_max_order,
+    } = query;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const formattedDate = now.toISOString();
+
+    console.log('vendor_with_max_order', vendor_with_max_order);
     const skip = page * take - take;
 
     const where: Prisma.vendorWhereInput = {
@@ -192,7 +213,8 @@ export class VendorService {
       ].filter(Boolean),
       deleted_at: null,
     };
-    const vendor = await this.dbService.vendor.findMany({
+
+    let vendor = await this.dbService.vendor.findMany({
       where,
       skip,
       take: take <= 0 ? undefined : take,
@@ -236,9 +258,36 @@ export class VendorService {
             },
           },
         },
-        work_orders: true,
+        // work_orders: true,
+        work_orders: {
+          where: {
+            // survey_date: new Date(),
+            OR: [
+              {
+                survey_date: formattedDate,
+              },
+              {
+                work_start_date: {
+                  gte: formattedDate,
+                },
+                work_end_date: {
+                  lte: formattedDate,
+                },
+              },
+            ],
+          },
+        },
       },
     });
+    console.log(new Date(), new Date('2024-05-03'), new Date().toISOString());
+    if (vendor_with_max_order) {
+      vendor = vendor.filter(({ id, work_orders, max_order, company_name }) => {
+        console.log(`[${id}] ${company_name} - ${work_orders.length}`);
+        console.log(work_orders);
+        return max_order > work_orders.length;
+      });
+    }
+
     const total = await this.dbService.vendor.count();
 
     return { data: vendor, total, takeTotal: vendor.length, page, take };
@@ -380,12 +429,8 @@ export class VendorService {
     console.log(updateVendorDto);
 
     const vendorData: Prisma.vendorUpdateInput = {
-      // users: {
-      //   connect: {
-      //     id: user_id,
-      //   },
-      // },
       address: updateVendorDto.address,
+      max_order: updateVendorDto.max_order,
       pic_name: updateVendorDto.pic_name,
       company_name: updateVendorDto.company_name,
       email_address: updateVendorDto.email_address,

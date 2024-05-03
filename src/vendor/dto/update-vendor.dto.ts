@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -19,8 +20,6 @@ class VendorBank {
   @IsNumber()
   @Type(() => Number)
   bank_id: number;
-
-
 
   account_name: string;
   account_number: string;
@@ -39,10 +38,10 @@ class VendorArea {
 
   @IsNotEmpty()
   default_discount: string;
-  
+
   @IsNotEmpty()
   default_markup: string;
-  
+
   default_unit?: string;
 }
 
@@ -61,6 +60,11 @@ class VendorService {
 export class UpdateVendorDto {
   @ApiProperty()
   company_name?: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Min(3)
+  max_order: number;
 
   address?: string;
 
@@ -117,14 +121,14 @@ export class UpdateVendorDto {
 
   @Type(() => VendorStore)
   @ValidateNested({ each: true })
-  vendor_store: VendorStore[]
+  vendor_store: VendorStore[];
 
   @IsOptional()
   @IsString()
   pic_name?: string;
 }
 
-class VendorStore{
+class VendorStore {
   @IsNumber()
   @IsOptional()
   @Type(() => Number)
@@ -133,5 +137,5 @@ class VendorStore{
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
-  store_id: number
+  store_id: number;
 }
