@@ -40,11 +40,11 @@ import { CsiModule } from './csi/csi.module';
 import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
 import { EmailMessagesModule } from './email-messages/email-messages.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 
-// TODO : Dynamic for production Setu
+// TODO : Dynamic for production Setup
 const user = 'jasa.service';
 const pass = 'Tukang@Mitra10';
 const smtpServ = 'mail5.mitra10.com';
@@ -95,28 +95,33 @@ const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${que
     RefundModule,
     RescheduleModule,
     ReportsModule,
-    MailerModule.forRoot({
-      transport: {
-        host: 'sandbox.smtp.mailtrap.io',
-        port: 2525,
-        auth: {
-          user: 'f22c1f963daf4c',
-          pass: 'e06400e91fc5d7',
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>('MAIL_HOST'),
+          port: configService.get<number>('MAIL_PORT'),
+          auth: {
+            user: configService.get<string>('MAIL_USERNAME'),
+            pass: configService.get<string>('MAIL_PASSWORD'),
+          },
         },
-      },
-      defaults: {
-        from: '"Mitra 10 - Instalasi" <noreply@instalasimitra10.com>',
-      },
-      preview: true,
-      template: {
-        dir: join(process.cwd(), '/templates/'),
-        adapter: new PugAdapter({
-          inlineCssEnabled: false,
-        }),
-        options: {
-          strict: true,
+        defaults: {
+          from: configService.get<string>('MAIL_DEFAULTS'),
+          cc: configService.get<string>('MAIL_CC_LIST'),
         },
-      },
+        preview: true,
+        template: {
+          dir: join(process.cwd(), '/templates/'),
+          adapter: new PugAdapter({
+            inlineCssEnabled: false,
+          }),
+          options: {
+            strict: true,
+          },
+        },
+      }),
     }),
     BrandsModule,
     CsiModule,

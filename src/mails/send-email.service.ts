@@ -4,6 +4,7 @@ import { OrderService } from 'src/order/order.service';
 import * as pug from 'pug';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as path from 'path';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SendEmailService {
@@ -11,17 +12,13 @@ export class SendEmailService {
     private readonly mailerService: MailerService,
     private readonly orderService: OrderService,
     private readonly dbService: PrismaService,
-  ) { }
+    private configService: ConfigService,
+  ) {}
 
-  async generatePDF(data: any){
-   
-  }
+  async generatePDF(data: any) {}
 
   async sendMail(order_id: number) {
     const order = await this.orderService.findOne(order_id);
-
-    console.log('Email Order Data : ');
-    // console.log(data, data.members.full_name);
 
     const message = await this.dbService.email_messages.findFirst({
       where: {
@@ -30,8 +27,8 @@ export class SendEmailService {
       },
       include: {
         terms_detail: true,
-        information_detail: true
-      }
+        information_detail: true,
+      },
     });
 
     const data = {
@@ -39,12 +36,26 @@ export class SendEmailService {
       message,
     };
 
+    console.log('Email Order Data : ');
     console.log(data.order, data.message);
-    
+
+    const storeMail = order.store.email;
+    // TODO: add admin ho as cc too
+    const adminHo = '';
+
+    const ccList = this.configService
+      .get<string>('MAIL_CC_LIST')
+      .split(',')
+      .map((email) => email.trim());
+
+    if (!ccList.includes(storeMail)) {
+      ccList.push(storeMail);
+    }
 
     await this.mailerService.sendMail({
       to: data.order.members.email, // list of receivers
-      from: 'noreply@mitra10.com', // sender address
+      // from: 'noreply@mitra10.com', // sender address
+      cc: ccList.join(','),
       subject: 'Email Order', // Subject line
       template: 'index',
       context: { data },
@@ -80,25 +91,25 @@ export class SendEmailService {
       },
       include: {
         terms_detail: true,
-        information_detail: true
-      }
+        information_detail: true,
+      },
     });
 
     let to = users.username.includes('@')
       ? users.username
       : users.employee?.email ??
-      users.vendor?.email_address ??
-      users.tukang[0]?.email ??
-      'example@example.com';
+        users.vendor?.email_address ??
+        users.tukang[0]?.email ??
+        'example@example.com';
     console.log(to);
     const data = {
       users,
-      message
-    }
+      message,
+    };
 
     await this.mailerService.sendMail({
       to,
-      from: 'noreply@mitra10.com', // sender address
+      // from: 'noreply@mitra10.com', // sender address
       subject: 'Email Reset Password', // Subject line
       template: 'reset-password',
       context: { data },
@@ -134,7 +145,7 @@ export class SendEmailService {
 
     await this.mailerService.sendMail({
       to,
-      from: 'noreply@mitra10.com', // sender address
+      // from: 'noreply@mitra10.com', // sender address
       subject: 'Credential Mail', // Subject line
       template: 'credential-mail',
       context: { data },
@@ -142,7 +153,7 @@ export class SendEmailService {
     });
   }
 
-  async sendQuotationMail(quotation_id: number){
+  async sendQuotationMail(quotation_id: number) {
     const quotation = await this.dbService.quotation.findFirst({
       where: {
         id: quotation_id,
@@ -189,22 +200,22 @@ export class SendEmailService {
     const message = await this.dbService.email_messages.findFirst({
       where: {
         email_type: 4,
-        is_active: true
+        is_active: true,
       },
       include: {
         information_detail: true,
-        terms_detail: true
-      }
+        terms_detail: true,
+      },
     });
 
     const data = {
       quotation,
-      message
-    }
+      message,
+    };
 
     await this.mailerService.sendMail({
       to: data.quotation.order.members.email, // list of receivers
-      from: 'noreply@mitra10.com', // sender address
+      // from: 'noreply@mitra10.com', // sender address
       subject: 'Email Order', // Subject line
       template: 'quotation',
       context: { data },
