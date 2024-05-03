@@ -258,7 +258,6 @@ export class VendorService {
             },
           },
         },
-        // work_orders: true,
         work_orders: {
           where: {
             // survey_date: new Date(),
