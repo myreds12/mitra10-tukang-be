@@ -45,8 +45,7 @@ export class SendEmailService {
 
     const ccList = this.configService
       .get<string>('MAIL_CC_LIST')
-      .split(',')
-      .map((email) => email.trim());
+      .split(',');
 
     if (!ccList.includes(storeMail)) {
       ccList.push(storeMail);
@@ -219,8 +218,7 @@ export class SendEmailService {
 
     const ccList = this.configService
       .get<string>('MAIL_CC_LIST')
-      .split(',')
-      .map((email) => email.trim());
+      .split(',');
 
     if (!ccList.includes(storeMail)) {
       ccList.push(storeMail);
