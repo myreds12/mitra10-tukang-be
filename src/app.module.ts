@@ -44,13 +44,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 
-// TODO : Dynamic for production Setup
-const user = 'jasa.service';
-const pass = 'Tukang@Mitra10';
-const smtpServ = 'mail5.mitra10.com';
-const transporter = 'smtps';
-const query = '?pool=true';
-const mailTransporter = `${transporter}://${user}:${pass}@${smtpServ}:2525/${query}`;
 
 @Module({
   imports: [
