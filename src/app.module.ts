@@ -102,7 +102,7 @@ import spreadsheetsConfig from 'config/spreadsheets.config';
         },
         defaults: {
           from: configService.get<string>('MAIL_DEFAULTS'),
-          cc: configService.get<string>('MAIL_CC_LIST'),
+          bcc: configService.get<string>('MAIL_BCC_LIST'),
         },
         preview: true,
         template: {

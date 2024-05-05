@@ -43,18 +43,18 @@ export class SendEmailService {
     // TODO: add admin ho as cc too
     const adminHo = '';
 
-    const ccList = this.configService
-      .get<string>('MAIL_CC_LIST')
+    const bccList = this.configService
+      .get<string>('MAIL_BCC_LIST')
       .split(',');
 
-    if (!ccList.includes(storeMail)) {
-      ccList.push(storeMail);
+    if (!bccList.includes(storeMail)) {
+      bccList.push(storeMail);
     }
 
     await this.mailerService.sendMail({
       to: data.order.members.email, // list of receivers
       from: 'noreply@mitra10.com', // sender address
-      cc: ccList.join(','),
+      bcc: bccList.join(','),
       subject: 'Email Order', // Subject line
       template: 'index',
       context: { data },
@@ -216,17 +216,17 @@ export class SendEmailService {
     // TODO: add admin ho as cc too
     const adminHo = '';
 
-    const ccList = this.configService
-      .get<string>('MAIL_CC_LIST')
+    const bccList = this.configService
+      .get<string>('MAIL_BCC_LIST')
       .split(',');
 
-    if (!ccList.includes(storeMail)) {
-      ccList.push(storeMail);
+    if (!bccList.includes(storeMail)) {
+      bccList.push(storeMail);
     }
 
     await this.mailerService.sendMail({
       to: data.quotation.order.members.email, // list of receivers
-      cc: ccList.join(','),
+      bcc: bccList.join(','),
       from: 'noreply@mitra10.com', // sender address
       subject: 'Email Quotation', // Subject line
       template: 'quotation',
