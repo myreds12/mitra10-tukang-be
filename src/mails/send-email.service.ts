@@ -54,7 +54,7 @@ export class SendEmailService {
 
     await this.mailerService.sendMail({
       to: data.order.members.email, // list of receivers
-      // from: 'noreply@mitra10.com', // sender address
+      from: 'noreply@mitra10.com', // sender address
       cc: ccList.join(','),
       subject: 'Email Order', // Subject line
       template: 'index',
@@ -213,10 +213,24 @@ export class SendEmailService {
       message,
     };
 
+    const storeMail = quotation.store.email;
+    // TODO: add admin ho as cc too
+    const adminHo = '';
+
+    const ccList = this.configService
+      .get<string>('MAIL_CC_LIST')
+      .split(',')
+      .map((email) => email.trim());
+
+    if (!ccList.includes(storeMail)) {
+      ccList.push(storeMail);
+    }
+
     await this.mailerService.sendMail({
       to: data.quotation.order.members.email, // list of receivers
-      // from: 'noreply@mitra10.com', // sender address
-      subject: 'Email Order', // Subject line
+      cc: ccList.join(','),
+      from: 'noreply@mitra10.com', // sender address
+      subject: 'Email Quotation', // Subject line
       template: 'quotation',
       context: { data },
     });
