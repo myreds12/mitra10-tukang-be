@@ -113,14 +113,14 @@ model logs {
 
 model members {
   id            Int     @id @default(autoincrement())
-  area_id       Int?    @default(0)
+  area_id       Int?
   join_location Int?
   member_number String? @db.VarChar(20)
 
   full_name       String   @db.VarChar(255)
   email           String   @unique() @db.VarChar(255)
-  phone_number    String   @db.VarChar(20)
-  whatsapp_number String   @db.VarChar(20)
+  phone_number    String?  @db.VarChar(20)
+  whatsapp_number String?  @db.VarChar(20)
   address_1       String   @db.VarChar(255)
   address_2       String?  @db.VarChar(255)
   zip_code        String?  @db.VarChar(10)
