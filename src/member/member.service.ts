@@ -18,12 +18,15 @@ export class MemberService {
       const email_check = await this.dbService.members.findFirst({
         where: { email: createMemberDto.email },
       });
-      if (email_check) throw new BadRequestException('Email already exist!');
+      if (email_check && createMemberDto.email) throw new BadRequestException('Email already exist!');
       const totalMember = (await this.dbService.members.count()) + 1;
       const defaultZero = '00000000';
       const numberMember =
         defaultZero.slice(0, 8 - totalMember.toString().length) +
         totalMember.toString();
+
+
+        // TODO : add condition for numberMember when phone_number or whatsapp_number filled, use that instead
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,

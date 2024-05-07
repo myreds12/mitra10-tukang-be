@@ -118,7 +118,7 @@ model members {
   member_number String? @db.VarChar(20)
 
   full_name       String   @db.VarChar(255)
-  email           String   @unique() @db.VarChar(255)
+  email           String?  @db.VarChar(255)
   phone_number    String?  @db.VarChar(20)
   whatsapp_number String?  @db.VarChar(20)
   address_1       String   @db.VarChar(255)

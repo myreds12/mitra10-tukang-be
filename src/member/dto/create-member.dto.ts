@@ -12,20 +12,21 @@ export class CreateMemberDto {
   @IsNotEmpty()
   full_name: string;
 
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  phone_number: string;
-
-  whatsapp_number: string;
-
-  address_1: string;
-
-  address_2?: string;
-
-  @IsInt()
   @IsOptional()
+  // @IsEmail()
+  // @IsNotEmpty()
+  email: string;
+  
+  phone_number: string;
+  
+  whatsapp_number: string;
+  
+  address_1: string;
+  
+  address_2?: string;
+  
+  @IsOptional()
+  @IsInt()
   area_id?: number;
 
   zip_code: string;

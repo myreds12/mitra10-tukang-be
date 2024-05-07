@@ -43,31 +43,31 @@ export class SendEmailService {
     // TODO: add admin ho as cc too
     const adminHo = '';
 
-    const bccList = this.configService
-      .get<string>('MAIL_BCC_LIST')
-      .split(',');
+    const bccList = this.configService.get<string>('MAIL_BCC_LIST').split(',');
 
     if (!bccList.includes(storeMail)) {
       bccList.push(storeMail);
     }
 
-    await this.mailerService.sendMail({
-      to: data.order.members.email, // list of receivers
-      from: 'noreply@mitra10.com', // sender address
-      bcc: bccList.join(','),
-      subject: 'Email Order', // Subject line
-      template: 'index',
-      context: { data },
-      // html: pug.renderFile('templates/index.pug', { data }),
-      // attachments: [
-      //   {
-      //     filename: 'order.pdf',
-      //     content: generatePdf,
-      //     encoding: 'base64',
-      //     cid: 'noreply@mitra10.com', // Ganti dengan CID yang unik
-      //   },
-      // ],
-    });
+    if (order.members.email) {
+      await this.mailerService.sendMail({
+        to: data.order.members.email, // list of receivers
+        from: 'noreply@mitra10.com', // sender address
+        bcc: bccList.join(','),
+        subject: 'Email Order', // Subject line
+        template: 'index',
+        context: { data },
+        // html: pug.renderFile('templates/index.pug', { data }),
+        // attachments: [
+        //   {
+        //     filename: 'order.pdf',
+        //     content: generatePdf,
+        //     encoding: 'base64',
+        //     cid: 'noreply@mitra10.com', // Ganti dengan CID yang unik
+        //   },
+        // ],
+      });
+    }
   }
 
   async sendMailResetPassword(user_id: number) {
@@ -127,6 +127,7 @@ export class SendEmailService {
       },
       include: {
         employee: true,
+        store: true,
         vendor: true,
         sales: true,
         tukang: true,
@@ -140,6 +141,7 @@ export class SendEmailService {
       users.employee?.email ||
       users.vendor?.email_address ||
       users.tukang[0]?.email ||
+      users.store[0].email ||
       'example@example.com';
 
     await this.mailerService.sendMail({
@@ -216,21 +218,20 @@ export class SendEmailService {
     // TODO: add admin ho as cc too
     const adminHo = '';
 
-    const bccList = this.configService
-      .get<string>('MAIL_BCC_LIST')
-      .split(',');
+    const bccList = this.configService.get<string>('MAIL_BCC_LIST').split(',');
 
     if (!bccList.includes(storeMail)) {
       bccList.push(storeMail);
     }
-
-    await this.mailerService.sendMail({
-      to: data.quotation.order.members.email, // list of receivers
-      bcc: bccList.join(','),
-      from: 'noreply@mitra10.com', // sender address
-      subject: 'Email Quotation', // Subject line
-      template: 'quotation',
-      context: { data },
-    });
+    if (quotation.order.members.email) {
+      await this.mailerService.sendMail({
+        to: data.quotation.order.members.email, // list of receivers
+        bcc: bccList.join(','),
+        from: 'noreply@mitra10.com', // sender address
+        subject: 'Email Quotation', // Subject line
+        template: 'quotation',
+        context: { data },
+      });
+    }
   }
 }

@@ -55,6 +55,24 @@ export class SalesController {
     }
   }
 
+  @Post('/salesUser/:store_id')
+async salesUser(@Param('store_id') store_id: number, @Res() res: IExpressResponse) {
+  try {
+    const updatedSales = await this.salesService.salesUser(store_id);
+    return res.status(200).json({
+      status: HttpStatus.OK,
+      message: 'Sales updated successfully',
+      data: updatedSales,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      status: HttpStatus.BAD_REQUEST,
+      message: error.message ?? 'Error while updating sales',
+      stack: error,
+    });
+  }
+}
+
   @Post()
   async create(
     @Body() createSaleDto: CreateSalesDto,
