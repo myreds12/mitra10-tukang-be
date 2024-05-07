@@ -36,11 +36,11 @@ class VendorArea {
   @Type(() => Number)
   area_id: number;
 
-  @IsNotEmpty()
-  default_discount: string;
+  @IsOptional()
+  default_discount?: string;
 
-  @IsNotEmpty()
-  default_markup: string;
+  @IsOptional()
+  default_markup?: string;
 
   default_unit?: string;
 }
@@ -60,9 +60,10 @@ class VendorService {
 export class UpdateVendorDto {
   @ApiProperty()
   company_name?: string;
-
-  @IsNotEmpty()
-  @IsNumber()
+  
+  @Type(() => Number)
+  @IsOptional()
+  // @IsNumber()
   @Min(3)
   max_order: number;
 
