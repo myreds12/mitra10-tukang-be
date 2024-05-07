@@ -37,7 +37,7 @@ export class CreateVendorDto {
   @ApiProperty({ type: [Number] })
   @Type(() => Number)
   area_id?: number[];
-
+  
   @IsOptional()
   @ApiProperty({ type: [Number] })
   @Type(() => Number)
@@ -45,9 +45,10 @@ export class CreateVendorDto {
 
   @Type(() => Number)
   bank_id: number;
-
+  
+  @Type(() => Number)
   @IsNotEmpty()
-  @IsNumber()
+  // @IsNumber()
   @Min(3)
   max_order: number;
 
