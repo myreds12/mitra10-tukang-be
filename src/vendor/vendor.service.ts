@@ -369,7 +369,7 @@ export class VendorService {
     console.log(updateVendorDto.vendor_service);
 
     const vendorServiceUpsert: Prisma.vendor_serviceUpsertWithWhereUniqueWithoutVendorInput[] =
-      updateVendorDto.vendor_service.map((item) => ({
+      updateVendorDto.vendor_service ? updateVendorDto.vendor_service.map((item) => ({
         where: {
           id: item.id ?? 0,
           vendor_id: id,
@@ -384,10 +384,10 @@ export class VendorService {
           created_by: user_id,
           created_at: new Date(),
         },
-      }));
+      })) : undefined;
 
     const vendorStoreUpsert: Prisma.vendor_storeUpsertWithWhereUniqueWithoutVendorInput[] =
-      updateVendorDto.vendor_store.map((item) => ({
+      updateVendorDto.vendor_store ? updateVendorDto.vendor_store.map((item) => ({
         where: {
           id: item.id ?? 0,
         },
@@ -400,10 +400,10 @@ export class VendorService {
           updated_by: user_id,
           updated_at: new Date(),
         },
-      }));
+      })) : undefined;
 
     const vendorAreaUpsert: Prisma.vendor_areaUpsertWithWhereUniqueWithoutVendorInput[] =
-      updateVendorDto.vendor_area.map((item) => ({
+      updateVendorDto.vendor_area ? updateVendorDto.vendor_area.map((item) => ({
         where: {
           id: item.id ?? 0,
           vendor_id: id,
@@ -423,7 +423,7 @@ export class VendorService {
           updated_by: user_id,
           updated_at: new Date(),
         },
-      }));
+      })) : undefined;
 
     console.log(updateVendorDto);
 
