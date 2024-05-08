@@ -48,7 +48,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly sendEmailService: SendEmailService,
-  ) { }
+  ) {}
 
   @Get('/check')
   async getOrderDetailPublic(
@@ -56,6 +56,8 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
+      if (!query.order_id)
+        throw new BadRequestException('Order ID cannot be null.');
       const { redirect_url } = await this.orderService.orderDetailsPublic(
         query,
       );
@@ -242,8 +244,12 @@ export class OrderController {
         order_files,
       );
       // await this.sendEmailService.sendMail(order.id);
-      if (order.status.category === 'BOOKED' || order.status.category === 'WORKREQ' || order.status.category === 'SURVEYREQ' ) {
-        await this.sendEmailService.sendMail(order.id)
+      if (
+        order.status.category === 'BOOKED' ||
+        order.status.category === 'WORKREQ' ||
+        order.status.category === 'SURVEYREQ'
+      ) {
+        await this.sendEmailService.sendMail(order.id);
       }
 
       return res.status(201).json({
@@ -274,7 +280,7 @@ export class OrderController {
         total,
         takeTotal,
         // monthlyOrders,
-      } = await this.orderService.findAll(query, req.user,);
+      } = await this.orderService.findAll(query, req.user);
       return {
         status: HttpStatus.OK,
         messages: 'Ok',
@@ -336,8 +342,12 @@ export class OrderController {
         req.user,
         order_files,
       );
-      if (order.status.category === 'BOOKED' || order.status.category === 'WORKREQ' || order.status.category === 'SURVEYREQ' ) {
-        await this.sendEmailService.sendMail(order.id)
+      if (
+        order.status.category === 'BOOKED' ||
+        order.status.category === 'WORKREQ' ||
+        order.status.category === 'SURVEYREQ'
+      ) {
+        await this.sendEmailService.sendMail(order.id);
       }
 
       return res.status(200).json({
