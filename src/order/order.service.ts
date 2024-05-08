@@ -57,7 +57,7 @@ export class OrderService {
       },
     });
 
-    if(salesUser.sales.length === 0) throw new BadRequestException('Sales not found!');
+    // if(salesUser.sales.length === 0) throw new BadRequestException('Sales not found!');
 
 
     const orderDetailItems = await this.dbService.items.findMany({
