@@ -57,6 +57,9 @@ export class OrderService {
       },
     });
 
+    if(salesUser.sales.length === 0) throw new BadRequestException('Sales not found!');
+
+
     const orderDetailItems = await this.dbService.items.findMany({
       where: {
         id: { in: createOrderDto.order_details.map(({ item_id }) => item_id) },
@@ -109,7 +112,7 @@ export class OrderService {
           0;
         const comission = Number(
           salesUser?.sales[0]?.sales_categories?.find(
-            ({ category_id }) => currentItem.category_id === category_id,
+            ({ category_id }) => currentItem?.category_id === category_id,
           )?.commission ?? 0,
         );
 
