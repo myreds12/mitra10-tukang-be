@@ -30,7 +30,7 @@ interface UserRequest extends IExpressRequest {
 @Controller('sales')
 @UseGuards(JwtAuthGuard)
 export class SalesController {
-  constructor(private readonly salesService: SalesService) { }
+  constructor(private readonly salesService: SalesService) {}
 
   @Get('next-code')
   async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {
@@ -56,22 +56,25 @@ export class SalesController {
   }
 
   @Post('/salesUser/:store_id')
-async salesUser(@Param('store_id') store_id: number, @Res() res: IExpressResponse) {
-  try {
-    const updatedSales = await this.salesService.salesUser(store_id);
-    return res.status(200).json({
-      status: HttpStatus.OK,
-      message: 'Sales updated successfully',
-      data: updatedSales,
-    });
-  } catch (error) {
-    return res.status(400).json({
-      status: HttpStatus.BAD_REQUEST,
-      message: error.message ?? 'Error while updating sales',
-      stack: error,
-    });
+  async salesUser(
+    @Param('store_id') store_id: number,
+    @Res() res: IExpressResponse,
+  ) {
+    try {
+      const updatedSales = await this.salesService.salesUser(store_id);
+      return res.status(200).json({
+        status: HttpStatus.OK,
+        message: 'Sales updated successfully',
+        data: updatedSales,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: error.message ?? 'Error while updating sales',
+        stack: error,
+      });
+    }
   }
-}
 
   @Post()
   async create(
@@ -115,7 +118,7 @@ async salesUser(@Param('store_id') store_id: number, @Res() res: IExpressRespons
         take,
       });
     } catch (error) {
-      console.log(error)
+      console.log(error);
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.messsage ?? 'Error While GET',

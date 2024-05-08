@@ -119,8 +119,7 @@ export class SalesService {
       top_best,
       store_id,
     } = query;
-    console.log(query)
-
+    console.log(query);
 
     const skip = page * take - take;
 
@@ -362,44 +361,61 @@ export class SalesService {
         },
         include: {
           users: true,
+          store: true,
         },
       });
       const roles = await this.dbService.roles.findFirst({
         where: {
           name: {
-            contains: 'sales'
-          }
-        }
+            contains: 'sales',
+          },
+        },
       });
-  
-      const updatedSales = await Promise.all(sales.map(async (sale) => {
-        const { full_name, store_id, id } = sale;
-        const username = full_name.toLowerCase().replace(/ /g, '_');
-        const password = hashSync('password', 12);
-        const role_id = roles.id;
-  
-        const user = await this.dbService.users.create({
-          data: {
-            username,
-            password,
-            role_id,
-          },
-        });
-  
-        await this.dbService.sales.update({
-          where: {
-            id,
-            store_id,
-          },
-          data: {
-            user_id: user.id,
-          },
-        });
-  
-        return sale;
-      }));
-  
-      return updatedSales;
+      const userSales = [];
+      const updatedSales = await Promise.all(
+        sales.map(async (sale) => {
+          const { full_name, store_id, id, store } = sale;
+          const storeSnakeCase = store.store_name
+            .toLowerCase()
+            .replace(/\s+/g, '_');
+          const fullNameSnakeCase = full_name
+            .toLowerCase()
+            .replace(/\s+/g, '_')
+            .replace(/\W/g, '');
+
+          // lowerCase, snake_case, remove special characters
+          const username = `${fullNameSnakeCase.replace(
+            /_(\w)_/g,
+            '_$1',
+          )}_${storeSnakeCase.replace(/_(\w)_/g, '_$1')}`;
+          const password = hashSync('password', 12);
+          const role_id = roles.id;
+
+          userSales.push({ username, password, role_id });
+
+          const user = await this.dbService.users.create({
+            data: {
+              username,
+              password,
+              role_id,
+            },
+          });
+
+          await this.dbService.sales.update({
+            where: {
+              id,
+              store_id,
+            },
+            data: {
+              user_id: user.id,
+            },
+          });
+
+          return sale;
+        }),
+      );
+
+      return userSales;
     } catch (error) {
       console.error(error);
       throw error;
