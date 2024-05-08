@@ -93,6 +93,19 @@ export class StoreService {
               },
             ]
           : []),
+          ...(search
+            ? [
+              {
+                OR: [
+                  {
+                    store_name: {
+                      contains: search
+                    }
+                  },
+                ],
+              },
+            ]
+            : []),
           ...(store_group_id ? [
             {
               OR: [
