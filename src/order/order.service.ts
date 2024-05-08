@@ -20,7 +20,7 @@ export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly statusService: StatusService,
-  ) { }
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -48,17 +48,16 @@ export class OrderService {
             ? { where: { id: createOrderDto.sales_id } }
             : undefined),
           orderBy: {
-            created_at: 'desc'
+            created_at: 'desc',
           },
           include: {
-            sales_categories: true
+            sales_categories: true,
           },
         },
       },
     });
 
     // if(salesUser.sales.length === 0) throw new BadRequestException('Sales not found!');
-
 
     const orderDetailItems = await this.dbService.items.findMany({
       where: {
@@ -160,8 +159,8 @@ export class OrderService {
       is_overdistance: createOrderDto.is_overdistance,
       ...(createOrderDto.is_overdistance === 1
         ? {
-          additional_fee: createOrderDto.additional_fee,
-        }
+            additional_fee: createOrderDto.additional_fee,
+          }
         : undefined),
       created_by: user_id,
       payment_type: createOrderDto.payment_type,
@@ -177,8 +176,8 @@ export class OrderService {
         order_files: { createMany: { data: files } },
       },
       include: {
-        status: true
-      }
+        status: true,
+      },
     };
 
     const [salesOrder, order] = await this.dbService.$transaction([
@@ -193,12 +192,12 @@ export class OrderService {
         },
       }),
       this.dbService.orders.create({
-        data:{
-          ...ordersOptions.data
+        data: {
+          ...ordersOptions.data,
         },
         include: {
-          status: true
-        }
+          status: true,
+        },
       }),
     ]);
 
@@ -208,12 +207,11 @@ export class OrderService {
       user,
       createOrderDto,
     );
-   
 
     return order;
   }
 
-  async findAll(queryParams: QueryParamsDto, users: users,) {
+  async findAll(queryParams: QueryParamsDto, users: users) {
     const { id: user_id, role_id } = users;
     // DO SEARCH AND PAGINATION LOGIC ...
     const {
@@ -245,61 +243,60 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                // TODO: FIXME
-                // { request_survey: { equals: new Date(search) } },
-                { members: { full_name: { contains: search } } },
-                {
-                  store: {
-                    store_name: {
-                      contains: search
-                    }
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  // TODO: FIXME
+                  // { request_survey: { equals: new Date(search) } },
+                  { members: { full_name: { contains: search } } },
+                  {
+                    store: {
+                      store_name: {
+                        contains: search,
+                      },
+                    },
                   },
-                },
-                {
-                  project_number: {
-                    contains: search
-                  }
-                }
-              ],
-            },
-          ]
+                  {
+                    project_number: {
+                      contains: search,
+                    },
+                  },
+                ],
+              },
+            ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
         store_id
           ? {
-            store_id: {
-              in: store_id,
-            },
-          }
+              store_id: {
+                in: store_id,
+              },
+            }
           : undefined,
         vendor_id
           ? {
-            vendor: {
-              id: vendor_id,
-              deleted_at: null,
-            },
-          }
+              vendor: {
+                id: vendor_id,
+                deleted_at: null,
+              },
+            }
           : undefined,
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
     };
     console.log(JSON.stringify(where));
-    
 
     const orders = await this.dbService.orders.findMany({
       skip,
@@ -706,10 +703,10 @@ export class OrderService {
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
-        where: {
-          id: updateOrderDto.project_status_id,
-        },
-      })
+          where: {
+            id: updateOrderDto.project_status_id,
+          },
+        })
       : null;
 
     let projectStatusDefault = order.status;
@@ -728,7 +725,7 @@ export class OrderService {
       order.status.category === 'BOOK' &&
       currentUser.roles.name.toLowerCase().includes('admin ho')
     ) {
-      await this
+      await this;
       projectStatusDefault = searchStatusInput;
     }
 
@@ -820,12 +817,12 @@ export class OrderService {
             item_notes: item?.item_notes,
             ...(item.item_id
               ? {
-                item: {
-                  connect: {
-                    id: item.item_id,
+                  item: {
+                    connect: {
+                      id: item.item_id,
+                    },
                   },
-                },
-              }
+                }
               : undefined),
             sales: {
               connect: { id: updateOrderDto.sales_id ?? order.sales_id },
@@ -872,10 +869,10 @@ export class OrderService {
       });
     const deletedOrderFile = updateOrderDto.existing_order_files
       ? updateOrderDto?.existing_order_files
-        .filter((x) => Boolean(x?.order_file_id))
-        .map((item) => {
-          return Number(item.order_file_id);
-        })
+          .filter((x) => Boolean(x?.order_file_id))
+          .map((item) => {
+            return Number(item.order_file_id);
+          })
       : undefined;
     console.log(deletedOrderFile);
 
@@ -907,10 +904,10 @@ export class OrderService {
             order_id: id,
             ...(deletedDetailsId.length
               ? {
-                id: {
-                  notIn: deletedDetailsId,
-                },
-              }
+                  id: {
+                    notIn: deletedDetailsId,
+                  },
+                }
               : undefined),
           },
           data: {
@@ -922,10 +919,10 @@ export class OrderService {
           where: {
             ...(deletedOrderFile
               ? {
-                id: {
-                  notIn: deletedOrderFile,
-                },
-              }
+                  id: {
+                    notIn: deletedOrderFile,
+                  },
+                }
               : undefined),
             order_id: id,
           },
@@ -945,18 +942,18 @@ export class OrderService {
             },
           },
           include: {
-            status: true
-          }
+            status: true,
+          },
         }),
       ]);
-   
+
     await this.addHistory(
       orderQuery.id,
       orderQuery.project_status_id,
       user,
       updateOrderDto,
     );
-    
+
     return orderQuery;
   }
 
@@ -1076,53 +1073,37 @@ export class OrderService {
   }
 
   async orderDetailsPublic(query: QueryParamsDto) {
-    const { order_id, phone_number, email_member, member_number, date_from, date_to } = query;
+    const { order_id, phone_number, email_member, member_number } = query;
 
     const where: Prisma.ordersWhereInput = {
-      AND: [
-        ...(order_id
-          ? [
-            {
-              id: +order_id,
-            },
-          ]
-          : []),
+      id: +order_id,
+      OR: [
         ...(email_member
           ? [
-            {
-              members: {
-                email: email_member,
+              {
+                members: {
+                  email: email_member,
+                },
               },
-            },
-          ]
+            ]
           : []),
         ...(member_number
           ? [
-            {
-              members: {
-                member_number: member_number,
+              {
+                members: {
+                  member_number: member_number,
+                },
               },
-            },
-          ]
+            ]
           : []),
         ...(phone_number
           ? [
-            {
-              members: {
-                phone_number: phone_number,
+              {
+                members: {
+                  phone_number: phone_number,
+                },
               },
-            },
-          ]
-          : []),
-        ...(date_from && date_to
-          ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -1216,16 +1197,14 @@ export class OrderService {
         },
       },
     });
-    console.log();
-
 
     if (!order) throw new NotFoundException('Order not found !');
 
-    const redirect_url = phone_number
-      ? `${process.env.FE_URL}/detail-order?order_id=${order_id}&phone_number=${phone_number}`
-      : email_member
-        ? `${process.env.FE_URL}/detail-order?order_id=${order_id}&email_member=${email_member}`
-        : `${process.env.FE_URL}/detail-order?order_id=${order_id}`;
+    const redirect_url = `${
+      process.env.FE_URL
+    }/detail-order?order_id=${order_id}${
+      phone_number ? `&phone_number=${phone_number}` : ''
+    }${email_member ? `&email_member=${email_member}` : ''}`;
 
     return {
       data: order,
