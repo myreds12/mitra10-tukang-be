@@ -181,8 +181,11 @@ export class TukangService {
         tukang_document: true,
       },
     });
+    const countTotal = await this.dbService.tukang.count({
+      where,
+    });
 
-    return { data: tukang, skip, take, page, countTotal: tukang.length };
+    return { data: tukang, skip, take, page, countTotal: countTotal };
   }
 
   async findOne(id: number) {
