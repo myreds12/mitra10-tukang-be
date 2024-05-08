@@ -109,6 +109,7 @@ export class MemberService {
       const member = await this.dbService.members.findMany({
         where,
         include: {
+          join_location_store: true,
           order: {
             include: {
               complaints: true,
@@ -151,6 +152,7 @@ export class MemberService {
       const member = await this.dbService.members.findFirst({
         where: { id: id },
         include: {
+          join_location_store: true,
           order: {
             include: {
               complaints: true,
@@ -163,7 +165,7 @@ export class MemberService {
       });
 
       return {
-        data: { member },
+        data: member ,
         status: HttpStatus.OK,
         message: 'Successfully get data',
       };
@@ -198,6 +200,9 @@ export class MemberService {
           updated_at: new Date(),
           updated_by: user_id,
         },
+        include:{
+          join_location_store: true
+        }
       });
 
       return {
@@ -207,6 +212,8 @@ export class MemberService {
       };
 
     } catch (error) {
+      console.log(error);
+      
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to update member data',

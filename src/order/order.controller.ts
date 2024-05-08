@@ -242,6 +242,9 @@ export class OrderController {
         order_files,
       );
       // await this.sendEmailService.sendMail(order.id);
+      if (order.status.category === 'BOOKED' || order.status.category === 'WORKREQ' || order.status.category === 'SURVEYREQ' ) {
+        await this.sendEmailService.sendMail(order.id)
+      }
 
       return res.status(201).json({
         status: HttpStatus.CREATED,
@@ -333,7 +336,7 @@ export class OrderController {
         req.user,
         order_files,
       );
-      if (order.status.category === 'BOOKED') {
+      if (order.status.category === 'BOOKED' || order.status.category === 'WORKREQ' || order.status.category === 'SURVEYREQ' ) {
         await this.sendEmailService.sendMail(order.id)
       }
 

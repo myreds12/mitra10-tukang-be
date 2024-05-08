@@ -173,6 +173,9 @@ export class OrderService {
         m_order_details: { createMany: { data: order_details } },
         order_files: { createMany: { data: files } },
       },
+      include: {
+        status: true
+      }
     };
 
     const [salesOrder, order] = await this.dbService.$transaction([
@@ -186,7 +189,14 @@ export class OrderService {
           },
         },
       }),
-      this.dbService.orders.create(ordersOptions),
+      this.dbService.orders.create({
+        data:{
+          ...ordersOptions.data
+        },
+        include: {
+          status: true
+        }
+      }),
     ]);
 
     await this.addHistory(
@@ -195,6 +205,7 @@ export class OrderService {
       user,
       createOrderDto,
     );
+   
 
     return order;
   }
@@ -942,6 +953,7 @@ export class OrderService {
       user,
       updateOrderDto,
     );
+    
     return orderQuery;
   }
 

@@ -118,8 +118,8 @@ html(lang="en")
               th Nama Jasa Pemasangan
               th QTY Pemasangan
               if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
-                  th Harga Jasa
-                  th Jumlah
+                th Harga Jasa
+                th Jumlah
             tr
               each item, index in data.order.order_details
                 tr(key=`${index} - order_detail`)
