@@ -26,17 +26,21 @@ export class SalesService {
   }
 
   async create(createSalesDto: CreateSalesDto, user: users) {
-    console.log(createSalesDto);
-
     const { id: user_id } = user;
-    const bank = await this.dbService.bank.findFirst({
-      where: {
-        id: createSalesDto.bank_id,
-      },
-    });
+    let bank;
+    if (createSalesDto.bank_id) {
+      bank = await this.dbService.bank.findFirst({
+        where: {
+          id: createSalesDto.bank_id,
+        },
+      });
 
-    if (bank.is_active == false)
-      throw new HttpException('Bank is not available', HttpStatus.BAD_REQUEST);
+      if (bank.is_active == false)
+        throw new HttpException(
+          'Bank is not available',
+          HttpStatus.BAD_REQUEST,
+        );
+    }
 
     const SALES_ROLES = await this.dbService.roles.findFirst({
       where: {
@@ -46,8 +50,10 @@ export class SalesService {
       },
     });
 
-    const sales_categories: Prisma.sales_categoriesCreateManyInput[] =
-      createSalesDto.sales_categories.map((item) => {
+    let sales_categories: Prisma.sales_categoriesCreateManyInput[];
+
+    if (createSalesDto.sales_categories?.length > 0)
+      sales_categories = createSalesDto.sales_categories.map((item) => {
         return {
           category_id: item.category_id,
           commission: item.commission ?? '0',
@@ -59,28 +65,32 @@ export class SalesService {
 
     const sales_data: Prisma.salesCreateInput = {
       full_name: createSalesDto.full_name,
-      bank_branch: createSalesDto.bank_branch,
-      account_name: createSalesDto.account_name,
-      phone_number: createSalesDto.phone_number,
-      account_number: createSalesDto.account_number,
-      sales_brand: createSalesDto.sales_brand,
+      bank_branch: createSalesDto?.bank_branch,
+      account_name: createSalesDto?.account_name,
+      phone_number: createSalesDto?.phone_number,
+      account_number: createSalesDto?.account_number,
+      sales_brand: createSalesDto?.sales_brand,
       created_by: user_id,
-      nik: createSalesDto.nik,
+      nik: createSalesDto?.nik,
       store: {
         connect: {
           id: createSalesDto?.store_id ?? undefined,
         },
       },
-      bank: {
-        connect: {
-          id: createSalesDto.bank_id,
-        },
-      },
-      sales_categories: {
-        createMany: {
-          data: sales_categories,
-        },
-      },
+      bank: bank
+        ? {
+            connect: {
+              id: createSalesDto.bank_id,
+            },
+          }
+        : undefined,
+      sales_categories: sales_categories?.length
+        ? {
+            createMany: {
+              data: sales_categories,
+            },
+          }
+        : undefined,
       users: {
         connectOrCreate: {
           where: {
