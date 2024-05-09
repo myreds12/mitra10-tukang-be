@@ -9,8 +9,10 @@ import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService, private readonly sendMailService: SendEmailService,
-  ) { }
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly sendMailService: SendEmailService,
+  ) {}
 
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
@@ -18,15 +20,31 @@ export class MemberService {
       const email_check = await this.dbService.members.findFirst({
         where: { email: createMemberDto.email },
       });
-      if (email_check && createMemberDto.email) throw new BadRequestException('Email already exist!');
-      const totalMember = (await this.dbService.members.count()) + 1;
-      const defaultZero = '00000000';
+
+      const phone_wa_check = await this.dbService.members.findFirst({
+        where: {
+          OR: [
+            ...(createMemberDto?.phone_number
+              ? [{ phone_number: createMemberDto.phone_number }]
+              : null),
+            ...(createMemberDto?.whatsapp_number
+              ? [{ whatsapp_number: createMemberDto.whatsapp_number }]
+              : null),
+          ].filter(Boolean),
+        },
+      });
+
+      if (email_check && createMemberDto.email)
+        throw new BadRequestException('Email already exist!');
+      if (phone_wa_check)
+        throw new BadRequestException(
+          'Phone or WhatsApp number already exist!',
+        );
+
       const numberMember =
-        defaultZero.slice(0, 8 - totalMember.toString().length) +
-        totalMember.toString();
+        createMemberDto.phone_number ?? createMemberDto.whatsapp_number;
 
-
-        // TODO : add condition for numberMember when phone_number or whatsapp_number filled, use that instead
+      // TODO : add condition for numberMember when phone_number or whatsapp_number filled, use that instead
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,
@@ -76,33 +94,35 @@ export class MemberService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { whatsapp_number: { contains: search } },
-                  { member_number: { contains: search } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    { whatsapp_number: { contains: search } },
+                    { member_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
-          ...(store_id ? [
-            {
-              join_location_store: {
-                id: {
-                  in: store_id
-                }
-              }
-            }
-          ] : []),
+          ...(store_id
+            ? [
+                {
+                  join_location_store: {
+                    id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
-            : [])
+              ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -120,14 +140,19 @@ export class MemberService {
           },
         },
       });
-      const memberOrderSummary = member.map(item => ({
+      const memberOrderSummary = member.map((item) => ({
         memberId: item.id,
-        totalOrder: item.order.reduce((total, order) => total + Number(order.grand_total), 0),
+        totalOrder: item.order.reduce(
+          (total, order) => total + Number(order.grand_total),
+          0,
+        ),
       }));
 
-      const dataMember = member.map(item => ({
+      const dataMember = member.map((item) => ({
         ...item,
-        total_summary: memberOrderSummary.find(summary => summary.memberId === item.id)?.totalOrder || 0,
+        total_summary:
+          memberOrderSummary.find((summary) => summary.memberId === item.id)
+            ?.totalOrder || 0,
       }));
 
       console.log(dataMember);
@@ -165,7 +190,7 @@ export class MemberService {
       });
 
       return {
-        data: member ,
+        data: member,
         status: HttpStatus.OK,
         message: 'Successfully get data',
       };
@@ -200,9 +225,9 @@ export class MemberService {
           updated_at: new Date(),
           updated_by: user_id,
         },
-        include:{
-          join_location_store: true
-        }
+        include: {
+          join_location_store: true,
+        },
       });
 
       return {
@@ -210,10 +235,9 @@ export class MemberService {
         status: HttpStatus.CREATED,
         message: 'Successfully update member data',
       };
-
     } catch (error) {
       console.log(error);
-      
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to update member data',
