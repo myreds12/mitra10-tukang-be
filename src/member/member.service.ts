@@ -21,25 +21,25 @@ export class MemberService {
         where: { email: createMemberDto.email },
       });
 
-      const phone_wa_check = await this.dbService.members.findFirst({
-        where: {
-          OR: [
-            ...(createMemberDto?.phone_number
-              ? [{ phone_number: createMemberDto.phone_number }]
-              : null),
-            ...(createMemberDto?.whatsapp_number
-              ? [{ whatsapp_number: createMemberDto.whatsapp_number }]
-              : null),
-          ].filter(Boolean),
-        },
-      });
+      // const phone_wa_check = await this.dbService.members.findFirst({
+      //   where: {
+      //     OR: [
+      //       ...(createMemberDto?.phone_number
+      //         ? [{ phone_number: createMemberDto.phone_number }]
+      //         : null),
+      //       ...(createMemberDto?.whatsapp_number
+      //         ? [{ whatsapp_number: createMemberDto.whatsapp_number }]
+      //         : null),
+      //     ].filter(Boolean),
+      //   },
+      // });
 
       if (email_check && createMemberDto.email)
         throw new BadRequestException('Email already exist!');
-      if (phone_wa_check)
-        throw new BadRequestException(
-          'Phone or WhatsApp number already exist!',
-        );
+      // if (phone_wa_check)
+      //   throw new BadRequestException(
+      //     'Phone or WhatsApp number already exist!',
+      //   );
 
       const numberMember =
         createMemberDto.phone_number ?? createMemberDto.whatsapp_number;
