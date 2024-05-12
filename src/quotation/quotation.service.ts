@@ -6,6 +6,7 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { SendEmailService } from 'src/mails/send-email.service';
+import { MarginType } from './dto/margin-type.enum';
 
 @Injectable()
 export class QuotationService {
@@ -41,9 +42,9 @@ export class QuotationService {
         const prices = Number(item.is_customer ? 0 : item?.price ?? 0);
         const quantity = item.is_customer ? 0 : item.quantity;
         const margin =
-          item.margin_type === 1
+          item.margin_type === MarginType.PERCENTAGE
             ? +item.margin >= 1 && +item.margin <= 100
-              ? prices * quantity - prices * quantity * (+item.margin / 100)
+              ? prices * quantity * (+item.margin / 100)
               : 0
             : +item.margin;
         const final_price = prices * quantity + margin;
@@ -63,6 +64,7 @@ export class QuotationService {
           item_id: item?.item_id,
           item_type: item.type,
           margin: item.margin,
+          margin_type: item.margin_type,
           description: item?.description,
           name: item.name,
           price: prices,

@@ -859,6 +859,7 @@ model quotation_details {
   name        String?  @db.Text()
   price       Decimal  @default(0) @db.Decimal(32, 2)
   margin      Decimal? @default(0) @db.Decimal(32, 2)
+  margin_type Int?     @default(1) @map("marginType") // 1 = Percentage, 2 = Nominal
   final_price Decimal? @default(0) @db.Decimal(32, 2)
   quantity    Int      @default(0)
   description String?  @default("") @db.Text()
