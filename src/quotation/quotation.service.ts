@@ -16,8 +16,6 @@ export class QuotationService {
     private readonly sendMail: SendEmailService,
   ) {}
 
-  //TODO: FILE UPLOAD => DONE
-  // TODOL SYNC WITH TABLE NEEDS => DONE
   async create(
     createQuotationDto: CreateQuotationDto,
     user: users,
@@ -302,8 +300,6 @@ export class QuotationService {
     return quotation;
   }
 
-  //TODO: FILE UPLOAD -> DONE
-  // TODOL SYNC WITH TABLE NEEDS -> DONE
   async update(
     id: number,
     updateQuotationDto: UpdateQuotationDto,
@@ -321,8 +317,6 @@ export class QuotationService {
       },
     });
 
-    console.log(new_status);
-
     const evidence = quotation_files.map((item) => ({
       path: item.filename,
       created_by: user_id,
@@ -331,14 +325,20 @@ export class QuotationService {
     let grandTotal = 0;
     const quotationDetailsUpsert: Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
       updateQuotationDto.quotation_details.map((item) => {
-        let price = 0;
-        let quantity = 0;
-        let final_price = 0;
+        let price: number = 0;
+        let quantity: number = 0;
+        let final_price: number = 0;
 
         if (!item.is_customer) {
           price = Number(item.price);
           quantity = Number(item.quantity);
-          final_price = Number(price * quantity + +item?.margin ?? 0);
+
+          final_price = Number(
+            price * quantity +
+              (item.margin_type === MarginType.PERCENTAGE
+                ? price * quantity * (+item.margin / 100)
+                : +item.margin),
+          );
         }
 
         grandTotal += final_price;
@@ -357,6 +357,7 @@ export class QuotationService {
             unit: item.unit,
             quantity,
             margin: item?.margin,
+            margin_type: item?.margin_type,
             final_price,
             work_order_items_id: item?.work_order_item_id,
             is_customer: Boolean(item.is_customer),
@@ -373,6 +374,7 @@ export class QuotationService {
             price: item?.price,
             quantity: item?.quantity,
             margin: item?.margin,
+            margin_type: item?.margin_type,
             work_order_items_id: item?.work_order_item_id,
             is_customer: Boolean(item.is_customer),
             final_price,
@@ -381,8 +383,9 @@ export class QuotationService {
         };
       });
 
-    console.log(quotationDetailsUpsert);
-    console.log(grandTotal);
+    // console.log(quotationDetailsUpsert);
+    // console.log(grandTotal);
+    // console.log(new_status?.id ?? undefined);
 
     const [syncDetails, quotation] = await this.dbService.$transaction([
       this.dbService.quotation_details.updateMany({
@@ -406,11 +409,13 @@ export class QuotationService {
           id,
         },
         data: {
-          status: {
-            connect: {
-              id: new_status?.id,
-            },
-          },
+          status: new_status?.id
+            ? {
+                connect: {
+                  id: new_status.id,
+                },
+              }
+            : undefined,
           description: updateQuotationDto?.description ?? undefined,
           quotation_number: updateQuotationDto?.quotation_number ?? undefined,
 
