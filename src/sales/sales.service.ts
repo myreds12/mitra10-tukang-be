@@ -292,6 +292,7 @@ export class SalesService {
     }
 
     const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
+    updateSalesDto.sales_categories ?
       updateSalesDto.sales_categories.map(
         ({ id, category_id, commission }) => ({
           where: {
@@ -311,15 +312,18 @@ export class SalesService {
             created_by: user_id,
           },
         }),
-      );
+      ) : undefined;
 
     const salesData: Prisma.salesUpdateInput = {
       ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
-      bank: {
-        connect: {
-          id: updateSalesDto.bank_id,
+      ...(updateSalesDto.bank_id ? {
+        
+        bank: {
+          connect: {
+            id: updateSalesDto.bank_id,
+          },
         },
-      },
+      } : undefined),
       account_name: updateSalesDto.account_name,
       account_number: updateSalesDto.account_number,
       phone_number: updateSalesDto.phone_number,
