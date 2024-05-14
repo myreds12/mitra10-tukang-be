@@ -1073,8 +1073,20 @@ export class OrderService {
   }
 
   async orderDetailsPublic(query: QueryParamsDto) {
-    const { order_id, phone_number, email_member, member_number } = query;
-
+    let { order_id, phone_number, email_member, member_number } = query;
+  
+    const member = await this.dbService.members.findFirst({
+      where: {
+        phone_number: phone_number,
+      },
+    })
+    if (member_number && !member) {
+      if (member_number.startsWith('08')) {
+        member_number = member_number.slice(1); 
+      } else if (member_number.startsWith('628')) {
+        member_number = member_number.slice(2);
+      }
+    }
     const where: Prisma.ordersWhereInput = {
       id: +order_id,
       OR: [
@@ -1200,12 +1212,19 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found !');
 
-    const redirect_url = `${
-      process.env.FE_URL
-    }/detail-order?order_id=${order_id}${
-      phone_number ? `&phone_number=${phone_number}` : ''
-    }${email_member ? `&email_member=${email_member}` : ''}`;
+    const redirectPhoneNumber = phone_number?.startsWith('08') 
+    ? '62' + phone_number 
+    : phone_number;
+  
+  
 
+  const redirect_url = `${
+    process.env.FE_URL
+  }/detail-order?order_id=${order_id}${
+    redirectPhoneNumber ? `&phone_number=${redirectPhoneNumber}` : ''
+  }${email_member ? `&email_member=${email_member}` : ''}${
+    member_number ? `&member_number=${member_number}` : ''
+  }`;
     return {
       data: order,
       redirect_url,

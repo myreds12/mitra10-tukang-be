@@ -18,27 +18,29 @@ import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Status')
-@UseGuards(JwtAuthGuard)
 @Controller('status')
 export class StatusController {
   constructor(private readonly statusService: StatusService) {}
-
+  
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createStatusDto: CreateStatusDto, @Req() req) {
     const user_id = req.user.id;
     return this.statusService.create(createStatusDto, user_id);
   }
-
+  
   @Get()
   findAll(@Query() query: QueryParamsDto) {
     return this.statusService.findAll(query);
   }
-
+  
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.statusService.findOne(+id);
   }
-
+  
+  @UseGuards(JwtAuthGuard)
   @Post(':id')
   update(
     @Param('id') id: string,
@@ -48,7 +50,8 @@ export class StatusController {
     const user_id = req.user.id;
     return this.statusService.update(+id, updateStatusDto, user_id);
   }
-
+  
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req) {
     const user_id = req.user.id;
