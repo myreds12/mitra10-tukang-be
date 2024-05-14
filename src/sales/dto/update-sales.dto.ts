@@ -57,8 +57,8 @@ export class UpdateSalesDto {
 
   @IsOptional()
   @IsString()
-  @IsUsernameValid()
-  username: string;
+  // @IsUsernameValid()
+  username?: string;
 
   @IsOptional()
   @IsString()

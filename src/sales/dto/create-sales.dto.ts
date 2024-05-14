@@ -46,7 +46,7 @@ export class CreateSalesDto {
 
   @IsOptional()
   @IsString()
-  @IsUsernameValid()
+  // @IsUsernameValid()
   username: string;
 
   @IsOptional()

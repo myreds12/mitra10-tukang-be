@@ -94,11 +94,11 @@ export class SalesService {
       users: {
         connectOrCreate: {
           where: {
-            username: createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
+            username: createSalesDto?.username ?? createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
             id: 0,
           },
           create: {
-            username: createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
+            username: createSalesDto?.username ?? createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
             password: saltedPassword,
             role_id: SALES_ROLES.id,
           },
@@ -291,6 +291,9 @@ export class SalesService {
       };
     }
 
+    console.log(usersConnectOrCreate);
+    
+
     const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
     updateSalesDto.sales_categories ?
       updateSalesDto.sales_categories.map(
@@ -314,8 +317,23 @@ export class SalesService {
         }),
       ) : undefined;
 
+    const salesUsername = updateSalesDto.full_name ? updateSalesDto.full_name.toLowerCase().replace(/ /g, '_') : sales?.users?.username;
+    const salesPassword = updateSalesDto.password ? await hash(updateSalesDto.password, 12) : sales?.users?.password;
     const salesData: Prisma.salesUpdateInput = {
-      ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
+      // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
+      users: {
+        update: {
+          where: {
+            id: sales?.user_id
+          },
+          data: {
+            username: updateSalesDto?.username ?? salesUsername,
+            password: salesPassword ,
+            updated_at: new Date(),
+            updated_by: user_id,
+          }
+        }
+      },
       ...(updateSalesDto.bank_id ? {
         
         bank: {
@@ -359,6 +377,9 @@ export class SalesService {
             id,
           },
           data: salesData,
+          include: {
+            users: true
+          }
         }),
       ]);
     return updatedSales;
