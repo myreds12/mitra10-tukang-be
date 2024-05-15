@@ -46,7 +46,6 @@ import spreadsheetsConfig from 'config/spreadsheets.config';
 import { BullModule } from '@nestjs/bull';
 import { SendEmailModule } from './mails/send-email.module';
 
-
 @Module({
   imports: [
     PrismaModule,
@@ -127,11 +126,24 @@ import { SendEmailModule } from './mails/send-email.module';
       load: [spreadsheetsConfig],
     }),
     AreaModule,
-    BullModule.forRoot({
-      redis: {
-        host: 'redis',
-        port: 6379,
-      },
+    // BullModule.forRoot({
+    //   redis: {
+    //     host: 'redis',
+    //     port: 6379,
+    //   },
+    // }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        redis: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: configService.get<number>('REDIS_PORT'),
+          username: configService.get<string>('REDIS_USERNAME'),
+          password: configService.get<string>('REDIS_PASSWORD'),
+          tls: {},
+        },
+      }),
+      inject: [ConfigService],
     }),
     SendEmailModule,
   ],
