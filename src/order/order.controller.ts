@@ -356,7 +356,7 @@ export class OrderController {
         data: order,
       });
     } catch (error) {
-      console.log(error.message);
+      console.log(error);
 
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,

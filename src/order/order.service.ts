@@ -646,8 +646,10 @@ export class OrderService {
     if (!order) throw new NotFoundException('Order not found');
 
     const providedDetailIds = updateOrderDto.order_details
-      .filter((x) => Boolean(x.id))
-      .map((x) => x.id);
+      ? updateOrderDto.order_details
+          .filter((x) => Boolean(x.id))
+          .map((x) => x.id)
+      : undefined;
 
     console.log('Provide Details', providedDetailIds);
 
@@ -672,13 +674,19 @@ export class OrderService {
       },
     });
 
+    const whereItems = updateOrderDto.order_details
+      ? {
+          id: {
+            in: updateOrderDto.order_details
+              .filter((x) => Boolean(x.item_id))
+              .map((x) => x.item_id),
+          },
+        }
+      : undefined;
+
     const items = await this.dbService.items.findMany({
       where: {
-        id: {
-          in: updateOrderDto.order_details
-            .filter((x) => Boolean(x.item_id))
-            .map((x) => x.item_id),
-        },
+        ...whereItems,
       },
       include: {
         category: true,
@@ -690,16 +698,17 @@ export class OrderService {
         },
       },
     });
+    if (updateOrderDto.order_details) {
+      const checkOrderDetailIds = providedDetailIds.filter(
+        (x) => !orderDetail.some((y) => x === y.id),
+      );
 
-    const checkOrderDetailIds = providedDetailIds.filter(
-      (x) => !orderDetail.some((y) => x === y.id),
-    );
-
-    if (checkOrderDetailIds.length)
-      throw new NotFoundException({
-        messages: 'The provided detail id not found',
-        errorIds: checkOrderDetailIds,
-      });
+      if (checkOrderDetailIds.length)
+        throw new NotFoundException({
+          messages: 'The provided detail id not found',
+          errorIds: checkOrderDetailIds,
+        });
+    }
 
     const searchStatusInput = updateOrderDto.project_status_id
       ? await this.dbService.status.findFirst({
@@ -760,84 +769,87 @@ export class OrderService {
     let grand_total_comission = 0;
 
     const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
-      updateOrderDto.order_details.map((item) => {
-        let total = 0;
-        const currentItem = items?.find(({ id }) => id === item?.item_id);
+      updateOrderDto.order_details
+        ? updateOrderDto.order_details.map((item) => {
+            let total = 0;
+            const currentItem = items?.find(({ id }) => id === item?.item_id);
 
-        console.log('Details Item', items);
-        console.log('Current Item', currentItem);
+            console.log('Details Item', items);
+            console.log('Current Item', currentItem);
 
-        const itemPrice =
-          currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
-            ?.price ??
-          currentItem?.default_price ??
-          0;
+            const itemPrice =
+              currentItem?.prices.filter(
+                (x) => item.quantity >= x.min_order,
+              )?.[0]?.price ??
+              currentItem?.default_price ??
+              0;
 
-        // console.log(currentItem.default_price);
+            // console.log(currentItem.default_price);
 
-        // const comission = Number(
-        //   salesUser?.sales_categories?.find(
-        //     ({ category_id }) => currentItem?.category_id === category_id,
-        //   )?.commission ?? salesUser?.sales_categories?.find(
-        //     ({ category_id }) => item.category_id === category_id,
-        //   )?.commission,
-        // );
+            // const comission = Number(
+            //   salesUser?.sales_categories?.find(
+            //     ({ category_id }) => currentItem?.category_id === category_id,
+            //   )?.commission ?? salesUser?.sales_categories?.find(
+            //     ({ category_id }) => item.category_id === category_id,
+            //   )?.commission,
+            // );
 
-        const comission = Number(
-          salesUser?.sales_categories?.find(
-            ({ category_id }) => currentItem?.category_id === category_id,
-          )?.commission ?? 0,
-        );
+            const comission = Number(
+              salesUser?.sales_categories?.find(
+                ({ category_id }) => currentItem?.category_id === category_id,
+              )?.commission ?? 0,
+            );
 
-        if (
-          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
-            updateOrderDto.payment_type,
-          )
-        ) {
-          total = Number(itemPrice) * item.quantity;
-          grand_total += total;
-          grand_total_comission += comission;
-        }
+            if (
+              [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
+                updateOrderDto.payment_type,
+              )
+            ) {
+              total = Number(itemPrice) * item.quantity;
+              grand_total += total;
+              grand_total_comission += comission;
+            }
 
-        return {
-          where: { id: item?.id ?? 0, order_id: id },
-          update: {
-            item_notes: item?.item_notes,
-            item_name: item?.item_name ?? '',
-            item_code: item?.item_code ?? '',
-            item_id: item?.item_id ?? undefined,
-            quantity: item?.quantity,
-            unit_price: itemPrice,
-            total,
-            comission,
-            updated_by: user_id,
-            updated_at: new Date(),
-          },
-          create: {
-            item_notes: item?.item_notes,
-            ...(item.item_id
-              ? {
-                  item: {
-                    connect: {
-                      id: item.item_id,
-                    },
-                  },
-                }
-              : undefined),
-            sales: {
-              connect: { id: updateOrderDto.sales_id ?? order.sales_id },
-            },
-            item_name: item?.item_name ?? '',
-            item_code: item?.item_code ?? '',
-            quantity: item?.quantity,
-            unit_price: itemPrice,
-            total,
-            comission,
-            created_by: user_id,
-            created_at: new Date(),
-          },
-        };
-      });
+            return {
+              where: { id: item?.id ?? 0, order_id: id },
+              update: {
+                item_notes: item?.item_notes,
+                item_name: item?.item_name ?? '',
+                item_code: item?.item_code ?? '',
+                item_id: item?.item_id ?? undefined,
+                quantity: item?.quantity,
+                unit_price: itemPrice,
+                total,
+                comission,
+                updated_by: user_id,
+                updated_at: new Date(),
+              },
+              create: {
+                item_notes: item?.item_notes,
+                ...(item.item_id
+                  ? {
+                      item: {
+                        connect: {
+                          id: item.item_id,
+                        },
+                      },
+                    }
+                  : undefined),
+                sales: {
+                  connect: { id: updateOrderDto.sales_id ?? order.sales_id },
+                },
+                item_name: item?.item_name ?? '',
+                item_code: item?.item_code ?? '',
+                quantity: item?.quantity,
+                unit_price: itemPrice,
+                total,
+                comission,
+                created_by: user_id,
+                created_at: new Date(),
+              },
+            };
+          })
+        : undefined;
 
     const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
       member_id: updateOrderDto?.member_id ?? undefined,
@@ -862,11 +874,11 @@ export class OrderService {
       },
     };
 
-    const deletedDetailsId = updateOrderDto.order_details
+    const deletedDetailsId = updateOrderDto.order_details ? updateOrderDto.order_details
       .filter((x) => Boolean(x?.id))
       .map((item) => {
         return item.id;
-      });
+      }) : undefined;
     const deletedOrderFile = updateOrderDto.existing_order_files
       ? updateOrderDto?.existing_order_files
           .filter((x) => Boolean(x?.order_file_id))
@@ -902,7 +914,7 @@ export class OrderService {
         this.dbService.m_order_details.updateMany({
           where: {
             order_id: id,
-            ...(deletedDetailsId.length
+            ...(deletedDetailsId && deletedDetailsId.length
               ? {
                   id: {
                     notIn: deletedDetailsId,
@@ -937,9 +949,13 @@ export class OrderService {
           },
           data: {
             ...orderUpdateData,
-            m_order_details: {
-              upsert: orderDetailUpsert,
-            },
+            ...(updateOrderDto.order_details
+              ? {
+                  m_order_details: {
+                    upsert: orderDetailUpsert,
+                  },
+                }
+              : undefined),
           },
           include: {
             status: true,
@@ -1074,15 +1090,15 @@ export class OrderService {
 
   async orderDetailsPublic(query: QueryParamsDto) {
     let { order_id, phone_number, email_member, member_number } = query;
-  
+
     const member = await this.dbService.members.findFirst({
       where: {
         phone_number: phone_number,
       },
-    })
+    });
     if (member_number && !member) {
       if (member_number.startsWith('08')) {
-        member_number = member_number.slice(1); 
+        member_number = member_number.slice(1);
       } else if (member_number.startsWith('628')) {
         member_number = member_number.slice(2);
       }
@@ -1212,19 +1228,17 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found !');
 
-    const redirectPhoneNumber = phone_number?.startsWith('08') 
-    ? '62' + phone_number 
-    : phone_number;
-  
-  
+    const redirectPhoneNumber = phone_number?.startsWith('08')
+      ? '62' + phone_number
+      : phone_number;
 
-  const redirect_url = `${
-    process.env.FE_URL
-  }/detail-order?order_id=${order_id}${
-    redirectPhoneNumber ? `&phone_number=${redirectPhoneNumber}` : ''
-  }${email_member ? `&email_member=${email_member}` : ''}${
-    member_number ? `&member_number=${member_number}` : ''
-  }`;
+    const redirect_url = `${
+      process.env.FE_URL
+    }/detail-order?order_id=${order_id}${
+      redirectPhoneNumber ? `&phone_number=${redirectPhoneNumber}` : ''
+    }${email_member ? `&email_member=${email_member}` : ''}${
+      member_number ? `&member_number=${member_number}` : ''
+    }`;
     return {
       data: order,
       redirect_url,
