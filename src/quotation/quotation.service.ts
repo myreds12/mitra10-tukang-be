@@ -427,6 +427,7 @@ export class QuotationService {
               }
             : undefined,
           description: updateQuotationDto?.description ?? undefined,
+          readiness: updateQuotationDto?.readiness ?? undefined,
           quotation_number: updateQuotationDto?.quotation_number ?? undefined,
 
           quotation_date: updateQuotationDto?.quotation_date
@@ -460,7 +461,7 @@ export class QuotationService {
       }),
     ]);
 
-    if(quotation.quotation_status === new_status.id){
+    if(updateQuotationDto.readiness === 3 && new_status.id ){
       await this.sendMail.sendQuotationMail(quotation.id);
     }
 

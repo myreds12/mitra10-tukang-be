@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { ValidateNested } from 'class-validator';
+import { IsEnum, IsIn, ValidateNested } from 'class-validator';
 import QuotationDetails from './quotation-details';
 
 export class UpdateQuotationDto {
@@ -18,6 +18,10 @@ export class UpdateQuotationDto {
 
   @Type(() => Number)
   store_id: number;
+  
+  @IsIn([1, 2, 3, 4])
+  @Type(() => Number)
+  readiness: number
 
   @Type(() => QuotationDetails)
   @ValidateNested({ each: true })

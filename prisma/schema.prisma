@@ -823,6 +823,8 @@ model quotation {
   store_id         Int @db.Int
   order_id         Int @db.Int
   quotation_status Int
+  readiness        Int @default(1) @db.TinyInt()
+  emailSended      Int @default(0) 
 
   description           String   @db.Text()
   quotation_number      String
