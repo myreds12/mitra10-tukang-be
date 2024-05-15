@@ -1229,14 +1229,12 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found !');
 
-    const redirectPhoneNumber = phone_number?.startsWith('08')
-      ? '62' + phone_number
-      : phone_number;
+   
 
     const redirect_url = `${
       process.env.FE_URL
     }/detail-order?order_id=${order_id}${
-      redirectPhoneNumber ? `&phone_number=${redirectPhoneNumber}` : ''
+      phone_number ? `&phone_number=${phone_number}` : ''
     }${email_member ? `&email_member=${email_member}` : ''}${
       member_number ? `&member_number=${member_number}` : ''
     }`;

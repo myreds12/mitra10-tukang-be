@@ -34,6 +34,14 @@ export class QuotationService {
             created_by: user_id,
           }))
         : undefined;
+    
+      const statusForEmail = await this.dbService.status.findFirst({
+        where:{
+          category:{
+            contains:'QUOTEOUT'
+          }
+        }
+      });
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
       createQuotationDto.quotation_details.map((item) => {
@@ -158,7 +166,9 @@ export class QuotationService {
       user,
     );
 
-    await this.sendMail.sendQuotationMail(quotation.id);
+    if(quotation.quotation_status === statusForEmail.id){
+      await this.sendMail.sendQuotationMail(quotation.id);
+    }
     return { quotation, sales_comission: comission ?? 0 };
   }
 
@@ -449,6 +459,10 @@ export class QuotationService {
         },
       }),
     ]);
+
+    if(quotation.quotation_status === new_status.id){
+      await this.sendMail.sendQuotationMail(quotation.id);
+    }
 
     this.orderService.setStatus(
       quotation.order_id,
