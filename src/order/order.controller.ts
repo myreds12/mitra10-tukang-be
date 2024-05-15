@@ -9,29 +9,29 @@ import {
   HttpStatus,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
   Query,
   ParseIntPipe,
   Req,
   Res,
   BadRequestException,
-  Render,
   UploadedFiles,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
-import { Prisma, menus, users } from '@prisma/client';
+import { users } from '@prisma/client';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from './dto/query-params.dto';
-import { SendEmailService } from 'src/mails/send-email.service';
 import { ApiTags } from '@nestjs/swagger';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 // import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
 // import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
 // import { PermissionAction } from 'src/casl/enum/permission-action.enum';
@@ -47,8 +47,9 @@ const menuName = 'orders';
 export class OrderController {
   constructor(
     private readonly orderService: OrderService,
-    private readonly sendEmailService: SendEmailService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
+  private readonly logger = new Logger(OrderController.name);
 
   @Get('/check')
   async getOrderDetailPublic(
@@ -176,12 +177,23 @@ export class OrderController {
   ) {
     try {
       const order = await this.orderService.findOne(id);
-      const mail = await this.sendEmailService.sendMail(order.id);
+
+      this.logger.log('Sending Email', this.emailQueue.client.status);
+
+      await this.emailQueue.add(
+        'send-order-mail',
+        {
+          order_id: order.id,
+        },
+        {
+          attempts: 3,
+        },
+      );
 
       return res.status(200).json({
         status: HttpStatus.OK,
         messages: 'Email Order Success',
-        data: mail,
+        data: null,
       });
     } catch (error) {
       return res.status(400).json({
@@ -249,7 +261,15 @@ export class OrderController {
         order.status.category === 'WORKREQ' ||
         order.status.category === 'SURVEYREQ'
       ) {
-        await this.sendEmailService.sendMail(order.id);
+        await this.emailQueue.add(
+          'send-order-mail',
+          {
+            order_id: order.id,
+          },
+          {
+            attempts: 3,
+          },
+        );
       }
 
       return res.status(201).json({
@@ -347,7 +367,15 @@ export class OrderController {
         order.status.category === 'WORKREQ' ||
         order.status.category === 'SURVEYREQ'
       ) {
-        await this.sendEmailService.sendMail(order.id);
+        await this.emailQueue.add(
+          'send-order-mail',
+          {
+            order_id: order.id,
+          },
+          {
+            attempts: 3,
+          },
+        );
       }
 
       return res.status(200).json({

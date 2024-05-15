@@ -5,7 +5,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { MarginType } from './dto/margin-type.enum';
 
 @Injectable()
@@ -13,7 +14,7 @@ export class QuotationService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-    private readonly sendMail: SendEmailService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
   async create(
@@ -34,14 +35,14 @@ export class QuotationService {
             created_by: user_id,
           }))
         : undefined;
-    
-      const statusForEmail = await this.dbService.status.findFirst({
-        where:{
-          category:{
-            contains:'QUOTEOUT'
-          }
-        }
-      });
+
+    const statusForEmail = await this.dbService.status.findFirst({
+      where: {
+        category: {
+          contains: 'QUOTEOUT',
+        },
+      },
+    });
 
     const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
       createQuotationDto.quotation_details.map((item) => {
@@ -166,8 +167,14 @@ export class QuotationService {
       user,
     );
 
-    if(quotation.quotation_status === statusForEmail.id){
-      await this.sendMail.sendQuotationMail(quotation.id);
+    if (quotation.quotation_status === statusForEmail.id) {
+      await this.emailQueue.add(
+        'send-quotation-mail',
+        { id: quotation.id },
+        {
+          attempts: 3,
+        },
+      );
     }
     return { quotation, sales_comission: comission ?? 0 };
   }
@@ -461,8 +468,14 @@ export class QuotationService {
       }),
     ]);
 
-    if(updateQuotationDto.readiness === 3 && new_status.id ){
-      await this.sendMail.sendQuotationMail(quotation.id);
+    if (updateQuotationDto.readiness === 3 && new_status.id) {
+      await this.emailQueue.add(
+        'send-quotation-mail',
+        { id: quotation.id },
+        {
+          attempts: 3,
+        },
+      );
     }
 
     this.orderService.setStatus(

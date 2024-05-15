@@ -2,17 +2,12 @@ import { Injectable, HttpStatus, BadRequestException } from '@nestjs/common';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { hash } from 'bcrypt';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
 import { Prisma } from '@prisma/client';
-import { SendEmailService } from 'src/mails/send-email.service';
 
 @Injectable()
 export class MemberService {
-  constructor(
-    private readonly dbService: PrismaService,
-    private readonly sendMailService: SendEmailService,
-  ) {}
+  constructor(private readonly dbService: PrismaService) {}
 
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {

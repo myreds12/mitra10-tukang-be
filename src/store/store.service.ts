@@ -3,16 +3,16 @@ import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/order/dto/query-params.dto';
-import { isNumber } from 'class-validator';
 import { Prisma } from '@prisma/client';
 import { hash } from 'bcrypt';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class StoreService {
   constructor(
     private readonly dbService: PrismaService,
-    private readonly sendMailService: SendEmailService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
   async create(dto: CreateStoreDto, user_id: number) {
     try {
@@ -40,7 +40,9 @@ export class StoreService {
           },
         },
       });
-      const username = dto.default_username ? dto.default_username : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
+      const username = dto.default_username
+        ? dto.default_username
+        : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
       const user = await this.dbService.users.create({
         data: {
           username,
@@ -48,20 +50,26 @@ export class StoreService {
           role_id: role.id,
         },
       });
-
-      await this.sendMailService.sendCredentialMail(
-        username,
-        dto.default_password,
+      await this.emailQueue.add(
+        'send-credential-mail',
+        {
+          username: username,
+          password: dto.default_password,
+        },
+        {
+          attempts: 3,
+        },
       );
+
       return {
         status: HttpStatus.CREATED,
         message: 'Store Successfully Created',
         data: store,
-        user
+        user,
       };
     } catch (error) {
       console.log(error);
-      
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to create',
@@ -114,7 +122,7 @@ export class StoreService {
             }
           ]: []),
       ],
-      deleted_at: null
+      deleted_at: null,
     };
 
     const store = await this.dbService.store.findMany({
@@ -127,8 +135,8 @@ export class StoreService {
     });
 
     const total = await this.dbService.store.count({
-      where
-    })
+      where,
+    });
 
     return {
       data: store,
@@ -178,7 +186,6 @@ export class StoreService {
           updated_at: new Date(),
         },
       });
-      
 
       const role = await this.dbService.roles.findFirst({
         where: {
@@ -187,7 +194,9 @@ export class StoreService {
           },
         },
       });
-      const username = dto.default_username ? dto.default_username : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`; 
+      const username = dto.default_username
+        ? dto.default_username
+        : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
       const user = await this.dbService.users.create({
         data: {
           username,
@@ -196,9 +205,15 @@ export class StoreService {
         },
       });
 
-      await this.sendMailService.sendCredentialMail(
-        username,
-        dto.default_password,
+      await this.emailQueue.add(
+        'send-credential-mail',
+        {
+          username: username,
+          password: dto.default_password,
+        },
+        {
+          attempts: 3,
+        },
       );
 
       return {
@@ -209,7 +224,7 @@ export class StoreService {
       };
     } catch (error) {
       console.log(error);
-      
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to update data',
@@ -235,7 +250,7 @@ export class StoreService {
       };
     } catch (error) {
       console.log(error);
-      
+
       return {
         status: HttpStatus.BAD_REQUEST,
         message: 'Failed to delete store',

@@ -43,6 +43,8 @@ import { EmailMessagesModule } from './email-messages/email-messages.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
+import { BullModule } from '@nestjs/bull';
+import { SendEmailModule } from './mails/send-email.module';
 
 
 @Module({
@@ -125,6 +127,13 @@ import spreadsheetsConfig from 'config/spreadsheets.config';
       load: [spreadsheetsConfig],
     }),
     AreaModule,
+    BullModule.forRoot({
+      redis: {
+        host: 'redis',
+        port: 6379,
+      },
+    }),
+    SendEmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

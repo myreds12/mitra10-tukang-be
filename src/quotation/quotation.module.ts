@@ -7,11 +7,11 @@ import { extname } from 'path';
 import { OrderService } from 'src/order/order.service';
 import { OrderModule } from 'src/order/order.module';
 import { StatusService } from 'src/status/status.service';
-import { SendEmailService } from 'src/mails/send-email.service';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [QuotationController],
-  providers: [QuotationService, StatusService, SendEmailService],
+  providers: [QuotationService, StatusService],
   imports: [
     OrderModule,
     MulterModule.register({
@@ -23,7 +23,13 @@ import { SendEmailService } from 'src/mails/send-email.service';
           callback(null, filename);
         },
       }),
-    })
-  ]
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+      },
+    }),
+  ],
 })
 export class QuotationModule {}

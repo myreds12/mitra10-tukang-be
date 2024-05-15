@@ -6,9 +6,9 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { JwtConfig } from 'src/jwt.config';
 import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { SendEmailService } from 'src/mails/send-email.service';
 import { OrderService } from 'src/order/order.service';
 import { StatusService } from 'src/status/status.service';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   imports: [
@@ -23,9 +23,22 @@ import { StatusService } from 'src/status/status.service';
         expiresIn: JwtConfig.user_expired,
       },
     }),
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+      },
+    }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtService, PrismaService, SendEmailService, OrderService, StatusService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtService,
+    PrismaService,
+    OrderService,
+    StatusService,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

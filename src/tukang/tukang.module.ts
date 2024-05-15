@@ -4,13 +4,13 @@ import { TukangController } from './tukang.controller';
 import { diskStorage } from 'multer';
 import { MulterModule } from '@nestjs/platform-express';
 import { extname } from 'path';
-import { SendEmailService } from 'src/mails/send-email.service';
 import { OrderService } from 'src/order/order.service';
 import { StatusService } from 'src/status/status.service';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [TukangController],
-  providers: [TukangService, SendEmailService, OrderService, StatusService],
+  providers: [TukangService,  OrderService, StatusService],
   imports: [
     MulterModule.register({
       limits: {
@@ -24,6 +24,12 @@ import { StatusService } from 'src/status/status.service';
           callback(null, filename);
         },
       }),
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+      },
     }),
   ]
 })
