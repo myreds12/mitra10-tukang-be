@@ -1074,7 +1074,7 @@ export class OrderService {
 
   async orderDetailsPublic(query: QueryParamsDto) {
     const { order_id, phone_number, email_member, member_number } = query;
-
+    
     const where: Prisma.ordersWhereInput = {
       id: +order_id,
       OR: [
@@ -1100,7 +1100,8 @@ export class OrderService {
           ? [
               {
                 members: {
-                  phone_number: phone_number,
+                  member_number: phone_number,
+                  // phone_number: phone_number,
                 },
               },
             ]
