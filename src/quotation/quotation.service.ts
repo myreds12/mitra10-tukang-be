@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,6 +8,7 @@ import { OrderService } from 'src/order/order.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { MarginType } from './dto/margin-type.enum';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class QuotationService {
@@ -16,6 +17,8 @@ export class QuotationService {
     private readonly orderService: OrderService,
     @InjectQueue('email') private emailQueue: Queue,
   ) {}
+
+  private readonly logger = new Logger(QuotationService.name);
 
   async create(
     createQuotationDto: CreateQuotationDto,
@@ -325,14 +328,14 @@ export class QuotationService {
   ) {
     const { id: user_id } = user;
 
-    const new_status = await this.dbService.status.findFirst({
+    const STATUS_QUOTEOUT = await this.dbService.status.findFirst({
       where: {
-        id: updateQuotationDto.quotation_status,
         category: {
           contains: 'QUOTEOUT',
         },
       },
     });
+    console.log(STATUS_QUOTEOUT);
 
     const evidence = quotation_files.map((item) => ({
       path: item.filename,
@@ -426,10 +429,10 @@ export class QuotationService {
           id,
         },
         data: {
-          status: new_status?.id
+          status: updateQuotationDto?.quotation_status
             ? {
                 connect: {
-                  id: new_status.id,
+                  id: updateQuotationDto.quotation_status,
                 },
               }
             : undefined,
@@ -468,7 +471,10 @@ export class QuotationService {
       }),
     ]);
 
-    if (updateQuotationDto.readiness === 3 && new_status.id) {
+    if (
+      updateQuotationDto.readiness === 2 &&
+      STATUS_QUOTEOUT.id === quotation.quotation_status
+    ) {
       await this.emailQueue.add(
         'send-quotation-mail',
         { id: quotation.id },
@@ -547,5 +553,53 @@ export class QuotationService {
     });
 
     return quotation;
+  }
+
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async syncQuotationMail() {
+    this.logger.verbose('Initiate syncQuotationMail');
+
+    // TODO: SEARCH QUOTATION WHERE READINESS 2 AND QUOTATION STATUS QUOTEOUT
+    const quotations = await this.dbService.quotation.findMany({
+      where: {
+        status: {
+          category: {
+            contains: 'QUOTEOUT',
+          },
+        },
+        readiness: 2,
+      },
+      take: 10,
+    });
+
+    if (quotations.length === 0) {
+      this.logger.verbose('No pending quotation to send');
+      return 0;
+    }
+
+    this.logger.verbose(`${quotations.length} pending quotations found`);
+    await Promise.all(
+      quotations.map(async (quotation) => {
+        const { id } = quotation;
+        this.logger.verbose(`${quotations.length} pending quotations found`);
+
+        // TODO: TRIGGER SEND EMAIL
+        await this.emailQueue.add('send-quotation-mail', { id });
+
+        // TODO: CHANGE CURRENT QUOTATION STATUS TO READINESS 4
+        await this.dbService.quotation.update({
+          where: {
+            id,
+          },
+          data: {
+            readiness: 4,
+          },
+        });
+      }),
+    );
+
+    this.logger.verbose('Finished syncQuotationMail');
+
+    return quotations.length;
   }
 }

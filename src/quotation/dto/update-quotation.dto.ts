@@ -18,10 +18,10 @@ export class UpdateQuotationDto {
 
   @Type(() => Number)
   store_id: number;
-  
+
   @IsIn([1, 2, 3, 4])
   @Type(() => Number)
-  readiness: number
+  readiness: number = 1;
 
   @Type(() => QuotationDetails)
   @ValidateNested({ each: true })

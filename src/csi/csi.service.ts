@@ -151,7 +151,7 @@ export class CsiService {
     await Promise.all(
       templates.map(async (row) => {
         const { id, csi_answers, spreadsheets_link, name } = row;
-        this.logger.verbose(`Fetching ${name} template answer.`);
+        this.logger.verbose(`Fetching "${name}" template answer.`);
 
         const spreadsheetId = this.getSheetIdFromUrl(spreadsheets_link);
         const fetched_answers = await this.fetchGFormAnswers(spreadsheetId);
@@ -163,9 +163,14 @@ export class CsiService {
         const filtered = fetched_answers.filter(
           (row) => !local_answer_ids.has(row['Row']),
         );
-        this.logger.verbose(`Saving filtered answer (${filtered.length})...`);
 
-        await this.storeAnswer(id, filtered);
+        if (filtered.length > 0) {
+          this.logger.verbose(`Saving filtered answer (${filtered.length})...`);
+
+          await this.storeAnswer(id, filtered);
+        }
+
+        this.logger.log(`Answer up to date`);
       }),
     );
   }
@@ -183,8 +188,6 @@ export class CsiService {
 
       return;
     }
-
-    this.logger.log(`Answer already up to date`);
   }
 
   numberToColumnLabel(num: number) {

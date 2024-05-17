@@ -140,7 +140,7 @@ import { SendEmailModule } from './mails/send-email.module';
           port: configService.get<number>('REDIS_PORT'),
           username: configService.get<string>('REDIS_USERNAME'),
           password: configService.get<string>('REDIS_PASSWORD'),
-          tls: {},
+          tls: configService.get<object>('REDIS_TLS'),
         },
       }),
       inject: [ConfigService],

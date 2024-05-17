@@ -450,6 +450,7 @@ export class OrderService {
                 item: true,
               },
             },
+            quotation_files: true
           },
         },
         work_orders: {
@@ -569,6 +570,7 @@ export class OrderService {
           },
           include: {
             quotation_details: true,
+            quotation_files: true,
           },
         },
         work_orders: {
