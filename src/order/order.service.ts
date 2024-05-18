@@ -396,15 +396,13 @@ export class OrderService {
             company_name: true,
             address: true,
             phone_number: true,
-            ktp_number: true,
-            npwp_number: true,
-            email_address: true,
-            join_date: true,
             is_active: true,
-            created_at: true,
-            updated_at: true,
-            created_by: true,
-            updated_by: true,
+            work_orders: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
           },
         },
         m_order_details: {
@@ -434,9 +432,7 @@ export class OrderService {
             total: true,
             comission: true,
             created_by: true,
-            updated_by: true,
             created_at: true,
-            updated_at: true,
           },
         },
         quotation: {
@@ -450,7 +446,7 @@ export class OrderService {
                 item: true,
               },
             },
-            quotation_files: true
+            quotation_files: true,
           },
         },
         work_orders: {
@@ -513,7 +509,26 @@ export class OrderService {
         members: true,
         sales: true,
         status: true,
-        vendor: true,
+        vendor: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          select: {
+            id: true,
+            user_id: true,
+            company_name: true,
+            address: true,
+            phone_number: true,
+            is_active: true,
+            work_orders: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+            },
+          },
+        },
         store: true,
         m_order_details: {
           where: {
@@ -542,9 +557,7 @@ export class OrderService {
             total: true,
             comission: true,
             created_by: true,
-            updated_by: true,
             created_at: true,
-            updated_at: true,
           },
         },
         order_files: {
@@ -875,11 +888,13 @@ export class OrderService {
       },
     };
 
-    const deletedDetailsId = updateOrderDto.order_details ? updateOrderDto.order_details
-      .filter((x) => Boolean(x?.id))
-      .map((item) => {
-        return item.id;
-      }) : undefined;
+    const deletedDetailsId = updateOrderDto.order_details
+      ? updateOrderDto.order_details
+          .filter((x) => Boolean(x?.id))
+          .map((item) => {
+            return item.id;
+          })
+      : undefined;
     const deletedOrderFile = updateOrderDto.existing_order_files
       ? updateOrderDto?.existing_order_files
           .filter((x) => Boolean(x?.order_file_id))
@@ -1229,8 +1244,6 @@ export class OrderService {
     });
 
     if (!order) throw new NotFoundException('Order not found !');
-
-   
 
     const redirect_url = `${
       process.env.FE_URL
