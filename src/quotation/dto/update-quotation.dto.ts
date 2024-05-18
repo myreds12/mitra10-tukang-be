@@ -28,6 +28,7 @@ export class UpdateQuotationDto {
   quotation_details: QuotationDetails[];
 
   quotation_files: Express.Multer.File[];
+  quotation_receipts: Express.Multer.File[];
 
   @Type(() => Array<Number>)
   @Transform(({ value }) => (value as Array<Number>).map(Number))

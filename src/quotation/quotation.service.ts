@@ -252,6 +252,7 @@ export class QuotationService {
         status: true,
         store: true,
       },
+      
     });
 
     const quotationGrandTotal = await this.dbService.quotation
@@ -324,9 +325,10 @@ export class QuotationService {
     id: number,
     updateQuotationDto: UpdateQuotationDto,
     user: users,
-    quotation_files: Express.Multer.File[],
+    files: { [name: string]: Express.Multer.File[] },
   ) {
     const { id: user_id } = user;
+    const { quotation_files, quotation_receipts } = files;
 
     const STATUS_QUOTEOUT = await this.dbService.status.findFirst({
       where: {
@@ -335,12 +337,22 @@ export class QuotationService {
         },
       },
     });
-    console.log(STATUS_QUOTEOUT);
 
-    const evidence = quotation_files.map((item) => ({
-      path: item.filename,
-      created_by: user_id,
-    }));
+    const quotationfiles =
+      quotation_files?.map((item) => ({
+        path: item.filename,
+        type: 1,
+        created_by: user_id,
+      })) ?? [];
+
+    const receiptfile =
+      quotation_receipts?.map((file) => ({
+        path: file.filename,
+        type: 2,
+        created_by: user_id,
+      })) ?? [];
+
+    const evidence = [].concat(quotationfiles, receiptfile);
 
     let grandTotal = 0;
     const quotationDetailsUpsert: Prisma.quotation_detailsUpsertWithWhereUniqueWithoutQuotationInput[] =
@@ -402,10 +414,6 @@ export class QuotationService {
           },
         };
       });
-
-    // console.log(quotationDetailsUpsert);
-    // console.log(grandTotal);
-    // console.log(new_status?.id ?? undefined);
 
     const [syncDetails, quotation] = await this.dbService.$transaction([
       this.dbService.quotation_details.updateMany({

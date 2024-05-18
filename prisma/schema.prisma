@@ -824,7 +824,7 @@ model quotation {
   order_id         Int @db.Int
   quotation_status Int
   readiness        Int @default(1) @db.TinyInt()
-  emailSended      Int @default(0) 
+  emailSended      Int @default(0)
 
   description           String   @db.Text()
   quotation_number      String
@@ -887,6 +887,7 @@ model quotation_files {
 
   quotation_id Int
   path         String @db.Text()
+  tyoe         Int    @default(1) @db.Int
 
   created_by Int?
   updated_by Int?

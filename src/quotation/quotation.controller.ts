@@ -128,15 +128,8 @@ export class QuotationController {
   @Get()
   async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
     try {
-      const {
-        data,
-        page,
-        skip,
-        take,
-        total,
-        takeTotal,
-        quotationGrandTotal
-      } = await this.quotationService.findAll(queryParamsDto);
+      const { data, page, skip, take, total, takeTotal, quotationGrandTotal } =
+        await this.quotationService.findAll(queryParamsDto);
 
       return response.status(200).json({
         status: HttpStatus.OK,
@@ -147,7 +140,7 @@ export class QuotationController {
         take,
         skip,
         quotationGrandTotal,
-        takeTotal
+        takeTotal,
       });
     } catch (error) {
       console.log(error);
@@ -180,26 +173,33 @@ export class QuotationController {
   }
 
   @Post(':id')
-  @UseInterceptors(FilesInterceptor('quotation_files'))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'quotation_files', maxCount: 10 },
+      { name: 'quotation_receipts', maxCount: 10 },
+    ]),
+  )
   async update(
     @Param('id') id: string,
     @Body() updateQuotationDto: UpdateQuotationDto,
     @Request() req,
-    @UploadedFiles() quotation_files: Express.Multer.File[],
+    @UploadedFiles() files: { [name: string]: Express.Multer.File[] },
     @Res() response,
   ) {
     try {
       const user = req.user;
+      console.log(user);
+      console.log('files => ', files);
       const quotation = await this.quotationService.update(
         +id,
         updateQuotationDto,
         user,
-        quotation_files,
+        files,
       );
       return response.status(200).json({
         status: HttpStatus.OK,
         message: 'Quotation Updated',
-        data: quotation,
+        // data: quotation,
       });
     } catch (error) {
       console.log(error);
