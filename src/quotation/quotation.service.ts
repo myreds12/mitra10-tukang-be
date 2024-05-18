@@ -612,7 +612,7 @@ export class QuotationService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
-    this.logger.log('init checkvalidity')
+    this.logger.log('init checkvalidity');
     const quotations = await this.dbService.quotation.findMany({
       where: {
         status: {
@@ -632,11 +632,14 @@ export class QuotationService {
     }
 
     this.logger.log(`${quotations.length} quotation found`);
-    const UNPAID = await this.dbService.status.findFirst({
+
+    const NEWSTATUS = await this.dbService.status.findFirst({
       where: {
-        category: 'UNPAID'
-      }
-    })
+        category: {
+          in: ['CLOSED', 'UNPAID'],
+        },
+      },
+    });
 
     await Promise.all(
       quotations.map(async (quotation) => {
@@ -646,12 +649,11 @@ export class QuotationService {
             id,
           },
           data: {
-            quotation_status: UNPAID.id
+            quotation_status: NEWSTATUS.id,
           },
         });
       }),
     );
-    console.log(quotations.length, quotations.length > 0 ? quotations[0] : 'No quotation found');
 
     return 1;
   }
