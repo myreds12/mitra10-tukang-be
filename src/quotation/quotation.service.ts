@@ -252,7 +252,6 @@ export class QuotationService {
         status: true,
         store: true,
       },
-      
     });
 
     const quotationGrandTotal = await this.dbService.quotation
@@ -609,5 +608,51 @@ export class QuotationService {
     this.logger.verbose('Finished syncQuotationMail');
 
     return quotations.length;
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async checkvalidity() {
+    this.logger.log('init checkvalidity')
+    const quotations = await this.dbService.quotation.findMany({
+      where: {
+        status: {
+          category: {
+            contains: 'QUOTEOUT',
+          },
+        },
+        quotation_validity: {
+          lte: new Date(),
+        },
+      },
+    });
+
+    if (!quotations.length) {
+      this.logger.log('No quotation found');
+      return 0;
+    }
+
+    this.logger.log(`${quotations.length} quotation found`);
+    const UNPAID = await this.dbService.status.findFirst({
+      where: {
+        category: 'UNPAID'
+      }
+    })
+
+    await Promise.all(
+      quotations.map(async (quotation) => {
+        const { id } = quotation;
+        await this.dbService.quotation.update({
+          where: {
+            id,
+          },
+          data: {
+            quotation_status: UNPAID.id
+          },
+        });
+      }),
+    );
+    console.log(quotations.length, quotations.length > 0 ? quotations[0] : 'No quotation found');
+
+    return 1;
   }
 }
