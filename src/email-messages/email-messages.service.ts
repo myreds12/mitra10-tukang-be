@@ -3,7 +3,7 @@ import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @Injectable()
 export class EmailMessagesService {

@@ -3,7 +3,7 @@ import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { hash } from 'bcrypt';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';

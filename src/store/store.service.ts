@@ -2,7 +2,7 @@ import { Injectable, HttpStatus, NotFoundException } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma } from '@prisma/client';
 import { hash } from 'bcrypt';
 import { InjectQueue } from '@nestjs/bull';

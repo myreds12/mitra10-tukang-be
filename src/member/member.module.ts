@@ -4,7 +4,7 @@ import { MemberController } from './member.controller';
 import { OrderService } from 'src/order/order.service';
 import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
-import { SendEmailModule } from 'src/mails/send-email.module';
+import { MailsModule } from 'src/mails/mails.module';
 
 @Module({
   imports: [

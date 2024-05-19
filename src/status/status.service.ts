@@ -3,7 +3,7 @@ import { CreateStatusDto } from './dto/create-status.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { HttpStatus } from '@nestjs/common';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 @Injectable()
 export class StatusService {
   constructor(private readonly dbService: PrismaService) {}

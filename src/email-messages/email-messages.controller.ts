@@ -1,14 +1,26 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Res, HttpStatus, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+  Res,
+  HttpStatus,
+  Query,
+} from '@nestjs/common';
 import { EmailMessagesService } from './email-messages.service';
 import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import {Request, Response} from 'express';
+import { Request, Response } from 'express';
 import { users } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 interface UserRequest extends Request {
   user: users;
-
 }
 
 @UseGuards(JwtAuthGuard)
@@ -17,100 +29,120 @@ export class EmailMessagesController {
   constructor(private readonly emailMessagesService: EmailMessagesService) {}
 
   @Post()
-  async create(@Body() createEmailMessageDto: CreateEmailMessageDto, @Req() req : UserRequest, @Res() res : Response){
-    try{
+  async create(
+    @Body() createEmailMessageDto: CreateEmailMessageDto,
+    @Req() req: UserRequest,
+    @Res() res: Response,
+  ) {
+    try {
       const user = req.user;
-      const emailMessage = await this.emailMessagesService.create(createEmailMessageDto, user.id);
+      const emailMessage = await this.emailMessagesService.create(
+        createEmailMessageDto,
+        user.id,
+      );
 
       return res.status(201).json({
         status: HttpStatus.CREATED,
         message: 'Successfully Create',
-        data: emailMessage
+        data: emailMessage,
       });
-    }catch(error){
+    } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message ?? 'Error While Create',
-        stack: error
+        stack: error,
       });
     }
   }
 
   @Get()
-  async findAll(@Res() res : Response, @Query() query: QueryParamsDto) {
-    try{
-      const emailMessages = await this.emailMessagesService.findAll(query );
+  async findAll(@Res() res: Response, @Query() query: QueryParamsDto) {
+    try {
+      const emailMessages = await this.emailMessagesService.findAll(query);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Successfully',
-        data: emailMessages
-      })
-    }catch(error){
+        data: emailMessages,
+      });
+    } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message ?? 'Error',
-        stack: error
-      });    
+        stack: error,
+      });
     }
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res: Response) {
-    try{
+    try {
       const emailMessage = await this.emailMessagesService.findOne(+id);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Successfully',
-        data: emailMessage
-      })
-    }catch(error){
+        data: emailMessage,
+      });
+    } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message ?? 'Error',
-        stack: error
-      });    
+        stack: error,
+      });
     }
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateEmailMessageDto: UpdateEmailMessageDto, @Req() req: UserRequest, @Res() res: Response){
-    try{
+  async update(
+    @Param('id') id: string,
+    @Body() updateEmailMessageDto: UpdateEmailMessageDto,
+    @Req() req: UserRequest,
+    @Res() res: Response,
+  ) {
+    try {
       const user = req.user;
-      const emailMessage = await this.emailMessagesService.update(+id, updateEmailMessageDto, user.id);
+      const emailMessage = await this.emailMessagesService.update(
+        +id,
+        updateEmailMessageDto,
+        user.id,
+      );
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Successfully',
-        data: emailMessage
-      })
-    }catch(error){
+        data: emailMessage,
+      });
+    } catch (error) {
       console.log(error);
-      
+
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message ?? 'Error',
-        stack: error
-      });    
+        stack: error,
+      });
     }
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Req() req: UserRequest, @Res()res: Response) {
-    try{
+  async remove(
+    @Param('id') id: string,
+    @Req() req: UserRequest,
+    @Res() res: Response,
+  ) {
+    try {
       const user = req.user;
       const emailMessage = await this.emailMessagesService.remove(+id, user.id);
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Successfully',
-        data: emailMessage
-      })
-    }catch(error){
+        data: emailMessage,
+      });
+    } catch (error) {
       return res.status(400).json({
         status: HttpStatus.BAD_REQUEST,
         message: error.message ?? 'Error',
-        stack: error
-      });    
+        stack: error,
+      });
     }
   }
 }

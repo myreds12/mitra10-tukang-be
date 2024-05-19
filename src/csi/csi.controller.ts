@@ -22,7 +22,7 @@ import {
 } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Cron } from '@nestjs/schedule';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('csi')

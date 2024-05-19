@@ -14,7 +14,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma, users } from '@prisma/client';
 import { PermissionAction } from 'src/casl/enum/permission-action.enum';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 // import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()

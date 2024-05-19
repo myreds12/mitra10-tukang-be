@@ -3,7 +3,7 @@ import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, roles, users } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { hash, hashSync } from 'bcrypt';
 import { AuthService } from 'src/auth/auth.service';
 

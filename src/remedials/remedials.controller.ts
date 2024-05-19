@@ -23,7 +23,7 @@ import { UpdateRemedialDto } from './dto/update-remedial.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { users } from '@prisma/client';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 interface UserRequest extends IExpressRequest {
   user: users;

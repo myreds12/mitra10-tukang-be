@@ -26,7 +26,7 @@ import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { users } from '@prisma/client';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 interface UserRequest extends IExpressRequest {

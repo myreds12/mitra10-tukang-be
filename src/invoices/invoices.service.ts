@@ -3,7 +3,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, invoices, status, users } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { MulterError } from 'multer';
 import { throws } from 'assert';
 import { curry } from 'lodash';

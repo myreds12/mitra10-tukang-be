@@ -4,7 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, store, store_group, users } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Store } from 'src/store/entities/store.entity';
 
 @Injectable()

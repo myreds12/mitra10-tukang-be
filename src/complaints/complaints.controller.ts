@@ -22,7 +22,7 @@ import { ComplaintsService } from './complaints.service';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';

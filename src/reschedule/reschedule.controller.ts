@@ -22,7 +22,7 @@ import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateRescheduleDto } from './dto/update-reschedule.dto';
 
 interface UserRequest extends IExpressRequest {

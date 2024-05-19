@@ -17,7 +17,7 @@ import { BankService } from './bank.service';
 import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse,

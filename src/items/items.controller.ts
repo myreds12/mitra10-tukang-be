@@ -15,7 +15,7 @@ import {
 import { ItemsService } from './items.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CreateItemDto } from './dto/create-item.dto';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import {
   Request as IExpressRequest,
   Response as IExpressResponse,

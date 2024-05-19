@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { Prisma, users, work_orders } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';

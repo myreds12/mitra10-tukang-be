@@ -3,7 +3,7 @@ import { CreateRemedialDto } from './dto/create-remedial.dto';
 import { UpdateRemedialDto } from './dto/update-remedial.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @Injectable()
 export class RemedialsService {

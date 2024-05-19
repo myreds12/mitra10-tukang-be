@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ComplaintChannelDto } from './dto/complaint_channel.dto';
 

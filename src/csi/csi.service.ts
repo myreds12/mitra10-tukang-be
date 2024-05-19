@@ -4,7 +4,7 @@ import { UpdateCsiDto } from './dto/update-csi.dto';
 import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()

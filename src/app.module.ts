@@ -30,7 +30,6 @@ import { RemedialsModule } from './remedials/remedials.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from '@nestjs/schedule';
-import { CityModule } from './city/city.module';
 import { RefundModule } from './refund/refund.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { PugAdapter } from '@nestjs-modules/mailer/dist/adapters/pug.adapter';
@@ -44,7 +43,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 import { BullModule } from '@nestjs/bull';
-import { SendEmailModule } from './mails/send-email.module';
+import { MailsModule } from './mails/mails.module';
 
 @Module({
   imports: [
@@ -85,7 +84,6 @@ import { SendEmailModule } from './mails/send-email.module';
     InvoicesModule,
     ReportsModule,
     ScheduleModule.forRoot(),
-    CityModule,
     RefundModule,
     RescheduleModule,
     ReportsModule,
@@ -145,7 +143,7 @@ import { SendEmailModule } from './mails/send-email.module';
       }),
       inject: [ConfigService],
     }),
-    SendEmailModule,
+    MailsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

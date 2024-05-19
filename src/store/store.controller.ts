@@ -26,7 +26,7 @@ import {
 interface UserRequest extends IExpressRequest {
   user: users;
 }
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { users } from '@prisma/client';
 @ApiTags('Stores')

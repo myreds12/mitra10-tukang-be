@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateRescheduleDto } from './dto/create-reschedule.dto';
 import { Prisma, users } from '@prisma/client';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateRescheduleDto } from './dto/update-reschedule.dto';
 import { OrderService } from 'src/order/order.service';
 

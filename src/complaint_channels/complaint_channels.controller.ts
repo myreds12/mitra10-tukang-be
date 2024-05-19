@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpStatus, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ComplaintChannelsService } from './complaint_channels.service';
-import { QueryParamsDto } from 'src/order/dto/query-params.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ComplaintChannelDto } from './dto/complaint_channel.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 

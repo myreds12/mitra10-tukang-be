@@ -9,7 +9,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
-import { QueryParamsDto } from './dto/query-params.dto';
+import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Item } from 'src/items/entities/item.entity';
