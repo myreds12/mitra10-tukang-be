@@ -72,7 +72,6 @@ export class OrderService {
         },
       },
     });
-    console.log(orderDetailItems, 'Details Item');
 
     if (orderDetailItems.some((item) => item === null))
       throw new BadRequestException('Item not found!');
@@ -115,9 +114,7 @@ export class OrderService {
         );
 
         if (
-          [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
-            createOrderDto.payment_type,
-          )
+          PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY === createOrderDto.payment_type
         ) {
           total = Number(itemPrice) * item.quantity;
           grand_total += total;
@@ -212,7 +209,6 @@ export class OrderService {
 
   async findAll(queryParams: QueryParamsDto, users: users) {
     const { id: user_id, role_id } = users;
-    // DO SEARCH AND PAGINATION LOGIC ...
     const {
       take,
       page,
@@ -227,12 +223,7 @@ export class OrderService {
       vendor_id,
       invoice_status,
     } = queryParams;
-    // const user = await this.dbService.users.findFirst({
-    //   where: {
-    //     id: user_id,
-    //     role_id
-    //   }
-    // });
+
     const skip = page * take - take;
     let statusDone = await this.dbService.status.findMany();
 
@@ -659,18 +650,18 @@ export class OrderService {
 
     if (!order) throw new NotFoundException('Order not found');
 
-    const providedDetailIds = updateOrderDto.order_details
+    const orderdetailsIds = updateOrderDto.order_details
       ? updateOrderDto.order_details
           .filter((x) => Boolean(x.id))
           .map((x) => x.id)
       : undefined;
 
-    console.log('Provide Details', providedDetailIds);
+    console.log('Provide Details', orderdetailsIds);
 
     const orderDetail = await this.dbService.m_order_details.findMany({
       where: {
         id: {
-          in: providedDetailIds,
+          in: orderdetailsIds,
         },
       },
       include: {
@@ -712,8 +703,9 @@ export class OrderService {
         },
       },
     });
+
     if (updateOrderDto.order_details) {
-      const checkOrderDetailIds = providedDetailIds.filter(
+      const checkOrderDetailIds = orderdetailsIds.filter(
         (x) => !orderDetail.some((y) => x === y.id),
       );
 
@@ -1023,6 +1015,7 @@ export class OrderService {
         },
       },
     });
+
     const statusUnpaid = await this.dbService.status.findFirst({
       where: {
         category: {
@@ -1030,6 +1023,7 @@ export class OrderService {
         },
       },
     });
+
     const date = new Date();
     const thirdDateTime = new Date(date.setDate(date.getDate() - 3));
     const orders = await this.dbService.orders.updateMany({
@@ -1153,6 +1147,7 @@ export class OrderService {
       ].filter(Boolean),
       deleted_at: null,
     };
+
     const order = await this.dbService.orders.findFirst({
       where,
       include: {
