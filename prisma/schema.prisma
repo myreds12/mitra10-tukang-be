@@ -887,7 +887,7 @@ model quotation_files {
 
   quotation_id Int
   path         String @db.Text()
-  tyoe         Int    @default(1) @db.Int
+  type         Int    @default(1) @db.Int
 
   created_by Int?
   updated_by Int?
