@@ -579,7 +579,7 @@ export class QuotationService {
       take: 10,
     });
 
-    if (quotations.length === 0) {
+    if (!quotations.length) {
       this.logger.verbose('No pending quotation to send');
       return 0;
     }
