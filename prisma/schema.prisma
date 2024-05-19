@@ -247,12 +247,13 @@ model users {
   updated_by Int?
   deleted_by Int?
 
-  roles    roles     @relation(fields: [role_id], references: [id])
-  store    store[]
-  sales    sales[]
-  employee employee?
-  vendor   vendor?
-  tukang   tukang[]
+  roles     roles       @relation(fields: [role_id], references: [id])
+  store     store[]
+  sales     sales[]
+  employee  employee?
+  vendor    vendor?
+  tukang    tukang[]
+  mail_logs mail_logs[] @relation("CredentialMailLogs")
 }
 
 model sales {
@@ -681,6 +682,7 @@ model orders {
   order_history   order_histories[]
   reschedule      reschedule[]
   invoice_orders  invoice_orders[]
+  mail_logs       mail_logs[]       @relation(name: "OrderMailLogs")
 }
 
 model order_histories {
@@ -848,6 +850,7 @@ model quotation {
   quotation_files   quotation_files[]
   quotation_details quotation_details[]
   invoice_details   invoice_details[]
+  mail_logs         mail_logs[]         @relation("QuotationMailLogs")
 }
 
 model quotation_details {
@@ -941,6 +944,7 @@ model complaints {
   status              status?               @relation(fields: [complaint_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
   remedials           remedials[]
   complaint_histories complaint_histories[]
+  mail_logs           mail_logs[]           @relation("ComplaintMailLogs")
 }
 
 model complaint_histories {
@@ -1232,6 +1236,7 @@ model reschedule {
 
   reschedule_status    reschedule_status[]
   reschedule_evidences reschedule_evidences[]
+  mail_logs            mail_logs[]            @relation("RescheduleMailLogs")
 }
 
 model reschedule_status {
@@ -1297,6 +1302,7 @@ model refund {
   orders           orders             @relation(fields: [order_id], references: [id])
   status           status?            @relation(fields: [refund_status], references: [id], onDelete: NoAction, onUpdate: NoAction)
   refund_evidences refund_evidences[]
+  mail_logs        mail_logs[]        @relation("RefundMailLogs")
 }
 
 model refund_evidences {
@@ -1364,16 +1370,22 @@ model csi_template {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  csi_answers csi_answers[]
+  csi_answers    csi_answers[]
+  mail_logs      mail_logs[]      @relation("CSIMailLogs")
+  email_messages email_messages[]
 }
 
 model email_messages {
-  id Int @id @default(autoincrement())
+  id            Int  @id @default(autoincrement())
+  csiTemplateId Int?
 
-  email_type     Int?   @default(1)
-  greetings      String @db.Text
-  welcome_header String @db.Text
-  footer         String @db.Text
+  email_type     Int?    @default(1)
+  title          String? @db.VarChar(200)
+  cc             String? @db.VarChar(200)
+  bcc            String? @db.VarChar(200)
+  greetings      String  @db.Text
+  welcome_header String  @db.Text
+  footer         String  @db.Text
 
   is_active Boolean @default(true)
 
@@ -1386,6 +1398,8 @@ model email_messages {
   deleted_at         DateTime?            @db.DateTime()
   terms_detail       terms_detail[]
   information_detail information_detail[]
+  mail_logs          mail_logs[]
+  csi_template       csi_template?        @relation(fields: [csiTemplateId], references: [id])
 }
 
 model terms_detail {
@@ -1418,4 +1432,26 @@ model information_detail {
   updated_at     DateTime?      @db.DateTime()
   deleted_at     DateTime?      @db.DateTime()
   email_messages email_messages @relation(fields: [email_messages_id], references: [id])
+}
+
+model mail_logs {
+  id Int @id @default(autoincrement())
+
+  emailMessageId Int
+  moduleAble     Int?
+  moduleType     String?
+
+  to     String
+  status Int
+
+  createdAt DateTime @default(now()) @db.DateTime()
+
+  emailMessages email_messages @relation(fields: [emailMessageId], references: [id])
+  order         orders?        @relation(name: "OrderMailLogs", fields: [moduleAble], references: [id], map: "OrderMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
+  user          users?         @relation(name: "CredentialMailLogs", fields: [moduleAble], references: [id], map: "CredentialMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
+  quotation     quotation?     @relation(name: "QuotationMailLogs", fields: [moduleAble], references: [id], map: "QuotationMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
+  refund        refund?        @relation(name: "RefundMailLogs", fields: [moduleAble], references: [id], map: "RefundMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
+  complain      complaints?    @relation(name: "ComplaintMailLogs", fields: [moduleAble], references: [id], map: "ComplainMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
+  reschedule    reschedule?    @relation(name: "RescheduleMailLogs", fields: [moduleAble], references: [id], map: "RescheduleMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
+  csi           csi_template?  @relation(name: "CSIMailLogs", fields: [moduleAble], references: [id], map: "CSIMailLogsConstraint", onDelete: NoAction, onUpdate: NoAction)
 }

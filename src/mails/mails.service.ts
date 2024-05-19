@@ -17,8 +17,6 @@ export class MailsService {
         };
       });
 
-    console.log(createEmailMessageDto);
-
     const informationDetail: Prisma.information_detailCreateManyEmail_messagesInput[] =
       createEmailMessageDto.information_detail.map((item) => {
         return {
@@ -42,7 +40,18 @@ export class MailsService {
           data: informationDetail,
         },
       },
+      title: createEmailMessageDto?.title,
+      bcc: createEmailMessageDto?.bcc,
+      cc: createEmailMessageDto?.cc,
+      csi_template: createEmailMessageDto?.csi_id
+        ? {
+            connect: {
+              id: createEmailMessageDto.csi_id,
+            },
+          }
+        : undefined,
     };
+
     const [emailMessage] = await this.dbService.$transaction([
       this.dbService.email_messages.create({
         data,
@@ -78,11 +87,14 @@ export class MailsService {
       include: {
         terms_detail: true,
         information_detail: true,
+        csi_template: true,
       },
     });
+
     const total = await this.dbService.email_messages.count({
       where,
     });
+
     return {
       total,
       data: emailMessage,
@@ -100,6 +112,7 @@ export class MailsService {
       include: {
         terms_detail: true,
         information_detail: true,
+        csi_template: true,
       },
     });
 
@@ -159,7 +172,18 @@ export class MailsService {
       information_detail: {
         upsert: informationDetail,
       },
+      title: updateEmailMessageDto?.title,
+      bcc: updateEmailMessageDto?.bcc,
+      cc: updateEmailMessageDto?.cc,
+      csi_template: updateEmailMessageDto?.csi_id
+        ? {
+            connect: {
+              id: updateEmailMessageDto.csi_id,
+            },
+          }
+        : undefined,
     };
+
     const [emailMessage] = await this.dbService.$transaction([
       this.dbService.email_messages.update({
         where: {

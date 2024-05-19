@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 import { MailType } from '../enum/mail_type.enum';
 
 export class CreateEmailMessageDto {
@@ -8,9 +15,20 @@ export class CreateEmailMessageDto {
   @IsEnum(MailType)
   email_type: MailType;
 
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ValidateIf((o) => o.email_type === MailType.CSI)
+  @IsNumber()
+  csi_id: number;
+
   greetings: string;
 
   welcome_header: string;
+
+  cc?: string;
+  bcc?: string;
 
   footer: string;
 
@@ -18,6 +36,7 @@ export class CreateEmailMessageDto {
 
   @Type(() => TermsDetailDto)
   terms_detail: TermsDetailDto[];
+
   @Type(() => InformationDetailDto)
   information_detail: InformationDetailDto[];
 }

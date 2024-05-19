@@ -15,7 +15,6 @@ import { ConfigService } from '@nestjs/config';
 @Processor('email')
 export class EmailProcessor {
   constructor(
-    @Inject(forwardRef(() => OrderService))
     private readonly orderService: OrderService,
     private readonly mailerService: MailerService,
     private readonly dbService: PrismaService,
@@ -313,5 +312,9 @@ export class EmailProcessor {
         job.retry();
       }
     }
+  }
+
+  maillogs(modules: string, id: number, to: string, status: string) {
+    return 'maillogs';
   }
 }

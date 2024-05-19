@@ -38,7 +38,6 @@ import { RescheduleModule } from './reschedule/reschedule.module';
 import { CsiModule } from './csi/csi.module';
 import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
-import { EmailMessagesModule } from './email-messages/email-messages.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
@@ -118,18 +117,12 @@ import { MailsModule } from './mails/mails.module';
     BrandsModule,
     CsiModule,
     StoreGroupModule,
-    EmailMessagesModule,
+    MailsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [spreadsheetsConfig],
     }),
     AreaModule,
-    // BullModule.forRoot({
-    //   redis: {
-    //     host: 'redis',
-    //     port: 6379,
-    //   },
-    // }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -143,7 +136,6 @@ import { MailsModule } from './mails/mails.module';
       }),
       inject: [ConfigService],
     }),
-    MailsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
