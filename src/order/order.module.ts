@@ -26,6 +26,7 @@ import { BullModule } from '@nestjs/bull';
       name: 'email',
       defaultJobOptions: {
         attempts: 3,
+        delay: 5000
       },
     }),
   ],

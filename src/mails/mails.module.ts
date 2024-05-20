@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { EmailProcessor } from './mails.processor';
-import { OrderModule } from 'src/order/order.module';
 import { BullModule } from '@nestjs/bull';
 import { MailsController } from './mails.controller';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
@@ -10,11 +9,11 @@ import { MailsService } from './mails.service';
 
 @Module({
   imports: [
-    OrderModule,
     BullModule.registerQueue({
       name: 'email',
       defaultJobOptions: {
         attempts: 3,
+        delay: 20000,
       },
     }),
   ],

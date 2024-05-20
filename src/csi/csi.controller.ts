@@ -12,6 +12,7 @@ import {
   Query,
   HttpCode,
   ParseIntPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { CsiService } from './csi.service';
 import { CreateCsiDto } from './dto/create-csi.dto';
@@ -21,13 +22,17 @@ import {
   Response as IExpressResponse,
 } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Cron } from '@nestjs/schedule';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @UseGuards(JwtAuthGuard)
 @Controller('csi')
 export class CsiController {
-  constructor(private readonly csiService: CsiService) {}
+  constructor(
+    @InjectQueue('email') private emailQueue: Queue,
+    private readonly csiService: CsiService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -123,6 +128,15 @@ export class CsiController {
     } catch (error) {
       throw error;
     }
+  }
+
+  @Post(':id/send/:orderId')
+  @HttpCode(HttpStatus.OK)
+  async sendcsimail(id: number, orderId: string) {
+    const csi = await this.csiService.findOne(id);
+    if (!csi) throw new NotFoundException('CSI not found');
+
+    await this.emailQueue.add('send-csi-email', { id, orderId  });
   }
 
   @Delete(':id')

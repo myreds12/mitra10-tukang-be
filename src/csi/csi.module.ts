@@ -4,6 +4,7 @@ import { CsiController } from './csi.controller';
 import { HttpModule } from '@nestjs/axios';
 import { GoogleSheetModule } from 'nest-google-sheet-connector';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [CsiController],
@@ -33,6 +34,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         token_uri: configService.get<string>('SPREADSHEETS.TOKEN_URI'),
         type: configService.get<string>('SPREADSHEETS.TYPE'),
       }),
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+      },
     }),
   ],
 })

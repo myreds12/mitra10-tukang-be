@@ -15,13 +15,16 @@ export class CreateEmailMessageDto {
   @IsEnum(MailType)
   email_type: MailType;
 
-  @IsString()
-  @IsNotEmpty()
-  title: string;
-
   @ValidateIf((o) => o.email_type === MailType.CSI)
   @IsNumber()
   csi_id: number;
+
+  @IsNumber()
+  trigger_id: number;
+
+  @IsString()
+  @IsNotEmpty()
+  title: string;
 
   greetings: string;
 
@@ -32,7 +35,7 @@ export class CreateEmailMessageDto {
 
   footer: string;
 
-  is_active?: boolean;
+  is_active?: boolean = false;
 
   @Type(() => TermsDetailDto)
   terms_detail: TermsDetailDto[];

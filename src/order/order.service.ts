@@ -1039,7 +1039,6 @@ export class OrderService {
         project_status_id: statusUnpaid.id,
       },
     });
-    console.log(orders, thirdDateTime);
 
     return orders;
   }

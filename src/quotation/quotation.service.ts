@@ -464,7 +464,7 @@ export class QuotationService {
               : 0),
           updated_by: user_id,
           updated_at: new Date(),
-          quotation_files: quotation_files.length
+          quotation_files: quotation_files
             ? {
                 createMany: {
                   data: evidence,
@@ -580,15 +580,15 @@ export class QuotationService {
     });
 
     if (!quotations.length) {
-      this.logger.verbose('No pending quotation to send');
+      this.logger.log('No pending quotation to send');
       return 0;
     }
 
-    this.logger.verbose(`${quotations.length} pending quotations found`);
+    this.logger.log(`${quotations.length} pending quotations found`);
     await Promise.all(
       quotations.map(async (quotation) => {
         const { id } = quotation;
-        this.logger.verbose(`${quotations.length} pending quotations found`);
+        this.logger.log(`${quotations.length} pending quotations found`);
 
         // TODO: TRIGGER SEND EMAIL
         await this.emailQueue.add('send-quotation-mail', { id });
@@ -605,7 +605,7 @@ export class QuotationService {
       }),
     );
 
-    this.logger.verbose('Finished syncQuotationMail');
+    this.logger.log('Finished syncQuotationMail');
 
     return quotations.length;
   }

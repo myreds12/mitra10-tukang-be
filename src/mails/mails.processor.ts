@@ -11,37 +11,127 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { ConfigService } from '@nestjs/config';
+import { MailType } from './enum/mail_type.enum';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { truncate } from 'lodash';
 
 @Processor('email')
 export class EmailProcessor {
   constructor(
-    private readonly orderService: OrderService,
     private readonly mailerService: MailerService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
   ) {}
   private readonly logger = new Logger(EmailProcessor.name);
 
+  private handleJobFailure(job: Job, error: Error) {
+    this.logger.error(error.message);
+    job.moveToFailed({ message: error.message });
+  }
+  private async getMessage(mailType: MailType, id?: number) {
+    return await this.dbService.email_messages.findFirst({
+      where: {
+        id: id ?? undefined,
+        is_active: true,
+        email_type: mailType,
+      },
+      select: {
+        id: true,
+        title: true,
+        cc: true,
+        bcc: true,
+        greetings: true,
+        welcome_header: true,
+        footer: true,
+        is_active: true,
+        terms_detail: {
+          select: {
+            id: true,
+            email_messages_id: true,
+            terms: true,
+          },
+        },
+        information_detail: {
+          select: {
+            id: true,
+            email_messages_id: true,
+            information: true,
+          },
+        },
+      },
+    });
+  }
+
   async generatePDF(data: any) {}
 
   @Process('send-order-mail')
-  async sendOrderMail(job: Job<{ order_id: number }>) {
-    this.logger.log('Start sending email');
+  async sendOrderMail(job: Job<{ order_id: number; template_id?: number }>) {
+    const { order_id, template_id } = job.data;
     try {
-      const { order_id } = job.data;
-      const order = await this.orderService.findOne(order_id);
-      if (!order) throw new NotFoundException('order not found!');
+      if (!order_id) throw new NotFoundException('order_id is null!');
 
-      const message = await this.dbService.email_messages.findFirst({
+      const order = await this.dbService.orders.findFirst({
         where: {
-          is_active: true,
-          email_type: 1,
+          id: order_id,
         },
-        include: {
-          terms_detail: true,
-          information_detail: true,
+        select: {
+          id: true,
+          payment_type: true,
+          project_address: true,
+          project_number: true,
+          receipt_number: true,
+          request_survey: true,
+          store: {
+            select: {
+              email: true,
+              bank_account: true,
+              bank_name: true,
+              bank_number: true,
+              phone_number_1: true,
+              phone_number_2: true,
+            },
+          },
+          members: {
+            select: {
+              email: true,
+              full_name: true,
+            },
+          },
+          m_order_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              item_code: true,
+              item_name: true,
+              item_id: true,
+              item: {
+                select: {
+                  id: true,
+                  item_name: true,
+                  category: true,
+                  prices: true,
+                  default_price: true,
+                  service_name: true,
+                },
+              },
+              item_notes: true,
+              unit_price: true,
+              quantity: true,
+              total: true,
+            },
+          },
         },
       });
+      order['order_details'] = order.m_order_details;
+      delete order.m_order_details;
+
+      if (!order) throw new NotFoundException('order not found!');
+      this.logger.log('Order Data : ', order.id);
+
+      const message = await this.getMessage(MailType.ORDER, template_id);
       if (!message) throw new NotFoundException('message not found!');
 
       const data = {
@@ -49,27 +139,27 @@ export class EmailProcessor {
         message,
       };
 
-      console.log('Email Order Data : ');
-      console.log(data.order, data.message);
-
+      const { bcc, cc } = message;
       const storeMail = order.store.email;
-      // TODO: add admin ho as cc too
+      // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      const bccList = this.configService
-        .get<string>('MAIL_BCC_LIST')
-        .split(',');
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          storeMail,
+          adminHo,
+        );
 
-      if (!bccList.includes(storeMail)) {
-        bccList.push(storeMail);
-      }
+      const uniqueBcc = [...new Set(defaultBcc)];
 
       if (order.members.email) {
         await this.mailerService.sendMail({
           to: data.order.members.email, // list of receivers
           from: 'noreply@mitra10.com', // sender address
-          bcc: bccList.join(','),
-          subject: 'Email Order', // Subject line
+          bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
           template: 'index',
           context: { data },
         });
@@ -77,16 +167,34 @@ export class EmailProcessor {
 
       job.finished();
       job.moveToCompleted();
+
+      await this.maillogs(
+        order_id,
+        message.id,
+        {
+          to: order.members.email,
+          cc: '',
+          bcc: uniqueBcc.join(','),
+        },
+        1,
+        data,
+      );
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        // Log the error and stop the job without retrying
-        console.error(error.message);
-        job.moveToFailed({
-          message: error.message,
-        });
-      } else {
-        // Retry the job for other errors
-        job.retry();
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          this.logger.warn(`Retry: ${job.attemptsMade}`);
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
       }
     }
   }
@@ -108,16 +216,7 @@ export class EmailProcessor {
       });
       if (!users) throw new NotFoundException('User not found!');
 
-      const message = await this.dbService.email_messages.findFirst({
-        where: {
-          is_active: true,
-          email_type: 3,
-        },
-        include: {
-          terms_detail: true,
-          information_detail: true,
-        },
-      });
+      const message = await this.getMessage(MailType.CREDENTIALS);
       if (!message) throw new NotFoundException('message not found!');
 
       let to = users.username.includes('@')
@@ -143,15 +242,20 @@ export class EmailProcessor {
       job.finished();
       job.moveToCompleted();
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        // Log the error and stop the job without retrying
-        console.error(error.message);
-        job.moveToFailed({
-          message: error.message,
-        });
-      } else {
-        // Retry the job for other errors
-        job.retry();
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
       }
     }
   }
@@ -198,26 +302,34 @@ export class EmailProcessor {
       job.finished();
       job.moveToCompleted();
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        // Log the error and stop the job without retrying
-        console.error(error.message);
-        job.moveToFailed({
-          message: error.message,
-        });
-      } else {
-        // Retry the job for other errors
-        job.retry();
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
       }
     }
   }
 
   @Process('send-quotation-mail')
-  async sendQuotationMail(job: Job<{ id: number }>) {
-    const { id: quotation_id } = job.data;
+  async sendQuotationMail(
+    job: Job<{ id: number; template_id?: number; orderId: number; to: string }>,
+  ) {
     try {
+      const { id, template_id, to, orderId } = job.data;
+      if (!id) throw new NotFoundException('quotation_id is null!');
       const quotation = await this.dbService.quotation.findFirst({
         where: {
-          id: quotation_id,
+          id: id,
           deleted_at: null,
         },
         include: {
@@ -259,9 +371,108 @@ export class EmailProcessor {
       });
       if (!quotation) throw new NotFoundException('quotation not found!');
 
+      const message = await this.getMessage(MailType.QUOTATIONS, template_id);
+      if (!message) throw new NotFoundException('message not found!');
+
+      const data = {
+        quotation,
+        message,
+      };
+      const { bcc, cc } = message;
+
+      const storeMail = quotation.store.email;
+      // TODO: add admin ho as bcc too
+      const adminHo = '';
+
+      let defaultTo = quotation.order.members.email;
+      if (to) {
+        defaultTo = to;
+      }
+      if (orderId) {
+        const checkOrder = await this.dbService.orders.findFirst({
+          where: {
+            id: orderId,
+          },
+          select: {
+            members: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        });
+
+        if (checkOrder) {
+          defaultTo = checkOrder.members.email;
+        }
+      }
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          storeMail,
+          adminHo,
+        );
+
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (quotation.order.members.email) {
+        await this.mailerService.sendMail({
+          to: defaultTo, // list of receivers
+          bcc: uniqueBcc.join(','),
+          from: 'noreply@mitra10.com', // sender address
+          subject: 'Email Quotation', // Subject line
+          template: 'quotation',
+          context: { data },
+        });
+        this.maillogs(
+          id,
+          message.id,
+          {
+            to: quotation.order.members.email,
+            cc: '',
+            bcc: uniqueBcc.join(','),
+          },
+          1,
+          data,
+        );
+      }
+
+      job.finished();
+      job.moveToCompleted();
+    } catch (error) {
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
+      }
+    }
+  }
+
+  @Process('send-csi-mail')
+  async sendcsimail(job: Job<{ id: number }>) {
+    try {
+      const { id: csi_id } = job.data;
+      const csi = await this.dbService.csi_template.findFirst({
+        where: {
+          id: csi_id,
+        },
+      });
+      if (!csi) throw new NotFoundException('csi not found!');
+
       const message = await this.dbService.email_messages.findFirst({
         where: {
-          email_type: 4,
+          email_type: MailType.CSI,
           is_active: true,
         },
         include: {
@@ -271,50 +482,45 @@ export class EmailProcessor {
       });
       if (!message) throw new NotFoundException('message not found!');
 
-      const data = {
-        quotation,
-        message,
-      };
-
-      const storeMail = quotation.store.email;
-      // TODO: add admin ho as cc too
-      const adminHo = '';
-
-      const bccList = this.configService
-        .get<string>('MAIL_BCC_LIST')
-        .split(',');
-
-      if (!bccList.includes(storeMail)) {
-        bccList.push(storeMail);
-      }
-      if (quotation.order.members.email) {
-        await this.mailerService.sendMail({
-          to: data.quotation.order.members.email, // list of receivers
-          bcc: bccList.join(','),
-          from: 'noreply@mitra10.com', // sender address
-          subject: 'Email Quotation', // Subject line
-          template: 'quotation',
-          context: { data },
-        });
-      }
-
-      job.finished();
-      job.moveToCompleted();
+      // add csi mail template here
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        // Log the error and stop the job without retrying
-        console.error(error.message);
-        job.moveToFailed({
-          message: error.message,
-        });
-      } else {
-        // Retry the job for other errors
-        job.retry();
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
       }
     }
   }
 
-  maillogs(modules: string, id: number, to: string, status: string) {
-    return 'maillogs';
+  async maillogs(
+    moduleId: number,
+    emailMessageId: number,
+    to: { cc: string; bcc: string; to: string },
+    status: number,
+    data: any = null,
+  ) {
+    await this.dbService.mail_logs.create({
+      data: {
+        emailMessages: {
+          connect: {
+            id: emailMessageId,
+          },
+        },
+        moduleId,
+        data: JSON.stringify(data ?? {}),
+        to: JSON.stringify(to ?? {}),
+        status,
+      },
+    });
   }
 }

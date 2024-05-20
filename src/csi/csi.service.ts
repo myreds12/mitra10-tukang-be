@@ -151,7 +151,7 @@ export class CsiService {
     await Promise.all(
       templates.map(async (row) => {
         const { id, csi_answers, spreadsheets_link, name } = row;
-        this.logger.verbose(`Fetching "${name}" template answer.`);
+        this.logger.log(`Fetching "${name}" template answer.`);
 
         const spreadsheetId = this.getSheetIdFromUrl(spreadsheets_link);
         const fetched_answers = await this.fetchGFormAnswers(spreadsheetId);

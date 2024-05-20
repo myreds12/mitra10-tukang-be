@@ -177,18 +177,17 @@ export class OrderController {
   ) {
     try {
       const order = await this.orderService.findOne(id);
+      if (!order) new NotFoundException('Order not found');
 
-      this.logger.log('Sending Email', this.emailQueue.client.status);
-
-      await this.emailQueue.add(
-        'send-order-mail',
-        {
-          order_id: order.id,
-        },
-        {
-          attempts: 3,
-        },
+      this.logger.verbose(
+        'Sending Email',
+        this.emailQueue.client.status,
+        order,
       );
+
+      await this.emailQueue.add('send-order-mail', {
+        order_id: order.id,
+      });
 
       return res.status(200).json({
         status: HttpStatus.OK,
