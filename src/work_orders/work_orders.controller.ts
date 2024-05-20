@@ -65,19 +65,25 @@ export class WorkOrdersController {
       work_order_after?: Express.Multer.File[];
     },
   ) {
-    console.log(body);
-
-    const work_order = await this.workOrdersService.setStatusWithMaterials(
-      id,
-      req.user,
-      body,
-      files,
-    );
-    return res.status(201).json({
-      status: HttpStatus.CREATED,
-      message: 'Work Order Material Created',
-      data: work_order,
-    });
+    try {
+      const work_order = await this.workOrdersService.setStatusWithMaterials(
+        id,
+        req.user,
+        body,
+        files,
+      );
+      return res.status(201).json({
+        status: HttpStatus.CREATED,
+        message: 'Work Order Material Created',
+        data: work_order,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Error While Update',
+        stack: error,
+      });
+    }
   }
 
   @Post('')

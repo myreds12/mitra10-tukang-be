@@ -172,7 +172,11 @@ export class WorkOrdersService {
             store: true,
             sales: true,
             members: true,
-            quotation: true,
+            quotation: {
+              include: {
+                quotation_details: true
+              }
+            },
           },
         },
         work_order_tukang: {
@@ -221,7 +225,11 @@ export class WorkOrdersService {
             store: true,
             sales: true,
             members: true,
-            quotation: true,
+            quotation: {
+              include: {
+                quotation_details: true
+              }
+            },
           },
         },
         work_order_tukang: {
