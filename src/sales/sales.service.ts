@@ -42,6 +42,12 @@ export class SalesService {
         );
     }
 
+    const store = await this.dbService.store.findFirst({
+      where: {
+        id: createSalesDto.store_id
+      }
+    });
+
     const SALES_ROLES = await this.dbService.roles.findFirst({
       where: {
         name: {
@@ -94,11 +100,11 @@ export class SalesService {
       users: {
         connectOrCreate: {
           where: {
-            username: createSalesDto?.username ?? createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
+            username: createSalesDto?.username ?? `${createSalesDto.full_name.toLowerCase().replace(/ /g, '_')}_${store.store_name.toLowerCase().replace(/ /g, '_') }`,
             id: 0,
           },
           create: {
-            username: createSalesDto?.username ?? createSalesDto.full_name.toLowerCase().replace(/ /g, '_'),
+            username: createSalesDto?.username ?? `${createSalesDto.full_name.toLowerCase().replace(/ /g, '_')}_${store.store_name.toLowerCase().replace(/ /g, '_') }`,
             password: saltedPassword,
             role_id: SALES_ROLES.id,
           },
@@ -255,6 +261,7 @@ export class SalesService {
       },
       include: {
         users: true,
+        store: true
       },
     });
 
@@ -317,7 +324,7 @@ export class SalesService {
         }),
       ) : undefined;
 
-    const salesUsername = updateSalesDto.full_name ? updateSalesDto.full_name.toLowerCase().replace(/ /g, '_') : sales?.users?.username;
+    const salesUsername = updateSalesDto.full_name ? `${updateSalesDto.full_name.toLowerCase().replace(/ /g, '_')}_${sales.store.store_name.toLowerCase().replace(/ /g, '_') }` : sales?.users?.username;
     const salesPassword = updateSalesDto.password ? await hash(updateSalesDto.password, 12) : sales?.users?.password;
     const salesData: Prisma.salesUpdateInput = {
       // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
@@ -339,6 +346,13 @@ export class SalesService {
         bank: {
           connect: {
             id: updateSalesDto.bank_id,
+          },
+        },
+      } : undefined),
+      ...(updateSalesDto.store_id ? {
+        store: {
+          connect: {
+            id: updateSalesDto.store_id,
           },
         },
       } : undefined),
