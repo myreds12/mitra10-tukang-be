@@ -10,7 +10,7 @@ import {
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { ApiBody, ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEitherRequired } from '../decorator/is-either-required.decorator';
+import { IsEitherRequired } from '../../common/decorator/is-either-required.decorator';
 import { OrderDetailDto } from './order-details.dto';
 
 export class CreateOrderDto {

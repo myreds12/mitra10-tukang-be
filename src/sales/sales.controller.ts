@@ -109,6 +109,7 @@ export class SalesController {
       const { data, total, page, take } = await this.salesService.findAll(
         query,
       );
+      // console.log("DATA", data)
       return res.status(200).json({
         status: HttpStatus.OK,
         message: 'Get Data',

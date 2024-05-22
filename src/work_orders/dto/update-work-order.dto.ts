@@ -60,7 +60,7 @@ export class UpdateWorkOrderDto {
 
   work_order_evidences?: Array<Express.Multer.File>;
 
-  @ApiProperty({ type: [UpdatedWorkOrderEvidences] }) // This represents an array of VendorService
+  @ApiProperty({ type: [UpdatedWorkOrderEvidences] })
   @IsOptional()
   @Type(() => UpdatedWorkOrderEvidences)
   @ValidateNested({ each: true })
