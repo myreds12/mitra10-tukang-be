@@ -16,25 +16,17 @@ import {
 } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { response } from 'express';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
   FileFieldsInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
-import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { StatusDetails } from './dto/work-order-status.dto';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
 @ApiTags('Work Orders')
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
@@ -57,117 +49,48 @@ export class WorkOrdersController {
   async setStatusWithMaterials(
     @Param('id') id: number,
     @Body() body: StatusDetails,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Request() req: RequestWithUser,
     @UploadedFiles()
     files: {
       work_order_before?: Express.Multer.File[];
       work_order_after?: Express.Multer.File[];
     },
   ) {
-    try {
-      const work_order = await this.workOrdersService.setStatusWithMaterials(
-        id,
-        req.user,
-        body,
-        files,
-      );
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Work Order Material Created',
-        data: work_order,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
-        stack: error,
-      });
-    }
+    return await this.workOrdersService.setStatusWithMaterials(
+      id,
+      req.user,
+      body,
+      files,
+    );
   }
 
   @Post('')
   @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
   async create(
     @Body() dataDto: CreateWorkOrderDto,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Request() req: RequestWithUser,
     @UploadedFiles() work_order_evidences: Express.Multer.File[],
   ) {
-    try {
-      if (!dataDto.work_order_tukang)
-        throw new BadRequestException('Tukang cannot be null');
-      if (!dataDto.work_order_tukang.length)
-        throw new BadRequestException('Tukang should be an one or many.');
+    if (!dataDto.work_order_tukang)
+      throw new BadRequestException('Tukang cannot be null');
+    if (!dataDto.work_order_tukang.length)
+      throw new BadRequestException('Tukang should be an one or many.');
 
-      const work_orders = await this.workOrdersService.create(
-        dataDto,
-        req.user,
-        work_order_evidences,
-      );
-
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Work Order Created',
-        data: work_orders,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Create',
-        stack: error,
-      });
-    }
+    return await this.workOrdersService.create(
+      dataDto,
+      req.user,
+      work_order_evidences,
+    );
   }
 
   @Get('')
-  async findAll(
-    @Query() queryParamsDto: QueryParamsDto,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const { data, skip, page, take, total } =
-        await this.workOrdersService.findAll(queryParamsDto);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Work Order',
-        data,
-        total,
-        page,
-        take,
-        skip,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+  async findAll(@Query() queryParamsDto: QueryParamsDto) {
+    return await this.workOrdersService.findAll(queryParamsDto);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
-    try {
-      const work_orders = await this.workOrdersService.findOne(id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Find Work Order',
-        data: work_orders,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Find',
-        stack: error,
-      });
-    }
+  async findOne(@Param('id') id: number) {
+    return await this.workOrdersService.findOne(id);
   }
 
   @Post(':id')
@@ -175,64 +98,28 @@ export class WorkOrdersController {
   async update(
     @Param('id') id: number,
     @Body() dataDto: UpdateWorkOrderDto,
-    @Request() req: UserRequest,
+    @Request() req: RequestWithUser,
     @UploadedFiles() work_order_evidences: Express.Multer.File[],
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      console.log(
-        'work order update : ',
-        id,
-        dataDto,
-        req.user,
-        work_order_evidences,
-      );
+    console.log(
+      'work order update : ',
+      id,
+      dataDto,
+      req.user,
+      work_order_evidences,
+    );
 
-      const work_orders = await this.workOrdersService.update(
-        id,
-        dataDto,
-        req.user,
-        work_order_evidences,
-      );
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Work Order Updated',
-        data: work_orders,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
-        stack: error.message,
-      });
-    }
+    return await this.workOrdersService.update(
+      id,
+      dataDto,
+      req.user,
+      work_order_evidences,
+    );
   }
 
   @Delete(':id')
-  async delete(
-    @Param('id') id: number,
-    @Request() req,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const user_id = req.user.id;
-
-      const work_orders = await this.workOrdersService.delete(id, user_id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Work Order Deleted',
-        data: work_orders,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Delete',
-        stack: error,
-      });
-    }
+  async delete(@Param('id') id: number, @Request() req) {
+    const user_id = req.user.id;
+    return await this.workOrdersService.delete(id, user_id);
   }
 }

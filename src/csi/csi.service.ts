@@ -6,10 +6,13 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class CsiService {
   constructor(
+    @InjectQueue('email') private emailQueue: Queue,
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
   ) {}
@@ -17,86 +20,118 @@ export class CsiService {
   private readonly logger = new Logger(CsiService.name);
 
   async create(createCsiDto: CreateCsiDto) {
-    const csi_data: Prisma.csi_templateCreateInput = createCsiDto;
+    try {
+      const csi_data: Prisma.csi_templateCreateInput = createCsiDto;
 
-    const [csi] = await this.dbService.$transaction([
-      this.dbService.csi_template.create({
-        data: csi_data,
-      }),
-    ]);
+      const [csi] = await this.dbService.$transaction([
+        this.dbService.csi_template.create({
+          data: csi_data,
+        }),
+      ]);
 
-    return csi;
+      return csi;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to, order_by } = query;
-    const total = await this.dbService.csi_template.count();
-    const data = await this.dbService.csi_template.findMany({
-      skip: page * take - take,
-      take: take > 0 ? take : undefined,
-      where: {
-        AND: [
-          ...(date_from && date_to
-            ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+    try {
+      const { take, page, date_from, date_to, order_by } = query;
+      const total = await this.dbService.csi_template.count();
+      const data = await this.dbService.csi_template.findMany({
+        skip: page * take - take,
+        take: take > 0 ? take : undefined,
+        where: {
+          AND: [
+            ...(date_from && date_to
+              ? [
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                },
-              ]
-            : []),
-        ].filter(Boolean),
-        deleted_at: null,
-      },
-      orderBy: {
-        created_at: order_by,
-      },
-    });
+                ]
+              : []),
+          ].filter(Boolean),
+          deleted_at: null,
+        },
+        orderBy: {
+          created_at: order_by,
+        },
+      });
 
-    return {
-      data,
-      options: {
-        total,
-        page,
-        take,
-        takeTotal: data.length,
-      },
-    };
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          take,
+          takeTotal: data.length,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async findOne(id: number) {
-    const data = await this.dbService.csi_template.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-      include: {
-        csi_answers: {
-          select: {
-            id: true,
-            data: true,
+    try {
+      const data = await this.dbService.csi_template.findFirst({
+        where: {
+          id,
+          deleted_at: null,
+        },
+        include: {
+          csi_answers: {
+            select: {
+              id: true,
+              data: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!data) {
-      throw new NotFoundException('CSI Not Found');
+      if (!data) throw new NotFoundException('CSI Not Found');
+
+      return data;
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-
-    return data;
   }
 
   async update(id: number, updateCsiDto: UpdateCsiDto) {
-    const data = await this.dbService.csi_template.update({
-      where: {
-        id,
-      },
-      data: updateCsiDto,
-    });
+    try {
+      const data = await this.dbService.csi_template.update({
+        where: {
+          id,
+        },
+        data: updateCsiDto,
+      });
 
-    return data;
+      return data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async sendCsiMail(id: number, orderId: number) {
+    try {
+      await this.findOne(id);
+      await this.dbService.orders.findFirstOrThrow({
+        where: { id: orderId },
+      });
+
+      await this.emailQueue.add('send-csi-email', { id, orderId });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   remove(id: number) {

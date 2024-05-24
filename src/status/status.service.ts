@@ -8,7 +8,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 export class StatusService {
   constructor(private readonly dbService: PrismaService) {}
 
-  async create(createStatusDto: CreateStatusDto, user_id) {
+  async create(createStatusDto: CreateStatusDto, user_id: number) {
     try {
       const status = await this.dbService.status.create({
         data: {
@@ -16,17 +16,11 @@ export class StatusService {
           category: createStatusDto.category,
         },
       });
-      return {
-        status: HttpStatus.OK,
-        message: 'Success Create Status',
-      };
+
+      return status;
     } catch (error) {
       console.log(error);
-
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed To Create Data',
-      };
+      throw error;
     }
   }
 
@@ -45,18 +39,10 @@ export class StatusService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Get All Data',
-        data: data,
-      };
-    } catch (err) {
-      console.log(err);
-
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get Data',
-      };
+      return data;
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
   }
 
@@ -68,20 +54,14 @@ export class StatusService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Find One Data',
-        data: status,
-      };
-    } catch (err) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Find Data',
-      };
+      return status;
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
   }
 
-  async update(id: number, updateStatusDto: UpdateStatusDto, user_id) {
+  async update(id: number, updateStatusDto: UpdateStatusDto, user_id: number) {
     try {
       await this.dbService.status.update({
         where: {
@@ -92,36 +72,22 @@ export class StatusService {
           updated_at: new Date(),
         },
       });
-
-      return {
-        status: HttpStatus.OK,
-        message: 'Update Data',
-      };
-    } catch (err) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
-      };
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
   }
 
-  async remove(id: number, user_id) {
+  async remove(id: number, user_id: number) {
     try {
       await this.dbService.status.delete({
         where: {
           id,
         },
       });
-
-      return {
-        status: HttpStatus.OK,
-        message: 'Delete Data',
-      };
     } catch (err) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Delete',
-      };
+      console.log(err);
+      throw err;
     }
   }
 }

@@ -13,24 +13,16 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
 import { AuthService } from './auth.service';
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -40,93 +32,27 @@ export class AuthController {
   ) {}
 
   @Get('/get')
-  async findAll(@Res() res: IExpressResponse, @Query() query: QueryParamsDto) {
-    try {
-      const resetPassword = await this.authService.findAll(query);
-      return res.status(201).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: resetPassword,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error',
-        stack: error,
-      });
-    }
+  async findAll(@Query() query: QueryParamsDto) {
+    return await this.authService.findAll(query);
   }
 
   @Get('/find-user/:id')
-  async findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const resetPassword = await this.authService.findOne(id);
-      return res.status(201).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: resetPassword,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error ',
-        stack: error,
-      });
-    }
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return await this.authService.findOne(id);
   }
 
   @Delete('/delete-user/:id')
-  async delete(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const resetPassword = await this.authService.deleteUser(id);
-      return res.status(201).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: resetPassword,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error ',
-        stack: error,
-      });
-    }
+  async delete(@Param('id', ParseIntPipe) id: number) {
+    return await this.authService.deleteUser(id);
   }
 
   @Post('/update/:id')
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Res() res: IExpressResponse,
+
     @Body() registerDto: CreateRegisterDto,
   ) {
-    try {
-      const resetPassword = await this.authService.updateUser(id, registerDto);
-      return res.status(201).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: resetPassword,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error ',
-        stack: error,
-      });
-    }
+    return await this.authService.updateUser(id, registerDto);
   }
 
   @HttpCode(200)
@@ -140,90 +66,40 @@ export class AuthController {
   async register(@Body() dto: CreateRegisterDto) {
     return await this.authService.register(dto);
   }
-  @HttpCode(201)
+  @HttpCode(200)
   @Post('update-password/:username')
   async updatePassword(
     @Param('username') username: string,
     @Body() dto: ResetPasswordDto,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const users = await this.authService.updatePassword(username, dto);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: users,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error While Check Username',
-        stack: error,
-      });
-    }
+    return await this.authService.updatePassword(username, dto);
   }
 
-  @HttpCode(201)
+  @HttpCode(200)
   @Post('reset-password')
-  async resetPassword(
-    @Body() body: { username: string },
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const { username } = body;
-      const resetPassword = await this.authService.resetPassword(username);
-      this.emailQueue.add(
-        'send-reset-password-mail',
-        {
-          user_id: resetPassword?.id,
-        },
-        {
-          attempts: 3,
-        },
-      );
-      return res.status(201).json({
-        status: HttpStatus.OK,
-        message: 'Please Cek Your Email',
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error While Check Username',
-        stack: error,
-      });
-    }
+  async resetPassword(@Body() body: { username: string }) {
+    const { username } = body;
+    const resetPassword = await this.authService.resetPassword(username);
+    this.emailQueue.add(
+      'send-reset-password-mail',
+      {
+        user_id: resetPassword?.id,
+      },
+      {
+        attempts: 3,
+      },
+    );
   }
+
   @UseGuards(JwtAuthGuard)
   @Get('permission')
-  async getUserPermission(@Req() req: UserRequest) {
+  async getUserPermission(@Req() req: RequestWithUser) {
     return this.authService.getUserPermission(req.user);
   }
 
   @HttpCode(201)
   @Get('/get-user/:username')
-  async getUsers(
-    @Param('username') username: string,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const resetPassword = await this.authService.getUsers(username);
-      return res.status(201).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        data: resetPassword,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error ',
-        stack: error,
-      });
-    }
+  async getUsers(@Param('username') username: string) {
+    return await this.authService.getUsers(username);
   }
 }

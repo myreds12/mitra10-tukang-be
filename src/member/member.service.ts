@@ -64,20 +64,11 @@ export class MemberService {
         },
       });
 
-      return {
-        data: {
-          member,
-        },
-        status: HttpStatus.CREATED,
-        message: 'Successfully Create Data',
-      };
+      return member;
     } catch (error) {
       console.log(error);
 
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Failed to Create Data',
-      };
+      throw error;
     }
   }
 
@@ -150,20 +141,11 @@ export class MemberService {
             ?.totalOrder || 0,
       }));
 
-      console.log(dataMember);
-
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully get data',
-        data: dataMember,
-      };
+      return dataMember;
     } catch (error) {
       console.log(error);
 
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to get data',
-      };
+      throw error;
     }
   }
 
@@ -184,16 +166,11 @@ export class MemberService {
         },
       });
 
-      return {
-        data: member,
-        status: HttpStatus.OK,
-        message: 'Successfully get data',
-      };
+      return member;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to get data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
@@ -225,18 +202,11 @@ export class MemberService {
         },
       });
 
-      return {
-        data: updated_member,
-        status: HttpStatus.CREATED,
-        message: 'Successfully update member data',
-      };
+      return updated_member;
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to update member data',
-      };
+      throw error;
     }
   }
 
@@ -250,15 +220,11 @@ export class MemberService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully Delete Data',
-      };
+      return delete_member;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed To Delete Data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 }

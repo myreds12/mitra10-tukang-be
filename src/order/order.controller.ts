@@ -17,6 +17,7 @@ import {
   UploadedFiles,
   NotFoundException,
   Logger,
+  HttpCode,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -52,68 +53,17 @@ export class OrderController {
   private readonly logger = new Logger(OrderController.name);
 
   @Get('/check')
-  async getOrderDetailPublic(
-    @Query() query: QueryParamsDto,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      if (!query.order_id)
-        throw new BadRequestException('Order ID cannot be null.');
-      const { redirect_url } = await this.orderService.orderDetailsPublic(
-        query,
-      );
+  async getOrderDetailPublic(@Query() query: QueryParamsDto) {
+    if (!query.order_id)
+      throw new BadRequestException('Order ID cannot be null.');
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Success',
-        redirect_url,
-      });
-    } catch (error) {
-      console.log(error);
-      if (error instanceof NotFoundException) {
-        return res.status(HttpStatus.NOT_FOUND).json({
-          status: HttpStatus.NOT_FOUND,
-          messages: error.message,
-        });
-      }
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
-    }
+    return await this.orderService.orderDetailsPublic(query);
   }
 
   @Get('/data')
   @UseGuards()
-  async dataOrderDetailPublic(
-    @Query() query: QueryParamsDto,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const { data } = await this.orderService.orderDetailsPublic(query);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Order Details',
-        data,
-      });
-    } catch (error) {
-      console.log(error);
-      if (error instanceof NotFoundException) {
-        return res.status(HttpStatus.NOT_FOUND).json({
-          status: HttpStatus.NOT_FOUND,
-          messages: error.message,
-        });
-      }
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
-    }
+  async dataOrderDetailPublic(@Query() query: QueryParamsDto) {
+    return await this.orderService.orderDetailsPublic(query);
   }
 
   @Post(':id/set-status/:status_id')
@@ -122,59 +72,24 @@ export class OrderController {
     @Param('id', ParseIntPipe) id: number,
     @Param('status_id', ParseIntPipe) status_id: number,
     @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const user = req.user;
-      const order = await this.orderService.setStatus(id, status_id, user);
+    const user = req.user;
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        messages: 'Order Status Updated.',
-        data: order,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
-    }
+    return await this.orderService.setStatus(id, status_id, user);
   }
 
   @Get('/public/get')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards()
+  @HttpCode(HttpStatus.OK)
   async publicGetAll(@Query() query: QueryParamsDto, @Req() req: UserRequest) {
-    try {
-      const { data, page, take, total, takeTotal } =
-        await this.orderService.findAll(query, req.user);
-      return {
-        status: HttpStatus.OK,
-        messages: 'Ok',
-        data,
-        page,
-        take,
-        total,
-        takeTotal,
-      };
-    } catch (error) {
-      console.log(error.message);
-
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
-    }
+    return await this.orderService.findAll(query, req.user);
   }
 
   @Get('/send-mail/:id')
   @UseGuards(JwtAuthGuard)
-  async testMail(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: IExpressResponse,
-  ) {
+  @HttpCode(HttpStatus.OK)
+  async testMail(@Param('id', ParseIntPipe) id: number) {
     try {
       const order = await this.orderService.findOne(id);
       if (!order) new NotFoundException('Order not found');
@@ -188,18 +103,8 @@ export class OrderController {
       await this.emailQueue.add('send-order-mail', {
         order_id: order.id,
       });
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        messages: 'Email Order Success',
-        data: null,
-      });
     } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
+      throw error;
     }
   }
 
@@ -210,21 +115,10 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      const order = await this.orderService.counter(id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        messages: 'Order Updated.',
-        data: order,
-      });
+      return await this.orderService.counter(id);
     } catch (error) {
       console.log(error.message);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
+      throw error;
     }
   }
 
@@ -239,8 +133,6 @@ export class OrderController {
     @Res() res: IExpressResponse,
   ) {
     try {
-      console.log(createOrderDto);
-
       // Cek di dTO ada updateTukangDto?.service_types
       if (!createOrderDto.order_details)
         throw new BadRequestException('Order Details cannot be null.');
@@ -271,19 +163,11 @@ export class OrderController {
         );
       }
 
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        messages: 'Order Created.',
-        data: order,
-      });
+      return order;
     } catch (error) {
       console.log(error);
 
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
+      throw error;
     }
   }
 
@@ -292,30 +176,11 @@ export class OrderController {
   @UseGuards(JwtAuthGuard)
   async findAll(@Query() query: QueryParamsDto, @Req() req: UserRequest) {
     try {
-      const {
-        data,
-        page,
-        take,
-        total,
-        takeTotal,
-        // monthlyOrders,
-      } = await this.orderService.findAll(query, req.user);
-      return {
-        status: HttpStatus.OK,
-        messages: 'Ok',
-        data,
-        page,
-        take,
-        total,
-        takeTotal,
-      };
+      return await this.orderService.findAll(query, req.user);
     } catch (error) {
-      console.log(error);
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
@@ -325,21 +190,11 @@ export class OrderController {
   @UseGuards(JwtAuthGuard)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     try {
-      const order = await this.orderService.findOne(id);
-      // console.log(order);
-      return {
-        status: HttpStatus.OK,
-        messages: 'Ok',
-        data: order,
-      };
+      return await this.orderService.findOne(id);
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
+      throw error;
     }
   }
 
@@ -383,13 +238,9 @@ export class OrderController {
         data: order,
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      });
+      throw error;
     }
   }
 

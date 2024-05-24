@@ -13,11 +13,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest();
     const status = exception.getStatus();
 
-    response.status(status).json({
+    const err = {
       statusCode: status,
       message: exception.message,
       timestamp: new Date().toISOString(),
       path: request.url,
-    });
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      err['stack'] = exception.stack.split('\n').map(line => line.trim());
+    }
+
+    response.status(status).json(err);
   }
 }

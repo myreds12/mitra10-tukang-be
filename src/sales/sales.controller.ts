@@ -20,7 +20,7 @@ import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
-import { users } from '@prisma/client';
+import { sales, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 interface UserRequest extends IExpressRequest {
@@ -34,116 +34,37 @@ export class SalesController {
 
   @Get('next-code')
   async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {
-    try {
-      const code = await this.salesService.getCode();
-      let nextCode = 1;
-      if (code) nextCode = code.id + 1;
+    const code = await this.salesService.getCode();
+    let nextCode = 1;
+    if (code) nextCode = code.id + 1;
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Sales code pulled',
-        data: { code: nextCode },
-      });
-    } catch (error) {
-      console.error(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While pulling sales code',
-        stack: error,
-      });
-    }
+    return { code: nextCode };
   }
 
   @Post('/salesUser/:store_id')
-  async salesUser(
-    @Param('store_id') store_id: number,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const updatedSales = await this.salesService.salesUser(store_id);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Sales updated successfully',
-        data: updatedSales,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Error while updating sales',
-        stack: error,
-      });
-    }
+  async salesUser(@Param('store_id') store_id: number) {
+    return await this.salesService.salesUser(store_id);
   }
 
   @Post()
   async create(
     @Body() createSaleDto: CreateSalesDto,
     @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const user = req.user;
-      const { sales } = await this.salesService.create(createSaleDto, user);
-
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Created',
-        data: { ...sales },
-        // user: users,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While Create',
-        stack: error,
-      });
-    }
+  ): Promise<sales> {
+    const user = req.user;
+    return await this.salesService.create(createSaleDto, user);
   }
 
   @Get()
-  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
-    try {
-      const { data, total, page, take } = await this.salesService.findAll(
-        query,
-      );
-      // console.log("DATA", data)
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Data',
-        data,
-        total,
-        page,
-        take,
-      });
-    } catch (error) {
-      console.log(error);
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While GET',
-        stack: error,
-      });
-    }
+  async findAll(
+    @Query() query: QueryParamsDto,
+  ): Promise<{ data: sales[]; meta?: any }> {
+    return await this.salesService.findAll(query);
   }
 
   @Get('/:id')
-  async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
-    try {
-      const sales = await this.salesService.findOne(id);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Details Data',
-        data: sales,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While GET',
-        stack: error,
-      });
-    }
+  async findOne(@Param('id') id: number): Promise<sales> {
+    return await this.salesService.findOne(id);
   }
 
   @Post('/:id')
@@ -151,47 +72,14 @@ export class SalesController {
     @Param('id') id: number,
     @Body() updateSaleDto: UpdateSalesDto,
     @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const user = req.user;
-      const sales = await this.salesService.update(id, updateSaleDto, user);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Updated',
-        data: sales,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While Update',
-        stack: error,
-      });
-    }
+  ): Promise<sales> {
+    const user = req.user;
+    return await this.salesService.update(id, updateSaleDto, user);
   }
 
   @Delete('/:id')
-  async remove(
-    @Param('id') id: number,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const user = req.user;
-      const sales = await this.salesService.remove(id, user);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Deleted',
-        data: sales,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.messsage ?? 'Error While Delete',
-        stack: error,
-      });
-    }
+  async remove(@Param('id') id: number, @Request() req: UserRequest) {
+    const user = req.user;
+    return await this.salesService.remove(id, user);
   }
 }

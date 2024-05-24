@@ -16,16 +16,11 @@ export class BankService {
         },
       });
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully Create Data',
-        data: banks
-      };
+      return banks;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
@@ -34,61 +29,55 @@ export class BankService {
       const { take, page, search } = query;
       const skip = page * take - take;
       const where = {
-          bank_name: {
-            contains: search ? search : undefined,
-          },
-          deleted_at: null
-        };
+        bank_name: {
+          contains: search ? search : undefined,
+        },
+        deleted_at: null,
+      };
       const banks = await this.dbService.bank.findMany({
         skip,
         take: take <= 0 ? undefined : take,
-        where
+        where,
       });
 
       const total = await this.dbService.bank.count({
-        where
-      })
+        where,
+      });
 
       return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Get Data',
         data: banks,
-        total,
-        page,
-        take,
+        meta: {
+          total,
+          page,
+          take,
+        },
       };
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
   async findOne(id: number) {
     try {
-      const banks = await this.dbService.bank.findFirst({
+      const bank = await this.dbService.bank.findFirst({
         where: {
           id,
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Find Data',
-        data: banks,
-      };
+      return bank;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
   async update(id: number, updateBankDto: UpdateBankDto, user_id: number) {
     try {
-      const banks = await this.dbService.bank.update({
+      const bank = await this.dbService.bank.update({
         where: {
           id,
         },
@@ -99,21 +88,17 @@ export class BankService {
         },
       });
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Update Data',
-      };
+      return bank;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
   async remove(id: number, user_id: number) {
     try {
-      const banks = await this.dbService.bank.update({
+      const bank = await this.dbService.bank.update({
         where: {
           id,
         },
@@ -124,19 +109,14 @@ export class BankService {
         },
       });
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Delete Data',
-      };
+      return bank;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data',
-      };
+      console.error(error);
+
+      throw error;
     }
   }
 
-  
   async getCode() {
     const bank = await this.dbService.bank.findMany({
       orderBy: {

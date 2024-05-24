@@ -1,4 +1,9 @@
-import { Injectable, HttpStatus, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpStatus,
+  NotFoundException,
+  BadGatewayException,
+} from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -61,12 +66,7 @@ export class StoreService {
         },
       );
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Store Successfully Created',
-        data: store,
-        user,
-      };
+      return { data: store, meta: { user } };
     } catch (error) {
       console.log(error);
 
@@ -101,26 +101,26 @@ export class StoreService {
               },
             ]
           : []),
-          ...(search
-            ? [
+        ...(search
+          ? [
               {
                 OR: [
                   {
                     store_name: {
-                      contains: search
-                    }
+                      contains: search,
+                    },
                   },
                 ],
               },
             ]
-            : []),
-          ...(store_group_id ? [
-            {
-              OR: [
-                {store_group_id: { equals: store_group_id}}
-              ]
-            }
-          ]: []),
+          : []),
+        ...(store_group_id
+          ? [
+              {
+                OR: [{ store_group_id: { equals: store_group_id } }],
+              },
+            ]
+          : []),
       ],
       deleted_at: null,
     };
@@ -140,10 +140,12 @@ export class StoreService {
 
     return {
       data: store,
-      total,
-      skip,
-      page,
-      take,
+      meta: {
+        total,
+        skip,
+        page,
+        take,
+      },
     };
   }
 
@@ -155,12 +157,10 @@ export class StoreService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Succesfully find store',
-        data: store,
-      };
-    } catch (error) {}
+      return store;
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {
@@ -217,18 +217,13 @@ export class StoreService {
       );
 
       return {
-        status: HttpStatus.CREATED,
         data: store,
-        user,
-        message: 'Successfully Update Data',
+        meta: { user },
       };
     } catch (error) {
       console.log(error);
 
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to update data',
-      };
+      throw error;
     }
   }
 
@@ -244,17 +239,10 @@ export class StoreService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully delete store',
-      };
+      return;
     } catch (error) {
       console.log(error);
-
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to delete store',
-      };
+      throw new BadGatewayException('Failed to delete store');
     }
   }
 

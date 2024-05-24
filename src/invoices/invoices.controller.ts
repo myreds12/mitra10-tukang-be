@@ -29,164 +29,57 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
 @ApiTags('Invoices')
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {
-  constructor(
-    private readonly dbService: PrismaService,
-    private readonly invoicesService: InvoicesService,
-  ) {}
+  constructor(private readonly invoicesService: InvoicesService) {}
 
   @Post('/payment')
   @UseInterceptors(FilesInterceptor('invoice_evidences'))
-  async updateInvoiceToPayment(
-    @Body() dto: UpdateInvoiceDto,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const updated = await this.invoicesService.updateInvoicesPayment(
-       dto
-      );
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Invoice Updated',
-        data: updated,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.messages ?? error?.messages ?? 'Error while update',
-        stack: error,
-      });
-    }
+  async updateInvoiceToPayment(@Body() dto: UpdateInvoiceDto) {
+    return await this.invoicesService.updateInvoicesPayment(dto);
   }
 
   @Get('next-code')
-  async nextCode(
-    @Request() req: IExpressRequest,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const invoices = await this.invoicesService.nextCode();
-      let nextCode: number;
-      if (invoices) {
-        nextCode = invoices.id + 1;
-      } else {
-        nextCode = 0 + 1;
-      }
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Next Code',
-        data: {
-          code: nextCode,
-        },
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
+  async nextCode() {
+    const invoices = await this.invoicesService.nextCode();
+    let nextCode: number;
+    if (invoices) {
+      nextCode = invoices.id + 1;
+    } else {
+      nextCode = 0 + 1;
     }
+
+    return {
+      code: nextCode,
+    };
   }
 
   @Post()
   @UseInterceptors(FilesInterceptor('invoice_evidences'))
   async create(
     @Body() createInvoiceDto: CreateInvoiceDto,
-    @Request() req: UserRequest,
+    @Request() req: RequestWithUser,
     @UploadedFiles() invoice_evidences: Array<Express.Multer.File>,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      console.log(createInvoiceDto);
-
-      let invoice;
-      if (invoice_evidences) {
-        invoice = await this.invoicesService.create(
-          createInvoiceDto,
-          req.user,
-          invoice_evidences,
-        );
-      } else {
-        invoice = await this.invoicesService.create(createInvoiceDto, req.user);
-      }
-      console.log(invoice);
-
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Invoice Created',
-        data: invoice,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Create',
-        stack: error,
-      });
-    }
+    return await this.invoicesService.create(
+      createInvoiceDto,
+      req.user,
+      invoice_evidences,
+    );
   }
 
   @Get()
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
-    try {
-      const {data, month, page, skip, take, takeTotal, total, totalQuotationGrandTotal} = await this.invoicesService.findAll(query);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Invoice',
-        data,
-        page,
-        skip,
-        take,
-        takeTotal,
-        total,
-        month,
-        totalQuotationGrandTotal
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+    return await this.invoicesService.findAll(query);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res: IExpressResponse) {
-    try {
-      const invoice = await this.invoicesService.findOne(+id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Invoice',
-        data: invoice,
-      });
-    } catch (error) {
-      console.log(error);
-      
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+    return await this.invoicesService.findOne(+id);
   }
 
   @Post(':id')
@@ -194,57 +87,19 @@ export class InvoicesController {
   async update(
     @Param('id') id: number,
     @Body() updateInvoiceDto: UpdateInvoiceDto,
-    @Request() req: UserRequest,
+    @Request() req: RequestWithUser,
     @UploadedFiles() invoice_evidences: Array<Express.Multer.File>,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const invoice = await this.dbService.invoices.findFirstOrThrow({
-        where: { id },
-      });
-      const updated = await this.invoicesService.update(
-        invoice,
-        updateInvoiceDto,
-        req.user,
-        invoice_evidences,
-      );
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Invoice Updated',
-        data: updated,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.messages ?? error?.messages ?? 'Error while update',
-        stack: error,
-      });
-    }
+    return await this.invoicesService.update(
+      id,
+      updateInvoiceDto,
+      req.user,
+      invoice_evidences,
+    );
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
-  ) {
-    try {
-      const invoice = await this.invoicesService.remove(+id, req.user);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Invoice Deleted',
-        data: invoice,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Delete',
-        stack: error,
-      });
-    }
+  async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
+    return await this.invoicesService.remove(+id, req.user);
   }
 }

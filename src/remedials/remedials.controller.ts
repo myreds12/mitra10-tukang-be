@@ -13,21 +13,13 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
 import { RemedialsService } from './remedials.service';
 import { CreateRemedialDto } from './dto/create-remedial.dto';
 import { UpdateRemedialDto } from './dto/update-remedial.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { users } from '@prisma/client';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @UseGuards(JwtAuthGuard)
 @Controller('remedials')
@@ -39,68 +31,23 @@ export class RemedialsController {
   async create(
     @UploadedFiles() remedial_evidences: Array<Express.Multer.File>,
     @Body() createRemedialDto: CreateRemedialDto,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Request() req: RequestWithUser,
   ) {
-    try {
-      const remedial = await this.remedialsService.create(
-        remedial_evidences,
-        createRemedialDto,
-        req.user,
-      );
-
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Remedial Created',
-        data: remedial,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Create',
-        stack: error,
-      });
-    }
+    return await this.remedialsService.create(
+      remedial_evidences,
+      createRemedialDto,
+      req.user,
+    );
   }
 
   @Get('/')
-  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
-    try {
-      const remedial = await this.remedialsService.findAll(query);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Remedials',
-        data: remedial,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+  async findAll(@Query() query: QueryParamsDto) {
+    return await this.remedialsService.findAll(query);
   }
 
   @Get('/:id')
-  async findOne(@Param('id') id: string, @Res() res: IExpressResponse) {
-    try {
-      const remedial = await this.remedialsService.findOne(+id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Find Remedials',
-        data: remedial,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Find',
-        stack: error,
-      });
-    }
+  async findOne(@Param('id') id: string) {
+    return await this.remedialsService.findOne(+id);
   }
 
   @Post('/:id')
@@ -109,31 +56,14 @@ export class RemedialsController {
     @Param('id') id: string,
     @UploadedFiles() remedial_evidence: Express.Multer.File[],
     @Body() updateRemedialDto: UpdateRemedialDto,
-    @Request() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Request() req: RequestWithUser,
   ) {
-    try {
-      const remedial = await this.remedialsService.update(
-        +id,
-        remedial_evidence,
-        updateRemedialDto,
-        req.user,
-      );
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Remedial Updated',
-        data: remedial,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
-        stack: error,
-      });
-    }
+    return await this.remedialsService.update(
+      +id,
+      remedial_evidence,
+      updateRemedialDto,
+      req.user,
+    );
   }
 
   @Delete(':id')

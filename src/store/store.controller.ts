@@ -12,6 +12,8 @@ import {
   Res,
   HttpStatus,
   Req,
+  HttpCode,
+  NotFoundException,
 } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { CreateStoreDto } from './dto/create-store.dto';
@@ -36,26 +38,15 @@ export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
   @Get('next-code')
-  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
-    try {
-      const code = await this.storeService.getCode();
-      let nextCode = 1;
-      if (code) nextCode = code.id + 1;
+  @HttpCode(200)
+  async getCode() {
+    const code = await this.storeService.getCode();
+    let nextCode = 1;
+    if (code) nextCode = code.id + 1;
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Store code pulled',
-        data: { code: nextCode },
-      });
-    } catch (error) {
-      console.error(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While pulling complaint code',
-        stack: error,
-      });
-    }
+    return {
+      code: nextCode,
+    };
   }
 
   @Post('/')
@@ -66,31 +57,14 @@ export class StoreController {
   }
 
   @Get('/')
-  async findAll(
-    @Query() query: QueryParamsDto,
-    @Res() response: IExpressResponse,
-  ) {
-    try {
-      const complaint = await this.storeService.findAll(query);
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Store',
-        data: complaint,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+  @HttpCode(200)
+  async findAll(@Query() query: QueryParamsDto) {
+    return await this.storeService.findAll(query);
   }
 
   @Get('/:id')
   async findOne(@Param('id') id: string) {
-    return this.storeService.findOne(+id);
+    return await this.storeService.findOne(+id);
   }
 
   @Post('/:id')
@@ -99,19 +73,13 @@ export class StoreController {
     @Body() updateStoreDto: UpdateStoreDto,
     @Request() req,
   ) {
-    try{
-
-      const user_id = req.user.id;
-      return this.storeService.update(+id, updateStoreDto, user_id);
-    }catch(err){
-      console.log(err);
-      
-    }
+    const user_id = req.user.id;
+    return await this.storeService.update(+id, updateStoreDto, user_id);
   }
 
   @Delete('/:id')
   async remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
-    return this.storeService.remove(+id, user_id);
+    return await this.storeService.remove(+id, user_id);
   }
 }

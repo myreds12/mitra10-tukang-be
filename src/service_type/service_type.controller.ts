@@ -3,12 +3,13 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
   Request,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ServiceTypeService } from './service_type.service';
 import { CreateServiceTypeDto } from './dto/create-service_type.dto';
@@ -22,22 +23,26 @@ export class ServiceTypeController {
   constructor(private readonly serviceTypeService: ServiceTypeService) {}
 
   @Post('/')
+  @HttpCode(HttpStatus.CREATED)
   create(@Body() createServiceTypeDto: CreateServiceTypeDto, @Request() req) {
     const user_id = req.user.id;
     return this.serviceTypeService.create(createServiceTypeDto, user_id);
   }
 
   @Get()
+  @HttpCode(HttpStatus.OK)
   findAll(@Query() query: QueryParamsDto) {
     return this.serviceTypeService.findAll(query);
   }
 
   @Get('/find/:id')
+  @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.serviceTypeService.findOne(+id);
   }
 
   @Post('/:id')
+  @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
     @Body() updateServiceTypeDto: UpdateServiceTypeDto,
@@ -48,6 +53,7 @@ export class ServiceTypeController {
   }
 
   @Delete('/:id')
+  @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string, @Request() req) {
     const user_id = req.user.id;
     return this.serviceTypeService.remove(+id, user_id);

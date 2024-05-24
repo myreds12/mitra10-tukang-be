@@ -3,30 +3,22 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Req,
   Res,
   HttpStatus,
-  BadRequestException,
   UseGuards,
   Query,
 } from '@nestjs/common';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
-import { users } from '@prisma/client';
+import { Response as IExpressResponse } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @ApiTags('Brands')
 @UseGuards(JwtAuthGuard)
@@ -37,109 +29,39 @@ export class BrandsController {
   @Post('/')
   async create(
     @Body() createBrandDto: CreateBrandDto,
-    @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Req() req: RequestWithUser,
   ) {
-    try {
-      const user = req.user;
-      const brands = await this.brandsService.create(createBrandDto, user);
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Created',
-        data: brands,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Error While Create',
-        stack: error,
-      });
-    }
+    const user = req.user;
+    return await this.brandsService.create(createBrandDto, user);
   }
 
   @Get('/')
-  async findAll(@Res() res: IExpressResponse, @Query() query: QueryParamsDto) {
-    try {
-      const {data, page, skip, take, total} = await this.brandsService.findAll(query);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Data',
-        data,
-        page,
-        skip,
-        total
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Error While Get',
-        stack: error,
-      });
-    }
+  async findAll(@Query() query: QueryParamsDto) {
+    return await this.brandsService.findAll(query);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number, @Res() res: IExpressResponse) {
-    try {
-      const brands = await this.brandsService.findOne(id);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Details Data',
-        data: brands,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Error While Get',
-        stack: error,
-      });
-    }
+  async findOne(@Param('id') id: number) {
+    return await this.brandsService.findOne(id);
   }
 
   @Post(':id')
   async update(
     @Param('id') id: number,
     @Body() updateBrandDto: UpdateBrandDto,
-    @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Req() req: RequestWithUser,
   ) {
-    try {
-      const user = req.user;
-      const brands = await this.brandsService.update(id, updateBrandDto, user);
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Updated',
-        data: brands,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Error While Update',
-        stack: error,
-      });
-    }
+    const user = req.user;
+    return await this.brandsService.update(id, updateBrandDto, user);
   }
 
   @Delete(':id')
   async remove(
     @Param('id') id: number,
-    @Req() req: UserRequest,
+    @Req() req: RequestWithUser,
     @Res() res: IExpressResponse,
   ) {
-    try {
-      const user = req.user;
-      const brands = await this.brandsService.remove(id, user);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Deleted',
-        data: brands,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message ?? 'Error While Delete',
-        stack: error,
-      });
-    }
+    const user = req.user;
+    return await this.brandsService.remove(id, user);
   }
 }

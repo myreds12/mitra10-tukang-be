@@ -38,7 +38,7 @@ export class ComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
   @Get('next-code')
-  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
+  async getCode(@Res() res: IExpressResponse) {
     try {
       const code = await this.complaintsService.getCode();
       let nextCode = 1;
@@ -65,27 +65,8 @@ export class ComplaintsController {
     @Param('id') id: number,
     @Param('status_id') status_id: number,
     @Body() payload: { reason?: string },
-    @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const setStatus = await this.complaintsService.setStatus(
-        id,
-        status_id,
-        payload,
-      );
-      return res.status(200).json({
-        status: HttpStatus.CREATED,
-        message: 'Status Changed',
-        data: setStatus,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error While Set Status',
-        stack: error?.name ?? error,
-      });
-    }
+    return await this.complaintsService.setStatus(id, status_id, payload);
   }
 
   @Post('/')
@@ -94,74 +75,23 @@ export class ComplaintsController {
     @UploadedFiles() complaint_evidences: Array<Express.Multer.File>,
     @Body() createComplaintDto: CreateComplaintDto,
     @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const user = req.user;
-      const complaint = await this.complaintsService.create(
-        createComplaintDto,
-        user,
-        complaint_evidences,
-      );
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Complaint Created',
-        data: complaint,
-      });
-    } catch (error) {
-      console.error(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Create',
-        stack: error,
-      });
-    }
+    const user = req.user;
+    return await this.complaintsService.create(
+      createComplaintDto,
+      user,
+      complaint_evidences,
+    );
   }
 
   @Get('/')
   async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
-    try {
-      const {complaint, complaintGrandTotal, monthlyComplaint, page, skip, take, total} = await this.complaintsService.findAll(query);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Complaint',
-        data: complaint,
-        complaintGrandTotal,
-        monthlyComplaint,
-        page, 
-        skip,
-        take,
-        total
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+    return await this.complaintsService.findAll(query);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Res() res) {
-    try {
-      const complaint = await this.complaintsService.findOne(+id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Find Complaint',
-        data: complaint,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+    return await this.complaintsService.findOne(+id);
   }
 
   @Post(':id')
@@ -171,52 +101,22 @@ export class ComplaintsController {
     @Param('id') id: string,
     @Body() updateComplaintDto: UpdateComplaintDto,
     @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const user = req.user;
-      const complaint = await this.complaintsService.update(
-        +id,
-        updateComplaintDto,
-        user,
-        complaint_evidences,
-      );
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Complaint Updated',
-        data: complaint,
-      });
-    } catch (error) {
-      console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error?.message ?? 'Error While Update',
-        stack: error,
-      });
-    }
+    const user = req.user;
+    return await this.complaintsService.update(
+      +id,
+      updateComplaintDto,
+      user,
+      complaint_evidences,
+    );
   }
 
   @Delete(':id')
   async remove(
     @Param('id') id: string,
     @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
   ) {
-    try {
-      const user_id = req.user.id;
-      const complaint = this.complaintsService.remove(+id, user_id);
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Complaint Deleted',
-        data: complaint,
-      });
-    } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Delete',
-        stack: error,
-      });
-    }
+    const user_id = req.user.id;
+    return await this.complaintsService.remove(+id, user_id);
   }
 }

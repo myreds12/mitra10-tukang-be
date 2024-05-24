@@ -41,91 +41,22 @@ export class ReportsController {
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)
   async reportVendor(@Query() query: QueryParamsDto) {
-    try {
-      const data =
-        await this.reportsService.reportVendor(query);
-      return {
-        status: HttpStatus.OK,
-        messages: 'Ok',
-        data
-      };
-    } catch (error) {
-      console.log(error.message);
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
-    }
+    return await this.reportsService.reportVendor(query);
   }
 
   @Get('/tukang')
-  async reportTukang(@Query() query: QueryParamsDto, @Res() response){
-    try {
-      const tukang = await this.reportsService.reportTukang(query);
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Tukang',
-        data: tukang
-      });
-    } catch (error) {
-      console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
-  } 
+  async reportTukang(@Query() query: QueryParamsDto) {
+    return await this.reportsService.reportTukang(query);
+  }
 
   @Get('/complaints')
-  async complaintReport(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
-    try {
-      const {complaint, complaintGrandTotal, monthlyComplaint} = await this.reportsService.complaintReport(queryParamsDto);
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Complaint',
-        data: complaint,
-        complaintGrandTotal,
-        monthlyComplaint
-      });
-    } catch (error) {
-      console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
+  async complaintReport(@Query() queryParamsDto: QueryParamsDto) {
+    return await this.reportsService.complaintReport(queryParamsDto);
   }
 
   @Get('/sales-comission')
-  async salesComission(@Res() response, @Query() queryParamsDto: QueryParamsDto){
-    try {
-      const {data, page, take, total} = await  this.reportsService.salesComissionReport(queryParamsDto);
-      return response.status(200).json({
-        data,
-        page,
-        take,
-        total,
-        status: HttpStatus.OK,
-        message: 'Get Sales Comission',
-      });
-    } catch (error) {
-      console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
-    }
-  }
-  @Post('/create-form')
-  createForm(@Body() dto: FormDto, @Req() req: Request) {
-    return this.reportsService.createForm(dto);
+  async salesComission(@Query() queryParamsDto: QueryParamsDto) {
+    return await this.reportsService.salesComissionReport(queryParamsDto);
   }
 
   @Post()
@@ -137,71 +68,18 @@ export class ReportsController {
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)
   async reportOrders(@Query() query: QueryParamsDto) {
-    try {
-      const { data, total, orderGrandTotal, monthlyOrders  } =
-        await this.reportsService.reportOrder(query);
-      return {
-        status: HttpStatus.OK,
-        messages: 'Ok',
-        data,
-        total,
-        orderGrandTotal,
-        monthlyOrders,
-      };
-    } catch (error) {
-      console.log(error);
-
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
-    }
+    return await this.reportsService.reportOrder(query);
   }
 
   @Get('/work-orders')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)
   async reportWorkOrder(@Query() query: QueryParamsDto) {
-    try {
-      const { data, total,  monthlyWorkOrders  } =
-        await this.reportsService.reportWorkOrder(query);
-      return {
-        status: HttpStatus.OK,
-        messages: 'Ok',
-        data,
-        total,
-        monthlyWorkOrders,
-      };
-    } catch (error) {
-      console.log(error.message);
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        messages: error.message,
-        stack: error,
-      };
-    }
+    return await this.reportsService.reportWorkOrder(query);
   }
 
   @Get()
   findAll() {
     return this.reportsService.findAll();
   }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.reportsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateReportDto: UpdateReportDto) {
-    return this.reportsService.update(+id, updateReportDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.reportsService.remove(+id);
-  }
-
-
 }

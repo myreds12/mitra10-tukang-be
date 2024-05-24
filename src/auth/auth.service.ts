@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -25,132 +26,153 @@ export class AuthService {
   ) {}
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        username: dto.username,
-      },
-    });
-    if (user) {
-      throw new HttpException('User Exists', HttpStatus.BAD_REQUEST);
-    }
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          username: dto.username,
+        },
+      });
 
-    const [createUser] = await this.dbService.$transaction([
-      this.dbService.users.create({
-        data: { ...dto, role_id: role_id ?? 2 },
-      }),
-    ]);
+      if (user) {
+        throw new BadRequestException(
+          'Username tersebut sudah ada, silahkan buat dengan username lain.',
+        );
+      }
 
-    if (createUser) {
-      return {
-        statusCode: 200,
-        message: 'Register success',
-        data: createUser,
-      };
+      const [createUser] = await this.dbService.$transaction([
+        this.dbService.users.create({
+          data: { ...dto, role_id: role_id ?? 2 },
+        }),
+      ]);
+
+      return createUser;
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-    throw new HttpException('Bad request', HttpStatus.BAD_REQUEST);
   }
 
   async updateUser(id: number, dto: CreateRegisterDto) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        id,
-      },
-    });
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          id,
+        },
+      });
 
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      if (!user) {
+        throw new NotFoundException('User tidak ada.');
+      }
+
+      const update = await this.dbService.users.update({
+        where: {
+          id,
+        },
+        data: {
+          username: dto.username,
+          password: await hash(dto.password, 12),
+        },
+      });
+
+      return update;
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-
-    const update = await this.dbService.users.update({
-      where: {
-        id,
-      },
-      data: {
-        username: dto.username,
-        password: await hash(dto.password, 12),
-      },
-    });
-    return update;
   }
 
   async deleteUser(id: number) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        id,
-      },
-    });
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          id,
+        },
+      });
 
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      if (!user) {
+        throw new NotFoundException('User tidak ada.');
+      }
+
+      const deleteUser = await this.dbService.users.delete({
+        where: {
+          id,
+        },
+      });
+      return deleteUser;
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-
-    const deleteUser = await this.dbService.users.delete({
-      where: {
-        id,
-      },
-    });
-    return deleteUser;
   }
 
   async login(dto: CreateLoginDto) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        username: {
-          equals: dto.username,
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          username: {
+            equals: dto.username,
+          },
         },
-      },
-      include: {
-        tukang: true,
-        roles: {
-          select: { name: true },
-        },
-        employee: {
-          select: {
-            user_id: true,
-            full_name: true,
-            email: true,
-            phone_number: true,
-            nik: true,
-            whatsapp_number: true,
-            store: {
-              select: {
-                id: true,
-                store_name: true,
+        include: {
+          tukang: true,
+          roles: {
+            select: { name: true },
+          },
+          employee: {
+            select: {
+              user_id: true,
+              full_name: true,
+              email: true,
+              phone_number: true,
+              nik: true,
+              whatsapp_number: true,
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                },
               },
             },
           },
-        },
-        sales: {
-          select: {
-            id: true,
-            user_id: true,
-            full_name: true,
-            store: {
-              select: {
-                id: true,
-                store_name: true,
+          sales: {
+            select: {
+              id: true,
+              user_id: true,
+              full_name: true,
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                },
               },
             },
           },
+          vendor: true,
         },
-        vendor: true,
-      },
-    });
-    console.log(user, dto.username);
+      });
+      console.log(user, dto.username);
 
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
 
-    const checkPassword = await compare(dto.password, user.password);
-    if (!checkPassword) {
-      throw new HttpException('Credential Incorrect', HttpStatus.UNAUTHORIZED);
+      const checkPassword = await compare(dto.password, user.password);
+      if (!checkPassword) {
+        throw new HttpException(
+          'Username atau Password salah',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      return await this.generateJwt(
+        user,
+        JwtConfig.user_secret,
+        JwtConfig.user_expired,
+      );
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-    return await this.generateJwt(
-      user,
-      JwtConfig.user_secret,
-      JwtConfig.user_expired,
-    );
   }
 
   async getUser(where: Prisma.usersWhereInput, include?: Prisma.usersInclude) {
@@ -178,39 +200,45 @@ export class AuthService {
   }
 
   async updatePassword(username: string, dto: ResetPasswordDto) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        username,
-      },
-    });
-    if (!user) throw new NotFoundException('User Not Found!');
-    if (
-      user.forget_password &&
-      new Date(user.forget_password) <
-        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
-    ) {
-      await this.dbService.users.update({
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          username,
+        },
+      });
+
+      if (!user) throw new NotFoundException('User Not Found!');
+      if (
+        user.forget_password &&
+        new Date(user.forget_password) <
+          new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+      ) {
+        await this.dbService.users.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            forget_password: null,
+          },
+        });
+        throw new Error('Forget password link has expired');
+      }
+
+      const updatePassword = await this.dbService.users.update({
         where: {
           id: user.id,
         },
         data: {
+          password: await hash(dto.password, 14),
           forget_password: null,
         },
       });
-      throw new Error('Forget password link has expired');
+
+      return updatePassword;
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-
-    const updatePassword = await this.dbService.users.update({
-      where: {
-        id: user.id,
-      },
-      data: {
-        password: await hash(dto.password, 14),
-        forget_password: null,
-      },
-    });
-
-    return updatePassword;
   }
 
   async generateJwt(
@@ -235,10 +263,8 @@ export class AuthService {
     const permission = '';
 
     return {
-      statusCode: 200,
       accessToken: accessToken,
       user: omit(user, ['password', 'created_at', 'updated_at', 'deleted_at']),
-      // menu: menus,
       role,
       permission,
     };
@@ -246,29 +272,6 @@ export class AuthService {
 
   async getUserPermission(user: users) {
     const userData = await this.getUser({ id: user.id });
-
-    // const userData = await this.dbService.users.findFirst({
-    //   where: {
-    //     id: user.id,
-    //   },
-    //   include: {
-    //     roles: {
-    //       select: {
-    //         name: true,
-    //         role_permissions: {
-    //           select: {
-    //             role_id: true,
-    //             permissions: {
-    //               include: {
-    //                 menus: true,
-    //               },
-    //             },
-    //           },
-    //         },
-    //       },
-    //     },
-    //   },
-    // });
 
     const permissions = userData.roles.role_permissions.map((x) => ({
       ...x.permissions,
@@ -279,111 +282,135 @@ export class AuthService {
   }
 
   async resetPassword(username: string) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        username: username,
-      },
-    });
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          username: username,
+        },
+      });
 
-    if (!user) throw new NotFoundException('User Not Found!!');
-    console.log(new Date());
+      if (!user) throw new NotFoundException('User Not Found!!');
 
-    const userUpdate = await this.dbService.users.update({
-      where: {
-        id: user.id,
-      },
-      data: {
-        forget_password: new Date(),
-      },
-    });
+      const userUpdate = await this.dbService.users.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          forget_password: new Date(),
+        },
+      });
 
-    return userUpdate;
+      return omit(userUpdate, [
+        'password',
+        'forget_password',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+      ]);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async findAll(query: QueryParamsDto) {
-    const { page, take, search, date_from, date_to } = query;
-    const skip = page * take - take;
+    try {
+      const { page, take, search, date_from, date_to } = query;
+      const skip = page * take - take;
 
-    const where: Prisma.usersWhereInput = {
-      AND: [
-        ...(search
-          ? [
-            {
-              OR: [
-                { username: { contains: search } },
-              ],
-            },
-          ]
-          : []),
-        ...(date_from && date_to
-          ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            },
-          ]
-          : []),
-      ].filter(Boolean),
-      deleted_at: null,
-    };
+      const where: Prisma.usersWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [{ username: { contains: search } }],
+                },
+              ]
+            : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
 
-    const user = await this.dbService.users.findMany({
-      where,
-      skip,
-      take: take > 0 ? take : undefined,
-      include: {
-        employee: true,
-        store: true,
-        roles: true,
-        sales: true,
-        tukang: true,
-        vendor: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+      const user = await this.dbService.users.findMany({
+        where,
+        skip,
+        take: take > 0 ? take : undefined,
+        include: {
+          employee: true,
+          store: true,
+          roles: true,
+          sales: true,
+          tukang: true,
+          vendor: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
 
-    const total = await this.dbService.users.count({
-      where
-    });
+      const total = await this.dbService.users.count({
+        where,
+      });
 
-
-
-    return {data:user, total, page, take, skip};
+      return {
+        data: user,
+        meta: { total, page, take, skip },
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async findOne(id: number) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        id,
-      },
-      include: {
-        employee: true,
-        roles: true,
-        sales: true,
-        store: true,
-        tukang: true,
-        vendor: true
-      }
-    });
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          employee: true,
+          roles: true,
+          sales: true,
+          store: true,
+          tukang: true,
+          vendor: true,
+        },
+      });
 
-    if (!user) throw new NotFoundException('User Not Found!!');
+      if (!user) throw new NotFoundException('User Not Found!!');
 
-    return user;
+      return user;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async getUsers(username: string) {
-    const user = await this.dbService.users.findFirst({
-      where: {
-        username: username,
-      },
-    });
+    try {
+      const user = await this.dbService.users.findFirst({
+        where: {
+          username: username,
+        },
+      });
 
-    if (!user) throw new NotFoundException('User Not Found!!');
+      if (!user) throw new NotFoundException('User Not Found!!');
 
-    return user;
+      return user;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 }

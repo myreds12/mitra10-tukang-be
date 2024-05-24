@@ -9,82 +9,113 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 export class BrandsService {
   constructor(private readonly dbService: PrismaService) {}
   async create(createBrandDto: CreateBrandDto, user: users) {
-    const { id: user_id } = user;
-    const brands = await this.dbService.brands.create({
-      data: {
-        ...createBrandDto,
-        created_by: user_id,
-      },
-    });
-    return brands;
+    try {
+      const { id: user_id } = user;
+      const brands = await this.dbService.brands.create({
+        data: {
+          ...createBrandDto,
+          created_by: user_id,
+        },
+      });
+      return brands;
+    } catch (error) {
+      console.error(error);
+
+      throw error;
+    }
   }
 
   async findAll(query: QueryParamsDto) {
-    const {search, take, page} = query;
-    const skip = page * take - take;
+    try {
+      const { search, take, page } = query;
+      const skip = page * take - take;
 
+      const where: Prisma.brandsWhereInput = {
+        ...(search
+          ? {
+              name: {
+                contains: search,
+              },
+            }
+          : {}),
+      };
+      const brands = await this.dbService.brands.findMany({
+        where,
+        skip,
+        take: take <= 0 ? undefined : take,
+      });
 
-    const where : Prisma.brandsWhereInput = {
-    ...(search ? { name: {
-        contains: search
-      }}: {})
+      const total = await this.dbService.brands.count({
+        where,
+      });
+
+      return {
+        data: brands,
+        meta: {
+          page,
+          take,
+          skip,
+          total,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
-    const brands = await this.dbService.brands.findMany({
-      where,
-      skip,
-      take: take <= 0 ? undefined : take,
-    });
-
-    const total = await this.dbService.brands.count({
-      where
-    })
-
-    return {
-      data: brands,
-      page,
-      take,
-      skip,
-      total
-    };
   }
 
   async findOne(id: number) {
-    const brands = await this.dbService.brands.findFirst({
-      where: {
-        id,
-      },
-    });
-    return brands;
+    try {
+      const brands = await this.dbService.brands.findFirst({
+        where: {
+          id,
+        },
+      });
+      return brands;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async update(id: number, updateBrandDto: UpdateBrandDto, user: users) {
-    const { id: user_id } = user;
-    const brands = await this.dbService.brands.update({
-      where: {
-        id,
-      },
-      data: {
-        ...updateBrandDto,
-        updated_at: new Date(),
-        updated_by: user_id,
-      },
-    });
+    try {
+      const { id: user_id } = user;
+      const brands = await this.dbService.brands.update({
+        where: {
+          id,
+        },
+        data: {
+          ...updateBrandDto,
+          updated_at: new Date(),
+          updated_by: user_id,
+        },
+      });
 
-    return brands;
+      return brands;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async remove(id: number, user: users) {
-    const { id: user_id } = user;
-    const brands = await this.dbService.brands.update({
-      where: {
-        id,
-      },
-      data: {
-        deleted_at: new Date(),
-        deleted_by: user_id,
-        is_active: false,
-      },
-    });
-    return brands;
+    try {
+      const { id: user_id } = user;
+      const brands = await this.dbService.brands.update({
+        where: {
+          id,
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id,
+          is_active: false,
+        },
+      });
+      return brands;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 }

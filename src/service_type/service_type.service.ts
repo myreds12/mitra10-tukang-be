@@ -43,18 +43,16 @@ export class ServiceTypeService {
       });
 
       return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Get Data',
         data: service_type,
-        total: service_type.length,
-        page,
-        take,
+        meta: {
+          total: service_type.length,
+          page,
+          take,
+        },
       };
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Get Data',
-      };
+      console.error(error);
+      throw error;
     }
   }
 
@@ -66,16 +64,10 @@ export class ServiceTypeService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Find Data',
-        data: service_type,
-      };
+      return service_type;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Find Data',
-      };
+      console.error(error);
+      throw error;
     }
   }
 
@@ -96,15 +88,10 @@ export class ServiceTypeService {
         },
       });
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully to Update Data',
-      };
+      return service_type;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Update Data',
-      };
+      console.error(error);
+      throw error;
     }
   }
 
@@ -121,15 +108,10 @@ export class ServiceTypeService {
         },
       });
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Successfully to Delete Data',
-      };
+      return service_type;
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Delete Data',
-      };
+      console.error(error);
+      throw error;
     }
   }
 }

@@ -5,59 +5,62 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class StoreGroupService {
-  constructor( private readonly dbService: PrismaService){}
+  constructor(private readonly dbService: PrismaService) {}
   create(createStoreGroupDto: CreateStoreGroupDto) {
     return 'This action adds a new storeGroup';
   }
 
   async findAll() {
-   const storeGroup = await this.dbService.store_group.findMany();
+    try {
+      const storeGroup = await this.dbService.store_group.findMany();
 
-   return {
-    status: HttpStatus.OK,
-    message: 'Succesfully find store',
-    data: storeGroup,
-  };
+      return storeGroup;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
-  async storeByGroup(id: number){
-    const storeByGroup = await this.dbService.store_group.findFirst({
-      where: {
-        id
-      }
-    });
-    if(!storeByGroup) throw new NotFoundException('Store Group Not Found!');
+  async storeByGroup(id: number) {
+    try {
+      const storeByGroup = await this.dbService.store_group.findFirst({
+        where: {
+          id,
+        },
+      });
+      if (!storeByGroup) throw new NotFoundException('Store Group Not Found!');
 
-    const store = await this.dbService.store.findMany({
-      where: {
-        store_group_id: storeByGroup.id
-      },
-      include: {
-        area: true,
-        store_group: true
-      }
-    });
+      const store = await this.dbService.store.findMany({
+        where: {
+          store_group_id: storeByGroup.id,
+        },
+        include: {
+          area: true,
+          store_group: true,
+        },
+      });
 
-    return {
-      status: HttpStatus.OK,
-      message: 'Succesfully find store',
-      data: store,
-    };
+      return store;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
-  async createStoreGroup(group_name: string, user_id: number){
-    const storeGroup = await this.dbService.store_group.create({
-      data: {
-        group_name: group_name,
-        created_by: user_id
-      }
-    });
+  async createStoreGroup(group_name: string, user_id: number) {
+    try {
+      const storeGroup = await this.dbService.store_group.create({
+        data: {
+          group_name: group_name,
+          created_by: user_id,
+        },
+      });
 
-     return {
-      status: HttpStatus.CREATED,
-      message: 'Succesfully create store',
-      data: storeGroup,
-    };
+      return storeGroup;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   update(id: number, updateStoreGroupDto: UpdateStoreGroupDto) {

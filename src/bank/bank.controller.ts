@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
@@ -22,68 +21,59 @@ import {
   Request as IExpressRequest,
   Response as IExpressResponse,
 } from 'express';
-import { users } from '@prisma/client';
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @Controller('bank')
 @UseGuards(JwtAuthGuard)
 export class BankController {
-  constructor(private readonly bankService: BankService) { }
+  constructor(private readonly bankService: BankService) {}
 
   @Get('next-code')
-  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
+  async getCode() {
     try {
       const code = await this.bankService.getCode();
       let nextCode = 1;
       if (code) nextCode = code.id + 1;
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Bank code pulled',
-        data: { code: nextCode },
-      });
+      return { code: nextCode };
     } catch (error) {
       console.error(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While pulling complaint code',
-        stack: error,
-      });
+      throw error;
     }
   }
 
   @Post('/')
-  create(@Body() createBankDto: CreateBankDto, @Request() req) {
+  async create(
+    @Body() createBankDto: CreateBankDto,
+    @Request() req: RequestWithUser,
+  ) {
     const user_id = req.user.id;
-    return this.bankService.create(createBankDto, user_id);
+    return await this.bankService.create(createBankDto, user_id);
   }
 
   @Get()
-  findAll(@Query() query: QueryParamsDto) {
-    return this.bankService.findAll(query);
+  async findAll(@Query() query: QueryParamsDto) {
+    return await this.bankService.findAll(query);
   }
 
   @Get('/find/:id')
-  findOne(@Param('id') id: string) {
-    return this.bankService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    return await this.bankService.findOne(+id);
   }
 
   @Post('/:id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateBankDto: UpdateBankDto,
-    @Request() req,
+    @Request() req: RequestWithUser,
   ) {
     const user_id = req.user.id;
-    return this.bankService.update(+id, updateBankDto, user_id);
+    return await this.bankService.update(+id, updateBankDto, user_id);
   }
 
   @Delete('/:id')
-  remove(@Param('id') id: string, @Request() req) {
+  async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     const user_id = req.user.id;
-    return this.bankService.remove(+id, user_id);
+    return await this.bankService.remove(+id, user_id);
   }
 }

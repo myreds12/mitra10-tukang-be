@@ -19,21 +19,13 @@ import { QuotationService } from './quotation.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { response } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   FileFieldsInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
-import { users } from '@prisma/client';
-
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
+import { Response as IExpressResponse } from 'express';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @UseGuards(JwtAuthGuard)
 @Controller('quotation')
@@ -41,25 +33,16 @@ export class QuotationController {
   constructor(private readonly quotationService: QuotationService) {}
 
   @Get('next-code')
-  async getCode(@Req() req: UserRequest, @Res() res: IExpressResponse) {
+  async getCode() {
     try {
       const code = await this.quotationService.getCode();
       let nextCode = 1;
       if (code) nextCode = code.id + 1;
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Quotation code pulled',
-        data: { code: nextCode },
-      });
+      return { code: nextCode };
     } catch (error) {
       console.error(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While pulling complaint code',
-        stack: error,
-      });
+      throw error;
     }
   }
 
@@ -67,29 +50,14 @@ export class QuotationController {
   async setStatus(
     @Param('id') id: number,
     @Param('status_id') status_id: number,
-    @Request() req,
-    @Res() response,
+    @Request() req: RequestWithUser,
   ) {
     try {
       const user = req.user;
-      const quotation = await this.quotationService.setStatus(
-        id,
-        status_id,
-        user,
-      );
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Quotation Updated',
-        data: quotation,
-      });
+      return await this.quotationService.setStatus(id, status_id, user);
     } catch (error) {
-      console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: error.message,
-        stack: error,
-      });
+      console.error(error);
+      throw error;
     }
   }
 
@@ -98,77 +66,38 @@ export class QuotationController {
   async create(
     @Body() createQuotationDto: CreateQuotationDto,
     @UploadedFiles() quotation_files: Express.Multer.File[],
-    @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
+    @Req() req: RequestWithUser,
   ) {
     try {
       const user = req.user;
-      const quotation = await this.quotationService.create(
+      return await this.quotationService.create(
         createQuotationDto,
         user,
         quotation_files,
       );
-
-      return res.status(201).json({
-        status: HttpStatus.CREATED,
-        message: 'Quotation Created',
-        data: quotation,
-      });
     } catch (error) {
       console.log(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Create',
-        stack: error,
-      });
+      throw error;
     }
   }
 
   @Get()
-  async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
+  async findAll(@Query() queryParamsDto: QueryParamsDto) {
     try {
-      const { data, page, skip, take, total, takeTotal, quotationGrandTotal } =
-        await this.quotationService.findAll(queryParamsDto);
-
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Quotation',
-        data,
-        total,
-        page,
-        take,
-        skip,
-        quotationGrandTotal,
-        takeTotal,
-      });
+      return await this.quotationService.findAll(queryParamsDto);
     } catch (error) {
       console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
+      throw error;
     }
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Res() res: IExpressResponse) {
+  async findOne(@Param('id') id: string) {
     try {
-      const quotation = await this.quotationService.findOne(+id);
-
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Find Quotation',
-        data: quotation,
-      });
+      return await this.quotationService.findOne(+id);
     } catch (error) {
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Find',
-        stack: error,
-      });
+      console.log(error);
+      throw error;
     }
   }
 
@@ -182,33 +111,20 @@ export class QuotationController {
   async update(
     @Param('id') id: string,
     @Body() updateQuotationDto: UpdateQuotationDto,
-    @Request() req,
+    @Request() req: RequestWithUser,
     @UploadedFiles() files: { [name: string]: Express.Multer.File[] },
-    @Res() response,
   ) {
     try {
       const user = req.user;
-      console.log(user);
-      console.log('files => ', files);
-      const quotation = await this.quotationService.update(
+      return await this.quotationService.update(
         +id,
         updateQuotationDto,
         user,
         files,
       );
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Quotation Updated',
-        // data: quotation,
-      });
     } catch (error) {
       console.log(error);
-
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
-        stack: error,
-      });
+      throw error;
     }
   }
 
@@ -216,19 +132,10 @@ export class QuotationController {
   async remove(@Param('id') id: string, @Request() req, @Res() response) {
     try {
       const user_id = req.user.id;
-      const quotation = await this.quotationService.remove(+id, user_id);
-
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Quotation Deleted',
-        data: quotation,
-      });
+      return await this.quotationService.remove(+id, user_id);
     } catch (error) {
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Update',
-        stack: error,
-      });
+      console.log(error);
+      throw error;
     }
   }
 }
