@@ -252,102 +252,115 @@ export class MailsService {
 
   @Cron(CronExpression.EVERY_5_SECONDS)
   async mailTriggerScheduler() {
-    this.logger.verbose('Initiate mail trigger checks');
-    const mail_messages = await this.dbService.email_messages.findMany({
-      where: {
-        deleted_at: null,
-        deleted_by: null,
-        is_active: true,
-      },
-    });
+    try {
+      this.logger.verbose('Initiate mail trigger checks');
+      const mail_messages = await this.dbService.email_messages.findMany({
+        where: {
+          deleted_at: null,
+          deleted_by: null,
+          is_active: true,
+        },
+      });
 
-    if (mail_messages.length > 0) {
-      for (let index = 0; index < mail_messages.length; index++) {
-        const template = mail_messages[index];
-        switch (template.email_type) {
-          case MailType.ORDER:
-            await this.handleOrderTriggers(template.id, template.trigger_id);
-            break;
-          case MailType.QUOTATIONS:
-            await this.handleQuotationTriggers(
-              template.id,
-              template.trigger_id,
-            );
-            break;
-          case MailType.CSI:
-            break;
+      if (mail_messages.length > 0) {
+        for (let index = 0; index < mail_messages.length; index++) {
+          const template = mail_messages[index];
+          if (template.trigger_id) {
+            switch (template.email_type) {
+              case MailType.ORDER:
+                await this.handleOrderTriggers(
+                  template.id,
+                  template.trigger_id,
+                );
+                break;
+              case MailType.QUOTATIONS:
+                await this.handleQuotationTriggers(
+                  template.id,
+                  template.trigger_id,
+                );
+                break;
+              case MailType.CSI:
+                break;
 
-          case MailType.REFUND:
-            break;
+              case MailType.REFUND:
+                break;
 
-          case MailType.COMPLAIN:
-            break;
+              case MailType.COMPLAIN:
+                break;
 
-          case MailType.RESCHEDULE:
-            break;
+              case MailType.RESCHEDULE:
+                break;
 
-          default:
-            break;
+              default:
+                break;
+            }
+          }
         }
-        // this.logger.log(template);
       }
+    } catch (error) {
+      console.error(error);
     }
   }
 
   async handleOrderTriggers(template_id: number, status_id: number) {
-    const orders = await this.dbService.orders.findMany({
-      where: {
-        project_status_id: status_id,
-      },
-    });
+    try {
+      const orders = await this.dbService.orders.findMany({
+        where: {
+          project_status_id: status_id,
+        },
+      });
 
-    if (orders) {
-      this.logger.log(
-        `Order found for status id ${status_id} [${orders.length}]`,
-      );
+      if (orders) {
+        this.logger.log(
+          `Order found for status id ${status_id} [${orders.length}]`,
+        );
 
-      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+        const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+        let delay: number = 5000;
 
-      for (let index = 0; index < orders.length; index++) {
-        const order = orders[index];
-        const countSendedEmail = await this.dbService.mail_logs.count({
-          where: {
-            moduleId: order.id,
-            emailMessageId: template_id,
-            status: 1,
-          },
-        });
-        const jobId = `send-order-mail-${order.id}-${template_id}`;
-        const jobExist = await this.emailQueue.getJob(jobId);
-
-        if (!countSendedEmail && !jobExist) {
-          this.logger.log(
-            `Sending email for order ${order.id} status ${status_id}`,
-          );
-          jobs.push({
-            name: 'send-order-mail',
-            data: {
-              order_id: order.id,
-              template_id,
-            },
-            opts: {
-              jobId,
-              delay,
+        for (let index = 0; index < orders.length; index++) {
+          const order = orders[index];
+          const countSendedEmail = await this.dbService.mail_logs.count({
+            where: {
+              moduleId: order.id,
+              emailMessageId: template_id,
+              status: 1,
             },
           });
-          delay += 5000;
-        }
-      }
+          const jobId = `send-order-mail-${order.id}-${template_id}`;
+          const jobExist = await this.emailQueue.getJob(jobId);
 
-      if (jobs.length > 0) {
-        this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
-        await this.emailQueue.addBulk(jobs);
+          if (!countSendedEmail && !jobExist) {
+            this.logger.log(
+              `Sending email for order ${order.id} status ${status_id}`,
+            );
+            jobs.push({
+              name: 'send-order-mail',
+              data: {
+                order_id: order.id,
+                template_id,
+              },
+              opts: {
+                jobId,
+                delay,
+              },
+            });
+            delay += 5000;
+          }
+        }
+
+        if (jobs.length > 0) {
+          this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
+          await this.emailQueue.addBulk(jobs);
+        }
+      } else {
+        throw new ServiceUnavailableException(
+          `Order not found for status id ${status_id}`,
+        );
       }
-    } else {
-      throw new ServiceUnavailableException(
-        `Order not found for status id ${status_id}`,
-      );
+    } catch (error) {
+      console.error(error);
+      this.logger.error(template_id, status_id);
     }
   }
 
