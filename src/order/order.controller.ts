@@ -110,10 +110,7 @@ export class OrderController {
 
   @Post(':id/counter')
   @UseGuards(JwtAuthGuard)
-  async counter(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: IExpressResponse,
-  ) {
+  async counter(@Param('id', ParseIntPipe) id: number) {
     try {
       return await this.orderService.counter(id);
     } catch (error) {
@@ -130,7 +127,6 @@ export class OrderController {
     @Body() createOrderDto: CreateOrderDto,
     @Req() req: UserRequest,
     @UploadedFiles() order_files: Array<Express.Multer.File>,
-    @Res() res: IExpressResponse,
   ) {
     try {
       // Cek di dTO ada updateTukangDto?.service_types
@@ -165,8 +161,7 @@ export class OrderController {
 
       return order;
     } catch (error) {
-      console.log(error);
-
+      console.error(error);
       throw error;
     }
   }
@@ -207,7 +202,6 @@ export class OrderController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateOrderDto: UpdateOrderDto,
     @Req() req: UserRequest,
-    @Res() res: IExpressResponse,
   ) {
     try {
       const order = await this.orderService.update(
@@ -232,11 +226,7 @@ export class OrderController {
         );
       }
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        messages: 'Order Updated.',
-        data: order,
-      });
+      return order;
     } catch (error) {
       console.error(error);
 

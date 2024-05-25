@@ -21,7 +21,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 @Controller('employees')
 @UseGuards(JwtAuthGuard)
 export class EmployeeController {
-  constructor(private readonly employeeService: EmployeeService) { }
+  constructor(private readonly employeeService: EmployeeService) {}
 
   @Post('/')
   async create(@Body() createEmployeeDto: CreateEmployeeDto, @Request() req) {
@@ -30,17 +30,12 @@ export class EmployeeController {
   }
 
   @Get('/')
-  async findAll(@Query() queryParamsDto: QueryParamsDto, @Res() response) {
+  async findAll(@Query() queryParamsDto: QueryParamsDto) {
     try {
-
-      const data = await this.employeeService.findAll(queryParamsDto);
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        data,
-        message: 'success'
-      });
+      return await this.employeeService.findAll(queryParamsDto);
     } catch (error) {
-      return error;
+      console.error(error);
+      throw error;
     }
   }
 

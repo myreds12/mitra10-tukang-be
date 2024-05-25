@@ -129,7 +129,7 @@ export class QuotationController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Request() req, @Res() response) {
+  async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     try {
       const user_id = req.user.id;
       return await this.quotationService.remove(+id, user_id);

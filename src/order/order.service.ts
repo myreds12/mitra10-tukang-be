@@ -12,14 +12,10 @@ import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Item } from 'src/items/entities/item.entity';
 
 @Injectable()
 export class OrderService {
-  constructor(
-    private readonly dbService: PrismaService,
-    private readonly statusService: StatusService,
-  ) {}
+  constructor(private readonly dbService: PrismaService) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -27,6 +23,8 @@ export class OrderService {
     order_files: Array<Express.Multer.File>,
   ) {
     try {
+      console.log(createOrderDto);
+
       const { id: user_id, role_id } = user;
       const ROLES = await this.dbService.roles.findMany();
 
@@ -208,6 +206,8 @@ export class OrderService {
         user,
         createOrderDto,
       );
+
+      console.log(order)
 
       return order;
     } catch (error) {

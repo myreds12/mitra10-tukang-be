@@ -38,25 +38,16 @@ export class ComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
   @Get('next-code')
-  async getCode(@Res() res: IExpressResponse) {
+  async getCode() {
     try {
       const code = await this.complaintsService.getCode();
       let nextCode = 1;
       if (code) nextCode = code.id + 1;
 
-      return res.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Complaint code pulled',
-        data: { code: nextCode },
-      });
+      return { code: nextCode };
     } catch (error) {
       console.error(error);
-
-      return res.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While pulling complaint code',
-        stack: error,
-      });
+      throw error;
     }
   }
 
@@ -85,12 +76,12 @@ export class ComplaintsController {
   }
 
   @Get('/')
-  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
+  async findAll(@Query() query: QueryParamsDto) {
     return await this.complaintsService.findAll(query);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Res() res) {
+  async findOne(@Param('id') id: string) {
     return await this.complaintsService.findOne(+id);
   }
 
@@ -112,10 +103,7 @@ export class ComplaintsController {
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @Req() req: UserRequest,
-  ) {
+  async remove(@Param('id') id: string, @Req() req: UserRequest) {
     const user_id = req.user.id;
     return await this.complaintsService.remove(+id, user_id);
   }

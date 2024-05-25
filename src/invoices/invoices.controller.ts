@@ -73,12 +73,13 @@ export class InvoicesController {
   }
 
   @Get()
-  async findAll(@Query() query: QueryParamsDto, @Res() res: IExpressResponse) {
+  async findAll(@Query() query: QueryParamsDto) {
+    console.log('invoice findAll')
     return await this.invoicesService.findAll(query);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Res() res: IExpressResponse) {
+  async findOne(@Param('id') id: string) {
     return await this.invoicesService.findOne(+id);
   }
 

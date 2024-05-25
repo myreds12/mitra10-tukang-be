@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpStatus, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpStatus,
+  Res,
+} from '@nestjs/common';
 import { AreaService } from './area.service';
 import { CreateAreaDto } from './dto/create-area.dto';
 import { UpdateAreaDto } from './dto/update-area.dto';
@@ -14,39 +24,22 @@ export class AreaController {
 
   @Post()
   async create(@Body() createAreaDto: CreateAreaDto) {
-    try{
-      const area = this.areaService.create(createAreaDto); 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'CREATED',
-        data: area
-      }
-    }catch(error){
-      return{
-        message: error.message
-      }
+    try {
+      return this.areaService.create(createAreaDto);
+    } catch (error) {
+      console.error(error);
+
+      throw error;
     }
   }
 
   @Get('/')
-  async findAll(
-    @Res() response: IExpressResponse,
-  ) {
+  async findAll() {
     try {
-
-      const data = await this.areaService.findAll();
-
-      return response.status(200).json({
-        status: HttpStatus.OK,
-        message: 'Get Item',
-        data
-      });
+      return await this.areaService.findAll();
     } catch (error) {
-      return response.status(400).json({
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Error While Get',
-        stack: error,
-      });
+      console.error(error);
+      throw error;
     }
   }
 

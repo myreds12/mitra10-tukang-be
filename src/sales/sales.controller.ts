@@ -33,7 +33,7 @@ export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
   @Get('next-code')
-  async getCode(@Request() req: UserRequest, @Res() res: IExpressResponse) {
+  async getCode(@Request() req: UserRequest) {
     const code = await this.salesService.getCode();
     let nextCode = 1;
     if (code) nextCode = code.id + 1;

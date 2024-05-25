@@ -18,6 +18,6 @@ export class CityService {
         },
       },
     });
-    return { data: city, countTotal: city.length, take, page };
+    return { data: city, meta: { countTotal: city.length, take, page } };
   }
 }

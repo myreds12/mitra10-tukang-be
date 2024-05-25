@@ -6,15 +6,12 @@ import {
   Param,
   Delete,
   Req,
-  Res,
-  HttpStatus,
   UseGuards,
   Query,
 } from '@nestjs/common';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
-import { Response as IExpressResponse } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -56,11 +53,7 @@ export class BrandsController {
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id') id: number,
-    @Req() req: RequestWithUser,
-    @Res() res: IExpressResponse,
-  ) {
+  async remove(@Param('id') id: number, @Req() req: RequestWithUser) {
     const user = req.user;
     return await this.brandsService.remove(id, user);
   }
