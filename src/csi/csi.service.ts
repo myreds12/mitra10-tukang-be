@@ -92,6 +92,7 @@ export class CsiService {
               data: true,
             },
           },
+          email_messages: true
         },
       });
 
