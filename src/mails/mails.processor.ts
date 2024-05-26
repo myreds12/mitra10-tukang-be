@@ -502,6 +502,291 @@ export class EmailProcessor {
     }
   }
 
+  @Process('send-reschedule-mail')
+  async sendRescheduleMail(job: Job<{ reschedule_id: number; template_id: number }>) {
+    const { reschedule_id, template_id } = job.data;
+    try {
+      if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
+
+      const reschedule = await this.dbService.reschedule.findFirst({
+        where: {
+          id: reschedule_id,
+        },
+        include: {
+          order: {
+            include: {
+              store: true,
+              members: true,
+              m_order_details: true,
+            }
+          }
+        }
+      });
+     
+
+      if (!reschedule) throw new NotFoundException('Reschedule not found!');
+      this.logger.log('Reschedule Data : ', reschedule.id);
+
+      const message = await this.getMessage(MailType.RESCHEDULE, template_id);
+      if (!message) throw new NotFoundException('message not found!');
+
+      const data = {
+        reschedule,
+        message,
+      };
+
+
+      const { bcc, cc } = message;
+      const storeMail = reschedule.order.store.email;
+      // TODO: add admin ho as bcc too
+      const adminHo = '';
+
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          storeMail,
+          adminHo,
+        );
+
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (reschedule.order.members.email) {
+        await this.mailerService.sendMail({
+          to: data.reschedule.order.members.email, // list of receivers
+          from: 'noreply@mitra10.com', // sender address
+          bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
+          template: 'reschedule',
+          context: { data },
+        });
+      }
+
+      job.finished();
+
+      job.moveToCompleted();
+
+      await this.maillogs(
+        reschedule_id,
+        message.id,
+        {
+          to: reschedule.order.members.email,
+          cc: '',
+          bcc: uniqueBcc.join(','),
+        },
+        1,
+        data,
+      );
+    } catch (error) {
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          this.logger.warn(`Retry: ${job.attemptsMade}`);
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
+      }
+    }
+  }
+
+  @Process('send-refund-mail')
+  async sendRefundMail(job: Job<{ refund_id: number; template_id: number }>) {
+    const { refund_id, template_id } = job.data;
+    try {
+      if (!refund_id) throw new NotFoundException('refund_id is null!');
+
+      const refund = await this.dbService.refund.findFirst({
+        where: {
+          id: refund_id,
+        },
+        include: {
+          orders: {
+            include: {
+              store: true,
+              members: true,
+              m_order_details: true,
+            }
+          }
+        }
+      });
+     
+
+      if (!refund) throw new NotFoundException('Reschedule not found!');
+      this.logger.log('Refund Data : ', refund.id);
+
+      const message = await this.getMessage(MailType.REFUND, template_id);
+      if (!message) throw new NotFoundException('message not found!');
+
+      const data = {
+        refund,
+        message,
+      };
+
+
+      const { bcc, cc } = message;
+      const storeMail = refund.orders.store.email;
+      // TODO: add admin ho as bcc too
+      const adminHo = '';
+
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          storeMail,
+          adminHo,
+        );
+
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (refund.orders.members.email) {
+        await this.mailerService.sendMail({
+          to: data.refund.orders.members.email, // list of receivers
+          from: 'noreply@mitra10.com', // sender address
+          bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
+          template: 'refund',
+          context: { data },
+        });
+      }
+
+      job.finished();
+        
+      job.moveToCompleted();
+
+      await this.maillogs(
+        refund_id,
+        message.id,
+        {
+          to: refund.orders.members.email,
+          cc: '',
+          bcc: uniqueBcc.join(','),
+        },
+        1,
+        data,
+      );
+    } catch (error) {
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          this.logger.warn(`Retry: ${job.attemptsMade}`);
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
+      }
+    }
+  }
+
+  @Process('send-complaint-mail')
+  async sendComplaintMail(job: Job<{ reschedule_id: number; template_id: number }>) {
+    const { reschedule_id, template_id } = job.data;
+    try {
+      if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
+
+      const complaint = await this.dbService.complaints.findFirst({
+        where: {
+          id: reschedule_id,
+        },
+        include: {
+          complaint_channels: true,
+          orders: {
+            include: {
+              store: true,
+              members: true,
+              m_order_details: true,
+            }
+          }
+        }
+      });
+     
+
+      if (!complaint) throw new NotFoundException('Complaint not found!');
+      this.logger.log('Complaint Data : ', complaint.id);
+
+      const message = await this.getMessage(MailType.COMPLAINT, template_id);
+      if (!message) throw new NotFoundException('message not found!');
+
+      const data = {
+        complaint,
+        message,
+      };
+
+
+      const { bcc, cc } = message;
+      const storeMail = complaint.orders.store.email;
+      // TODO: add admin ho as bcc too
+      const adminHo = '';
+
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          storeMail,
+          adminHo,
+        );
+
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (complaint.orders.members.email) {
+        await this.mailerService.sendMail({
+          to: data.complaint.orders.members.email, // list of receivers
+          from: 'noreply@mitra10.com', // sender address
+          bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
+          template: 'complaint',
+          context: { data },
+        });
+      }
+
+      job.finished();
+      job.moveToCompleted();
+
+      await this.maillogs(
+        reschedule_id,
+        message.id,
+        {
+          to: complaint.orders.members.email,
+          cc: '',
+          bcc: uniqueBcc.join(','),
+        },
+        1,
+        data,
+      );
+    } catch (error) {
+      this.logger.error(error);
+      try {
+        if (error instanceof NotFoundException) {
+          this.handleJobFailure(job, error);
+        } else if (error instanceof PrismaClientKnownRequestError) {
+          this.handleJobFailure(job, error);
+        } else {
+          this.logger.warn(`Retry: ${job.attemptsMade}`);
+          job.retry();
+        }
+      } catch (innerError) {
+        this.logger.error(
+          'An error occurred while handling the original error:s',
+          innerError,
+        );
+      }
+    }
+  }
+
   async maillogs(
     moduleId: number,
     emailMessageId: number,

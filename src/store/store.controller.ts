@@ -37,6 +37,15 @@ import { users } from '@prisma/client';
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
+  @Get('/export-excel')
+  @UseGuards()
+  async memberExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse) {
+      const data = await this.storeService.storeExportExcel(res, query);
+      return data;
+  }
+
   @Get('next-code')
   @HttpCode(200)
   async getCode() {

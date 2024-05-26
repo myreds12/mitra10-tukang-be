@@ -2,12 +2,16 @@ import { Injectable, HttpStatus, HttpException } from '@nestjs/common';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, roles, users } from '@prisma/client';
+import { Prisma, roles, sales, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { hash, hashSync } from 'bcrypt';
 import { AuthService } from 'src/auth/auth.service';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class SalesService {
@@ -174,7 +178,6 @@ export class SalesService {
         top_best,
         store_id,
       } = query;
-      // console.log(query);
 
       const skip = page * take - take;
       const where: Prisma.salesWhereInput = {
@@ -218,10 +221,22 @@ export class SalesService {
         ].filter(Boolean),
         deleted_at: null,
       };
+
+      const count = await this.dbService.sales.count({
+        where,
+      });
+
+      const getTake = () => {
+        if (take <= 0 && !store_id) {
+          return 100;
+        }
+        return take;
+      };
+
       const sales = await this.dbService.sales.findMany({
         where,
         skip,
-        take: take <= 0 ? undefined : take,
+        take: getTake(),
         orderBy: {
           ...(top_best === true
             ? {
@@ -247,16 +262,13 @@ export class SalesService {
           users: true,
         },
       });
-      const count = await this.dbService.sales.count({
-        where,
-      });
 
       return {
         data: sales,
         meta: {
           total: count,
           page,
-          take,
+          take: getTake(),
         },
       };
     } catch (error) {
@@ -451,16 +463,16 @@ export class SalesService {
           }),
         ]);
 
-        this.emailQueue.add(
-          'send-credential-mail',
-          {
-            username: salesUsername,
-            password: salesPassword,
-          },
-          {
-            attempts: 3,
-          },
-        );
+      this.emailQueue.add(
+        'send-credential-mail',
+        {
+          username: salesUsername,
+          password: salesPassword,
+        },
+        {
+          attempts: 3,
+        },
+      );
 
       return updatedSales;
     } catch (error) {
@@ -555,6 +567,146 @@ export class SalesService {
       });
 
       return sales;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async salesExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Profile Sales ', {
+        properties: {
+          tabColor: {
+            argb: 'FF4CAF50',
+          },
+          outlineLevelCol: 6,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Sales Id', key: 'id', width: 10 },
+        { header: 'Nama Toko', key: 'store_name', width: 35 },
+        { header: 'Nama Sales', key: 'full_name', width: 35 },
+        { header: 'Nama Bank', key: 'bank_name', width: 35 },
+        { header: 'Nama Akun Bank', key: 'account_name', width: 35 },
+        { header: 'Phone Number', key: 'phone_number', width: 35 },
+        { header: 'Nama Brand', key: 'sales_brand', width: 35 },
+        { header: 'Order Total', key: 'order_total', width: 25 },
+        { header: 'Sales Category', key: 'sales_categories', width: 50 },
+        { header: 'Username Sales', key: 'username', width: 40 },
+        { header: 'Sales Dibuat', key: 'created_at', width: 35 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((sales) => {
+        const salesCategories = sales.sales_categories
+          ? sales.sales_categories
+              .map((category) => category.categories.category_name)
+              .join(',')
+          : '';
+        const dateTime = new Date(sales.created_at);
+        const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}, ${dateTime.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+        const row = worksheet.addRow({
+          id: sales.id,
+          store_name: sales.store ? sales.store.store_name : '',
+          full_name: sales.full_name ? sales.full_name : '',
+          bank_name: sales.bank ? sales.bank.bank_name : '',
+          account_name: sales.account_name ? sales.account_name : '',
+          phone_number: sales.phone_number ? sales.phone_number : '',
+          sales_brand: sales.sales_brand ? sales.sales_brand : '',
+          order_total: sales.order_total ? sales.order_total : '',
+          sales_categories: salesCategories,
+          username: sales.users ? sales.users.username : '',
+          created_at: formattedDateTime,
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/sales';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook,
+        excelFilePath,
+        res,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (data, res) => {
+        const baseName = `DataSales`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(data, res);
     } catch (error) {
       console.error(error);
       throw error;

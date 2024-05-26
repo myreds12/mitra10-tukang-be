@@ -11,6 +11,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { MemberService } from './member.service';
 import { CreateMemberDto } from './dto/create-member.dto';
@@ -19,12 +20,22 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { Response } from 'express';
 
 @ApiTags('Members')
 @UseGuards(JwtAuthGuard)
 @Controller('member')
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
+
+  @Post('/export-excel')
+  @UseGuards()
+  async memberExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: Response) {
+      const data = await this.memberService.memberExportExcel(res, query);
+      return data;
+  }
 
   @Post('/')
   @HttpCode(201)
@@ -39,7 +50,7 @@ export class MemberController {
   @Get('/')
   findAll(@Query() query: QueryParamsDto, @Req() req: RequestWithUser) {
     const user_id = req.user.id;
-    return this.memberService.findAll(query, user_id);
+    return this.memberService.findAll(query);
   }
 
   @Get('/:id')

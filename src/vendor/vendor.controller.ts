@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   UploadedFiles,
   UseInterceptors,
+  Res,
 } from '@nestjs/common';
 import { VendorService } from './vendor.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
@@ -19,11 +20,21 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { Response } from 'express';
 
 @Controller('vendor')
 @UseGuards(JwtAuthGuard)
 export class VendorController {
   constructor(private readonly vendorService: VendorService) {}
+  
+  @Get('/export-excel')
+  @UseGuards()
+  async orderExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: Response) {
+      const data = await this.vendorService.vendorExportExcel(res, query);
+      return data;
+  }
 
   @Get('next-code')
   async nextCode() {

@@ -147,21 +147,21 @@ html(lang="en")
                 h2 Instalasi & Service Mitra 10
             .header-information
               .header-title
-                h4.bold Tanggal Order :
-                  span.normal #{data.order.request_survey ? new Date(data.order.request_survey).toLocaleDateString('en-US') : '-'}
+                h4.bold Complaint Id :
+                  span.normal #{data.complaint.id}
                 h4.bold  Order ID :
-                  span.normal #{data.order.id}
+                  span.normal #{data.complaint.orders.id}
         .card-body
           .title
             h3 #{data.message.greetings}
             h3 Detail Pemesanan
           .detail-pemesanan
             h4.normal Order ID : 
-              span.semibold #{data.order.id}
+              span.semibold #{data.complaint.orders.id}
             h4.normal Nomor Receipt : 
-              span.semibold #{data.order.receipt_number}
+              span.semibold #{data.complaint.orders.receipt_number}
             h4.normal Tipe Pemasangan : 
-              span.semibold #{data.order.payment_type}
+              span.semibold #{data.complaint.orders.payment_type}
           .table-responsive
             table.table-detail-pemesanan
               tr
@@ -169,36 +169,45 @@ html(lang="en")
                 th Item Name
                 th Nama Jasa Pemasangan
                 th QTY Pemasangan
-                if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
+                if data.complaint.orders.payment_type !== 'gratis' && data.complaint.orders.payment_type !== 'survey'
                   th Harga Jasa
                   th Jumlah
               tr
-                each item, index in data.order.order_details
+                each item, index in data.complaint.orders.m_order_details
                   tr(key=`${index} - order_detail`)
                     td= item.item_code === 'null' ? '-' : (item.item_code || '-')
                     td= item.item_name === 'null' ? '-' : (item.item_name || '-')
-                    td= data.order.payment_type === 'survey' ? item.item_notes : item.item.service_name
+                    td= data.complaint.orders.payment_type === 'survey' ? item.item_notes : item.item.service_name
                     td= item.quantity || 0
-                    if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
+                    if data.complaint.orders.payment_type !== 'gratis' && data.complaint.orders.payment_type !== 'survey'
                       td= `Rp. ${parseInt(item.unit_price || 0).toLocaleString('id')}`
                       td= `Rp. ${parseInt(item.total || 0).toLocaleString('id')}`
-                if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'pemasangan_tanpa_survey'
+                if data.complaint.orders.payment_type !== 'gratis' && data.complaint.orders.payment_type !== 'pemasangan_tanpa_survey'
                   tr
                     td(colspan=3, class='text-end fw-bolder') Biaya Survey
-                    td(class='fw-bolder')= data.order.payment_type === 'gratis' || data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${0}`
-                if data.order.payment_type !== 'survey'
+                    td(class='fw-bolder')= data.complaint.orders.payment_type === 'gratis' || data.complaint.orders.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${(0).toLocaleString('id')}` : data.complaint.orders.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${0}`
+                if data.complaint.orders.payment_type !== 'survey'
                   tr
-                    td(colspan=data.order.payment_type !== 'gratis' ? 5 : 3, class='text-end fw-bolder') Grand Total
-                    td(class='fw-bolder')= data.order.payment_type === 'gratis' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${parseInt(data.order.grand_total).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${(0).toLocaleString('id')}`
+                    td(colspan=data.complaint.orders.payment_type !== 'gratis' ? 5 : 3, class='text-end fw-bolder') Grand Total
+                    td(class='fw-bolder')= data.complaint.orders.payment_type === 'gratis' ? `Rp. ${(0).toLocaleString('id')}` : data.complaint.orders.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${parseInt(data.complaint.orders.grand_total).toLocaleString('id')}` : data.complaint.orders.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${(0).toLocaleString('id')}`
           .title
             h3 Detail Pemasangan
           .detail-pemesanan
             h4.normal Nama Customer : 
-              span.semibold #{data.order.members.full_name}
+              span.semibold #{data.complaint.orders.members.full_name}
             h4.normal Alamat : 
-              span.semibold #{data.order.project_address}
+              span.semibold #{data.complaint.orders.project_address}
             h4.normal Telp : 
-              span.semibold #{data.order.project_number}
+              span.semibold #{data.complaint.orders.project_number}
+          .title
+            h3 Detail Pengaduan
+          .detail-pemesanan
+            h4.normal Tanggal Complaint : 
+              span.semibold= new Date(data.complaint.complaint_date).toLocaleDateString('en-US')
+            h4.normal Alasan Complaint : 
+              span.semibold #{data.complaint.description}
+            h4.normal Pengaduan Melalui : 
+              span.semibold #{data.complaint.complaint_channels.name}
           .title
             h4.bold Syarat & Ketentuan
           .detail-syarat
@@ -214,13 +223,13 @@ html(lang="en")
           .card-footer
             .bank-payment
               h4 Silahkan melakukan pembayaran di account di bawah ini :
-              h5 #{data.order.store.bank_account}
-              h5 #{data.order.store.bank_name}
-              h5 #{data.order.store.bank_number}
+              h5 #{data.complaint.orders.store.bank_account}
+              h5 #{data.complaint.orders.store.bank_name}
+              h5 #{data.complaint.orders.store.bank_number}
             .payment-evidence
               h4 Silahkan kirim bukti bayar anda melalui :
-              h5 Telp :  #{data.order.store.phone_number_1 ? data.order.store.phone_number_1 : data.order.store.phone_number_2}
-              h5 Email : #{data.order.store.email ? data.order.store.email : 'Email belum tersedia'}
+              h5 Telp :  #{data.complaint.orders.store.phone_number_1 ? data.complaint.orders.store.phone_number_1 : data.complaint.orders.store.phone_number_2}
+              h5 Email : #{data.complaint.orders.store.email ? data.order.store.email : 'Email belum tersedia'}
             .footer-title
               h4.bold #{data.message.footer}
             .footer-img-wrapper

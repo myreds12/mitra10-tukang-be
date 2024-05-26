@@ -7,6 +7,10 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs'
+import * as path from 'path';
 @Injectable()
 export class VendorService {
   constructor(
@@ -662,6 +666,186 @@ export class VendorService {
       return vendor[0] || null;
     } catch (error) {
       console.error(error);
+      throw error;
+    }
+  }
+
+  async vendorExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try{
+      const { data } = await this.findAll(queryParams);
+
+    const workbook = new exceljs.Workbook();
+    const worksheet = workbook.addWorksheet('Data Order',
+      {
+        properties:
+        {
+          tabColor:
+          {
+            argb: 'FF00FF00'
+          },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3
+          }
+        }
+      }
+    );
+
+    worksheet.columns = [
+      { header: 'Vendor Id', key: 'id', width: 10 },
+      { header: 'Nama PIC', key: 'pic_name', width: 25 },
+      { header: 'Nama Perusahaan', key: 'company_name', width: 20 },
+      { header: 'Email', key: 'email_address', width: 25 },
+      { header: 'Phone Number', key: 'phone_number', width: 30 },
+      { header: 'Service Type', key: 'vendor_service', width: 50 },
+      { header: 'Serving Store', key: 'vendor_store', width: 50 },
+      { header: 'Serving Area', key: 'vendor_area', width: 50 },
+      { header: 'Username', key: 'username', width: 50 },
+      { header: 'Tanggal Join', key: 'join_date', width: 30 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4CAF50' }
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    });
+
+
+    data.forEach(vendor => {
+      const dateTime = new Date(vendor.join_date ?? vendor.created_at);
+      const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })}, ${dateTime.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`;
+      const serviceType = vendor.vendor_service ? vendor.vendor_service.map((service) => service.service_type.service_type).join(',') : ''
+      const servingStore = vendor.vendor_store ? vendor.vendor_store.map((service) => service.store.store_name).join(',') : ''
+      const servingArea = vendor.vendor_area ? vendor.vendor_area.map((service) => service.area.area).join(',') : ''
+      const row = worksheet.addRow({
+        id: vendor.id,
+        pic_name: vendor.pic_name ? vendor.pic_name : '',
+        company_name: vendor.company_name ? vendor.company_name : '',
+        email_address: vendor.email_address ? vendor.email_address : '',
+        phone_number: vendor.phone_number ? vendor.phone_number : '',
+        vendor_service: serviceType,
+        vendor_store: servingStore,
+        vendor_area: servingArea,
+        username: vendor.users ? vendor.users.username  : '',
+        join_date: formattedDateTime
+      });
+
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+    });
+
+
+    const grandTotal: number = data.map((vendor) =>
+      vendor.orders.reduce((acc, order) => {
+        return acc + Number(order.grand_total);
+      }, 0)
+    ).reduce((acc, total) => acc + total, 0);
+    console.log(grandTotal);
+    
+    // 
+    const formattedGrandTotal = !isNaN(grandTotal)
+      ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(grandTotal)
+      : 'Rp. 0';
+    const totalRow = worksheet.addRow({
+      id: 'Orders Grand Total',
+      pic_name: '',
+      company_name: '',
+      email_address: '',
+      phone_number: '',
+      vendor_service: '',
+      vendor_store: '',
+      vendor_area: '',
+      username: '',
+      join_date: formattedGrandTotal
+    });
+
+    totalRow.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    });
+
+    totalRow.height = 30;
+
+    worksheet.mergeCells(`A${totalRow.number}:J${totalRow.number}`);
+
+    const getFormattedDate = () => {
+      const now = new Date();
+      const tahun = now.getFullYear();
+      const bulan = String(now.getMonth() + 1).padStart(2, '0');
+      const tanggal = String(now.getDate()).padStart(2, '0');
+      return `${tahun}-${bulan}-${tanggal}`;
+    };
+
+   
+
+    const createExcelFilePath = (baseName) => {
+      const folderPath = './storage/excel/vendor';
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+
+      const excelFileName = `${baseName}.xlsx`;
+      return path.join(folderPath, excelFileName);
+    };
+
+    const writeWorkbookAndSendResponse = async (workbook, excelFilePath, res) => {
+      await workbook.xlsx.writeFile(excelFilePath);
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+
+      const fileStream = fs.createReadStream(excelFilePath);
+      fileStream.pipe(res);
+    };
+
+    const generateExcelFile = async (data, res) => {
+      const tanggalDalamFormat = getFormattedDate();
+      const baseName = `DataVendor-${tanggalDalamFormat}`;
+      const excelFilePath = createExcelFilePath(baseName);
+
+      await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+    }
+
+    return generateExcelFile(data, res);
+    }catch(error){
       throw error;
     }
   }

@@ -20,6 +20,7 @@ import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
@@ -28,6 +29,16 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 @UseGuards(JwtAuthGuard)
 export class TukangController {
   constructor(private readonly tukangService: TukangService) {}
+
+
+  @Get('/export-excel')
+  @UseGuards()
+  async memberExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: Response) {
+      const data = await this.tukangService.tukangExportExcel(res, query);
+      return data;
+  }
 
   @Get('next-code')
   async getCode() {

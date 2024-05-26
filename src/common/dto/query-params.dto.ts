@@ -13,6 +13,7 @@ export class QueryParamsDto {
   @IsOptional()
   @IsNotEmpty()
   @Type(() => Number)
+  @Transform(({ value }) => (value === 0 ? 100 : value))
   take?: number = 10;
 
   @IsOptional()

@@ -4,6 +4,10 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma } from '@prisma/client';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs'
+import * as path from 'path';
 
 @Injectable()
 export class MemberService {
@@ -72,7 +76,7 @@ export class MemberService {
     }
   }
 
-  async findAll(query: QueryParamsDto, user_id: number) {
+  async findAll(query: QueryParamsDto) {
     try {
       const { search, date_from, date_to, store_id } = query;
 
@@ -116,6 +120,7 @@ export class MemberService {
         where,
         include: {
           join_location_store: true,
+          area: true,
           order: {
             include: {
               complaints: true,
@@ -224,6 +229,129 @@ export class MemberService {
     } catch (error) {
       console.error(error);
 
+      throw error;
+    }
+  }
+
+  async memberExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const data = await this.findAll(queryParams);
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Profile Sales ',
+        {
+          properties:
+          {
+            tabColor:
+            {
+              argb: 'FF4CAF50'
+            },
+            outlineLevelCol: 6,
+            outlineLevelRow: 40,
+          },
+          pageSetup: {
+            margins: {
+              left: 90.7,
+              right: 0.7,
+              top: 0.75,
+              bottom: 0.75,
+              header: 0.3,
+              footer: 0.3
+            }
+          }
+        }
+      );
+
+      worksheet.columns = [
+        { header: 'Member Id', key: 'id', width: 20 },
+        { header: 'Lokasi Bergabung', key: 'store_name', width: 35 },
+        { header: 'Area', key: 'area', width: 35 },
+        { header: 'Nama Member', key: 'full_name', width: 35 },
+        { header: 'Email Member', key: 'email', width: 35 },
+        { header: 'Phone Number', key: 'phone_number', width: 35 },
+        { header: 'Whatsapp Number', key: 'whatsapp_number', width: 35 },
+        { header: 'Member Number', key: 'member_number', width: 35 },
+        { header: 'Alamat', key: 'address', width: 50 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' }
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+
+
+      data.forEach(member => {
+        const row = worksheet.addRow({
+          id: member.id,
+          store_name: member.join_location_store ? member.join_location_store.store_name : '',
+          area: member.area ? member.area.area : '',
+          full_name: member.full_name ? member.full_name : '',
+          email: member.email ? member.email : '',
+          phone_number: member.phone_number ? member.phone_number : '',
+          whatsapp_number: member.whatsapp_number ? member.whatsapp_number : '',
+          member_number: member.member_number,
+          address: member.address_1 ? member.address_1 : member.address_2,
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      });
+
+
+      const createExcelFilePath = (baseName) => {
+        const folderPath = './storage/excel/member';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+
+        const excelFileName = `${baseName}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (workbook, excelFilePath, res) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const generateExcelFile = async (data, res) => {
+        const baseName = `DataMember-${getFormattedDate()}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      }
+
+      return generateExcelFile(data, res);
+    } catch (error) {
       throw error;
     }
   }

@@ -12,6 +12,10 @@ import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class OrderService {
@@ -207,7 +211,7 @@ export class OrderService {
         createOrderDto,
       );
 
-      console.log(order)
+      console.log(order);
 
       return order;
     } catch (error) {
@@ -217,9 +221,8 @@ export class OrderService {
     }
   }
 
-  async findAll(queryParams: QueryParamsDto, users: users) {
+  async findAll(queryParams: QueryParamsDto) {
     try {
-      const { id: user_id, role_id } = users;
       const {
         take,
         page,
@@ -1282,6 +1285,190 @@ export class OrderService {
       };
     } catch (error) {
       console.error(error);
+      throw error;
+    }
+  }
+
+  async orderExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Order', {
+        properties: {
+          tabColor: {
+            argb: 'FF00FF00',
+          },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Order Id', key: 'id', width: 10 },
+        { header: 'Nama Toko', key: 'store_name', width: 25 },
+        { header: 'Nomor Member', key: 'member_number', width: 20 },
+        { header: 'Nama Customer', key: 'full_name', width: 25 },
+        { header: 'Phone Number', key: 'whatsapp_number', width: 30 },
+        { header: 'WA Number', key: 'phone_number', width: 30 },
+        { header: 'Nama Vendor', key: 'company_name', width: 25 },
+        { header: 'Order Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Grand Total', key: 'grand_total', width: 25 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((order) => {
+        const dateTime = new Date(order.created_at);
+        const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}, ${dateTime.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+        const grandTotal = Number(order.grand_total);
+        const formattedGrandTotal = !isNaN(grandTotal)
+          ? new Intl.NumberFormat('id-ID', {
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
+          : 'Rp. 0';
+        const row = worksheet.addRow({
+          id: order.id,
+          store_name: order.store ? order.store.store_name : 'N/a',
+          member_number: order.members ? order.members.member_number : 'N/a',
+          full_name: order.members ? order.members.full_name : 'N/a',
+          whatsapp_number: order.members.whatsapp_number
+            ? order.members.whatsapp_number
+            : 'N/a',
+          phone_number: order.members.phone_number
+            ? order.members.phone_number
+            : 'N/a',
+          company_name: order.vendor ? order.vendor.company_name : 'N/a',
+          created_at: formattedDateTime,
+          grand_total: formattedGrandTotal,
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const totalGrandTotal = data.reduce(
+        (total, order) => total + Number(order.grand_total),
+        0,
+      );
+      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+      }).format(totalGrandTotal);
+      const totalRow = worksheet.addRow({
+        id: 'Total',
+        store_name: '',
+        member_number: '',
+        full_name: '',
+        project_number: '',
+        company_name: '',
+        created_at: '',
+        grand_total: formattedTotalGrandTotal,
+      });
+
+      totalRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      totalRow.height = 30;
+
+      worksheet.mergeCells(`A${totalRow.number}:H${totalRow.number}`);
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/order';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataOrder-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(res);
+    } catch (error) {
       throw error;
     }
   }

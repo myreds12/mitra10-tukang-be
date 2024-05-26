@@ -262,38 +262,50 @@ export class MailsService {
         },
       });
 
-      if (mail_messages.length > 0) {
-        for (let index = 0; index < mail_messages.length; index++) {
-          const template = mail_messages[index];
-          if (template.trigger_id) {
-            switch (template.email_type) {
-              case MailType.ORDER:
-                await this.handleOrderTriggers(
-                  template.id,
-                  template.trigger_id,
-                );
-                break;
-              case MailType.QUOTATIONS:
-                await this.handleQuotationTriggers(
-                  template.id,
-                  template.trigger_id,
-                );
-                break;
-              case MailType.CSI:
-                break;
+      if (!mail_messages.length) {
+        this.logger.verbose('No triggers found');
+        return;
+      }
 
-              case MailType.REFUND:
-                break;
+      for (let index = 0; index < mail_messages.length; index++) {
+        const template = mail_messages[index];
+        if (template.trigger_id) {
+          switch (template.email_type) {
+            case MailType.ORDER:
+              await this.handleOrderTriggers(template.id, template.trigger_id);
+              break;
 
-              case MailType.COMPLAIN:
-                break;
+            case MailType.QUOTATIONS:
+              await this.handleQuotationTriggers(
+                template.id,
+                template.trigger_id,
+              );
+              break;
 
-              case MailType.RESCHEDULE:
-                break;
+            case MailType.REFUND:
+              await this.handleRefundTriggers(template.id, template.trigger_id);
+              break;
 
-              default:
-                break;
-            }
+            case MailType.COMPLAINT:
+              await this.handleComplaintTriggers(
+                template.id,
+                template.trigger_id,
+              );
+              break;
+
+            case MailType.RESCHEDULE:
+              await this.handleRescheduleTriggers(
+                template.id,
+                template.trigger_id,
+              );
+              break;
+
+            case MailType.CSI:
+              // TODO: Add CSI Case
+              break;
+
+            default:
+              break;
           }
         }
       }
@@ -409,6 +421,177 @@ export class MailsService {
       }
     } else {
       throw new ServiceUnavailableException(`Quotation not found`);
+    }
+  }
+
+  async handleComplaintTriggers(template_id: number, status_id: number) {
+    const complaints = await this.dbService.complaints.findMany({
+      where: {
+        complaint_status: status_id,
+      },
+    });
+
+    if (complaints) {
+      this.logger.log(
+        `Complaint found for status id ${status_id} [${complaints.length}]`,
+      );
+
+      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+      let delay: number = 5000;
+
+      for (let index = 0; index < complaints.length; index++) {
+        const complaint = complaints[index];
+        const countSendedEmail = await this.dbService.mail_logs.count({
+          where: {
+            moduleId: complaint.id,
+            emailMessageId: template_id,
+            status: 1,
+          },
+        });
+        const jobId = `send-complaint-mail-${complaint.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (!countSendedEmail && !jobExist) {
+          this.logger.log(
+            `Sending email for complaint ${complaint.id} status ${status_id}`,
+          );
+          jobs.push({
+            name: 'send-complaint-mail',
+            data: {
+              complaint_id: complaint.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      }
+
+      if (jobs.length > 0) {
+        this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
+        await this.emailQueue.addBulk(jobs);
+      }
+    } else {
+      throw new ServiceUnavailableException(
+        `Complaint not found for status id ${status_id}`,
+      );
+    }
+  }
+
+  async handleRescheduleTriggers(template_id: number, status_id: number) {
+    const reschedules = await this.dbService.reschedule.findMany({
+      where: {
+        status_id: status_id,
+      },
+    });
+
+    if (reschedules) {
+      this.logger.log(
+        `Reschedule found for status id ${status_id} [${reschedules.length}]`,
+      );
+
+      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+      let delay: number = 5000;
+
+      for (let index = 0; index < reschedules.length; index++) {
+        const reschedule = reschedules[index];
+        const countSendedEmail = await this.dbService.mail_logs.count({
+          where: {
+            moduleId: reschedule.id,
+            emailMessageId: template_id,
+            status: 1,
+          },
+        });
+        const jobId = `send-reschedule-mail-${reschedule.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (!countSendedEmail && !jobExist) {
+          this.logger.log(
+            `Sending email for reschedule ${reschedule.id} status ${status_id}`,
+          );
+          jobs.push({
+            name: 'send-reschedule-mail',
+            data: {
+              reschedule_id: reschedule.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      }
+
+      if (jobs.length > 0) {
+        this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
+        await this.emailQueue.addBulk(jobs);
+      }
+    } else {
+      throw new ServiceUnavailableException(
+        `Reschedule not found for status id ${status_id}`,
+      );
+    }
+  }
+
+  async handleRefundTriggers(template_id: number, status_id: number) {
+    const refunds = await this.dbService.refund.findMany({
+      where: {
+        refund_status: status_id,
+      },
+    });
+
+    if (refunds) {
+      this.logger.log(
+        `Reschedule found for status id ${status_id} [${refunds.length}]`,
+      );
+
+      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+      let delay: number = 5000;
+
+      for (let index = 0; index < refunds.length; index++) {
+        const refund = refunds[index];
+        const countSendedEmail = await this.dbService.mail_logs.count({
+          where: {
+            moduleId: refund.id,
+            emailMessageId: template_id,
+            status: 1,
+          },
+        });
+        const jobId = `send-refund-mail-${refund.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (!countSendedEmail && !jobExist) {
+          this.logger.log(
+            `Sending email for refund ${refund.id} status ${status_id}`,
+          );
+          jobs.push({
+            name: 'send-refund-mail',
+            data: {
+              refund_id: refund.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      }
+
+      if (jobs.length > 0) {
+        this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
+        await this.emailQueue.addBulk(jobs);
+      }
+    } else {
+      throw new ServiceUnavailableException(
+        `Refund not found for status id ${status_id}`,
+      );
     }
   }
 

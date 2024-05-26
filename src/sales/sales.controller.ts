@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
@@ -11,29 +10,38 @@ import {
   HttpStatus,
   Res,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
-import { sales, users } from '@prisma/client';
+import { Response } from 'express';
+import { sales } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 @ApiTags('Sales')
 @Controller('sales')
 @UseGuards(JwtAuthGuard)
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
+  @Get('/export-excel')
+  @UseGuards()
+  async salesExportExcel(@Query() query: QueryParamsDto, @Res() res: Response) {
+    console.log(query.store_id);
+    if (!query.store_id?.length) {
+      throw new BadRequestException(
+        'Anda harus memilih Store terlebih dahulu.',
+      );
+    }
+
+    return await this.salesService.salesExportExcel(res, query);
+  }
+
   @Get('next-code')
-  async getCode(@Request() req: UserRequest) {
+  async getCode() {
     const code = await this.salesService.getCode();
     let nextCode = 1;
     if (code) nextCode = code.id + 1;
@@ -49,7 +57,7 @@ export class SalesController {
   @Post()
   async create(
     @Body() createSaleDto: CreateSalesDto,
-    @Request() req: UserRequest,
+    @Request() req: RequestWithUser,
   ): Promise<sales> {
     const user = req.user;
     return await this.salesService.create(createSaleDto, user);
@@ -71,14 +79,14 @@ export class SalesController {
   async update(
     @Param('id') id: number,
     @Body() updateSaleDto: UpdateSalesDto,
-    @Request() req: UserRequest,
+    @Request() req: RequestWithUser,
   ): Promise<sales> {
     const user = req.user;
     return await this.salesService.update(id, updateSaleDto, user);
   }
 
   @Delete('/:id')
-  async remove(@Param('id') id: number, @Request() req: UserRequest) {
+  async remove(@Param('id') id: number, @Request() req: RequestWithUser) {
     const user = req.user;
     return await this.salesService.remove(id, user);
   }

@@ -52,6 +52,15 @@ export class OrderController {
   ) {}
   private readonly logger = new Logger(OrderController.name);
 
+  @Get('/export-excel')
+  @UseGuards()
+  async orderExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.orderService.orderExportExcel(res, query);
+  }
+
   @Get('/check')
   async getOrderDetailPublic(@Query() query: QueryParamsDto) {
     if (!query.order_id)
@@ -82,8 +91,8 @@ export class OrderController {
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards()
   @HttpCode(HttpStatus.OK)
-  async publicGetAll(@Query() query: QueryParamsDto, @Req() req: UserRequest) {
-    return await this.orderService.findAll(query, req.user);
+  async publicGetAll(@Query() query: QueryParamsDto) {
+    return await this.orderService.findAll(query);
   }
 
   @Get('/send-mail/:id')
@@ -154,9 +163,9 @@ export class OrderController {
   @Get('/')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)
-  async findAll(@Query() query: QueryParamsDto, @Req() req: UserRequest) {
+  async findAll(@Query() query: QueryParamsDto) {
     try {
-      return await this.orderService.findAll(query, req.user);
+      return await this.orderService.findAll(query);
     } catch (error) {
       console.error(error);
 
