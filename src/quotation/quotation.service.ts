@@ -163,16 +163,6 @@ export class QuotationService {
         quotation.quotation_status,
         user,
       );
-
-      if (quotation.quotation_status === statusForEmail.id) {
-        await this.emailQueue.add(
-          'send-quotation-mail',
-          { id: quotation.id },
-          {
-            attempts: 3,
-          },
-        );
-      }
       return { quotation, sales_comission: comission ?? 0 };
     } catch (error) {
       console.error(error);
@@ -492,18 +482,6 @@ export class QuotationService {
         }),
       ]);
 
-      if (
-        updateQuotationDto.readiness === 2 &&
-        STATUS_QUOTEOUT.id === quotation.quotation_status
-      ) {
-        await this.emailQueue.add(
-          'send-quotation-mail',
-          { id: quotation.id },
-          {
-            attempts: 3,
-          },
-        );
-      }
 
       this.orderService.setStatus(
         quotation.order_id,

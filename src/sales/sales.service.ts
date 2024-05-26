@@ -6,12 +6,15 @@ import { Prisma, roles, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { hash, hashSync } from 'bcrypt';
 import { AuthService } from 'src/auth/auth.service';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
 
 @Injectable()
 export class SalesService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly authService: AuthService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
   async getCode() {
@@ -141,6 +144,16 @@ export class SalesService {
           },
         }),
       ]);
+      this.emailQueue.add(
+        'send-credential-mail',
+        {
+          username: sales?.users.username,
+          password: createSalesDto?.password ?? 'password',
+        },
+        {
+          attempts: 3,
+        },
+      );
 
       return sales;
     } catch (error) {
@@ -437,6 +450,17 @@ export class SalesService {
             },
           }),
         ]);
+
+        this.emailQueue.add(
+          'send-credential-mail',
+          {
+            username: salesUsername,
+            password: salesPassword,
+          },
+          {
+            attempts: 3,
+          },
+        );
 
       return updatedSales;
     } catch (error) {

@@ -2,13 +2,18 @@ import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateTukangDto } from './dto/create-tukang.dto';
 import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { hash } from 'bcrypt';
+import { hash, hashSync } from 'bcrypt';
 import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
 
 @Injectable()
 export class TukangService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    @InjectQueue('email') private emailQueue: Queue,
+  ) {}
   async create(
     createTukangDto: CreateTukangDto,
     user: users,
@@ -48,10 +53,17 @@ export class TukangService {
             })
           : undefined;
 
+      const saltedPassword = hashSync(
+        createTukangDto?.password ?? 'password',
+        12,
+      );
+
       const userData = await this.dbService.users.create({
         data: {
-          username: createTukangDto.username,
-          password: await hash(createTukangDto.password, 10),
+          username:
+            createTukangDto.username ??
+            `${createTukangDto.full_name.toLowerCase().replace(/ /g, '_')}`,
+          password: saltedPassword,
           role_id: roles.id,
         },
       });
@@ -99,8 +111,21 @@ export class TukangService {
       const [tukang] = await this.dbService.$transaction([
         this.dbService.tukang.create({
           data: tukangData,
+          include: {
+            users: true
+          }
         }),
       ]);
+      this.emailQueue.add(
+        'send-credential-mail',
+        {
+          username: tukang?.users.username,
+          password: createTukangDto?.password ?? 'password',
+        },
+        {
+          attempts: 3,
+        },
+      );
 
       // await this.sendEmailService.sendCredentialMail(createTukangDto.username,  createTukangDto.password);
       return { data: tukang, meta: { user: userData } };

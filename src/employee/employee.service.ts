@@ -22,6 +22,24 @@ export class EmployeeService {
         },
       });
 
+      const roles = await this.dbService.roles.findFirst({
+        where: {
+          name: {
+            contains: position.position_name,
+          },
+        },
+      });
+
+      const user = await this.dbService.users.create({
+        data: {
+          username: createEmployeeDto.email,
+          password: await hash(createEmployeeDto.default_password, 10),
+          role_id: roles.id,
+        },
+      });
+
+      
+
       const employee = await this.dbService.employee.create({
         data: {
           full_name: createEmployeeDto.full_name,
@@ -49,21 +67,7 @@ export class EmployeeService {
         },
       });
 
-      const roles = await this.dbService.roles.findFirst({
-        where: {
-          name: {
-            contains: position.position_name,
-          },
-        },
-      });
-
-      const user = await this.dbService.users.create({
-        data: {
-          username: createEmployeeDto.email,
-          password: await hash(createEmployeeDto.default_password, 10),
-          role_id: roles.id,
-        },
-      });
+     
 
       this.emailQueue.add(
         'send-credential-mail',
@@ -99,10 +103,7 @@ export class EmployeeService {
         message: 'Successfully to Create Data',
       };
     } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create Data',
-      };
+      throw error
     }
   }
 

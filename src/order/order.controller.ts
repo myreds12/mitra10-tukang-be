@@ -143,21 +143,6 @@ export class OrderController {
         order_files,
       );
       // await this.sendEmailService.sendMail(order.id);
-      if (
-        order.status.category === 'BOOKED' ||
-        order.status.category === 'WORKREQ' ||
-        order.status.category === 'SURVEYREQ'
-      ) {
-        await this.emailQueue.add(
-          'send-order-mail',
-          {
-            order_id: order.id,
-          },
-          {
-            attempts: 3,
-          },
-        );
-      }
 
       return order;
     } catch (error) {
@@ -210,21 +195,6 @@ export class OrderController {
         req.user,
         order_files,
       );
-      if (
-        order.status.category === 'BOOKED' ||
-        order.status.category === 'WORKREQ' ||
-        order.status.category === 'SURVEYREQ'
-      ) {
-        await this.emailQueue.add(
-          'send-order-mail',
-          {
-            order_id: order.id,
-          },
-          {
-            attempts: 3,
-          },
-        );
-      }
 
       return order;
     } catch (error) {

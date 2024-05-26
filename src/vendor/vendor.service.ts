@@ -156,7 +156,7 @@ export class VendorService {
         'send-credential-mail',
         {
           username: users.username,
-          password: createVendorDto.password,
+          password: createVendorDto.password ?? 'password',
         },
         {
           attempts: 3,
