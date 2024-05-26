@@ -1,0 +1,141 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Request,
+  Res,
+  HttpStatus,
+  Query,
+  UseGuards,
+  UploadedFiles,
+  UseInterceptors,
+  Req,
+} from '@nestjs/common';
+import { QuotationService } from './quotation.service';
+import { CreateQuotationDto } from './dto/create-quotation.dto';
+import { UpdateQuotationDto } from './dto/update-quotation.dto';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
+import { Response as IExpressResponse } from 'express';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+
+@UseGuards(JwtAuthGuard)
+@Controller('quotation')
+export class QuotationController {
+  constructor(private readonly quotationService: QuotationService) {}
+
+  @Get('next-code')
+  async getCode() {
+    try {
+      const code = await this.quotationService.getCode();
+      let nextCode = 1;
+      if (code) nextCode = code.id + 1;
+
+      return { code: nextCode };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  @Post(':id/set-status/:status_id')
+  async setStatus(
+    @Param('id') id: number,
+    @Param('status_id') status_id: number,
+    @Request() req: RequestWithUser,
+  ) {
+    try {
+      const user = req.user;
+      return await this.quotationService.setStatus(id, status_id, user);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  @Post()
+  @UseInterceptors(FilesInterceptor('quotation_files'))
+  async create(
+    @Body() createQuotationDto: CreateQuotationDto,
+    @UploadedFiles() quotation_files: Express.Multer.File[],
+    @Req() req: RequestWithUser,
+  ) {
+    try {
+      const user = req.user;
+      return await this.quotationService.create(
+        createQuotationDto,
+        user,
+        quotation_files,
+      );
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  @Get()
+  async findAll(@Query() queryParamsDto: QueryParamsDto) {
+    try {
+      return await this.quotationService.findAll(queryParamsDto);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    try {
+      return await this.quotationService.findOne(+id);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  @Post(':id')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'quotation_files', maxCount: 10 },
+      { name: 'quotation_receipts', maxCount: 10 },
+    ]),
+  )
+  async update(
+    @Param('id') id: string,
+    @Body() updateQuotationDto: UpdateQuotationDto,
+    @Request() req: RequestWithUser,
+    @UploadedFiles() files: { [name: string]: Express.Multer.File[] },
+  ) {
+    try {
+      const user = req.user;
+      return await this.quotationService.update(
+        +id,
+        updateQuotationDto,
+        user,
+        files,
+      );
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
+    try {
+      const user_id = req.user.id;
+      return await this.quotationService.remove(+id, user_id);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+}
