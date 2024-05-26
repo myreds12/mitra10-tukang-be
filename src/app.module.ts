@@ -102,7 +102,9 @@ import { MailsModule } from './mails/mails.module';
           from: configService.get<string>('MAIL_DEFAULTS'),
           bcc: configService.get<string>('MAIL_BCC_LIST'),
         },
-        preview: true,
+        preview: {
+          dir: join(process.cwd(), '/previews/'),
+        },
         template: {
           dir: join(process.cwd(), '/templates/'),
           adapter: new PugAdapter({

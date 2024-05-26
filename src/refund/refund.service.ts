@@ -4,7 +4,6 @@ import { UpdateRefundDto } from './dto/update-refund.dto';
 import { Prisma, users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { refund_evidences } from '@prisma/client';
 
 @Injectable()
 export class RefundService {
