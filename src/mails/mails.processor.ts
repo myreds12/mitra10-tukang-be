@@ -73,6 +73,8 @@ export class EmailProcessor {
       const order = await this.dbService.orders.findFirst({
         where: {
           id: order_id,
+          deleted_at: null,
+          deleted_by: null,
         },
         select: {
           id: true,
@@ -206,6 +208,8 @@ export class EmailProcessor {
       const users = await this.dbService.users.findFirst({
         where: {
           id: user_id,
+          deleted_at: null,
+          deleted_by: null,
         },
         include: {
           employee: true,
@@ -271,6 +275,7 @@ export class EmailProcessor {
       const users = await this.dbService.users.findFirst({
         where: {
           username,
+          deleted_at: null,
         },
         include: {
           employee: true,
@@ -331,10 +336,16 @@ export class EmailProcessor {
         where: {
           id: id,
           deleted_at: null,
+          order: {
+            deleted_at: null,
+          }
         },
         include: {
           quotation_files: true,
           quotation_details: {
+            where: {
+              deleted_at:null
+            },
             include: {
               category: true,
             },
@@ -466,6 +477,7 @@ export class EmailProcessor {
       const csi = await this.dbService.csi_template.findFirst({
         where: {
           id: csi_id,
+          deleted_at: null
         },
       });
       if (!csi) throw new NotFoundException('csi not found!');
@@ -503,7 +515,9 @@ export class EmailProcessor {
   }
 
   @Process('send-reschedule-mail')
-  async sendRescheduleMail(job: Job<{ reschedule_id: number; template_id: number }>) {
+  async sendRescheduleMail(
+    job: Job<{ reschedule_id: number; template_id: number }>,
+  ) {
     const { reschedule_id, template_id } = job.data;
     try {
       if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
@@ -511,20 +525,29 @@ export class EmailProcessor {
       const reschedule = await this.dbService.reschedule.findFirst({
         where: {
           id: reschedule_id,
+          order: {
+            deleted_at: null
+          }
         },
         include: {
           order: {
             include: {
               store: true,
               members: true,
-              m_order_details: true,
-            }
-          }
-        }
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+        },
       });
-     
 
       if (!reschedule) throw new NotFoundException('Reschedule not found!');
+      if (!reschedule.order) throw new NotFoundException('Reschedule not found!');
+      if (!reschedule.order.m_order_details) throw new NotFoundException('Reschedule not found!');
       this.logger.log('Reschedule Data : ', reschedule.id);
 
       const message = await this.getMessage(MailType.RESCHEDULE, template_id);
@@ -534,7 +557,6 @@ export class EmailProcessor {
         reschedule,
         message,
       };
-
 
       const { bcc, cc } = message;
       const storeMail = reschedule.order.store.email;
@@ -606,20 +628,31 @@ export class EmailProcessor {
       const refund = await this.dbService.refund.findFirst({
         where: {
           id: refund_id,
+          orders: {
+            deleted_at: null,
+            deleted_by: null,
+          },
         },
         include: {
           orders: {
             include: {
               store: true,
               members: true,
-              m_order_details: true,
-            }
-          }
-        }
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+        },
       });
-     
 
-      if (!refund) throw new NotFoundException('Reschedule not found!');
+      if (!refund) throw new NotFoundException('refund not found!');
+      if (!refund.orders) throw new NotFoundException('refund not found!');
+      if (!refund.orders.m_order_details)
+        throw new NotFoundException('refund not found!');
       this.logger.log('Refund Data : ', refund.id);
 
       const message = await this.getMessage(MailType.REFUND, template_id);
@@ -629,7 +662,6 @@ export class EmailProcessor {
         refund,
         message,
       };
-
 
       const { bcc, cc } = message;
       const storeMail = refund.orders.store.email;
@@ -658,7 +690,7 @@ export class EmailProcessor {
       }
 
       job.finished();
-        
+
       job.moveToCompleted();
 
       await this.maillogs(
@@ -693,7 +725,9 @@ export class EmailProcessor {
   }
 
   @Process('send-complaint-mail')
-  async sendComplaintMail(job: Job<{ reschedule_id: number; template_id: number }>) {
+  async sendComplaintMail(
+    job: Job<{ reschedule_id: number; template_id: number }>,
+  ) {
     const { reschedule_id, template_id } = job.data;
     try {
       if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
@@ -701,6 +735,10 @@ export class EmailProcessor {
       const complaint = await this.dbService.complaints.findFirst({
         where: {
           id: reschedule_id,
+          orders: {
+            deleted_at: null
+          },
+          deleted_at: null
         },
         include: {
           complaint_channels: true,
@@ -709,11 +747,10 @@ export class EmailProcessor {
               store: true,
               members: true,
               m_order_details: true,
-            }
-          }
-        }
+            },
+          },
+        },
       });
-     
 
       if (!complaint) throw new NotFoundException('Complaint not found!');
       this.logger.log('Complaint Data : ', complaint.id);
@@ -725,7 +762,6 @@ export class EmailProcessor {
         complaint,
         message,
       };
-
 
       const { bcc, cc } = message;
       const storeMail = complaint.orders.store.email;
