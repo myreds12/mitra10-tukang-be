@@ -1316,12 +1316,19 @@ export class OrderService {
 
       worksheet.columns = [
         { header: 'Order Id', key: 'id', width: 10 },
+        { header: 'Tanggal Request', key: 'request_survey', width: 25 },
+        { header: 'Nomor Receipt', key: 'receipt_number', width: 30 },
+        { header: 'Payment Type', key: 'payment_type', width: 30 },
         { header: 'Nama Toko', key: 'store_name', width: 25 },
+        { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
+        { header: 'Category', key: 'category_name', width: 30 },
         { header: 'Nomor Member', key: 'member_number', width: 20 },
         { header: 'Nama Customer', key: 'full_name', width: 25 },
         { header: 'Phone Number', key: 'whatsapp_number', width: 30 },
         { header: 'WA Number', key: 'phone_number', width: 30 },
-        { header: 'Nama Vendor', key: 'company_name', width: 25 },
+        { header: 'Nama Vendor', key: 'company_name', width: 35 },
+        { header: 'Nama Sales', key: 'sales_name', width: 35 },
+        { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
         { header: 'Order Dibuat ', key: 'created_at', width: 30 },
         { header: 'Grand Total', key: 'grand_total', width: 25 },
       ];
@@ -1343,8 +1350,10 @@ export class OrderService {
       });
 
       data.forEach((order) => {
-        const dateTime = new Date(order.created_at);
-        const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
+        const itemName = order.m_order_details ? order.m_order_details.map((item) => item?.item_name).join(', ') : 'N/a';
+        const categoryName = order.m_order_details ? order.m_order_details.map((item) => item.item?.category?.category_name).join(', ') : 'N/a';
+        const tukangName = order.work_orders ? order.work_orders.work_order_tukang.map((item) => item?.tukang?.full_name).join(', ') : 'N/a';
+        const formattedDateTime = (dateTime) => `${new Date(dateTime).toLocaleDateString('id-ID', {
           day: 'numeric',
           month: 'long',
           year: 'numeric',
@@ -1355,13 +1364,18 @@ export class OrderService {
         const grandTotal = Number(order.grand_total);
         const formattedGrandTotal = !isNaN(grandTotal)
           ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(grandTotal)
+            style: 'currency',
+            currency: 'IDR',
+          }).format(grandTotal)
           : 'Rp. 0';
         const row = worksheet.addRow({
           id: order.id,
+          request_survey: order.request_survey ? formattedDateTime(order.request_survey) : 'N/a',
+          receipt_number: order.receipt_number ? order.receipt_number : 'N/a',
+          payment_type: order.payment_type === 'pemasangan_tanpa_survey' ? 'Pemasangan Tanpa Survey' : order.payment_type === 'survey' ? 'Survey' : order.payment_type === 'gratis' ? 'Gratis' : 'N/a',
           store_name: order.store ? order.store.store_name : 'N/a',
+          item_name: itemName,
+            category_name: categoryName,
           member_number: order.members ? order.members.member_number : 'N/a',
           full_name: order.members ? order.members.full_name : 'N/a',
           whatsapp_number: order.members.whatsapp_number
@@ -1371,7 +1385,9 @@ export class OrderService {
             ? order.members.phone_number
             : 'N/a',
           company_name: order.vendor ? order.vendor.company_name : 'N/a',
-          created_at: formattedDateTime,
+          sales_name: order.sales ? order.sales.full_name : 'N/a',
+          tukang_name: tukangName,
+          created_at: formattedDateTime(order.created_at),
           grand_total: formattedGrandTotal,
         });
 
@@ -1401,7 +1417,14 @@ export class OrderService {
         full_name: '',
         project_number: '',
         company_name: '',
+        sales_name: '',
+        receipt_number: '',
+        payment_type: '',
+        item_name: '',
+        category_name: '',
+        tukang_name: '',
         created_at: '',
+        request_survey: '',
         grand_total: formattedTotalGrandTotal,
       });
 
@@ -1418,7 +1441,7 @@ export class OrderService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:H${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
