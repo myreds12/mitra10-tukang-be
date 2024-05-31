@@ -9,6 +9,10 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { MarginType } from './dto/margin-type.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class QuotationService {
@@ -214,6 +218,7 @@ export class QuotationService {
           quotation_details: {
             include: {
               category: true,
+              work_order_items: true
             },
           },
           order: {
@@ -222,6 +227,7 @@ export class QuotationService {
               vendor: true,
               store: true,
               members: true,
+              sales: true,
               work_orders: {
                 include: {
                   work_order_evidences: true,
@@ -234,7 +240,11 @@ export class QuotationService {
                       },
                     },
                   },
-                  work_order_tukang: true,
+                  work_order_tukang: {
+                    include: {
+                      tukang: true
+                    }
+                  },
                   status: true,
                 },
               },
@@ -676,4 +686,214 @@ export class QuotationService {
       throw error;
     }
   }
+
+
+  async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Quotation', {
+        properties: {
+          tabColor: {
+            argb: '097969',
+          },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Quotation Id', key: 'id', width: 10 },
+        { header: 'Order Id', key: 'order_id', width: 25 },
+        { header: 'Jenis Jasa', key: 'item_name', width: 50},
+        { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
+        { header: 'Unit Jasa', key: 'item_unit', width: 50 },
+        { header: 'Material yang Dibutuhkan', key: 'work_order_items', width: 50 },
+        { header: 'Quantity Material', key: 'work_order_items_quantity', width: 50 },
+        { header: 'Unit Material', key: 'work_order_items_unit', width: 50 },
+        { header: 'Tanggal Quotation', key: 'quotation_date', width: 50 },
+        { header: 'Batas Tanggal Quotation', key: 'quotation_validity', width: 50 },
+        { header: 'Nama Toko', key: 'store_name', width: 30 },
+        { header: 'Nama Vendor', key: 'company_name', width: 30 },
+        { header: 'Nama Sales', key: 'sales_name', width: 35 },
+        { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
+        { header: 'Quotation Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Grand Total', key: 'grand_total', width: 25 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((quotation) => {
+        const itemName = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.name || 'N/a').join(', ') : 'N/a';
+        const itemQuantity = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.quantity || 'N/a').join(', ') : 'N/a';
+        const itemUnit = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.unit || 'N/a').join(', ') : 'N/a';
+        const tukangName = quotation.order.work_orders ? quotation.order.work_orders.work_order_tukang.map((item) => item?.tukang?.full_name).join(', ') : 'N/a';
+        const workOrderItems = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.work_order_items?.name || 'N/a').join(', ') : 'N/a'
+        const workOrderItemsQuantity = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.work_order_items?.quantity || 'N/a').join(', ') : 'N/a'
+        const workOrderItemsUnit = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.work_order_items?.unit || 'N/a').join(', ') : 'N/a'
+        const formattedDateTime = (dateTime) => `${new Date(dateTime).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}, ${dateTime.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+        const grandTotal = Number(quotation.quotation_grand_total);
+        const formattedGrandTotal = !isNaN(grandTotal)
+          ? new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+          }).format(grandTotal)
+          : 'Rp. 0';
+        const row = worksheet.addRow({
+          id: quotation.id,
+          order_id: quotation.order ? quotation.order.id : 'N/a',
+          item_name: itemName,
+          item_quantity: itemQuantity,
+          item_unit: itemUnit,
+          work_order_items: workOrderItems,
+          work_order_items_quantity: workOrderItemsQuantity,
+          work_order_items_unit: workOrderItemsUnit,
+          quotation_date: quotation.quotation_date ? formattedDateTime(quotation.quotation_date) : 'N/a',
+          quotation_validity: quotation.quotation_validity ? formattedDateTime(quotation.quotation_validity) : 'N/a',
+          store_name: quotation.order.store ? quotation.order.store.store_name : 'N/a',
+          company_name: quotation.order ? quotation.order.vendor.company_name : 'N/a',
+          sales_name: quotation.order.sales ? quotation.order.sales.full_name : 'N/a',
+          tukang_name: tukangName,
+          created_at: formattedDateTime(quotation.created_at),
+          grand_total: formattedGrandTotal,
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const totalGrandTotal = data.reduce(
+        (total, order) => total + Number(order.quotation_grand_total),
+        0,
+      );
+      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+      }).format(totalGrandTotal);
+      const totalRow = worksheet.addRow({
+        id: 'Total',
+        order_id: '',
+        item_name: '',
+        item_quantity: '',
+        item_unit: '',
+        work_order_items: '',
+        work_order_items_quantity: '',
+        work_order_items_unit: '',
+        quotation_date: '',
+        quotation_validity: '',
+        store_name: '',
+        company_name: '',
+        sales_name: '',
+        tukang_name: '',
+        created_at: '',
+        grand_total: formattedTotalGrandTotal,
+      });
+
+      totalRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      totalRow.height = 30;
+
+      worksheet.mergeCells(`A${totalRow.number}:N${totalRow.number}`);
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/quotation';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataQuotation-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(res);
+    } catch (error) {
+      throw error;
+    }
+  }
 }
+

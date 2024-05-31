@@ -11,9 +11,9 @@ export class ReportsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly httpService: HttpService,
-  ) {}
-  async create(createReportDto: CreateReportDto) {}
-  async findAll() {}
+  ) { }
+  async create(createReportDto: CreateReportDto) { }
+  async findAll() { }
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
@@ -24,22 +24,22 @@ export class ReportsService {
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(store_id
             ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
+              {
+                store_id: {
+                  in: store_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -175,6 +175,15 @@ export class ReportsService {
       const statusDone = statuses.find((i) =>
         i.category.toLocaleLowerCase().includes('done'),
       );
+      const statusRefund = statuses.find((i) =>
+        i.category.toLocaleLowerCase().includes('refund'),
+      );
+      const statusCancel = statuses.find((i) =>
+        i.category.toLocaleLowerCase().includes('cancel'),
+      );
+      const statusReschedule = statuses.find((i) =>
+        i.category.toLocaleLowerCase().includes('reschedule'),
+      );
       const statusUnpaid = statuses.find((i) =>
         i.category.toLocaleLowerCase().includes('unpaid'),
       );
@@ -192,14 +201,14 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { receipt_number: { contains: search } },
-                    { request_survey: { equals: new Date(search) } },
-                    { members: { full_name: { contains: search } } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { request_survey: { equals: new Date(search) } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(member_id ? [{ member_id: { equals: member_id } }] : []),
@@ -207,32 +216,32 @@ export class ReportsService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           ...(store_id
             ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
+              {
+                store_id: {
+                  in: store_id,
                 },
-              ]
+              },
+            ]
             : []),
           vendor_id
             ? {
-                vendor: {
-                  id: {
-                    equals: vendor_id,
-                  },
-                  deleted_at: null,
+              vendor: {
+                id: {
+                  equals: vendor_id,
                 },
-              }
+                deleted_at: null,
+              },
+            }
             : undefined,
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -446,6 +455,9 @@ export class ReportsService {
       const totalSurveyStartOrderPerMonth = {};
       const totalSurveyReqOrderPerMonth = {};
       const totalSurveyDoneOrderPerMonth = {};
+      const totalRescheduleOrderPerMonth = {};
+      const totalRefundOrderPerMonth = {};
+      const totalCancelOrderPerMonth = {};
       const allMonths = [
         'Januari',
         'Februari',
@@ -468,6 +480,9 @@ export class ReportsService {
         totalSurveyStartOrderPerMonth[month] = 0;
         totalSurveyReqOrderPerMonth[month] = 0;
         totalSurveyDoneOrderPerMonth[month] = 0;
+        totalRescheduleOrderPerMonth[month] = 0;
+        totalRefundOrderPerMonth[month] = 0;
+        totalCancelOrderPerMonth[month] = 0;
       });
 
       orders.forEach((order) => {
@@ -502,6 +517,15 @@ export class ReportsService {
         if (order.status.category === statusSurveyReq.category) {
           totalSurveyReqOrderPerMonth[month]++;
         }
+        if (order.status.category === statusCancel.category) {
+          totalCancelOrderPerMonth[month]++;
+        }
+        if (order.status.category === statusRefund.category) {
+          totalRefundOrderPerMonth[month]++;
+        }
+        if (order.status.category === statusReschedule.category) {
+          totalRescheduleOrderPerMonth[month]++;
+        }
       });
 
       const monthlyOrders = allMonths.map((month) => ({
@@ -513,6 +537,9 @@ export class ReportsService {
         totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0,
         totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0,
         totalSurveyDoneOrder: totalSurveyDoneOrderPerMonth[month] || 0,
+        totalRescheduleOrder: totalRescheduleOrderPerMonth[month] || 0,
+        totalRefundOrder: totalRefundOrderPerMonth[month] || 0,
+        totalCancelOrder: totalCancelOrderPerMonth[month] || 0,
         ordersMonth: ordersMonth[month] || [],
       }));
 
@@ -579,31 +606,31 @@ export class ReportsService {
             : null,
           ...(member_id
             ? [
-                {
-                  orders: {
-                    member_id: member_id,
-                  },
+              {
+                orders: {
+                  member_id: member_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(vendor_id
             ? [
-                {
-                  orders: {
-                    vendor_id: {
-                      equals: vendor_id,
-                    },
+              {
+                orders: {
+                  vendor_id: {
+                    equals: vendor_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                complaint_date: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              complaint_date: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : null,
         ].filter((condition) => Boolean(condition)),
       };
@@ -802,33 +829,33 @@ export class ReportsService {
         AND: [
           ...(member_id
             ? [
-                {
-                  order: {
-                    member_id: {
-                      equals: member_id,
-                    },
+              {
+                order: {
+                  member_id: {
+                    equals: member_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(vendor_id
             ? [
-                {
-                  vendor_id: {
-                    equals: vendor_id,
-                  },
+              {
+                vendor_id: {
+                  equals: vendor_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -904,8 +931,8 @@ export class ReportsService {
       allMonths.forEach((month) => {
         grandTotalSurveyOrderPerMonth[month] = ordersMonth[month]
           ? ordersMonth[month].filter((order) =>
-              order.status.category.includes('survey'),
-            ).length
+            order.status.category.includes('survey'),
+          ).length
           : 0;
       });
 

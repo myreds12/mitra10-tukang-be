@@ -32,6 +32,15 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 export class QuotationController {
   constructor(private readonly quotationService: QuotationService) {}
 
+  @Get('/export-excel')
+  @UseGuards()
+  async orderExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.quotationService.quotationExportExcel(res, query);
+  }
+
   @Get('next-code')
   async getCode() {
     try {

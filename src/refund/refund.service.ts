@@ -4,6 +4,11 @@ import { UpdateRefundDto } from './dto/update-refund.dto';
 import { Prisma, users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
+
 
 @Injectable()
 export class RefundService {
@@ -287,4 +292,190 @@ export class RefundService {
   async remove(id: number) {
     return `This action removes a #${id} refund`;
   }
+
+  async refundExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+  
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Refund', {
+        properties: {
+          tabColor: { argb: 'FF00FF00' },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+  
+      worksheet.columns = [
+        { header: 'Refund ID', key: 'id', width: 15 },
+        { header: 'Order ID', key: 'order_id', width: 15 },
+        { header: 'Catatan', key: 'notes', width: 40 },
+        { header: 'Alasan', key: 'reason', width: 40 },
+        { header: 'Nomor Persetujuan', key: 'approval_number', width: 25 },
+        { header: 'Voucher', key: 'voucher', width: 25 },
+        { header: 'Nominal Penalti', key: 'penalty_nominal', width: 20 },
+        { header: 'Tanggal Persetujuan', key: 'date_approve', width: 25 },
+        { header: 'Tanggal Pengajuan', key: 'date_of_filing', width: 25 },
+        { header: 'Refund Dibuat', key: 'created_at', width: 25 },
+      ];
+  
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+  
+      data.forEach((refund) => {
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+  
+        const formattedCurrency = (amount) => 
+          amount ? new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+          }).format(amount) : 'Rp. 0';
+  
+        const row = worksheet.addRow({
+          id: refund.id,
+          order_id: refund.order_id,
+          notes: refund.notes,
+          reason: refund.reason,
+          approval_number: refund.approval_number ? refund.approval_number : 'N/a',
+          voucher: refund.voucher ? refund.voucher : 'N/a',
+          penalty_nominal: formattedCurrency(refund.penalty_nominal),
+          date_approve: refund.date_approve ? formattedDateTime(refund.date_approve) : 'N/a',
+          date_of_filing: formattedDateTime(refund.date_of_filing),
+          created_at: formattedDateTime(refund.created_at),
+        });
+  
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const totalGrandTotal = data.reduce((total, refund) => {
+        return total + (refund.orders ? Number(refund.orders.grand_total) : 0);
+      }, 0);
+      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+      }).format(totalGrandTotal);
+  
+      const totalRow = worksheet.addRow({
+        id: 'Total',
+        order_id: '',
+        notes: '',
+        reason: '',
+        approval_number: '',
+        voucher: '',
+        penalty_nominal: '',
+        date_approve: '',
+        date_of_filing: '',
+        created_at: '',
+      });
+      totalRow.getCell('A').value = 'Total Pengembalian';
+      totalRow.getCell('J').value = formattedTotalGrandTotal;
+  
+      totalRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+  
+      totalRow.height = 30;
+  
+      worksheet.mergeCells(`A${totalRow.number}:I${totalRow.number}`);
+  
+  
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+  
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/refund';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+  
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+  
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+  
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`
+        );
+  
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+  
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataRefund-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+  
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+  
+      return generateExcelFile(res);
+    } catch (error) {
+      throw error;
+    }
+  }
+  
 }

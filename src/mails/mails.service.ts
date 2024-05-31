@@ -339,6 +339,7 @@ export class MailsService {
               status: 1,
             },
           });
+          
           const jobId = `send-order-mail-${order.id}-${template_id}`;
           const jobExist = await this.emailQueue.getJob(jobId);
 

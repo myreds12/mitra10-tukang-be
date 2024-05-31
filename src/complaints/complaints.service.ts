@@ -10,6 +10,10 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma, complaints, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ComplaintsService {
@@ -468,4 +472,180 @@ export class ComplaintsService {
       throw error;
     }
   }
+
+  async complaintExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+  
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Keluhan', {
+        properties: {
+          tabColor: { argb: 'FF00FF00' },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+  
+      worksheet.columns = [
+        { header: 'Compaint ID', key: 'id', width: 10 },
+        { header: 'Order ID', key: 'order_id', width: 10 },
+        { header: 'Complaint Melalui', key: 'complaint_channel', width: 20 },
+        { header: 'Deskripsi', key: 'description', width: 40 },
+        { header: 'Tanggal Complaint', key: 'complaint_date', width: 25 },
+        { header: 'Feedback Name', key: 'feedback_name', width: 25 },
+        { header: 'Feedback Role', key: 'feedback_role', width: 25 },
+        { header: 'Complaint Dibuat', key: 'created_at', width: 25 },
+      ];
+  
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+  
+      data.forEach((complaint) => {
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+  
+        const row = worksheet.addRow({
+          id: complaint.id,
+          order_id: complaint.order_id,
+          complaint_channel: complaint.complaint_channels ? complaint.complaint_channels.name : 'N/a',
+          description: complaint.description,
+          complaint_date: formattedDateTime(complaint.complaint_date),
+          feedback_name: complaint.feedback_name ? complaint.feedback_name : 'N/a',
+          feedback_role: complaint.feedback_role ? complaint.feedback_role : 'N/a',
+          created_at: formattedDateTime(complaint.created_at),
+        });
+  
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+  
+      // Calculate the total grand total of all complaints
+      const totalGrandTotal = data.reduce((total, complaint) => {
+        return total + (complaint.orders ? Number(complaint.orders.grand_total) : 0);
+      }, 0);
+      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+      }).format(totalGrandTotal);
+  
+      // Add total row
+      const totalRow = worksheet.addRow({
+        id: 'Total',
+        order_id: '',
+        complaint_channel: '',
+        description: '',
+        complaint_date: '',
+        feedback_name: '',
+        feedback_role: '',
+        created_at: '',
+      });
+      totalRow.getCell('A').value = 'Total Keluhan';
+      totalRow.getCell('H').value = formattedTotalGrandTotal;
+  
+      totalRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+  
+      totalRow.height = 30;
+  
+      worksheet.mergeCells(`A${totalRow.number}:G${totalRow.number}`);
+  
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+  
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/complaint';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+  
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+  
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+  
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`
+        );
+  
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+  
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataKeluhan-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+  
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+  
+      return generateExcelFile(res);
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  
 }
