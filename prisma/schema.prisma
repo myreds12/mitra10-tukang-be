@@ -1433,14 +1433,14 @@ model information_detail {
 model mail_logs {
   id Int @id @default(autoincrement())
 
-  emailMessageId Int
-  moduleId       Int
+  emailMessageId Int?
+  moduleId       Int?
 
-  data   String @db.Text()
-  to     String @db.Text()
+  data   String  @db.Text()
+  to     String? @db.Text()
   status Int
 
   createdAt DateTime @default(now()) @db.DateTime()
 
-  emailMessages email_messages @relation(fields: [emailMessageId], references: [id])
+  emailMessages email_messages? @relation(fields: [emailMessageId], references: [id])
 }

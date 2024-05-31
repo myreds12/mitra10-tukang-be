@@ -31,11 +31,7 @@ export class CategoriesService {
     try {
       const category = await this.dbService.categories.findMany()
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Get All Data',
-        data: category
-      }
+      return category;
     } catch (err) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -52,11 +48,8 @@ export class CategoriesService {
         }
       })
 
-      return {
-        status: HttpStatus.OK,
-        message: 'Find Data Data',
-        data: category
-      }
+      return category;
+      
     } catch (err) {
       return {
         status: HttpStatus.BAD_REQUEST,

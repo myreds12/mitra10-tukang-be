@@ -166,6 +166,9 @@ export class WorkOrdersService {
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
+        order: {
+          deleted_at: null,
+        },
       };
 
       const total = await this.dbService.work_orders.count({
@@ -182,7 +185,11 @@ export class WorkOrdersService {
         include: {
           order: {
             include: {
+              status: true,
               m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
                 include: {
                   item: true,
                 },
@@ -239,11 +246,19 @@ export class WorkOrdersService {
       const work_orders = await this.dbService.work_orders.findFirst({
         where: {
           id,
+          deleted_at: null,
+          order: {
+            deleted_at: null,
+          },
         },
         include: {
           order: {
             include: {
+              status: true,
               m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
                 include: {
                   item: true,
                 },
@@ -283,6 +298,7 @@ export class WorkOrdersService {
           work_order_evidences: true,
         },
       });
+      if (!work_orders) throw Error('Work Order Not Found!');
 
       return work_orders;
     } catch (error) {
@@ -552,7 +568,7 @@ export class WorkOrdersService {
         (x) => x.status_id === NEW_STATUS.id,
       );
 
-      console.log(recentWorkStatus);
+      console.log(recentWorkStatus, 'RECENT_STATUS');
 
       const upsertItems: Prisma.work_order_itemsUpsertWithWhereUniqueWithoutWork_order_statusInput[] =
         updateData.work_order_items
@@ -562,27 +578,28 @@ export class WorkOrdersService {
                 work_order_status_id: recentWorkStatus?.id ?? 0,
               },
               create: {
-                item_id: x?.item_id,
-                name: x?.item_name,
+                item_id: x?.item_id ?? undefined,
+                name: x?.item_name ?? undefined,
                 tukang_id: x.tukang_id ?? undefined,
                 tukang_name: x.tukang_name ?? undefined,
                 type: x.type,
                 is_customer: Boolean(x.is_customer),
-                quantity: x.quantity,
-                unit: x?.unit,
+                quantity: x.quantity ?? undefined,
+                unit: x?.unit ?? undefined,
               },
               update: {
-                item_id: x.item_id,
-                name: x.item_name,
+                item_id: x.item_id ?? undefined,
+                name: x.item_name ?? undefined,
                 tukang_id: x.tukang_id ?? undefined,
                 tukang_name: x.tukang_name ?? undefined,
                 type: x.type,
-                quantity: x.quantity,
+                quantity: x.quantity ?? undefined,
                 is_customer: Boolean(x.is_customer),
-                unit: x?.unit,
+                unit: x?.unit ?? undefined,
               },
             }))
           : undefined;
+      console.log(upsertItems, 'WORK ORDER ITEMS');
 
       const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
         {
@@ -617,6 +634,8 @@ export class WorkOrdersService {
           },
         };
 
+      console.log(workOrderStatusUpsert, 'WORK ORDER STATUS UPSERT');
+
       await this.dbService.$transaction([
         ...(updateData.work_order_items
           ? [
@@ -644,7 +663,7 @@ export class WorkOrdersService {
           : []),
         this.dbService.work_order_status.updateMany({
           where: {
-            id: NEW_STATUS?.id ?? 0,
+            id: recentWorkStatus?.id ?? 0,
             work_order_id: id,
           },
           data: {
@@ -657,13 +676,9 @@ export class WorkOrdersService {
           data: {
             status_id: NEW_STATUS.id,
             work_order_evidences: { createMany: { data: evidences } },
-            ...(updateData.work_order_items
-              ? {
-                  work_order_status: {
-                    upsert: workOrderStatusUpsert,
-                  },
-                }
-              : undefined),
+            work_order_status: {
+              upsert: workOrderStatusUpsert,
+            },
           },
         }),
       ]);

@@ -1,19 +1,17 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-  forwardRef,
-} from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
-import { OrderService } from 'src/order/order.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Process, Processor } from '@nestjs/bull';
+import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { ConfigService } from '@nestjs/config';
 import { MailType } from './enum/mail_type.enum';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { truncate } from 'lodash';
+import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
+import { DefaultDataMailInterface } from '../common/interface/mails/default-data-mail-interface';
+import { QuotationMailInterface } from 'src/common/interface/mails/quotation-mail-interface';
+import { CsiMailInterface } from '../common/interface/mails/csi-mail-interface';
+import { RescheduleMailInterface } from '../common/interface/mails/reschedule-mail-interface';
+import { RefundMailInterface } from '../common/interface/mails/refund-mail-interface';
+import { ComplaintMailInterface } from '../common/interface/mails/complaint-mail-interface';
 
 @Processor('email')
 export class EmailProcessor {
@@ -24,10 +22,21 @@ export class EmailProcessor {
   ) { }
   private readonly logger = new Logger(EmailProcessor.name);
 
-  private handleJobFailure(job: Job, error: Error) {
+  @OnQueueFailed()
+  private async handleJobFailure(
+    job: Job<DefaultDataMailInterface>,
+    error: any,
+  ) {
     this.logger.error(error.message);
-    job.moveToFailed({ message: error.message });
+    await this.maillogs(
+      job.data?.module_id ?? 0,
+      job.data?.template_id ?? 0,
+      { to: '', cc: '', bcc: '' },
+      0,
+      JSON.stringify(error),
+    );
   }
+
   private async getMessage(mailType: MailType, id?: number) {
     return await this.dbService.email_messages.findFirst({
       where: {
@@ -65,14 +74,14 @@ export class EmailProcessor {
   async generatePDF(data: any) { }
 
   @Process('send-order-mail')
-  async sendOrderMail(job: Job<{ order_id: number; template_id?: number }>) {
-    const { order_id, template_id } = job.data;
+  async sendOrderMail(job: Job<OrderMailInterface>) {
+    const { module_id, template_id } = job.data;
     try {
-      if (!order_id) throw new NotFoundException('order_id is null!');
+      if (!module_id) throw new NotFoundException('order_id is null!');
 
       const order = await this.dbService.orders.findFirst({
         where: {
-          id: order_id,
+          id: module_id,
           deleted_at: null,
           deleted_by: null,
         },
@@ -144,6 +153,7 @@ export class EmailProcessor {
           },
         },
       });
+      this.logger.log('Order: ', order);
       order['order_details'] = order.m_order_details;
       delete order.m_order_details;
 
@@ -195,11 +205,8 @@ export class EmailProcessor {
         });
       }
 
-      job.finished();
-      job.moveToCompleted();
-
       await this.maillogs(
-        order_id,
+        module_id,
         message.id,
         {
           to: order.members.email,
@@ -210,29 +217,31 @@ export class EmailProcessor {
         data,
       );
     } catch (error) {
+      this.logger.error(job.data);
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          this.logger.warn(`Retry: ${job.attemptsMade}`);
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
+
+      // try {
+      //   if (error instanceof NotFoundException) {
+      //
+      //   } else if (error instanceof PrismaClientKnownRequestError) {
+      //
+      //   } else {
+      //     this.logger.warn(`Retrys: ${job.attemptsMade}`);
+      //     // job.retry();
+      //   }
+      // } catch (innerError) {
+      //   this.logger.error(
+      //     'An error occurred while handling the original error:',
+      //     innerError,
+      //   );
+      // }
     }
   }
 
   @Process('send-reset-password-mail')
-  async sendMailResetPassword(job: Job<{ user_id: number }>) {
+  async sendMailResetPassword(job: Job<DefaultDataMailInterface>) {
     try {
-      const { user_id } = job.data;
+      const { module_id: user_id } = job.data;
       const users = await this.dbService.users.findFirst({
         where: {
           id: user_id,
@@ -270,25 +279,22 @@ export class EmailProcessor {
         template: 'reset-password',
         context: { data },
       });
-
-      job.finished();
-      job.moveToCompleted();
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
+
+      // try {
+      //   if (error instanceof NotFoundException) {
+      //   } else if (error instanceof PrismaClientKnownRequestError) {
+      //
+      //   } else {
+      //     // job.retry();
+      //   }
+      // } catch (innerError) {
+      //   this.logger.error(
+      //     'An error occurred while handling the original error:s',
+      //     innerError,
+      //   );
+      // }
     }
   }
 
@@ -331,34 +337,30 @@ export class EmailProcessor {
         template: 'credential-mail',
         context: { data },
       });
-
-      job.finished();
-      job.moveToCompleted();
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
+
+      // try {
+      //   if (error instanceof NotFoundException) {
+      //
+      //   } else if (error instanceof PrismaClientKnownRequestError) {
+      //
+      //   } else {
+      //     // job.retry();
+      //   }
+      // } catch (innerError) {
+      //   this.logger.error(
+      //     'An error occurred while handling the original error:s',
+      //     innerError,
+      //   );
+      // }
     }
   }
 
   @Process('send-quotation-mail')
-  async sendQuotationMail(
-    job: Job<{ id: number; template_id?: number; orderId: number; to: string }>,
-  ) {
+  async sendQuotationMail(job: Job<QuotationMailInterface>) {
     try {
-      const { id, template_id, to, orderId } = job.data;
+      const { module_id: id, template_id, to, orderId } = job.data;
       if (!id) throw new NotFoundException('quotation_id is null!');
       const quotation = await this.dbService.quotation.findFirst({
         where: {
@@ -366,13 +368,13 @@ export class EmailProcessor {
           deleted_at: null,
           order: {
             deleted_at: null,
-          }
+          },
         },
         include: {
           quotation_files: true,
           quotation_details: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               category: true,
@@ -476,36 +478,19 @@ export class EmailProcessor {
           data,
         );
       }
-
-      job.finished();
-      job.moveToCompleted();
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
     }
   }
 
   @Process('send-csi-mail')
-  async sendcsimail(job: Job<{ id: number }>) {
+  async sendcsimail(job: Job<CsiMailInterface>) {
     try {
-      const { id: csi_id } = job.data;
+      const { module_id: csi_id } = job.data;
       const csi = await this.dbService.csi_template.findFirst({
         where: {
           id: csi_id,
-          deleted_at: null
+          deleted_at: null,
         },
       });
       if (!csi) throw new NotFoundException('csi not found!');
@@ -525,28 +510,12 @@ export class EmailProcessor {
       // add csi mail template here
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
     }
   }
 
   @Process('send-reschedule-mail')
-  async sendRescheduleMail(
-    job: Job<{ reschedule_id: number; template_id: number }>,
-  ) {
-    const { reschedule_id, template_id } = job.data;
+  async sendRescheduleMail(job: Job<RescheduleMailInterface>) {
+    const { module_id: reschedule_id, template_id } = job.data;
     try {
       if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
 
@@ -554,8 +523,8 @@ export class EmailProcessor {
         where: {
           id: reschedule_id,
           order: {
-            deleted_at: null
-          }
+            deleted_at: null,
+          },
         },
         include: {
           order: {
@@ -574,8 +543,10 @@ export class EmailProcessor {
       });
 
       if (!reschedule) throw new NotFoundException('Reschedule not found!');
-      if (!reschedule.order) throw new NotFoundException('Reschedule not found!');
-      if (!reschedule.order.m_order_details) throw new NotFoundException('Reschedule not found!');
+      if (!reschedule.order)
+        throw new NotFoundException('Reschedule not found!');
+      if (!reschedule.order.m_order_details)
+        throw new NotFoundException('Reschedule not found!');
       this.logger.log('Reschedule Data : ', reschedule.id);
 
       const message = await this.getMessage(MailType.RESCHEDULE, template_id);
@@ -612,10 +583,6 @@ export class EmailProcessor {
         });
       }
 
-      job.finished();
-
-      job.moveToCompleted();
-
       await this.maillogs(
         reschedule_id,
         message.id,
@@ -629,27 +596,12 @@ export class EmailProcessor {
       );
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          this.logger.warn(`Retry: ${job.attemptsMade}`);
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
     }
   }
 
   @Process('send-refund-mail')
-  async sendRefundMail(job: Job<{ refund_id: number; template_id: number }>) {
-    const { refund_id, template_id } = job.data;
+  async sendRefundMail(job: Job<RefundMailInterface>) {
+    const { module_id: refund_id, template_id } = job.data;
     try {
       if (!refund_id) throw new NotFoundException('refund_id is null!');
 
@@ -677,9 +629,7 @@ export class EmailProcessor {
         },
       });
 
-      if (!refund) throw new NotFoundException('refund not found!');
-      if (!refund.orders) throw new NotFoundException('refund not found!');
-      if (!refund.orders.m_order_details)
+      if (!refund || !refund.orders || !refund.orders.m_order_details)
         throw new NotFoundException('refund not found!');
       this.logger.log('Refund Data : ', refund.id);
 
@@ -717,10 +667,6 @@ export class EmailProcessor {
         });
       }
 
-      job.finished();
-
-      job.moveToCompleted();
-
       await this.maillogs(
         refund_id,
         message.id,
@@ -734,29 +680,12 @@ export class EmailProcessor {
       );
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          this.logger.warn(`Retry: ${job.attemptsMade}`);
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
     }
   }
 
   @Process('send-complaint-mail')
-  async sendComplaintMail(
-    job: Job<{ reschedule_id: number; template_id: number }>,
-  ) {
-    const { reschedule_id, template_id } = job.data;
+  async sendComplaintMail(job: Job<ComplaintMailInterface>) {
+    const { module_id: reschedule_id, template_id } = job.data;
     try {
       if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
 
@@ -764,9 +693,9 @@ export class EmailProcessor {
         where: {
           id: reschedule_id,
           orders: {
-            deleted_at: null
+            deleted_at: null,
           },
-          deleted_at: null
+          deleted_at: null,
         },
         include: {
           complaint_channels: true,
@@ -817,9 +746,6 @@ export class EmailProcessor {
         });
       }
 
-      job.finished();
-      job.moveToCompleted();
-
       await this.maillogs(
         reschedule_id,
         message.id,
@@ -833,21 +759,6 @@ export class EmailProcessor {
       );
     } catch (error) {
       this.logger.error(error);
-      try {
-        if (error instanceof NotFoundException) {
-          this.handleJobFailure(job, error);
-        } else if (error instanceof PrismaClientKnownRequestError) {
-          this.handleJobFailure(job, error);
-        } else {
-          this.logger.warn(`Retry: ${job.attemptsMade}`);
-          job.retry();
-        }
-      } catch (innerError) {
-        this.logger.error(
-          'An error occurred while handling the original error:s',
-          innerError,
-        );
-      }
     }
   }
 

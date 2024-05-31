@@ -122,6 +122,9 @@ export class MemberService {
           join_location_store: true,
           area: true,
           order: {
+            where: {
+              deleted_at: null
+            },
             include: {
               complaints: true,
               store: true,
@@ -160,7 +163,10 @@ export class MemberService {
         where: { id: id },
         include: {
           join_location_store: true,
-          order: {
+          order: {  
+            where: {
+            deleted_at: null
+          },
             include: {
               complaints: true,
               store: true,

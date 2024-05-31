@@ -124,11 +124,12 @@ export class QuotationService {
         quotation_promotion: createQuotationDto?.quotation_promotion,
         quotation_grand_total:
           grandTotal -
-          (createQuotationDto.quotation_disc
+          ((createQuotationDto.quotation_disc
             ? +createQuotationDto.quotation_disc
-            : 0 + createQuotationDto.quotation_promotion
+            : 0) +
+          (createQuotationDto.quotation_promotion
             ? +createQuotationDto.quotation_promotion
-            : 0),
+            : 0)),
         created_by: user_id,
       };
 
@@ -205,6 +206,9 @@ export class QuotationService {
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
+        order: {
+          deleted_at: null,
+        },
       };
       const quotation = await this.dbService.quotation.findMany({
         where,
@@ -223,7 +227,11 @@ export class QuotationService {
           },
           order: {
             include: {
-              m_order_details: true,
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
+              },
               vendor: true,
               store: true,
               members: true,
@@ -257,12 +265,15 @@ export class QuotationService {
 
       const quotationGrandTotal = await this.dbService.quotation
         .aggregate({
+          where,
           _sum: {
             quotation_grand_total: true,
           },
         })
         .then((data) => data._sum.quotation_grand_total);
-      const total = await this.dbService.quotation.count();
+      const total = await this.dbService.quotation.count({
+        where
+      });
 
       return {
         data: quotation,
@@ -287,10 +298,16 @@ export class QuotationService {
         where: {
           id,
           deleted_at: null,
+          order: {
+            deleted_at: null,
+          },
         },
         include: {
           quotation_files: true,
           quotation_details: {
+            where: {
+              deleted_at: null,
+            },
             include: {
               category: true,
             },
@@ -471,11 +488,12 @@ export class QuotationService {
             quotation_promotion: updateQuotationDto?.quotation_promotion,
             quotation_grand_total:
               grandTotal -
-              (updateQuotationDto.quotation_disc
+              ((updateQuotationDto.quotation_disc
                 ? +updateQuotationDto.quotation_disc
-                : 0 + updateQuotationDto.quotation_promotion
+                : 0) +
+              (updateQuotationDto.quotation_promotion
                 ? +updateQuotationDto.quotation_promotion
-                : 0),
+                : 0)),
             updated_by: user_id,
             updated_at: new Date(),
             quotation_files: quotation_files
@@ -491,7 +509,6 @@ export class QuotationService {
           },
         }),
       ]);
-
 
       this.orderService.setStatus(
         quotation.order_id,
