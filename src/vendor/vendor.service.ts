@@ -236,7 +236,11 @@ export class VendorService {
         skip,
         take: take <= 0 ? undefined : take,
         include: {
-          orders: true,
+          orders: {
+            where: {
+              deleted_at: null
+            }
+          },
           tukang: true,
           users: true,
           vendor_area: {
@@ -326,7 +330,11 @@ export class VendorService {
           deleted_at: null,
         },
         include: {
-          orders: true,
+          orders: {
+            where: {
+              deleted_at: null
+            }
+          },
           tukang: true,
           users: true,
           vendor_area: {

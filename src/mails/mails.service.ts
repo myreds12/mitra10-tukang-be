@@ -12,6 +12,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { MailType } from './enum/mail_type.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
+import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
 
 @Injectable()
 export class MailsService {
@@ -114,6 +115,7 @@ export class MailsService {
         terms_detail: true,
         information_detail: true,
         csi_template: true,
+        trigger: true,
       },
     });
 
@@ -139,6 +141,7 @@ export class MailsService {
         terms_detail: true,
         information_detail: true,
         csi_template: true,
+        trigger: true,
       },
     });
 
@@ -319,15 +322,24 @@ export class MailsService {
       const orders = await this.dbService.orders.findMany({
         where: {
           project_status_id: status_id,
+          m_order_details: {
+            some: {}, // Only get order where it have a details
+          },
+          deleted_at: null,
+          deleted_by: null,
         },
       });
 
-      if (orders) {
+      if (orders.length) {
         this.logger.log(
           `Order found for status id ${status_id} [${orders.length}]`,
         );
 
-        const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+        const jobs: {
+          name?: string;
+          data: OrderMailInterface;
+          opts?: JobOptions;
+        }[] = [];
         let delay: number = 5000;
 
         for (let index = 0; index < orders.length; index++) {
@@ -349,7 +361,7 @@ export class MailsService {
             jobs.push({
               name: 'send-order-mail',
               data: {
-                order_id: order.id,
+                module_id: order.id,
                 template_id,
               },
               opts: {
@@ -366,9 +378,7 @@ export class MailsService {
           await this.emailQueue.addBulk(jobs);
         }
       } else {
-        throw new ServiceUnavailableException(
-          `Order not found for status id ${status_id}`,
-        );
+        this.logger.verbose(`Order not found for status id ${status_id}`);
       }
     } catch (error) {
       console.error(error);
@@ -380,10 +390,12 @@ export class MailsService {
     const quotations = await this.dbService.quotation.findMany({
       where: {
         quotation_status: status_id,
+        deleted_at: null,
+        deleted_by: null,
       },
     });
 
-    if (quotations) {
+    if (quotations.length) {
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
 
@@ -420,7 +432,7 @@ export class MailsService {
         await this.emailQueue.addBulk(jobs);
       }
     } else {
-      throw new ServiceUnavailableException(`Quotation not found`);
+      this.logger.verbose(`Quotation not found for status id ${status_id}`);
     }
   }
 
@@ -428,10 +440,12 @@ export class MailsService {
     const complaints = await this.dbService.complaints.findMany({
       where: {
         complaint_status: status_id,
+        deleted_at: null,
+        deleted_by: null,
       },
     });
 
-    if (complaints) {
+    if (complaints.length) {
       this.logger.log(
         `Complaint found for status id ${status_id} [${complaints.length}]`,
       );
@@ -475,9 +489,7 @@ export class MailsService {
         await this.emailQueue.addBulk(jobs);
       }
     } else {
-      throw new ServiceUnavailableException(
-        `Complaint not found for status id ${status_id}`,
-      );
+      this.logger.verbose(`Complaint not found for status id ${status_id}`);
     }
   }
 
@@ -485,10 +497,12 @@ export class MailsService {
     const reschedules = await this.dbService.reschedule.findMany({
       where: {
         status_id: status_id,
+        deleted_at: null,
+        deleted_by: null,
       },
     });
 
-    if (reschedules) {
+    if (reschedules.length) {
       this.logger.log(
         `Reschedule found for status id ${status_id} [${reschedules.length}]`,
       );
@@ -532,9 +546,7 @@ export class MailsService {
         await this.emailQueue.addBulk(jobs);
       }
     } else {
-      throw new ServiceUnavailableException(
-        `Reschedule not found for status id ${status_id}`,
-      );
+      this.logger.verbose(`Reschedule not found for status id ${status_id}`);
     }
   }
 
@@ -542,10 +554,12 @@ export class MailsService {
     const refunds = await this.dbService.refund.findMany({
       where: {
         refund_status: status_id,
+        deleted_at: null,
+        deleted_by: null,
       },
     });
 
-    if (refunds) {
+    if (refunds.length) {
       this.logger.log(
         `Reschedule found for status id ${status_id} [${refunds.length}]`,
       );
@@ -589,9 +603,7 @@ export class MailsService {
         await this.emailQueue.addBulk(jobs);
       }
     } else {
-      throw new ServiceUnavailableException(
-        `Refund not found for status id ${status_id}`,
-      );
+      this.logger.verbose(`Refund not found for status id ${status_id}`);
     }
   }
 
