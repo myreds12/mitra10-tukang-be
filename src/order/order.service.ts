@@ -396,7 +396,6 @@ export class OrderService {
             },
             select: {
               id: true,
-              user_id: true,
               company_name: true,
               address: true,
               phone_number: true,
@@ -526,7 +525,6 @@ export class OrderService {
             },
             select: {
               id: true,
-              user_id: true,
               company_name: true,
               address: true,
               phone_number: true,

@@ -15,10 +15,7 @@ export class RolesService {
         },
       });
 
-      return {
-        status: HttpStatus.CREATED,
-        message: 'Successfully Create',
-      };
+      return roles;
     } catch (error) {
       return {
         status: HttpStatus.BAD_REQUEST,

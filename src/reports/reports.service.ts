@@ -340,7 +340,6 @@ export class ReportsService {
             },
             select: {
               id: true,
-              user_id: true,
               company_name: true,
               address: true,
               phone_number: true,
@@ -448,7 +447,6 @@ export class ReportsService {
         })
         .then((data) => data._sum.grand_total);
       const totalOrdersPerMonth = {};
-      const ordersMonth = {};
       const totalOrderGrandTotalPerMonth = {};
       const totalCompleteOrderPerMonth = {};
       const totalUnpaidOrderPerMonth = {};
@@ -491,7 +489,6 @@ export class ReportsService {
         });
         const grandTotalPerMonth = Number(order.grand_total);
 
-        console.log(order, 'ORDER', order.status.category, 'ORDER STATUS');
 
         if (!totalOrdersPerMonth[month]) {
           totalOrdersPerMonth[month] = 0;
@@ -499,8 +496,6 @@ export class ReportsService {
 
         totalOrdersPerMonth[month]++;
         totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
-        ordersMonth[month] = ordersMonth[month] || [];
-        ordersMonth[month].push(order);
 
         if (order.status.category === statusDone.category) {
           totalCompleteOrderPerMonth[month]++;
@@ -540,15 +535,13 @@ export class ReportsService {
         totalRescheduleOrder: totalRescheduleOrderPerMonth[month] || 0,
         totalRefundOrder: totalRefundOrderPerMonth[month] || 0,
         totalCancelOrder: totalCancelOrderPerMonth[month] || 0,
-        ordersMonth: ordersMonth[month] || [],
       }));
 
       return {
-        data: orders,
+        data: monthlyOrders,
         meta: {
           total: count,
           orderGrandTotal,
-          monthlyOrders,
         },
       };
     } catch (error) {

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -72,7 +72,7 @@ export class VendorService {
       const role = await this.dbService.roles.findFirst({
         where: {
           name: {
-            contains: 'admin vendor',
+            contains: 'owner vendor',
           },
         },
       });
@@ -96,11 +96,6 @@ export class VendorService {
       });
 
       const vendorData: Prisma.vendorCreateInput = {
-        users: {
-          connect: {
-            id: users.id,
-          },
-        },
         max_order: createVendorDto.max_order,
         address: createVendorDto.address,
         pic_name: createVendorDto.pic_name,
@@ -144,6 +139,12 @@ export class VendorService {
           createMany: {
             data: vendorStore,
           },
+        },
+        pic_vendor: {
+          create: {
+            user_id: users.id,
+            pic_name: createVendorDto.pic_name,
+          }
         },
         vendor_bank: {
           create: vendorBankData,
@@ -242,7 +243,15 @@ export class VendorService {
             }
           },
           tukang: true,
-          users: true,
+          pic_vendor: {
+            include: {
+              users: {
+                include: {
+                  roles: true
+                }
+              }
+            }
+          },
           vendor_area: {
             include: {
               area: true,
@@ -336,7 +345,6 @@ export class VendorService {
             }
           },
           tukang: true,
-          users: true,
           vendor_area: {
             include: {
               area: true,
@@ -759,7 +767,7 @@ export class VendorService {
         vendor_service: serviceType,
         vendor_store: servingStore,
         vendor_area: servingArea,
-        username: vendor.users ? vendor.users.username  : '',
+        username: vendor.pic_vendor ? vendor.pic_vendor.map(item => `${item.users.username || 'N/a'}(${item.users.roles.name || 'Tidak Ada Role'})`).join(', ')  : '',
         join_date: formattedDateTime
       });
 

@@ -247,12 +247,12 @@ model users {
   updated_by Int?
   deleted_by Int?
 
-  roles    roles     @relation(fields: [role_id], references: [id])
-  store    store[]
-  sales    sales[]
-  employee employee?
-  vendor   vendor?
-  tukang   tukang[]
+  roles      roles        @relation(fields: [role_id], references: [id])
+  store      store[]
+  sales      sales[]
+  employee   employee?
+  tukang     tukang[]
+  pic_vendor pic_vendor[]
 }
 
 model sales {
@@ -491,8 +491,7 @@ model tukang_service {
 }
 
 model vendor {
-  id      Int  @id @default(autoincrement())
-  user_id Int? @unique
+  id Int @id @default(autoincrement())
 
   pic_name      String    @default("") @db.VarChar(200)
   company_name  String    @db.VarChar(45)
@@ -513,8 +512,6 @@ model vendor {
   updated_by Int?
   deleted_by Int?
 
-  users users? @relation(fields: [user_id], references: [id])
-
   tukang          tukang[]
   vendor_area     vendor_area[]
   vendor_bank     vendor_bank[]
@@ -524,6 +521,25 @@ model vendor {
   work_orders     work_orders[]
   invoices        invoices[]
   vendor_store    vendor_store[]
+  pic_vendor      pic_vendor[]
+}
+
+model pic_vendor {
+  id            Int       @id @default(autoincrement())
+  vendor_id     Int
+  user_id       Int
+  pic_name      String    @default("") @db.VarChar(200)
+  email_address String    @default("") @db.VarChar(100)
+  created_at    DateTime  @default(now()) @db.DateTime()
+  updated_at    DateTime? @db.DateTime()
+  deleted_at    DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  users  users  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor vendor @relation(fields: [vendor_id], references: [id])
 }
 
 model vendor_store {

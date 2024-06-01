@@ -181,14 +181,14 @@ export class EmailProcessor {
           adminHo,
         ).filter(email => email);
 
-      if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
-        const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
-        console.log(tukangEmail, "EMAIL TUKANG");
+      // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
+      //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
+      //   console.log(tukangEmail, "EMAIL TUKANG");
 
-        if (tukangEmail) {
-          defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
-        }
-      }
+      //   if (tukangEmail) {
+      //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
+      //   }
+      // }
 
       const uniqueBcc = [...new Set(defaultBcc)];
 
@@ -250,7 +250,7 @@ export class EmailProcessor {
         },
         include: {
           employee: true,
-          vendor: true,
+          pic_vendor: true,
           sales: true,
           tukang: true,
         },
@@ -263,7 +263,7 @@ export class EmailProcessor {
       let to = users.username.includes('@')
         ? users.username
         : users.employee?.email ??
-        users.vendor?.email_address ??
+        users.pic_vendor[0]?.email_address ??
         users.tukang[0]?.email ??
         'example@example.com';
       console.log(to);
@@ -313,7 +313,7 @@ export class EmailProcessor {
         },
         include: {
           employee: true,
-          vendor: true,
+          pic_vendor: true,
           store: true,
           sales: true,
           tukang: true,
@@ -325,7 +325,7 @@ export class EmailProcessor {
       const to =
         userEmail ||
         users.employee?.email ||
-        users.vendor?.email_address ||
+        users.pic_vendor[0]?.email_address ||
         users.tukang[0]?.email ||
         users.store[0]?.email ||
         'example@example.com';

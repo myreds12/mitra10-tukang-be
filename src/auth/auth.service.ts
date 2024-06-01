@@ -41,7 +41,23 @@ export class AuthService {
 
       const [createUser] = await this.dbService.$transaction([
         this.dbService.users.create({
-          data: { ...dto, role_id: role_id ?? 2 },
+          data: { ...dto, role_id: role_id ?? 2,
+            //FIXME: CHECK THIS CODE
+            ...(dto.vendor_id ? {
+                pic_vendor: {
+                  create: {
+                    pic_name: dto.pic_name,
+                    vendor: {
+                      connect: {
+                        id: dto.vendor_id
+                      }
+                    },
+                    email_address: dto.email
+                  }
+                }
+            } : undefined)
+           },
+          
         }),
       ]);
 
@@ -147,7 +163,11 @@ export class AuthService {
               },
             },
           },
-          vendor: true,
+          pic_vendor: {
+            include: {
+              vendor: true
+            }
+          },
         },
       });
       console.log(user, dto.username);
@@ -351,7 +371,11 @@ export class AuthService {
           roles: true,
           sales: true,
           tukang: true,
-          vendor: true,
+          pic_vendor: {
+            include: {
+              vendor: true
+            }
+          },
         },
         orderBy: {
           created_at: 'desc',
@@ -384,7 +408,11 @@ export class AuthService {
           sales: true,
           store: true,
           tukang: true,
-          vendor: true,
+          pic_vendor: {
+            include: {
+              vendor: true
+            }
+          }
         },
       });
 
