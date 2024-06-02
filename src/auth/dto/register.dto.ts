@@ -12,6 +12,8 @@ export class CreateRegisterDto {
   @IsNotEmpty()
   password: string;
 
+
+  //FIXME: CHECK THIS CODE 
   @ApiProperty()
   @IsOptional()
   vendor_id?: number;

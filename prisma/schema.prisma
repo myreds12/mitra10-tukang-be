@@ -101,6 +101,42 @@ model items {
   quotation_details quotation_details[]
 }
 
+//FIXME: CHECK THIS MODEL
+model promotion {
+  id             Int     @id @default(autoincrement())
+  min_order      Decimal @default(0) @db.Decimal(32, 2)
+  promotion      Decimal @default(0) @db.Decimal(32, 2)
+  promotion_type Int?    @default(1) // 1 = Percentage, 2 = Nominal
+
+  created_at DateTime? @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by       Int?
+  updated_by       Int?
+  deleted_by       Int?
+  quotation        quotation[]
+  promotion_stores promotion_stores[]
+}
+
+model promotion_stores {
+  id Int @id @default(autoincrement())
+
+  promotion_id Int
+  store_id     Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  store     store     @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  promotion promotion @relation(fields: [promotion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
 model logs {
   id          Int       @id @default(autoincrement())
   module_type String?   @db.VarChar(255)
@@ -287,6 +323,36 @@ model sales {
   sales_brands     sales_brands[]
   sales_categories sales_categories[]
   m_order_details  m_order_details[]
+  sales_incentive  sales_incentive[]
+}
+
+//FIXME: CHECK THIS MODEL
+model setting_incentive {
+  id             Int     @id @default(autoincrement())
+  min_order      Decimal @default(0) @db.Decimal(32, 2)
+  insentive      Decimal @default(0) @db.Decimal(32, 2)
+  insentive_type Int?    @default(1) // 1 = Percentage, 2 = Nominal
+
+  created_at DateTime? @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by      Int?
+  updated_by      Int?
+  deleted_by      Int?
+  sales_incentive sales_incentive[]
+}
+
+model sales_incentive {
+  id           Int @id @default(autoincrement())
+  incentive_id Int
+  sales_id     Int
+  quotation_id Int
+
+  quotation quotation         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
+  sales     sales             @relation(fields: [sales_id], references: [id])
+  notes     String            @db.Text()
 }
 
 model brands {
@@ -384,11 +450,12 @@ model store {
   quotation quotation[]
   members   members[]
 
-  area         area?          @relation(fields: [area_id], references: [id])
-  store_group  store_group?   @relation(fields: [store_group_id], references: [id])
-  price_stores price_stores[]
-  vendor_store vendor_store[]
-  users        users?         @relation(fields: [user_id], references: [id])
+  area             area?              @relation(fields: [area_id], references: [id])
+  store_group      store_group?       @relation(fields: [store_group_id], references: [id])
+  price_stores     price_stores[]
+  vendor_store     vendor_store[]
+  users            users?             @relation(fields: [user_id], references: [id])
+  promotion_stores promotion_stores[]
 }
 
 // model group {
@@ -524,6 +591,7 @@ model vendor {
   pic_vendor      pic_vendor[]
 }
 
+//FIXME: CHECK THIS MODEL
 model pic_vendor {
   id            Int       @id @default(autoincrement())
   vendor_id     Int
@@ -837,11 +905,12 @@ model categories {
 model quotation {
   id Int @id @default(autoincrement())
 
-  store_id         Int @db.Int
-  order_id         Int @db.Int
+  store_id         Int  @db.Int
+  order_id         Int  @db.Int
+  promotion_id     Int?
   quotation_status Int
-  readiness        Int @default(1) @db.TinyInt()
-  emailSended      Int @default(0)
+  readiness        Int  @default(1) @db.TinyInt()
+  emailSended      Int  @default(0)
 
   description           String   @db.Text()
   quotation_number      String
@@ -862,9 +931,11 @@ model quotation {
   store             store               @relation(fields: [store_id], references: [id])
   order             orders              @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   status            status              @relation(fields: [quotation_status], references: [id])
+  promotion         promotion?          @relation(fields: [promotion_id], references: [id])
   quotation_files   quotation_files[]
   quotation_details quotation_details[]
   invoice_details   invoice_details[]
+  sales_incentive   sales_incentive[]
 }
 
 model quotation_details {

@@ -11,6 +11,8 @@ import {
   Res,
   Query,
   BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sales.dto';
@@ -21,6 +23,7 @@ import { sales } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { FileInterceptor } from '@nestjs/platform-express';
 @ApiTags('Sales')
 @Controller('sales')
 @UseGuards(JwtAuthGuard)
@@ -38,6 +41,18 @@ export class SalesController {
     }
 
     return await this.salesService.salesExportExcel(res, query);
+  }
+
+  @Post('/upload-excel-sales')
+  @UseInterceptors(FileInterceptor('excel_file'))
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    return await this.salesService.synchronizeExcelComission(file);
+  }
+
+  @Get('/export-excel-template')
+  @UseGuards()
+  async salesExportTemplateExcel(@Res() res: Response) {
+    return await this.salesService.templateDefaultExcel(res);
   }
 
   @Get('next-code')

@@ -19,7 +19,7 @@ export class SalesService {
     private readonly dbService: PrismaService,
     private readonly authService: AuthService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   async getCode() {
     try {
@@ -101,17 +101,17 @@ export class SalesService {
         },
         bank: bank
           ? {
-              connect: {
-                id: createSalesDto.bank_id,
-              },
-            }
+            connect: {
+              id: createSalesDto.bank_id,
+            },
+          }
           : undefined,
         sales_categories: sales_categories?.length
           ? {
-              createMany: {
-                data: sales_categories,
-              },
-            }
+            createMany: {
+              data: sales_categories,
+            },
+          }
           : undefined,
         users: {
           connectOrCreate: {
@@ -121,8 +121,8 @@ export class SalesService {
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                  .toLowerCase()
-                  .replace(/ /g, '_')}`,
+                    .toLowerCase()
+                    .replace(/ /g, '_')}`,
               id: 0,
             },
             create: {
@@ -131,8 +131,8 @@ export class SalesService {
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                  .toLowerCase()
-                  .replace(/ /g, '_')}`,
+                    .toLowerCase()
+                    .replace(/ /g, '_')}`,
               password: saltedPassword,
               role_id: SALES_ROLES.id,
             },
@@ -184,39 +184,39 @@ export class SalesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { full_name: { contains: search } },
-                    { sales_brand: { contains: search } },
-                    {
-                      sales_categories: {
-                        some: {
-                          categories: { category_name: { contains: search } },
-                        },
+              {
+                OR: [
+                  { full_name: { contains: search } },
+                  { sales_brand: { contains: search } },
+                  {
+                    sales_categories: {
+                      some: {
+                        categories: { category_name: { contains: search } },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
+              {
+                store_id: {
+                  in: store_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(date_to),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -240,11 +240,11 @@ export class SalesService {
         orderBy: {
           ...(top_best === true
             ? {
-                order_total: 'desc',
-              }
+              order_total: 'desc',
+            }
             : {
-                created_at: order_by,
-              }),
+              created_at: order_by,
+            }),
         },
         include: {
           bank: true,
@@ -358,31 +358,31 @@ export class SalesService {
       const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
         updateSalesDto.sales_categories
           ? updateSalesDto.sales_categories.map(
-              ({ id, category_id, commission }) => ({
-                where: {
-                  id: id ?? 0,
-                  category_id,
-                },
-                update: {
-                  category_id,
-                  commission,
-                  updated_at: new Date(),
-                  updated_by: user_id,
-                },
-                create: {
-                  category_id,
-                  commission,
-                  created_at: new Date(),
-                  created_by: user_id,
-                },
-              }),
-            )
+            ({ id, category_id, commission }) => ({
+              where: {
+                id: id ?? 0,
+                category_id,
+              },
+              update: {
+                category_id,
+                commission,
+                updated_at: new Date(),
+                updated_by: user_id,
+              },
+              create: {
+                category_id,
+                commission,
+                created_at: new Date(),
+                created_by: user_id,
+              },
+            }),
+          )
           : undefined;
 
       const salesUsername = updateSalesDto.full_name
         ? `${updateSalesDto.full_name
-            .toLowerCase()
-            .replace(/ /g, '_')}_${sales.store.store_name
+          .toLowerCase()
+          .replace(/ /g, '_')}_${sales.store.store_name
             .toLowerCase()
             .replace(/ /g, '_')}`
         : sales?.users?.username;
@@ -406,21 +406,21 @@ export class SalesService {
         },
         ...(updateSalesDto.bank_id
           ? {
-              bank: {
-                connect: {
-                  id: updateSalesDto.bank_id,
-                },
+            bank: {
+              connect: {
+                id: updateSalesDto.bank_id,
               },
-            }
+            },
+          }
           : undefined),
         ...(updateSalesDto.store_id
           ? {
-              store: {
-                connect: {
-                  id: updateSalesDto.store_id,
-                },
+            store: {
+              connect: {
+                id: updateSalesDto.store_id,
               },
-            }
+            },
+          }
           : undefined),
         account_name: updateSalesDto.account_name,
         account_number: updateSalesDto.account_number,
@@ -573,6 +573,137 @@ export class SalesService {
     }
   }
 
+  async templateDefaultExcel(res: Response) {
+    try {
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Template Sales Comission', {
+        properties: {
+          tabColor: { argb: 'FF4CAF50' },
+          outlineLevelCol: 6,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 0.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Sales Id', key: 'id', width: 35 },
+        { header: 'Order Id', key: 'order_id', width: 35 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/sales';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res: Response) => {
+        const baseName = 'TemplateExcelSales';
+        const excelFilePath = createExcelFilePath(baseName);
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      await generateExcelFile(res);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  //FIXME: CHECK THIS CODE
+  async synchronizeExcelComission(excelFile: Express.Multer.File) {
+    try {
+      const workbook = new exceljs.Workbook();
+      await workbook.xlsx.readFile(excelFile.path);
+
+      const worksheet = workbook.worksheets[0];
+      const salesOrderPairs = [];
+
+      // Loop through each row in the worksheet to gather salesId and orderId pairs
+      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+        const [sales_id, order_id] = [
+          worksheet.getCell(`A${rowNumber}`).value,
+          worksheet.getCell(`B${rowNumber}`).value
+        ];
+        if (sales_id && order_id) {
+          salesOrderPairs.push({ salesId: sales_id, orderId: order_id });
+        }
+      }
+
+      
+
+      // Update commission status in the database
+      const where = {
+        id: { in: salesOrderPairs.map(pair => pair.orderId) },
+        sales_id: { in: salesOrderPairs.map(pair => pair.salesId) }
+      };
+
+
+      // Update commission status in the database
+      const updateSales = await this.dbService.orders.updateMany({
+        where,
+        data: {
+          grand_total_comission: { increment: 20 }
+        }
+      });
+
+      console.log(`Updated commission_paid to true for ${updateSales.count} orders`);
+
+      return updateSales;
+    } catch (error) {
+      console.error('Error synchronizing commission status:', error);
+      throw error;
+    }
+  }
+
   async salesExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const { data } = await this.findAll(queryParams);
@@ -631,8 +762,8 @@ export class SalesService {
       data.forEach((sales) => {
         const salesCategories = sales.sales_categories
           ? sales.sales_categories
-              .map((category) => category.categories.category_name)
-              .join(',')
+            .map((category) => category.categories.category_name)
+            .join(',')
           : '';
         const dateTime = new Date(sales.created_at);
         const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {

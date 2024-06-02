@@ -24,11 +24,10 @@ export class VendorService {
   ) {
     try {
       const { id: user_id } = user;
-
       const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
-        ? Object.entries(files).map((file) => {
-            if (file[1].length) {
-              const newFile = file[1].map((item) => ({
+      ? Object.entries(files).map((file) => {
+        if (file[1].length) {
+          const newFile = file[1].map((item) => ({
                 document_name: file[0],
                 path: item.filename,
                 created_by: user_id,
@@ -37,20 +36,20 @@ export class VendorService {
               return newFile;
             }
           })
-        : undefined;
-
-      const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
-        createVendorDto.area_id
-          ? createVendorDto.area_id.map((area_id) => ({
-              area_id,
-              default_discount: createVendorDto.discount,
-              default_markup: createVendorDto.markup,
-              created_by: user_id,
-            }))
           : undefined;
-
-      const vendorBankData: Prisma.vendor_bankCreateInput = {
-        account_name: createVendorDto.account_name,
+          
+          const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
+          createVendorDto.area_id
+          ? createVendorDto.area_id.map((area_id) => ({
+            area_id,
+            default_discount: createVendorDto.discount,
+            default_markup: createVendorDto.markup,
+            created_by: user_id,
+          }))
+          : undefined;
+          
+          const vendorBankData: Prisma.vendor_bankCreateInput = {
+            account_name: createVendorDto.account_name,
         account_number: createVendorDto.account_number,
         bank: {
           connect: {
@@ -61,14 +60,15 @@ export class VendorService {
       };
 
       const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
-        createVendorDto.service_type_id
-          ? createVendorDto.service_type_id.map((item) => {
-              return {
-                service_type_id: item,
-              };
-            })
-          : undefined;
-
+      createVendorDto.service_type_id
+      ? createVendorDto.service_type_id.map((item) => {
+        return {
+          service_type_id: item,
+        };
+      })
+      : undefined;
+      
+      //FIXME: CHECK THIS CODE
       const role = await this.dbService.roles.findFirst({
         where: {
           name: {

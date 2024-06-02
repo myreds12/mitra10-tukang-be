@@ -20,7 +20,7 @@ export class QuotationService {
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   private readonly logger = new Logger(QuotationService.name);
 
@@ -37,9 +37,9 @@ export class QuotationService {
       const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
         quotation_files
           ? quotation_files.map((item) => ({
-              path: item.filename,
-              created_by: user_id,
-            }))
+            path: item.filename,
+            created_by: user_id,
+          }))
           : undefined;
 
       const statusForEmail = await this.dbService.status.findFirst({
@@ -49,6 +49,10 @@ export class QuotationService {
           },
         },
       });
+
+      const promotion = (await this.dbService.promotion.findMany()).sort();
+      const salesInsentive = await this.dbService.sales_insentive.findMany()
+
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
@@ -88,7 +92,59 @@ export class QuotationService {
             final_price: final_price ?? 0,
           };
         });
-      if (grandTotal >= 500000) comission = (grandTotal * 2.5) / 100;
+      //FIXME: CHECK THIS CODE
+
+      const calculateSalesIncentive = (salesIncentives, grandTotal) => {
+        if (!salesIncentives || salesIncentives.length === 0) {
+          return 0;
+        }
+      
+        const closestIncentive = salesIncentives.reduce((closest, current) =>
+          Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
+            ? current
+            : closest
+        );
+      
+      
+        if (closestIncentive) {
+          if (closestIncentive.insentive_type === 1) {
+            // Percentage incentive
+            comission = (grandTotal * closestIncentive.insentive) / 100;
+          } else if (closestIncentive.insentive_type === 2) {
+            // Nominal incentive
+            comission = closestIncentive.insentive;
+          }
+        }
+      
+        return comission;
+      };
+
+      const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
+
+
+      const findClosestPromotion = (promotion, grandTotal) => {
+        return promotion.reduce((closest, current) =>
+          Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
+            ? current
+            : closest
+        );
+      };
+      const closestPromotion = findClosestPromotion(promotion, grandTotal);
+
+      if (closestPromotion) {
+        if (closestPromotion.promotion_type === 1) {
+          grandTotal -= grandTotal * (closestPromotion.promotion / 100);
+        } else if (closestPromotion.promotion_type === 2) {
+          grandTotal -= closestPromotion.promotion;
+        }
+      }
+
+      console.log(closestPromotion, "PROMOTION");
+
+
+      // if (grandTotal >= 500000) comission = (grandTotal * 2.5) / 100;
+
+      
 
       console.log(quotaionDetails, 'QUOTATION DETAILS');
 
@@ -105,6 +161,11 @@ export class QuotationService {
           connect: {
             id: createQuotationDto.order_id,
           },
+        },
+        promotion: {
+          connect: {
+            id: closestPromotion.id
+          }
         },
         store: {
           connect: {
@@ -124,12 +185,9 @@ export class QuotationService {
         quotation_promotion: createQuotationDto?.quotation_promotion,
         quotation_grand_total:
           grandTotal -
-          ((createQuotationDto.quotation_disc
+          (createQuotationDto.quotation_disc
             ? +createQuotationDto.quotation_disc
-            : 0) +
-          (createQuotationDto.quotation_promotion
-            ? +createQuotationDto.quotation_promotion
-            : 0)),
+            : 0),
         created_by: user_id,
       };
 
@@ -158,7 +216,7 @@ export class QuotationService {
             id: createQuotationDto.order_id,
           },
           data: {
-            grand_total_comission: comission ?? undefined,
+            grand_total_comission: {increment: comission} ?? undefined,
           },
         }),
       ]);
@@ -185,24 +243,24 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      order: { vendor: { company_name: { contains: search } } },
-                    },
-                    { store: { store_name: { contains: search } } },
-                    { quotation_number: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  {
+                    order: { vendor: { company_name: { contains: search } } },
+                  },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -218,6 +276,7 @@ export class QuotationService {
           created_at: order_by,
         },
         include: {
+          promotion: true,
           quotation_files: true,
           quotation_details: {
             include: {
@@ -303,6 +362,7 @@ export class QuotationService {
           },
         },
         include: {
+          promotion: true,
           quotation_files: true,
           quotation_details: {
             where: {
@@ -397,9 +457,9 @@ export class QuotationService {
 
             final_price = Number(
               price * quantity +
-                (item.margin_type === MarginType.PERCENTAGE
-                  ? price * quantity * (+item.margin / 100)
-                  : +item.margin),
+              (item.margin_type === MarginType.PERCENTAGE
+                ? price * quantity * (+item.margin / 100)
+                : +item.margin),
             );
           }
 
@@ -469,10 +529,10 @@ export class QuotationService {
           data: {
             status: updateQuotationDto?.quotation_status
               ? {
-                  connect: {
-                    id: updateQuotationDto.quotation_status,
-                  },
-                }
+                connect: {
+                  id: updateQuotationDto.quotation_status,
+                },
+              }
               : undefined,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
@@ -491,17 +551,17 @@ export class QuotationService {
               ((updateQuotationDto.quotation_disc
                 ? +updateQuotationDto.quotation_disc
                 : 0) +
-              (updateQuotationDto.quotation_promotion
-                ? +updateQuotationDto.quotation_promotion
-                : 0)),
+                (updateQuotationDto.quotation_promotion
+                  ? +updateQuotationDto.quotation_promotion
+                  : 0)),
             updated_by: user_id,
             updated_at: new Date(),
             quotation_files: quotation_files
               ? {
-                  createMany: {
-                    data: evidence,
-                  },
-                }
+                createMany: {
+                  data: evidence,
+                },
+              }
               : undefined,
             quotation_details: {
               upsert: quotationDetailsUpsert,
@@ -733,7 +793,7 @@ export class QuotationService {
       worksheet.columns = [
         { header: 'Quotation Id', key: 'id', width: 10 },
         { header: 'Order Id', key: 'order_id', width: 25 },
-        { header: 'Jenis Jasa', key: 'item_name', width: 50},
+        { header: 'Jenis Jasa', key: 'item_name', width: 50 },
         { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
         { header: 'Unit Jasa', key: 'item_unit', width: 50 },
         { header: 'Material yang Dibutuhkan', key: 'work_order_items', width: 50 },

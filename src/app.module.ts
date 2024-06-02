@@ -43,6 +43,8 @@ import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 import { BullModule } from '@nestjs/bull';
 import { MailsModule } from './mails/mails.module';
+import { PromotionModule } from './promotion/promotion.module';
+import { SettingIncentiveModule } from './setting-incentive/setting-incentive.module';
 
 @Module({
   imports: [
@@ -138,6 +140,8 @@ import { MailsModule } from './mails/mails.module';
       }),
       inject: [ConfigService],
     }),
+    PromotionModule,
+    SettingIncentiveModule,
   ],
   controllers: [AppController],
   providers: [AppService],
