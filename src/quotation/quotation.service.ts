@@ -51,7 +51,7 @@ export class QuotationService {
       });
 
       const promotion = (await this.dbService.promotion.findMany()).sort();
-      const salesInsentive = await this.dbService.sales_insentive.findMany()
+      // const salesInsentive = await this.dbService.sales_insentive.findMany()
 
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
@@ -94,32 +94,32 @@ export class QuotationService {
         });
       //FIXME: CHECK THIS CODE
 
-      const calculateSalesIncentive = (salesIncentives, grandTotal) => {
-        if (!salesIncentives || salesIncentives.length === 0) {
-          return 0;
-        }
+      // const calculateSalesIncentive = (salesIncentives, grandTotal) => {
+      //   if (!salesIncentives || salesIncentives.length === 0) {
+      //     return 0;
+      //   }
       
-        const closestIncentive = salesIncentives.reduce((closest, current) =>
-          Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
-            ? current
-            : closest
-        );
+      //   const closestIncentive = salesIncentives.reduce((closest, current) =>
+      //     Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
+      //       ? current
+      //       : closest
+      //   );
       
       
-        if (closestIncentive) {
-          if (closestIncentive.insentive_type === 1) {
-            // Percentage incentive
-            comission = (grandTotal * closestIncentive.insentive) / 100;
-          } else if (closestIncentive.insentive_type === 2) {
-            // Nominal incentive
-            comission = closestIncentive.insentive;
-          }
-        }
+      //   if (closestIncentive) {
+      //     if (closestIncentive.insentive_type === 1) {
+      //       // Percentage incentive
+      //       comission = (grandTotal * closestIncentive.insentive) / 100;
+      //     } else if (closestIncentive.insentive_type === 2) {
+      //       // Nominal incentive
+      //       comission = closestIncentive.insentive;
+      //     }
+      //   }
       
-        return comission;
-      };
+      //   return comission;
+      // };
 
-      const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
+      // const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
 
 
       const findClosestPromotion = (promotion, grandTotal) => {

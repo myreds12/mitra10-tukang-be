@@ -326,35 +326,6 @@ model sales {
   sales_incentive  sales_incentive[]
 }
 
-//FIXME: CHECK THIS MODEL
-model setting_incentive {
-  id             Int     @id @default(autoincrement())
-  min_order      Decimal @default(0) @db.Decimal(32, 2)
-  insentive      Decimal @default(0) @db.Decimal(32, 2)
-  insentive_type Int?    @default(1) // 1 = Percentage, 2 = Nominal
-
-  created_at DateTime? @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
-  sales_incentive sales_incentive[]
-}
-
-model sales_incentive {
-  id           Int @id @default(autoincrement())
-  incentive_id Int
-  sales_id     Int
-  quotation_id Int
-
-  quotation quotation         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
-  sales     sales             @relation(fields: [sales_id], references: [id])
-  notes     String            @db.Text()
-}
-
 model brands {
   id Int @id @default(autoincrement())
 
@@ -456,6 +427,7 @@ model store {
   vendor_store     vendor_store[]
   users            users?             @relation(fields: [user_id], references: [id])
   promotion_stores promotion_stores[]
+  incentive_store  incentive_store[]
 }
 
 // model group {
@@ -1530,4 +1502,56 @@ model mail_logs {
   createdAt DateTime @default(now()) @db.DateTime()
 
   emailMessages email_messages? @relation(fields: [emailMessageId], references: [id])
+}
+
+model setting_incentive {
+  id Int @id @default(autoincrement())
+
+  name      String  @default("") @db.VarChar(255)
+  min_order Decimal @default(0) @map("minOrder") @db.Decimal(32, 2)
+  incentive Decimal @default(0) @db.Decimal(32, 2)
+  type      Int?    @default(1) // 1 = Percentage, 2 = Nominal
+
+  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
+  updated_at DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+
+  created_by Int? @map("createdBy")
+  updated_by Int? @map("updatedBy")
+  deleted_by Int? @map("deletedBy")
+
+  salesIncentive sales_incentive[]
+  stores         incentive_store[]
+}
+
+model sales_incentive {
+  id           Int @id @default(autoincrement())
+  incentive_id Int @map("incentiveId")
+  sales_id     Int @map("salesId")
+  quotation_id Int @map("quotation_id")
+
+  nominal Decimal @default(0) @db.Decimal(32, 2)
+  status  Int     @default(0) @db.Int()
+  notes   String  @db.Text()
+
+  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
+  updated_at DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+
+  created_by Int? @map("createdBy")
+  updated_by Int? @map("updatedBy")
+  deleted_by Int? @map("deletedBy")
+
+  quotation quotation         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
+  sales     sales             @relation(fields: [sales_id], references: [id])
+}
+
+model incentive_store {
+  id           Int @id @default(autoincrement())
+  store_id     Int @map("storeId")
+  incentive_id Int @map("incentiveId")
+
+  store     store             @relation(fields: [store_id], references: [id])
+  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
 }

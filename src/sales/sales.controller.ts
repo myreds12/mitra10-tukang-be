@@ -45,8 +45,8 @@ export class SalesController {
 
   @Post('/upload-excel-sales')
   @UseInterceptors(FileInterceptor('excel_file'))
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    return await this.salesService.synchronizeExcelComission(file);
+  async syncSalesCommission(@UploadedFile() file: Express.Multer.File) {
+    return await this.salesService.syncSalesCommission(file);
   }
 
   @Get('/export-excel-template')

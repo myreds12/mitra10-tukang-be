@@ -659,7 +659,7 @@ export class SalesService {
   }
 
   //FIXME: CHECK THIS CODE
-  async synchronizeExcelComission(excelFile: Express.Multer.File) {
+  async syncSalesCommission(excelFile: Express.Multer.File) {
     try {
       const workbook = new exceljs.Workbook();
       await workbook.xlsx.readFile(excelFile.path);
