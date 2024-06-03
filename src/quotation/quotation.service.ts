@@ -50,8 +50,16 @@ export class QuotationService {
         },
       });
 
-      const promotion = (await this.dbService.promotion.findMany()).sort();
-      // const salesInsentive = await this.dbService.sales_insentive.findMany()
+      const promotion = (await this.dbService.promotion.findMany({
+        include: {
+          promotion_stores: {
+            include: {
+              store: true
+            }
+          }
+        }
+      })).sort();
+      const salesInsentive = await this.dbService.sales_incentive.findMany()
 
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
@@ -94,57 +102,67 @@ export class QuotationService {
         });
       //FIXME: CHECK THIS CODE
 
-      // const calculateSalesIncentive = (salesIncentives, grandTotal) => {
-      //   if (!salesIncentives || salesIncentives.length === 0) {
-      //     return 0;
-      //   }
-      
-      //   const closestIncentive = salesIncentives.reduce((closest, current) =>
-      //     Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
-      //       ? current
-      //       : closest
-      //   );
-      
-      
-      //   if (closestIncentive) {
-      //     if (closestIncentive.insentive_type === 1) {
-      //       // Percentage incentive
-      //       comission = (grandTotal * closestIncentive.insentive) / 100;
-      //     } else if (closestIncentive.insentive_type === 2) {
-      //       // Nominal incentive
-      //       comission = closestIncentive.insentive;
-      //     }
-      //   }
-      
-      //   return comission;
-      // };
+      if (salesInsentive.length > 0) {
+        const calculateSalesIncentive = (salesIncentives, grandTotal) => {
+          const closestIncentive = salesIncentives.reduce((closest, current) =>
+            Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
+              ? current
+              : closest
+          );
 
-      // const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
+          if (closestIncentive) {
+            if (closestIncentive.insentive_type === 1) {
+              comission = (grandTotal * closestIncentive.insentive) / 100;
+            } else if (closestIncentive.insentive_type === 2) {
+              comission = closestIncentive.insentive;
+            }
+          }
+
+          return comission;
+        };
+
+        const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
+      }
 
 
-      const findClosestPromotion = (promotion, grandTotal) => {
-        return promotion.reduce((closest, current) =>
-          Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
-            ? current
-            : closest
+      const findClosestPromotion = (promotions, grandTotal, storeId) => {
+        const filteredPromotions = promotions.filter(promotion =>
+            promotion.promotion_stores.some(promotion_store => promotion_store.store_id === storeId)
         );
-      };
-      const closestPromotion = findClosestPromotion(promotion, grandTotal);
+    
+        return filteredPromotions.length > 0 ?
+            filteredPromotions.reduce((closest, current) =>
+                Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
+                    ? current
+                    : closest
+            ) :
+            null;
+    };
+      const closestPromotion = findClosestPromotion(promotion, grandTotal, createQuotationDto.store_id);
+
+      console.log(closestPromotion, "CLOSEST PROMOTION");
+      
 
       if (closestPromotion) {
-        if (closestPromotion.promotion_type === 1) {
-          grandTotal -= grandTotal * (closestPromotion.promotion / 100);
-        } else if (closestPromotion.promotion_type === 2) {
-          grandTotal -= closestPromotion.promotion;
+        if (closestPromotion.promotion_stores.some(promotion_store => promotion_store.store_id === createQuotationDto.store_id)) {
+          if (closestPromotion.promotion_type === 1) {
+            grandTotal -= grandTotal * (closestPromotion.promotion / 100);
+          } else if (closestPromotion.promotion_type === 2) {
+            grandTotal -= closestPromotion.promotion;
+          }
+        } else {
+          grandTotal -= 0;
         }
       }
+
+
 
       console.log(closestPromotion, "PROMOTION");
 
 
       // if (grandTotal >= 500000) comission = (grandTotal * 2.5) / 100;
 
-      
+
 
       console.log(quotaionDetails, 'QUOTATION DETAILS');
 
@@ -162,11 +180,13 @@ export class QuotationService {
             id: createQuotationDto.order_id,
           },
         },
-        promotion: {
-          connect: {
-            id: closestPromotion.id
-          }
-        },
+        ...(closestPromotion ? {
+          promotion: {
+              connect: {
+              id: closestPromotion.id 
+            }
+          },
+        }: undefined),
         store: {
           connect: {
             id: createQuotationDto.store_id,
@@ -216,7 +236,7 @@ export class QuotationService {
             id: createQuotationDto.order_id,
           },
           data: {
-            grand_total_comission: {increment: comission} ?? undefined,
+            grand_total_comission: { increment: comission } ?? undefined,
           },
         }),
       ]);
