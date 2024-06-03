@@ -8,7 +8,7 @@ import {
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { compare, hash } from 'bcrypt';
+import { compare, hash, hashSync } from 'bcrypt';
 import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
@@ -23,7 +23,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     try {
@@ -41,23 +41,26 @@ export class AuthService {
 
       const [createUser] = await this.dbService.$transaction([
         this.dbService.users.create({
-          data: { ...dto, role_id: role_id ?? 2,
+          data: {
+            username: dto.username,
+            password: await hashSync(dto.password, 12),
+            role_id: role_id ?? 2,
             //FIXME: CHECK THIS CODE
             ...(dto.vendor_id ? {
-                pic_vendor: {
-                  create: {
-                    pic_name: dto.pic_name,
-                    vendor: {
-                      connect: {
-                        id: dto.vendor_id
-                      }
-                    },
-                    email_address: dto.email
-                  }
+              pic_vendor: {
+                create: {
+                  pic_name: dto.pic_name,
+                  vendor: {
+                    connect: {
+                      id: dto.vendor_id
+                    }
+                  },
+                  email_address: dto.email
                 }
+              }
             } : undefined)
-           },
-          
+          },
+
         }),
       ]);
 
@@ -231,7 +234,7 @@ export class AuthService {
       if (
         user.forget_password &&
         new Date(user.forget_password) <
-          new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
       ) {
         await this.dbService.users.update({
           where: {
@@ -342,20 +345,20 @@ export class AuthService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [{ username: { contains: search } }],
-                },
-              ]
+              {
+                OR: [{ username: { contains: search } }],
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
