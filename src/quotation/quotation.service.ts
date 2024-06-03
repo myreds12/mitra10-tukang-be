@@ -20,7 +20,7 @@ export class QuotationService {
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
 
   private readonly logger = new Logger(QuotationService.name);
 
@@ -37,9 +37,9 @@ export class QuotationService {
       const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
         quotation_files
           ? quotation_files.map((item) => ({
-            path: item.filename,
-            created_by: user_id,
-          }))
+              path: item.filename,
+              created_by: user_id,
+            }))
           : undefined;
 
       const statusForEmail = await this.dbService.status.findFirst({
@@ -50,17 +50,18 @@ export class QuotationService {
         },
       });
 
-      const promotion = (await this.dbService.promotion.findMany({
-        include: {
-          promotion_stores: {
-            include: {
-              store: true
-            }
-          }
-        }
-      })).sort();
-      const salesInsentive = await this.dbService.sales_incentive.findMany()
-
+      const promotion = (
+        await this.dbService.promotion.findMany({
+          include: {
+            promotion_stores: {
+              include: {
+                store: true,
+              },
+            },
+          },
+        })
+      ).sort();
+      const salesInsentive = await this.dbService.sales_incentive.findMany();
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
@@ -105,9 +106,10 @@ export class QuotationService {
       if (salesInsentive.length > 0) {
         const calculateSalesIncentive = (salesIncentives, grandTotal) => {
           const closestIncentive = salesIncentives.reduce((closest, current) =>
-            Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
+            Math.abs(current.min_order - grandTotal) <
+            Math.abs(closest.min_order - grandTotal)
               ? current
-              : closest
+              : closest,
           );
 
           if (closestIncentive) {
@@ -121,30 +123,43 @@ export class QuotationService {
           return comission;
         };
 
-        const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
+        const salesIncentive = calculateSalesIncentive(
+          salesInsentive,
+          grandTotal,
+        );
       }
 
-
       const findClosestPromotion = (promotions, grandTotal, storeId) => {
-        const filteredPromotions = promotions.filter(promotion =>
-            promotion.promotion_stores.some(promotion_store => promotion_store.store_id === storeId)
+        const filteredPromotions = promotions.filter((promotion) =>
+          promotion.promotion_stores.some(
+            (promotion_store) => promotion_store.store_id === storeId,
+          ),
         );
-    
-        return filteredPromotions.length > 0 ?
-            filteredPromotions.reduce((closest, current) =>
-                Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
-                    ? current
-                    : closest
-            ) :
-            null;
-    };
-      const closestPromotion = findClosestPromotion(promotion, grandTotal, createQuotationDto.store_id);
 
-      console.log(closestPromotion, "CLOSEST PROMOTION");
-      
+        return filteredPromotions.length > 0
+          ? filteredPromotions.reduce((closest, current) =>
+              Math.abs(current.min_order - grandTotal) <
+              Math.abs(closest.min_order - grandTotal)
+                ? current
+                : closest,
+            )
+          : null;
+      };
+      const closestPromotion = findClosestPromotion(
+        promotion,
+        grandTotal,
+        createQuotationDto.store_id,
+      );
+
+      console.log(closestPromotion, 'CLOSEST PROMOTION');
 
       if (closestPromotion) {
-        if (closestPromotion.promotion_stores.some(promotion_store => promotion_store.store_id === createQuotationDto.store_id)) {
+        if (
+          closestPromotion.promotion_stores.some(
+            (promotion_store) =>
+              promotion_store.store_id === createQuotationDto.store_id,
+          )
+        ) {
           if (closestPromotion.promotion_type === 1) {
             grandTotal -= grandTotal * (closestPromotion.promotion / 100);
           } else if (closestPromotion.promotion_type === 2) {
@@ -155,14 +170,9 @@ export class QuotationService {
         }
       }
 
-
-
-      console.log(closestPromotion, "PROMOTION");
-
+      console.log(closestPromotion, 'PROMOTION');
 
       // if (grandTotal >= 500000) comission = (grandTotal * 2.5) / 100;
-
-
 
       console.log(quotaionDetails, 'QUOTATION DETAILS');
 
@@ -180,13 +190,15 @@ export class QuotationService {
             id: createQuotationDto.order_id,
           },
         },
-        ...(closestPromotion ? {
-          promotion: {
-              connect: {
-              id: closestPromotion.id 
+        ...(closestPromotion
+          ? {
+              promotion: {
+                connect: {
+                  id: closestPromotion.id,
+                },
+              },
             }
-          },
-        }: undefined),
+          : undefined),
         store: {
           connect: {
             id: createQuotationDto.store_id,
@@ -263,24 +275,24 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    order: { vendor: { company_name: { contains: search } } },
-                  },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    {
+                      order: { vendor: { company_name: { contains: search } } },
+                    },
+                    { store: { store_name: { contains: search } } },
+                    { quotation_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -301,7 +313,7 @@ export class QuotationService {
           quotation_details: {
             include: {
               category: true,
-              work_order_items: true
+              work_order_items: true,
             },
           },
           order: {
@@ -329,8 +341,8 @@ export class QuotationService {
                   },
                   work_order_tukang: {
                     include: {
-                      tukang: true
-                    }
+                      tukang: true,
+                    },
                   },
                   status: true,
                 },
@@ -351,7 +363,7 @@ export class QuotationService {
         })
         .then((data) => data._sum.quotation_grand_total);
       const total = await this.dbService.quotation.count({
-        where
+        where,
       });
 
       return {
@@ -477,9 +489,9 @@ export class QuotationService {
 
             final_price = Number(
               price * quantity +
-              (item.margin_type === MarginType.PERCENTAGE
-                ? price * quantity * (+item.margin / 100)
-                : +item.margin),
+                (item.margin_type === MarginType.PERCENTAGE
+                  ? price * quantity * (+item.margin / 100)
+                  : +item.margin),
             );
           }
 
@@ -549,10 +561,10 @@ export class QuotationService {
           data: {
             status: updateQuotationDto?.quotation_status
               ? {
-                connect: {
-                  id: updateQuotationDto.quotation_status,
-                },
-              }
+                  connect: {
+                    id: updateQuotationDto.quotation_status,
+                  },
+                }
               : undefined,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
@@ -578,10 +590,10 @@ export class QuotationService {
             updated_at: new Date(),
             quotation_files: quotation_files
               ? {
-                createMany: {
-                  data: evidence,
-                },
-              }
+                  createMany: {
+                    data: evidence,
+                  },
+                }
               : undefined,
             quotation_details: {
               upsert: quotationDetailsUpsert,
@@ -784,7 +796,6 @@ export class QuotationService {
     }
   }
 
-
   async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const { data } = await this.findAll(queryParams);
@@ -816,11 +827,23 @@ export class QuotationService {
         { header: 'Jenis Jasa', key: 'item_name', width: 50 },
         { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
         { header: 'Unit Jasa', key: 'item_unit', width: 50 },
-        { header: 'Material yang Dibutuhkan', key: 'work_order_items', width: 50 },
-        { header: 'Quantity Material', key: 'work_order_items_quantity', width: 50 },
+        {
+          header: 'Material yang Dibutuhkan',
+          key: 'work_order_items',
+          width: 50,
+        },
+        {
+          header: 'Quantity Material',
+          key: 'work_order_items_quantity',
+          width: 50,
+        },
         { header: 'Unit Material', key: 'work_order_items_unit', width: 50 },
         { header: 'Tanggal Quotation', key: 'quotation_date', width: 50 },
-        { header: 'Batas Tanggal Quotation', key: 'quotation_validity', width: 50 },
+        {
+          header: 'Batas Tanggal Quotation',
+          key: 'quotation_validity',
+          width: 50,
+        },
         { header: 'Nama Toko', key: 'store_name', width: 30 },
         { header: 'Nama Vendor', key: 'company_name', width: 30 },
         { header: 'Nama Sales', key: 'sales_name', width: 35 },
@@ -846,27 +869,56 @@ export class QuotationService {
       });
 
       data.forEach((quotation) => {
-        const itemName = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.name || 'N/a').join(', ') : 'N/a';
-        const itemQuantity = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.quantity || 'N/a').join(', ') : 'N/a';
-        const itemUnit = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.unit || 'N/a').join(', ') : 'N/a';
-        const tukangName = quotation.order.work_orders ? quotation.order.work_orders.work_order_tukang.map((item) => item?.tukang?.full_name).join(', ') : 'N/a';
-        const workOrderItems = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.work_order_items?.name || 'N/a').join(', ') : 'N/a'
-        const workOrderItemsQuantity = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.work_order_items?.quantity || 'N/a').join(', ') : 'N/a'
-        const workOrderItemsUnit = quotation.quotation_details ? quotation.quotation_details.map((item) => item?.work_order_items?.unit || 'N/a').join(', ') : 'N/a'
-        const formattedDateTime = (dateTime) => `${new Date(dateTime).toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })}, ${dateTime.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`;
+        const itemName = quotation.quotation_details
+          ? quotation.quotation_details
+              .map((item) => item?.name || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const itemQuantity = quotation.quotation_details
+          ? quotation.quotation_details
+              .map((item) => item?.quantity || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const itemUnit = quotation.quotation_details
+          ? quotation.quotation_details
+              .map((item) => item?.unit || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const tukangName = quotation.order.work_orders
+          ? quotation.order.work_orders.work_order_tukang
+              .map((item) => item?.tukang?.full_name)
+              .join(', ')
+          : 'N/a';
+        const workOrderItems = quotation.quotation_details
+          ? quotation.quotation_details
+              .map((item) => item?.work_order_items?.name || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const workOrderItemsQuantity = quotation.quotation_details
+          ? quotation.quotation_details
+              .map((item) => item?.work_order_items?.quantity || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const workOrderItemsUnit = quotation.quotation_details
+          ? quotation.quotation_details
+              .map((item) => item?.work_order_items?.unit || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
         const grandTotal = Number(quotation.quotation_grand_total);
         const formattedGrandTotal = !isNaN(grandTotal)
           ? new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(grandTotal)
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
           : 'Rp. 0';
         const row = worksheet.addRow({
           id: quotation.id,
@@ -877,11 +929,21 @@ export class QuotationService {
           work_order_items: workOrderItems,
           work_order_items_quantity: workOrderItemsQuantity,
           work_order_items_unit: workOrderItemsUnit,
-          quotation_date: quotation.quotation_date ? formattedDateTime(quotation.quotation_date) : 'N/a',
-          quotation_validity: quotation.quotation_validity ? formattedDateTime(quotation.quotation_validity) : 'N/a',
-          store_name: quotation.order.store ? quotation.order.store.store_name : 'N/a',
-          company_name: quotation.order ? quotation.order.vendor.company_name : 'N/a',
-          sales_name: quotation.order.sales ? quotation.order.sales.full_name : 'N/a',
+          quotation_date: quotation.quotation_date
+            ? formattedDateTime(quotation.quotation_date)
+            : 'N/a',
+          quotation_validity: quotation.quotation_validity
+            ? formattedDateTime(quotation.quotation_validity)
+            : 'N/a',
+          store_name: quotation.order.store
+            ? quotation.order.store.store_name
+            : 'N/a',
+          company_name: quotation.order
+            ? quotation.order.vendor.company_name
+            : 'N/a',
+          sales_name: quotation.order.sales
+            ? quotation.order.sales.full_name
+            : 'N/a',
           tukang_name: tukangName,
           created_at: formattedDateTime(quotation.created_at),
           grand_total: formattedGrandTotal,
@@ -993,4 +1055,3 @@ export class QuotationService {
     }
   }
 }
-
