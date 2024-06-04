@@ -8,7 +8,18 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
-    const status = exception.code === 'P2002' ? 409 : 500; // Handle unique constraint violation as 409 conflict
+    // Handle unique constraint violation as 409 conflict
+    let status = 500;
+    switch (exception.code) {
+      case 'P2025':
+        status = 404;
+        break;
+      case 'P2002':
+        status = 409;
+        break;
+      default:
+        status = 500;
+    }
 
     const errorResponse = {
       statusCode: status,
@@ -19,7 +30,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     };
 
     if (process.env.NODE_ENV !== 'production') {
-      errorResponse['stack'] = exception.stack.split('\n').map(line => line.trim());
+      errorResponse['stack'] = exception.stack
+        .split('\n')
+        .map((line) => line.trim());
     }
 
     response.status(status).json(errorResponse);
