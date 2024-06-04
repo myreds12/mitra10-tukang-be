@@ -1528,7 +1528,7 @@ model sales_incentive {
   id           Int @id @default(autoincrement())
   incentive_id Int @map("incentiveId")
   sales_id     Int @map("salesId")
-  quotation_id Int @map("quotation_id")
+  quotation_id Int @map("quotationId")
 
   nominal Decimal @default(0) @db.Decimal(32, 2)
   status  Int     @default(0) @db.Int()

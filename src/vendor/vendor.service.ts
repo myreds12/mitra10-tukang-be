@@ -23,6 +23,7 @@ export class VendorService {
     user: users,
   ) {
     try {
+      console.log(createVendorDto);
       const { id: user_id } = user;
       const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
       ? Object.entries(files).map((file) => {
@@ -319,7 +320,7 @@ export class VendorService {
         );
       }
 
-      const total = await this.dbService.vendor.count();
+      const total = await this.dbService.vendor.count({where});
 
       return {
         data: vendor,
@@ -342,6 +343,11 @@ export class VendorService {
           orders: {
             where: {
               deleted_at: null
+            }
+          },
+          pic_vendor: {
+            include: {
+              users: true
             }
           },
           tukang: true,
