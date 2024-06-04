@@ -92,6 +92,7 @@ export class EmailProcessor {
           project_number: true,
           receipt_number: true,
           request_survey: true,
+          grand_total: true,
           store: {
             select: {
               email: true,
