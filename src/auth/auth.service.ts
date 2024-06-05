@@ -115,6 +115,16 @@ export class AuthService {
         },
         include: {
           tukang: true,
+          store: {
+            select: {
+              id: true,
+              store_name: true,
+              address: true,
+              phone_number_1: true,
+              phone_number_2: true,
+              email: true,
+            }
+          },
           roles: {
             select: { name: true },
           },
