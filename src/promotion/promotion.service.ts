@@ -7,17 +7,20 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @Injectable()
 export class PromotionService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createPromotionDto: CreatePromotionDto, user: users) {
     try {
       const { id: user_id } = user;
-      const promotionStore: Prisma.promotion_storesCreateManyPromotionInput[] = createPromotionDto.promotion_store ? createPromotionDto.promotion_store.map((item) => {
-        return {
-          store_id: item.store_id,
-          created_at: new Date(),
-          created_by: user_id
-        }
-      }) : undefined;
+      const promotionStore: Prisma.promotion_storesCreateManyPromotionInput[] =
+        createPromotionDto.promotion_store
+          ? createPromotionDto.promotion_store.map((item) => {
+              return {
+                store_id: item.store_id,
+                created_at: new Date(),
+                created_by: user_id,
+              };
+            })
+          : undefined;
 
       const data: Prisma.promotionCreateInput = {
         min_order: createPromotionDto.min_order,
@@ -27,21 +30,21 @@ export class PromotionService {
         created_at: new Date(),
         promotion_stores: {
           createMany: {
-            data: promotionStore
-          }
-        }
+            data: promotionStore,
+          },
+        },
       };
 
       const [promotion] = await this.dbService.$transaction([
         this.dbService.promotion.create({
-          data
-        })
+          data,
+        }),
       ]);
 
-      return promotion
+      return promotion;
     } catch (error) {
-      console.error(error)
-      throw error
+      console.error(error);
+      throw error;
     }
   }
 
@@ -55,29 +58,42 @@ export class PromotionService {
         date_from,
         date_to,
         order_by,
+        store_id,
       } = queryParams;
-      
 
       const skip = page * take - take;
 
       const where: Prisma.promotionWhereInput = {
         AND: [
-          ...(search ? [
-            {
-              OR: [
-                { promotion: { equals: Number(search) } },
-                { promotion_type: { equals: Number(search) } },
-              ],
-            },
-          ] : []),
-          ...(date_from && date_to ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            },
-          ] : []),
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { promotion: { equals: Number(search) } },
+                    { promotion_type: { equals: Number(search) } },
+                  ],
+                },
+              ]
+            : []),
+            ...(store_id ?  [{
+              promotion_stores: {
+                some: {
+                  store_id: {
+                    in: store_id
+                  }
+                }
+              }
+            }] : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -133,8 +149,8 @@ export class PromotionService {
         include: {
           promotion_stores: {
             include: {
-              store: true
-            }
+              store: true,
+            },
           },
         },
       });
@@ -146,27 +162,33 @@ export class PromotionService {
     }
   }
 
-  async update(id: number, updatePromotionDto: UpdatePromotionDto, user: users) {
+  async update(
+    id: number,
+    updatePromotionDto: UpdatePromotionDto,
+    user: users,
+  ) {
     try {
       const { id: user_id } = user;
-      const promotionStore : Prisma.promotion_storesUpsertWithWhereUniqueWithoutPromotionInput[] = updatePromotionDto.promotion_store
-        ? updatePromotionDto.promotion_store.map((item) => {
-          return{
-            where: {
-              id: item.id ?? 0
-            },
-            create: {
-              store_id: item.store_id,
-              created_by: user_id,
-              created_at: new Date()
-            },
-            update: {
-              store_id: item.store_id,
-              updated_by: user_id,
-              updated_at: new Date()
-            }
-          }
-        }) : [];
+      const promotionStore: Prisma.promotion_storesUpsertWithWhereUniqueWithoutPromotionInput[] =
+        updatePromotionDto.promotion_store
+          ? updatePromotionDto.promotion_store.map((item) => {
+              return {
+                where: {
+                  id: item.id ?? 0,
+                },
+                create: {
+                  store_id: item.store_id,
+                  created_by: user_id,
+                  created_at: new Date(),
+                },
+                update: {
+                  store_id: item.store_id,
+                  updated_by: user_id,
+                  updated_at: new Date(),
+                },
+              };
+            })
+          : [];
 
       const data: Prisma.promotionUpdateInput = {
         min_order: updatePromotionDto.min_order,
@@ -177,35 +199,36 @@ export class PromotionService {
         },
       };
 
-      const [syncPromotionStore, updatePromotion] = await this.dbService.$transaction([
-        this.dbService.promotion_stores.updateMany({
-          where: {
-            promotion_id: id,
-            id: {
-              notIn: updatePromotionDto.promotion_store.map(({id}) => id)
-            }
-          },
-          data: {
-            deleted_by: user_id,
-            deleted_at: new Date()
-          }
-        }),
-        this.dbService.promotion.update({
-          where: {
-            id
-          },
-          data,
-          include: {
-            promotion_stores: {
-              include: {
-                store: true
-              }
-            }
-          }
-        })
-      ]);
+      const [syncPromotionStore, updatePromotion] =
+        await this.dbService.$transaction([
+          this.dbService.promotion_stores.updateMany({
+            where: {
+              promotion_id: id,
+              id: {
+                notIn: updatePromotionDto.promotion_store.map(({ id }) => id),
+              },
+            },
+            data: {
+              deleted_by: user_id,
+              deleted_at: new Date(),
+            },
+          }),
+          this.dbService.promotion.update({
+            where: {
+              id,
+            },
+            data,
+            include: {
+              promotion_stores: {
+                include: {
+                  store: true,
+                },
+              },
+            },
+          }),
+        ]);
 
-      return updatePromotion
+      return updatePromotion;
     } catch (error) {
       console.error(error);
       throw error;
@@ -214,15 +237,14 @@ export class PromotionService {
 
   async remove(id: number, user: users) {
     try {
-      const{id: user_id} = user;
+      const { id: user_id } = user;
       return await this.dbService.promotion.update({
         where: { id },
         data: {
           deleted_at: new Date(),
-          deleted_by: user_id
-        }
+          deleted_by: user_id,
+        },
       });
-      
     } catch (error) {
       console.error(error);
       throw error;

@@ -50,8 +50,11 @@ export class QuotationService {
         },
       });
 
-      const promotion = (
-        await this.dbService.promotion.findMany({
+      const promotion = 
+        await this.dbService.promotion.findFirst({
+          where: {
+            id: createQuotationDto.promotion_id
+          },
           include: {
             promotion_stores: {
               include: {
@@ -59,8 +62,8 @@ export class QuotationService {
               },
             },
           },
-        })
-      ).sort();
+        });
+
       const salesInsentive = await this.dbService.sales_incentive.findMany();
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
@@ -129,48 +132,56 @@ export class QuotationService {
         );
       }
 
-      const findClosestPromotion = (promotions, grandTotal, storeId) => {
-        const filteredPromotions = promotions.filter((promotion) =>
-          promotion.promotion_stores.some(
-            (promotion_store) => promotion_store.store_id === storeId,
-          ),
-        );
+      // const findClosestPromotion = (promotions, grandTotal, storeId) => {
+      //   const filteredPromotions = promotions.filter((promotion) =>
+      //     promotion.promotion_stores.some(
+      //       (promotion_store) => promotion_store.store_id === storeId,
+      //     ),
+      //   );
 
-        return filteredPromotions.length > 0
-          ? filteredPromotions.reduce((closest, current) =>
-              Math.abs(current.min_order - grandTotal) <
-              Math.abs(closest.min_order - grandTotal)
-                ? current
-                : closest,
-            )
-          : null;
-      };
-      const closestPromotion = findClosestPromotion(
-        promotion,
-        grandTotal,
-        createQuotationDto.store_id,
-      );
+      //   return filteredPromotions.length > 0
+      //     ? filteredPromotions.reduce((closest, current) =>
+      //         Math.abs(current.min_order - grandTotal) <
+      //         Math.abs(closest.min_order - grandTotal)
+      //           ? current
+      //           : closest,
+      //       )
+      //     : null;
+      // };
+      // const closestPromotion = findClosestPromotion(
+      //   promotion,
+      //   grandTotal,
+      //   createQuotationDto.store_id,
+      // );
 
-      console.log(closestPromotion, 'CLOSEST PROMOTION');
+      // console.log(closestPromotion, 'CLOSEST PROMOTION');
 
-      if (closestPromotion) {
-        if (
-          closestPromotion.promotion_stores.some(
-            (promotion_store) =>
-              promotion_store.store_id === createQuotationDto.store_id,
-          )
-        ) {
-          if (closestPromotion.promotion_type === 1) {
-            grandTotal -= grandTotal * (closestPromotion.promotion / 100);
-          } else if (closestPromotion.promotion_type === 2) {
-            grandTotal -= closestPromotion.promotion;
-          }
-        } else {
-          grandTotal -= 0;
+      // if (closestPromotion) {
+      //   if (
+      //     closestPromotion.promotion_stores.some(
+      //       (promotion_store) =>
+      //         promotion_store.store_id === createQuotationDto.store_id,
+      //     )
+      //   ) {
+      //     if (closestPromotion.promotion_type === 1) {
+      //       grandTotal -= grandTotal * (closestPromotion.promotion / 100);
+      //     } else if (closestPromotion.promotion_type === 2) {
+      //       grandTotal -= closestPromotion.promotion;
+      //     }
+      //   } else {
+      //     grandTotal -= 0;
+      //   }
+      // }
+    
+      if(promotion){
+        if(promotion.promotion_type === 1){
+          grandTotal -= grandTotal * (Number(promotion.promotion) / 100);
+        } else if (promotion.promotion_type === 2) {
+          grandTotal -= Number(promotion.promotion);
         }
       }
 
-      console.log(closestPromotion, 'PROMOTION');
+      console.log(promotion, 'PROMOTION');
 
       // if (grandTotal >= 500000) comission = (grandTotal * 2.5) / 100;
 
@@ -190,11 +201,11 @@ export class QuotationService {
             id: createQuotationDto.order_id,
           },
         },
-        ...(closestPromotion
+        ...(promotion
           ? {
               promotion: {
                 connect: {
-                  id: closestPromotion.id,
+                  id: promotion.id,
                 },
               },
             }

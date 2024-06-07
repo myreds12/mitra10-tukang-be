@@ -132,6 +132,7 @@ export class ComplaintsService {
         date_to,
         order_by,
         tukang_id,
+        store_id,
       } = query;
       const skip = page * take - take;
 
@@ -141,6 +142,13 @@ export class ComplaintsService {
           search
             ? { complaint_channels: { name: { contains: search } } }
             : null,
+          store_id
+            ? {
+                store_id: {
+                  in: store_id,
+                },
+              }
+            : undefined,
           tukang_id
             ? {
                 orders: {
@@ -476,7 +484,7 @@ export class ComplaintsService {
   async complaintExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const { data } = await this.findAll(queryParams);
-  
+
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Keluhan', {
         properties: {
@@ -495,7 +503,7 @@ export class ComplaintsService {
           },
         },
       });
-  
+
       worksheet.columns = [
         { header: 'Compaint ID', key: 'id', width: 10 },
         { header: 'Order ID', key: 'order_id', width: 10 },
@@ -506,7 +514,7 @@ export class ComplaintsService {
         { header: 'Feedback Role', key: 'feedback_role', width: 25 },
         { header: 'Complaint Dibuat', key: 'created_at', width: 25 },
       ];
-  
+
       worksheet.getRow(1).eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -522,7 +530,7 @@ export class ComplaintsService {
           right: { style: 'thin' },
         };
       });
-  
+
       data.forEach((complaint) => {
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
@@ -533,18 +541,24 @@ export class ComplaintsService {
             hour: '2-digit',
             minute: '2-digit',
           })}`;
-  
+
         const row = worksheet.addRow({
           id: complaint.id,
           order_id: complaint.order_id,
-          complaint_channel: complaint.complaint_channels ? complaint.complaint_channels.name : 'N/a',
+          complaint_channel: complaint.complaint_channels
+            ? complaint.complaint_channels.name
+            : 'N/a',
           description: complaint.description,
           complaint_date: formattedDateTime(complaint.complaint_date),
-          feedback_name: complaint.feedback_name ? complaint.feedback_name : 'N/a',
-          feedback_role: complaint.feedback_role ? complaint.feedback_role : 'N/a',
+          feedback_name: complaint.feedback_name
+            ? complaint.feedback_name
+            : 'N/a',
+          feedback_role: complaint.feedback_role
+            ? complaint.feedback_role
+            : 'N/a',
           created_at: formattedDateTime(complaint.created_at),
         });
-  
+
         row.eachCell((cell) => {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
           cell.border = {
@@ -555,16 +569,18 @@ export class ComplaintsService {
           };
         });
       });
-  
+
       // Calculate the total grand total of all complaints
       const totalGrandTotal = data.reduce((total, complaint) => {
-        return total + (complaint.orders ? Number(complaint.orders.grand_total) : 0);
+        return (
+          total + (complaint.orders ? Number(complaint.orders.grand_total) : 0)
+        );
       }, 0);
       const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
       }).format(totalGrandTotal);
-  
+
       // Add total row
       const totalRow = worksheet.addRow({
         id: 'Total',
@@ -578,7 +594,7 @@ export class ComplaintsService {
       });
       totalRow.getCell('A').value = 'Total Keluhan';
       totalRow.getCell('H').value = formattedTotalGrandTotal;
-  
+
       totalRow.eachCell((cell) => {
         cell.font = { bold: true };
         cell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -589,11 +605,11 @@ export class ComplaintsService {
           right: { style: 'thin' },
         };
       });
-  
+
       totalRow.height = 30;
-  
+
       worksheet.mergeCells(`A${totalRow.number}:G${totalRow.number}`);
-  
+
       const getFormattedDate = () => {
         const now = new Date();
         const tahun = now.getFullYear();
@@ -601,51 +617,49 @@ export class ComplaintsService {
         const tanggal = String(now.getDate()).padStart(2, '0');
         return `${tahun}-${bulan}-${tanggal}`;
       };
-  
+
       const createExcelFilePath = (baseName: string) => {
         const folderPath = './storage/excel/complaint';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }
         const now = Date.now();
-  
+
         const excelFileName = `${baseName}-${now}.xlsx`;
         return path.join(folderPath, excelFileName);
       };
-  
+
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
-        res: Response
+        res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-  
+
         res.setHeader(
           'Content-Type',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename=${path.basename(excelFilePath)}`
+          `attachment; filename=${path.basename(excelFilePath)}`,
         );
-  
+
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
-  
+
       const generateExcelFile = async (res) => {
         const formattedDate = getFormattedDate();
         const baseName = `DataKeluhan-${formattedDate}`;
         const excelFilePath = createExcelFilePath(baseName);
-  
+
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
-  
+
       return generateExcelFile(res);
     } catch (error) {
       throw error;
     }
   }
-  
-  
 }

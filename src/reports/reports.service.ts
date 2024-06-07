@@ -446,6 +446,23 @@ export class ReportsService {
           },
         })
         .then((data) => data._sum.grand_total);
+       const quoteInGrandTotal = await this.dbService.quotation
+        .aggregate({
+          where: {
+            order_id: {
+              in: orders.map((item) => item.id)
+            },
+            status: {
+              category:{
+                contains: 'QUOTEIN'
+              }
+            }
+          },
+          _sum: {
+            quotation_grand_total: true,
+          },
+        })
+        .then((data) => data._sum.quotation_grand_total);
       const totalOrdersPerMonth = {};
       const totalOrderGrandTotalPerMonth = {};
       const totalCompleteOrderPerMonth = {};
@@ -542,6 +559,7 @@ export class ReportsService {
         meta: {
           total: count,
           orderGrandTotal,
+          quoteInGrandTotal
         },
       };
     } catch (error) {
