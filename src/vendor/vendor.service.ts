@@ -247,8 +247,15 @@ export class VendorService {
           pic_vendor: {
             include: {
               users: {
-                include: {
-                  roles: true
+                select: {
+                  id: true,
+                  username: true,
+                  roles: {
+                    select: {
+                      id: true,
+                      name: true,
+                    }
+                  }
                 }
               }
             }
