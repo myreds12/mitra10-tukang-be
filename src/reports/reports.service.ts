@@ -300,13 +300,6 @@ export class ReportsService {
               updated_by: true,
             },
           },
-          invoice_orders: {
-            select: {
-              id: true,
-              invoice_id: true,
-              invoices: true,
-            },
-          },
           store: {
             where: {
               deleted_at: null,
@@ -981,12 +974,8 @@ export class ReportsService {
                 include: {
                   order: {
                     include: {
-                      invoice_orders: {
-                        include: {
-                          invoices: true,
-                        },
-                      },
-                    },
+                      quotation: true
+                    }
                   },
                 },
               },
@@ -999,9 +988,9 @@ export class ReportsService {
         tukang.map(async (tukangItem) => {
           const totalInvoices = await this.dbService.invoices.aggregate({
             where: {
-              invoice_orders: {
+              invoice_details: {
                 some: {
-                  orders: {
+                  order: {
                     work_orders: {
                       work_order_tukang: {
                         some: {
@@ -1014,7 +1003,7 @@ export class ReportsService {
               },
             },
             _sum: {
-              total_quotation_grand_total: true,
+              total_amount: true,
             },
           });
 
@@ -1037,7 +1026,7 @@ export class ReportsService {
 
           return {
             tukang: tukangItem,
-            totalInvoices: totalInvoices._sum?.total_quotation_grand_total || 0,
+            totalInvoices: totalInvoices._sum?.total_amount || 0,
             totalQuotations: totalQuotations._sum?.quotation_grand_total || 0,
           };
         }),

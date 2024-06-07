@@ -22,7 +22,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: string | object;
     } = {
       statusCode: exStatus,
-      message: exception.message,
+      message:  exStatus === 500
+      ? `Terjadi kesalahan dari sisi server, mohon hubungi Administrator. Code: ${exStatus}.`
+      : exception.message,
       timestamp: new Date().toISOString(),
       path: ctxRequest.url,
     };

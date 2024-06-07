@@ -92,6 +92,7 @@ export class EmailProcessor {
           project_number: true,
           receipt_number: true,
           request_survey: true,
+          grand_total: true,
           work_orders: {
             select: {
               id: true,
@@ -167,6 +168,7 @@ export class EmailProcessor {
         order,
         message,
       };
+
 
       const { bcc, cc } = message;
       const storeMail = order.store.email;

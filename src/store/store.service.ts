@@ -25,23 +25,6 @@ export class StoreService {
   ) {}
   async create(dto: CreateStoreDto, user_id: number) {
     try {
-      const store = await this.dbService.store.create({
-        data: {
-          store_name: dto.store_name,
-          store_group_id: dto.store_group_id,
-          bank_name: dto.bank_name,
-          bank_account: dto.bank_account,
-          bank_number: dto.bank_number,
-          email: dto.email,
-          phone_number_1: dto.phone_number_1,
-          phone_number_2: dto.phone_number_2,
-          address: dto.address,
-          additional_address: dto.additional_address,
-          area_id: dto.area_id,
-          zip_code: dto.zip_code,
-          created_by: user_id,
-        },
-      });
       const role = await this.dbService.roles.findFirst({
         where: {
           name: {
@@ -59,6 +42,25 @@ export class StoreService {
           role_id: role.id,
         },
       });
+      const store = await this.dbService.store.create({
+        data: {
+          user_id: user.id,
+          store_name: dto.store_name,
+          store_group_id: dto.store_group_id,
+          bank_name: dto.bank_name,
+          bank_account: dto.bank_account,
+          bank_number: dto.bank_number,
+          email: dto.email,
+          phone_number_1: dto.phone_number_1,
+          phone_number_2: dto.phone_number_2,
+          address: dto.address,
+          additional_address: dto.additional_address,
+          area_id: dto.area_id,
+          zip_code: dto.zip_code,
+          created_by: user_id,
+        },
+      });
+      
       await this.emailQueue.add(
         'send-credential-mail',
         {
@@ -170,7 +172,27 @@ export class StoreService {
 
   async update(id: number, dto: UpdateStoreDto, user_id: number) {
     try {
-      const store = await this.dbService.store.update({
+      const store = await this.dbService.store.findFirst({
+        where: {
+          id
+        },
+        include: {
+          users: true
+        }
+      });
+      const username = dto.default_username
+      ? dto.default_username
+      : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
+    const user = await this.dbService.users.update({
+      where: {
+        id: store.user_id
+      },
+      data: {
+        username,
+        password: await hash(dto?.default_password ?? 'password', 10),
+      },
+    });
+      const stores = await this.dbService.store.update({
         where: {
           id,
         },
@@ -190,25 +212,7 @@ export class StoreService {
           updated_by: user_id,
           updated_at: new Date(),
         },
-      });
-
-      const role = await this.dbService.roles.findFirst({
-        where: {
-          name: {
-            equals: 'Store CS',
-          },
-        },
-      });
-      const username = dto.default_username
-        ? dto.default_username
-        : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
-      const user = await this.dbService.users.create({
-        data: {
-          username,
-          password: await hash(dto?.default_password ?? 'password', 10),
-          role_id: role.id,
-        },
-      });
+      });     
 
       await this.emailQueue.add(
         'send-credential-mail',

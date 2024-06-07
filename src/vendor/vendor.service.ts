@@ -48,18 +48,6 @@ export class VendorService {
             created_by: user_id,
           }))
           : undefined;
-          
-          const vendorBankData: Prisma.vendor_bankCreateInput = {
-            account_name: createVendorDto.account_name,
-        account_number: createVendorDto.account_number,
-        bank: {
-          connect: {
-            id: createVendorDto.bank_id,
-          },
-        },
-        created_by: user_id,
-      };
-
       const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
       createVendorDto.service_type_id
       ? createVendorDto.service_type_id.map((item) => {
@@ -105,6 +93,11 @@ export class VendorService {
         phone_number: createVendorDto.phone_number,
         ktp_number: createVendorDto.ktp_number,
         npwp_number: createVendorDto.npwp_number,
+        bank: {
+          connect: {
+            id: createVendorDto.bank_id
+          }
+        },
         join_date: createVendorDto.join_date
           ? new Date(createVendorDto.join_date)
           : null,
@@ -146,9 +139,6 @@ export class VendorService {
             user_id: users.id,
             pic_name: createVendorDto.pic_name,
           }
-        },
-        vendor_bank: {
-          create: vendorBankData,
         },
       };
 
@@ -265,11 +255,6 @@ export class VendorService {
               area: true,
             },
           },
-          vendor_bank: {
-            include: {
-              bank: true,
-            },
-          },
           vendor_document: true,
           vendor_service: {
             include: {
@@ -361,11 +346,6 @@ export class VendorService {
           vendor_area: {
             include: {
               area: true,
-            },
-          },
-          vendor_bank: {
-            include: {
-              bank: true,
             },
           },
           vendor_document: true,
@@ -507,18 +487,13 @@ export class VendorService {
           ? new Date(updateVendorDto.join_date)
           : null,
         updated_by: user_id,
-        vendor_bank: {
-          update: {
-            where: {
-              id: updateVendorDto.vendor_bank.id,
-            },
-            data: {
-              bank_id: updateVendorDto.vendor_bank.bank_id,
-              account_name: updateVendorDto?.vendor_bank.account_name,
-              account_number: updateVendorDto?.vendor_bank.account_number,
-            },
+        ...(updateVendorDto.bank_id ? {
+          bank: {
+            connect: {
+              id: updateVendorDto.bank_id
+            }
           },
-        },
+        } : undefined),
         vendor_service: {
           upsert: vendorServiceUpsert,
         },
@@ -650,18 +625,6 @@ export class VendorService {
             },
           },
           vendor_service: {
-            updateMany: {
-              where: {
-                vendor_id: id,
-              },
-              data: {
-                deleted_by: user_id,
-                deleted_at: new Date(),
-                is_active: false,
-              },
-            },
-          },
-          vendor_bank: {
             updateMany: {
               where: {
                 vendor_id: id,

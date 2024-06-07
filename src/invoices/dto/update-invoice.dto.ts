@@ -33,7 +33,7 @@ export class UpdateInvoiceDto {
   
   @IsOptional()
   @Type(() => Number)
-  status_id?: number;
+  status?: number;
   
   @IsOptional()
   @Type(() => Number)
