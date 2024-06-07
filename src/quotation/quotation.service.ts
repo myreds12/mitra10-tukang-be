@@ -50,17 +50,21 @@ export class QuotationService {
         },
       });
 
-      const promotion = (await this.dbService.promotion.findMany({
-        include: {
-          promotion_stores: {
-            include: {
-              store: true
-            }
-          }
-        }
-      })).sort();
-      const salesInsentive = await this.dbService.sales_incentive.findMany()
+      const promotion = 
+        await this.dbService.promotion.findFirst({
+          where: {
+            id: createQuotationDto.promotion_id
+          },
+          include: {
+            promotion_stores: {
+              include: {
+                store: true,
+              },
+            },
+          },
+        });
 
+      const salesInsentive = await this.dbService.sales_incentive.findMany();
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
@@ -122,24 +126,33 @@ export class QuotationService {
           return comission;
         };
 
-        const salesIncentive = calculateSalesIncentive(salesInsentive, grandTotal);
+        const salesIncentive = calculateSalesIncentive(
+          salesInsentive,
+          grandTotal,
+        );
       }
 
+      // const findClosestPromotion = (promotions, grandTotal, storeId) => {
+      //   const filteredPromotions = promotions.filter((promotion) =>
+      //     promotion.promotion_stores.some(
+      //       (promotion_store) => promotion_store.store_id === storeId,
+      //     ),
+      //   );
 
-      const findClosestPromotion = (promotions, grandTotal, storeId) => {
-        const filteredPromotions = promotions.filter(promotion =>
-            promotion.promotion_stores.some(promotion_store => promotion_store.store_id === storeId)
-        );
-    
-        return filteredPromotions.length > 0 ?
-            filteredPromotions.reduce((closest, current) =>
-                Math.abs(current.min_order - grandTotal) < Math.abs(closest.min_order - grandTotal)
-                    ? current
-                    : closest
-            ) :
-            null;
-    };
-      const closestPromotion = findClosestPromotion(promotion, grandTotal, createQuotationDto.store_id);
+      //   return filteredPromotions.length > 0
+      //     ? filteredPromotions.reduce((closest, current) =>
+      //         Math.abs(current.min_order - grandTotal) <
+      //         Math.abs(closest.min_order - grandTotal)
+      //           ? current
+      //           : closest,
+      //       )
+      //     : null;
+      // };
+      // const closestPromotion = findClosestPromotion(
+      //   promotion,
+      //   grandTotal,
+      //   createQuotationDto.store_id,
+      // );
 
       // console.log(closestPromotion, 'CLOSEST PROMOTION');
 
