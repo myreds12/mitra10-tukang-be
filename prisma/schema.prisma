@@ -11,17 +11,17 @@ datasource db {
 }
 
 model bank {
-  id          Int           @id @default(autoincrement())
-  bank_name   String        @db.VarChar(50)
-  is_active   Boolean       @default(true)
-  created_at  DateTime      @default(now()) @db.DateTime()
-  updated_at  DateTime?     @db.DateTime()
-  deleted_at  DateTime?     @db.DateTime()
-  created_by  Int?
-  updated_by  Int?
-  deleted_by  Int?
-  sales       sales[]
-  vendor_bank vendor_bank[]
+  id         Int       @id @default(autoincrement())
+  bank_name  String    @db.VarChar(50)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+  sales      sales[]
+  vendor     vendor[]
 }
 
 model area {
@@ -103,18 +103,22 @@ model items {
 
 //FIXME: CHECK THIS MODEL
 model promotion {
-  id             Int     @id @default(autoincrement())
-  min_order      Decimal @default(0) @db.Decimal(32, 2)
-  promotion      Decimal @default(0) @db.Decimal(32, 2)
-  promotion_type Int?    @default(1) // 1 = Percentage, 2 = Nominal
+  id             Int       @id @default(autoincrement())
+  min_order      Decimal   @default(0) @db.Decimal(32, 2)
+  promotion      Decimal   @default(0) @db.Decimal(32, 2)
+  promotion_type Int?      @default(1) // 1 = Percentage, 2 = Nominal
 
-  created_at DateTime? @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
+  periodic_start DateTime?  
+  periodic_end   DateTime?
+
+  created_at     DateTime? @default(now()) @db.DateTime()
+  updated_at     DateTime? @db.DateTime()
+  deleted_at     DateTime? @db.DateTime()
 
   created_by       Int?
   updated_by       Int?
   deleted_by       Int?
+
   quotation        quotation[]
   promotion_stores promotion_stores[]
 }
@@ -530,7 +534,8 @@ model tukang_service {
 }
 
 model vendor {
-  id Int @id @default(autoincrement())
+  id      Int  @id @default(autoincrement())
+  bank_id Int?
 
   pic_name      String    @default("") @db.VarChar(200)
   company_name  String    @db.VarChar(45)
@@ -553,7 +558,6 @@ model vendor {
 
   tukang          tukang[]
   vendor_area     vendor_area[]
-  vendor_bank     vendor_bank[]
   vendor_document vendor_document[]
   vendor_service  vendor_service[]
   orders          orders[]
@@ -561,6 +565,8 @@ model vendor {
   invoices        invoices[]
   vendor_store    vendor_store[]
   pic_vendor      pic_vendor[]
+
+  bank bank? @relation(fields: [bank_id], references: [id])
 }
 
 //FIXME: CHECK THIS MODEL
@@ -622,26 +628,6 @@ model vendor_area {
   area   area?   @relation(fields: [area_id], references: [id])
 }
 
-model vendor_bank {
-  id        Int  @id @default(autoincrement())
-  vendor_id Int? @unique
-  bank_id   Int?
-
-  account_name   String @db.VarChar(255)
-  account_number String @db.VarChar(50)
-
-  is_active  Boolean   @default(true)
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-
-  vendor vendor? @relation(fields: [vendor_id], references: [id])
-  bank   bank?   @relation(fields: [bank_id], references: [id])
-}
-
 model vendor_document {
   id            Int       @id @default(autoincrement())
   vendor_id     Int?
@@ -689,7 +675,6 @@ model status {
   refund              refund[]
   work_order_status   work_order_status[]
   order_history       order_histories[]
-  invoices            invoices[]
   compliant_histories complaint_histories[]
   reschedule          reschedule[]
   reschedule_status   reschedule_status[]
@@ -737,7 +722,7 @@ model orders {
   order_files     order_files[]
   order_history   order_histories[]
   reschedule      reschedule[]
-  invoice_orders  invoice_orders[]
+  invoice_details invoice_details[]
 }
 
 model order_histories {
@@ -906,7 +891,6 @@ model quotation {
   promotion         promotion?          @relation(fields: [promotion_id], references: [id])
   quotation_files   quotation_files[]
   quotation_details quotation_details[]
-  invoice_details   invoice_details[]
   sales_incentive   sales_incentive[]
 }
 
@@ -1198,11 +1182,12 @@ model work_order_items {
 model invoices {
   id        Int @id @default(autoincrement())
   vendor_id Int @map("vendorId")
-  status_id Int @map("statusId")
 
-  total_quotation_grand_total Decimal? @db.Decimal(32, 2)
-  invoice_number              String
-  description                 String?  @db.VarChar(400)
+  status Int @db.Int() // 1 = WAITING FOR PAYMENT, 2 = PAID, 3 = INVOICE DECLINED
+
+  total_amount   Decimal? @db.Decimal(32, 2)
+  invoice_number String
+  description    String?  @db.VarChar(400)
 
   created_by Int?
   updated_by Int?
@@ -1213,17 +1198,16 @@ model invoices {
   deleted_at DateTime? @db.DateTime()
 
   vendor           vendor             @relation(fields: [vendor_id], references: [id])
-  status           status             @relation(fields: [status_id], references: [id])
   invoice_evidence invoice_evidence[]
   invoice_details  invoice_details[]
-  invoice_orders   invoice_orders[]
+  invoice_logs     invoice_logs[]
 }
 
 model invoice_details {
   id Int @id @default(autoincrement())
 
-  invoice_id   Int  @map("invoiceId")
-  quotation_id Int? @map("quotationId")
+  invoice_id Int @map("invoiceId")
+  order_id   Int @map("orderId")
 
   created_by Int? @map("createdBy")
   updated_by Int? @map("updatedBy")
@@ -1233,26 +1217,22 @@ model invoice_details {
   updated_at DateTime? @map("updatedAt") @db.DateTime()
   deleted_at DateTime? @map("deletedAt") @db.DateTime()
 
-  quotation quotation? @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  invoices  invoices   @relation(fields: [invoice_id], references: [id])
+  order    orders   @relation(fields: [order_id], references: [id])
+  invoices invoices @relation(fields: [invoice_id], references: [id])
 }
 
-model invoice_orders {
+model invoice_logs {
   id Int @id @default(autoincrement())
 
-  invoice_id Int  @map("invoiceId")
-  order_id   Int? @map("orderId")
+  invoice_id Int?
 
-  created_by Int? @map("createdBy")
-  updated_by Int? @map("updatedBy")
-  deleted_by Int? @map("deletedBy")
+  data String @db.Text()
 
-  created_at DateTime  @default(now()) @map("createdAt") @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @map("updatedAt") @db.DateTime()
   deleted_at DateTime? @map("deletedAt") @db.DateTime()
 
-  orders   orders?  @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  invoices invoices @relation(fields: [invoice_id], references: [id])
+  invoice invoices? @relation(fields: [invoice_id], references: [id])
 }
 
 model invoice_evidence {

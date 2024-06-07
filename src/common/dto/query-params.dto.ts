@@ -46,6 +46,10 @@ export class QueryParamsDto {
   status?: number[];
 
   @IsOptional()
+  @Type(() => Number)
+  invoice_status?: number;
+
+  @IsOptional()
   @IsNotEmpty()
   @IsDateString()
   date_from?: string;
@@ -133,9 +137,6 @@ export class QueryParamsDto {
   })
   vendor_with_max_order?: boolean = false;
 
-  @IsOptional()
-  @IsNotEmpty()
-  invoice_status: string;
 
   @IsOptional()
   @IsNotEmpty()

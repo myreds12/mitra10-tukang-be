@@ -7,6 +7,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-known-exception.filter';
+import { PrismaValidationFilter } from './common/filters/prisma-validation-error.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -25,7 +26,7 @@ async function bootstrap() {
     prefix: '/public/',
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
-  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter(), new PrismaValidationFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
   app.setBaseViewsDir(join('templates'));

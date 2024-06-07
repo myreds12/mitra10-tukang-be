@@ -15,6 +15,7 @@ import {
   UseInterceptors,
   Req,
   ParseIntPipe,
+  UploadedFile,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -26,7 +27,7 @@ import {
 } from 'express';
 import { users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
@@ -37,10 +38,29 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
+  @Get('/export-excel')
+  async orderExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.invoicesService.invoiceExportExcel(res, query);
+  }
+
+  @Post('/upload-excel-invoice')
+  @UseInterceptors(FileInterceptor('excel_file'))
+  async syncInvoiceUpdate(@UploadedFile() file: Express.Multer.File, @Req() req: IExpressRequest) {
+    return await this.invoicesService.syncInvoiceFromExcel(file);
+  }
+
   @Post('/payment')
   @UseInterceptors(FilesInterceptor('invoice_evidences'))
   async updateInvoiceToPayment(@Body() dto: UpdateInvoiceDto) {
     return await this.invoicesService.updateInvoicesPayment(dto);
+  }
+
+  @Get('/export-excel-template')
+  async invoiceTemplateExcel(@Res() res: IExpressResponse) {
+    return await this.invoicesService.templateInvoiceExcel(res);
   }
 
   @Get('next-code')

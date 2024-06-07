@@ -108,9 +108,14 @@ export class UpdateVendorDto {
   @IsOptional()
   suip_file?: Array<Express.Multer.File> | Express.Multer.File;
 
-  @ApiProperty({ type: VendorBank }) // This represents a VendorBank
-  @Type(() => VendorBank)
-  vendor_bank?: VendorBank;
+  @ApiProperty()
+  @IsOptional()
+  @Type(() => Number)
+  bank_id?: number; 
+
+  // @ApiProperty({ type: VendorBank }) // This represents a VendorBank
+  // @Type(() => VendorBank)
+  // vendor_bank?: VendorBank;
 
   @ApiProperty({ type: [VendorArea] }) // This represents an array of VendorArea
   @Type(() => VendorArea)

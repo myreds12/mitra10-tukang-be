@@ -356,13 +356,6 @@ export class OrderService {
               updated_by: true,
             },
           },
-          invoice_orders: {
-            select: {
-              id: true,
-              invoice_id: true,
-              invoices: true,
-            },
-          },
           store: {
             where: {
               deleted_at: null,
@@ -571,13 +564,6 @@ export class OrderService {
           order_files: {
             where: {
               deleted_at: null,
-            },
-          },
-          invoice_orders: {
-            select: {
-              id: true,
-              invoice_id: true,
-              invoices: true,
             },
           },
           complaints: true,
@@ -917,7 +903,6 @@ export class OrderService {
               return Number(item.order_file_id);
             })
         : undefined;
-      console.log(deletedOrderFile);
 
       const [syncDetails, syncFiles, orderQuery] =
         await this.dbService.$transaction([
