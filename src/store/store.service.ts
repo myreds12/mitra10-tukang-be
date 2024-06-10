@@ -192,7 +192,7 @@ export class StoreService {
         password: await hash(dto?.default_password ?? 'password', 10),
       },
     });
-      const stores = await this.dbService.store.update({
+      const storeUpdate = await this.dbService.store.update({
         where: {
           id,
         },
@@ -212,7 +212,7 @@ export class StoreService {
           updated_by: user_id,
           updated_at: new Date(),
         },
-      });     
+      });
 
       await this.emailQueue.add(
         'send-credential-mail',
@@ -226,7 +226,7 @@ export class StoreService {
       );
 
       return {
-        data: store,
+        data: storeUpdate,
         meta: { user },
       };
     } catch (error) {

@@ -487,11 +487,18 @@ export class VendorService {
           ? new Date(updateVendorDto.join_date)
           : null,
         updated_by: user_id,
-        ...(updateVendorDto.bank_id ? {
-          bank: {
-            connect: {
-              id: updateVendorDto.bank_id
-            }
+        ...(updateVendorDto.vendor_bank.id ? {
+          vendor_bank: {
+            update: {
+              where: {
+                id: updateVendorDto.vendor_bank.id,
+              },
+              data: {
+                bank_id: updateVendorDto.vendor_bank.bank_id,
+                account_name: updateVendorDto?.vendor_bank.account_name,
+                account_number: updateVendorDto?.vendor_bank.account_number,
+              },
+            },
           },
         } : undefined),
         vendor_service: {
