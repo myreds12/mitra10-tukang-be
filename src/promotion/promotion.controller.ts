@@ -33,7 +33,7 @@ export class PromotionController {
     return await this.promotionService.findOne(+id);
   }
 
-  @Patch(':id')
+  @Post(':id')
   async update(@Param('id') id: string, @Body() updatePromotionDto: UpdatePromotionDto, @Req() req: UserRequest) {
     return await this.promotionService.update(+id, updatePromotionDto, req.user);
   }

@@ -105,6 +105,7 @@ model items {
 //FIXME: CHECK THIS MODEL
 model promotion {
   id             Int     @id @default(autoincrement())
+  name           String? @db.VarChar(255)
   min_order      Decimal @default(0) @db.Decimal(32, 2)
   promotion      Decimal @default(0) @db.Decimal(32, 2)
   promotion_type Int?    @default(1) // 1 = Percentage, 2 = Nominal

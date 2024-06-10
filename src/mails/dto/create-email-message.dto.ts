@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -35,7 +36,10 @@ export class CreateEmailMessageDto {
 
   footer: string;
 
-  is_active?: boolean = false;
+  @Type(() => Number)  
+  @IsNumber()
+  @IsIn([0, 1])
+  is_active: number;
 
   @Type(() => TermsDetailDto)
   terms_detail: TermsDetailDto[];

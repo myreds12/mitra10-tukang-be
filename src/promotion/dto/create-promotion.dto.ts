@@ -1,10 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsDateString, IsEnum, IsNotEmpty, ValidateNested } from "class-validator";
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, ValidateNested } from "class-validator";
 import { PromotionType } from "./promotion-type.enum";
 import { PromotionStores } from "./promotion-store.dto";
 
 export class CreatePromotionDto {
+    @ApiProperty()
+    @IsOptional()
+    name: string
+
     @ApiProperty()
     @Type(() => Number)
     @IsNotEmpty()
@@ -19,10 +23,10 @@ export class CreatePromotionDto {
     @IsEnum(PromotionType)
     promotion_type: PromotionType
 
-    @IsDateString()
+    // @IsDateString()
     start_date: string
 
-    @IsDateString()
+    // @IsDateString()
     end_date: string
 
     @Type(() => PromotionStores)

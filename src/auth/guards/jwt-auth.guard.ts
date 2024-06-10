@@ -13,7 +13,12 @@ export class JwtAuthGuard extends AuthGuard('jwt-user') {
 
   handleRequest(err, user, info) {
     if (err || !user) {
-      throw err || new UnauthorizedException();
+      throw (
+        err ||
+        new UnauthorizedException(
+          'Sesi Anda telah berakhir, silahkan login kembali.',
+        )
+      );
     }
     return user;
   }
