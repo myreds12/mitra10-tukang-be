@@ -12,6 +12,7 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 
 @Injectable()
 export class SalesService {
@@ -578,7 +579,7 @@ export class SalesService {
   async templateDefaultExcel(res: Response) {
     try {
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Template Sales Comission', {
+      const worksheet = workbook.addWorksheet('Template Sales Commission', {
         properties: {
           tabColor: { argb: 'FF4CAF50' },
           outlineLevelCol: 6,
@@ -596,9 +597,22 @@ export class SalesService {
         },
       });
 
+      // Mendefinisikan kolom-kolom header
       worksheet.columns = [
-        { header: 'Order Id', key: 'order_id', width: 35 },
-        { header: 'Sales Id', key: 'id', width: 35 },
+        { header: 'Sales Id', key: 'sales_id', width: 20 },
+        { header: 'Sales Name', key: 'sales_name', width: 20 },
+        { header: 'Order Id', key: 'order_id', width: 20 },
+        { header: 'Status Order', key: 'status_order', width: 25 },
+        { header: 'Incentive Id', key: 'incentive_id', width: 20 },
+        { header: 'Incentive Nominal', key: 'incentive_nominal', width: 35 },
+        {
+          header: 'Quotation Grand Total',
+          key: 'quotation_grand_total',
+          width: 35,
+        },
+        { header: 'Received Incentive', key: 'received_incentive', width: 35 },
+        { header: 'Status Incentive', key: 'status', width: 25 },
+        { header: 'Notes', key: 'notes', width: 35 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -615,6 +629,53 @@ export class SalesService {
           bottom: { style: 'thin' },
           right: { style: 'thin' },
         };
+      });
+
+      // Mengambil data dari database
+      const salesIncentives = await this.dbService.sales_incentive.findMany({
+        include: {
+          sales: {
+            select: {
+              id: true,
+              full_name: true,
+            },
+          },
+          quotation: {
+            select: {
+              order_id: true,
+              quotation_grand_total: true,
+              order: {
+                select: {
+                  status: {
+                    select: {
+                      category: true,
+                      description: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          incentive: true,
+        },
+      });
+
+      // Mengisi worksheet dengan data
+      salesIncentives.forEach((incentive, index) => {
+        worksheet.addRow({
+          sales_id: incentive.sales_id,
+          sales_name: incentive.sales.full_name,
+          order_id: incentive.quotation.order_id,
+          status_order: incentive.quotation.order.status.description,
+          incentive_id: incentive.incentive_id,
+          incentive_nominal: Number(incentive.incentive.incentive),
+          quotation_grand_total: Number(
+            incentive.quotation.quotation_grand_total,
+          ),
+          received_incentive: Number(incentive.nominal),
+          status: IncentiveStatus[incentive.status],
+          notes: incentive.notes,
+        });
       });
 
       const createExcelFilePath = (baseName: string) => {
@@ -648,7 +709,7 @@ export class SalesService {
       };
 
       const generateExcelFile = async (res: Response) => {
-        const baseName = 'TemplateExcelSales';
+        const baseName = 'SalesComission';
         const excelFilePath = createExcelFilePath(baseName);
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
@@ -660,44 +721,102 @@ export class SalesService {
     }
   }
 
-  async syncSalesCommission(excelFile: Express.Multer.File) {
+  async syncSalesCommission(filePath: string, user: users) {
     try {
       const workbook = new exceljs.Workbook();
-      await workbook.xlsx.readFile(excelFile.path);
+      await workbook.xlsx.readFile(filePath);
 
       const worksheet = workbook.worksheets[0];
       const salesOrderPairs = [];
+      let updatedCount = 0;
 
-      // Loop through each row in the worksheet to gather salesId and orderId pairs
-      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
-        const [sales_id, order_id] = [
-          worksheet.getCell(`A${rowNumber}`).value,
-          worksheet.getCell(`B${rowNumber}`).value,
-        ];
-        if (sales_id && order_id) {
-          salesOrderPairs.push({ salesId: sales_id, orderId: order_id });
+      //TODO: SYNC IF NOTES IS IMAGE
+      for (
+        let rowNumber = 2;
+        rowNumber <= worksheet.actualRowCount;
+        rowNumber++
+      ) {
+        const sales_id = worksheet.getCell(`A${rowNumber}`).value as number;
+        const order_id = worksheet.getCell(`C${rowNumber}`).value as number;
+        const incentive_id = worksheet.getCell(`E${rowNumber}`).value as number;
+        const notes = worksheet.getCell(`J${rowNumber}`).value;
+
+        if (sales_id && order_id && incentive_id) {
+          salesOrderPairs.push({
+            sales_id,
+            order_id,
+            incentive_id,
+            notes,
+          });
         }
       }
+      await Promise.all(
+        salesOrderPairs.map(async (pair) => {
+          const order = await this.dbService.orders.findFirst({
+            where: {
+              id: pair.order_id,
+            },
+            include: {
+              quotation: true,
+            },
+          });
 
-      // Update commission status in the database
-      const where = {
-        id: { in: salesOrderPairs.map((pair) => pair.orderId) },
-        sales_id: { in: salesOrderPairs.map((pair) => pair.salesId) },
-      };
+          if (!order) {
+            console.warn(`Quotation with ID ${pair.order_id} not found.`);
+            return;
+          }
 
-      // Update commission status in the database
-      const updateSales = await this.dbService.orders.updateMany({
-        where,
-        data: {
-          grand_total_comission: { increment: 20 },
-        },
-      });
+          const sales = await this.findOne(pair.sales_id);
+          if (!sales) {
+            console.warn(`Sales with ID ${pair.sales_id} not found.`);
+            return;
+          }
 
-      console.log(
-        `Updated commission_paid to true for ${updateSales.count} orders`,
+          const setting_incentive =
+            await this.dbService.setting_incentive.findFirst({
+              where: {
+                id: pair.incentive_id,
+              },
+            });
+          console.log(setting_incentive, "SETTING INCENTIVE");
+          
+
+          if (!setting_incentive) {
+            console.warn(`Incentive with ID ${pair.incentive_id} not found.`);
+            return;
+          }
+
+          const incentive = await this.dbService.sales_incentive.findFirst({
+            where: {
+              sales_id: sales.id,
+              incentive_id: setting_incentive.id,
+              status: IncentiveStatus.WAITING_FOR_PAYMENT,
+            },
+          });
+
+          if (!incentive) {
+            console.warn(`Sales Incentive  not found!`);
+            return;
+          }
+          
+
+          const updateSales = await this.dbService.sales_incentive.update({
+            where: {
+              id: incentive.id,
+            },
+            data: {
+              status: IncentiveStatus.PAID,
+              notes: pair.notes ?? '',
+              updated_at: new Date(),
+              updated_by: user.id,
+            },
+          });
+          updatedCount += 1
+        }),
       );
+      console.log('SUCCESS');
 
-      return updateSales;
+      return {count: updatedCount};
     } catch (error) {
       console.error('Error synchronizing commission status:', error);
       throw error;
