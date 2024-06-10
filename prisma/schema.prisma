@@ -33,6 +33,7 @@ model area {
   members     members[]
   store       store[]
   vendor_area vendor_area[]
+  tukang_area tukang_area[]
 }
 
 model city {
@@ -494,6 +495,24 @@ model tukang {
   tukang_document   tukang_document[]
   work_order_tukang work_order_tukang[]
   work_order_items  work_order_items[]
+  tukang_area       tukang_area[]
+}
+
+model tukang_area {
+  id Int @id @default(autoincrement())
+
+  tukang_id Int
+  area_id   Int
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  area   area   @relation(fields: [area_id], references: [id])
+  tukang tukang @relation(fields: [tukang_id], references: [id])
 }
 
 model tukang_document {
@@ -863,12 +882,13 @@ model categories {
 model quotation {
   id Int @id @default(autoincrement())
 
-  store_id         Int  @db.Int
-  order_id         Int  @db.Int
-  promotion_id     Int?
+  store_id     Int  @db.Int
+  order_id     Int  @db.Int
+  promotion_id Int?
+
   quotation_status Int
-  readiness        Int  @default(1) @db.TinyInt()
-  emailSended      Int  @default(0)
+  readiness        Int @default(1) @db.TinyInt()
+  emailSended      Int @default(0)
 
   description           String   @db.Text()
   quotation_number      String
