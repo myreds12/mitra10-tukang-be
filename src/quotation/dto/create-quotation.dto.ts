@@ -21,7 +21,7 @@ export class CreateQuotationDto {
   
   @IsOptional()
   @Type(() => Number)
-  promotion_id: number;
+  promotion_id?: number;
 
   @Type(() => Number)
   store_id: number;
