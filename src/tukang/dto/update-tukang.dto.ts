@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -10,6 +11,7 @@ import {
   IsString,
 } from 'class-validator';
 import { ServiceType } from './service-type.class.interface';
+import { TukangAreaDto } from './tukang-area.dto';
 
 export class UpdateTukangDto {
   @ApiProperty()
@@ -30,9 +32,13 @@ export class UpdateTukangDto {
   @Type(() => Number)
   vendor_id?: number;
 
-  @ApiProperty({ type: [ServiceType] }) // This represents an array of VendorService
+  @ApiProperty({ type: [ServiceType] }) // 
   @Type(() => ServiceType)
   service_types?: ServiceType[];
+
+  @ApiProperty({type: [TukangAreaDto]})
+  @Type(() => TukangAreaDto)
+  tukang_area?: TukangAreaDto[]
 
   join_date?: string;
 
@@ -45,4 +51,10 @@ export class UpdateTukangDto {
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   npwp_file?: Express.Multer.File[] | Express.Multer.File;
+
+
+  @Type(() => Number)  
+  @IsNumber()
+  @IsIn([0, 1])
+  is_active: number;
 }
