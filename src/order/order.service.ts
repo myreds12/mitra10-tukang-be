@@ -235,13 +235,10 @@ export class OrderService {
         payment_type,
         store_id,
         vendor_id,
-        invoice_status,
+        work_order_status,
       } = queryParams;
 
       const skip = page * take - take;
-      let statusDone = await this.dbService.status.findMany();
-
-      statusDone = statusDone.filter(({ category }) => category === 'DONE');
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -271,6 +268,9 @@ export class OrderService {
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
+          ...(work_order_status
+            ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
+            : []),
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
@@ -612,6 +612,7 @@ export class OrderService {
               },
             },
           },
+          invoice_details: true,
         },
       });
 
@@ -1333,32 +1334,52 @@ export class OrderService {
       });
 
       data.forEach((order) => {
-        const itemName = order.m_order_details ? order.m_order_details.map((item) => item?.item_name).join(', ') : 'N/a';
-        const categoryName = order.m_order_details ? order.m_order_details.map((item) => item.item?.category?.category_name).join(', ') : 'N/a';
-        const tukangName = order.work_orders ? order.work_orders.work_order_tukang.map((item) => item?.tukang?.full_name).join(', ') : 'N/a';
-        const formattedDateTime = (dateTime) => `${new Date(dateTime).toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })}, ${dateTime.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`;
+        const itemName = order.m_order_details
+          ? order.m_order_details.map((item) => item?.item_name).join(', ')
+          : 'N/a';
+        const categoryName = order.m_order_details
+          ? order.m_order_details
+              .map((item) => item.item?.category?.category_name)
+              .join(', ')
+          : 'N/a';
+        const tukangName = order.work_orders
+          ? order.work_orders.work_order_tukang
+              .map((item) => item?.tukang?.full_name)
+              .join(', ')
+          : 'N/a';
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
         const grandTotal = Number(order.grand_total);
         const formattedGrandTotal = !isNaN(grandTotal)
           ? new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(grandTotal)
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
           : 'Rp. 0';
         const row = worksheet.addRow({
           id: order.id,
-          request_survey: order.request_survey ? formattedDateTime(order.request_survey) : 'N/a',
+          request_survey: order.request_survey
+            ? formattedDateTime(order.request_survey)
+            : 'N/a',
           receipt_number: order.receipt_number ? order.receipt_number : 'N/a',
-          payment_type: order.payment_type === 'pemasangan_tanpa_survey' ? 'Pemasangan Tanpa Survey' : order.payment_type === 'survey' ? 'Survey' : order.payment_type === 'gratis' ? 'Gratis' : 'N/a',
+          payment_type:
+            order.payment_type === 'pemasangan_tanpa_survey'
+              ? 'Pemasangan Tanpa Survey'
+              : order.payment_type === 'survey'
+              ? 'Survey'
+              : order.payment_type === 'gratis'
+              ? 'Gratis'
+              : 'N/a',
           store_name: order.store ? order.store.store_name : 'N/a',
           item_name: itemName,
-            category_name: categoryName,
+          category_name: categoryName,
           member_number: order.members ? order.members.member_number : 'N/a',
           full_name: order.members ? order.members.full_name : 'N/a',
           whatsapp_number: order.members.whatsapp_number

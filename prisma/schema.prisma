@@ -1215,6 +1215,8 @@ model invoice_details {
   invoice_id Int @map("invoiceId")
   order_id   Int @map("orderId")
 
+  total Int? @default(0) @db.Int()
+
   created_by Int? @map("createdBy")
   updated_by Int? @map("updatedBy")
   deleted_by Int? @map("deletedBy")
@@ -1518,7 +1520,7 @@ model sales_incentive {
 
   nominal Decimal @default(0) @db.Decimal(32, 2)
   status  Int     @default(0) @db.Int()
-  notes   String? @default("")  @db.Text()
+  notes   String? @default("") @db.Text()
 
   created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
   updated_at DateTime? @map("updatedAt") @db.DateTime()

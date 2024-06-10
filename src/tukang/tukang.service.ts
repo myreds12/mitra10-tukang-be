@@ -9,7 +9,7 @@ import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
-import * as fs from 'fs'
+import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class TukangService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
   async create(
     createTukangDto: CreateTukangDto,
     user: users,
@@ -27,16 +27,16 @@ export class TukangService {
       const { id: user_id } = user;
       const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
         ? Object.entries(files).map((file) => {
-          if (file[0].length) {
-            const newFile = file[1].map((item) => ({
-              document_name: file[0],
-              path: item.filename,
-              created_by: user_id,
-            }));
+            if (file[0].length) {
+              const newFile = file[1].map((item) => ({
+                document_name: file[0],
+                path: item.filename,
+                created_by: user_id,
+              }));
 
-            return newFile;
-          }
-        })
+              return newFile;
+            }
+          })
         : undefined;
 
       const roles = await this.dbService.roles.findFirst({
@@ -50,19 +50,22 @@ export class TukangService {
       const tukangServiceTypes: Prisma.tukang_serviceCreateManyTukangInput[] =
         createTukangDto.service_types
           ? createTukangDto.service_types.map((item) => {
-            return {
-              service_type_id: item.service_type_id,
-              created_by: user_id,
-            };
-          })
+              return {
+                service_type_id: item.service_type_id,
+                created_by: user_id,
+              };
+            })
           : undefined;
 
-      const tukangArea : Prisma.tukang_areaCreateManyTukangInput[] = createTukangDto.tukang_area ? createTukangDto.tukang_area.map((item) => {
-        return {
-          area_id: item.area_id,
-          created_by: user_id
-        }
-      }) : undefined;
+      const tukangArea: Prisma.tukang_areaCreateManyTukangInput[] =
+        createTukangDto.tukang_area
+          ? createTukangDto.tukang_area.map((item) => {
+              return {
+                area_id: item.area_id,
+                created_by: user_id,
+              };
+            })
+          : undefined;
 
       const saltedPassword = hashSync(
         createTukangDto?.password ?? 'password',
@@ -101,28 +104,30 @@ export class TukangService {
         bod: new Date(createTukangDto.bod),
         ...(tukangFiles
           ? {
-            tukang_document: {
-              createMany: {
-                data: tukangFiles.flat(),
+              tukang_document: {
+                createMany: {
+                  data: tukangFiles.flat(),
+                },
               },
-            },
-          }
-          : undefined),
-        ...(tukangArea ? {
-          tukang_area: {
-            createMany: {
-              data: tukangArea
             }
-          }
-        }  : undefined),
+          : undefined),
+        ...(tukangArea
+          ? {
+              tukang_area: {
+                createMany: {
+                  data: tukangArea,
+                },
+              },
+            }
+          : undefined),
         ...(tukangServiceTypes
           ? {
-            tukang_service: {
-              createMany: {
-                data: tukangServiceTypes,
+              tukang_service: {
+                createMany: {
+                  data: tukangServiceTypes,
+                },
               },
-            },
-          }
+            }
           : undefined),
       };
 
@@ -130,8 +135,8 @@ export class TukangService {
         this.dbService.tukang.create({
           data: tukangData,
           include: {
-            users: true
-          }
+            users: true,
+          },
         }),
       ]);
       this.emailQueue.add(
@@ -165,7 +170,7 @@ export class TukangService {
         search_date_from,
         search_date_to,
         service_types,
-        area_id
+        area_id,
       } = query;
       const skip = page * take - take;
 
@@ -173,67 +178,69 @@ export class TukangService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { address: { contains: search } },
-                  { email: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { full_name: { contains: search } },
-                  { ktp_number: { contains: search } },
-                  { vendor: { company_name: { contains: search } } },
-                  {
-                    tukang_service: {
-                      every: {
-                        service_type: { service_type: { contains: search } },
+                {
+                  OR: [
+                    { address: { contains: search } },
+                    { email: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { full_name: { contains: search } },
+                    { ktp_number: { contains: search } },
+                    { vendor: { company_name: { contains: search } } },
+                    {
+                      tukang_service: {
+                        every: {
+                          service_type: { service_type: { contains: search } },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           service_types
             ? {
-              tukang_service: {
-                some: {
-                  service_type_id: {
-                    in: service_types,
+                tukang_service: {
+                  some: {
+                    service_type_id: {
+                      in: service_types,
+                    },
                   },
                 },
-              },
-            }
-            : undefined,
-            area_id ? {
-              tukang_area: {
-                some: {
-                  area_id: area_id
-                }
               }
-            } : undefined,
+            : undefined,
+          area_id
+            ? {
+                tukang_area: {
+                  some: {
+                    area_id: area_id,
+                  },
+                },
+              }
+            : undefined,
           vendor_id
             ? {
-              vendor_id: vendor_id,
-            }
+                vendor_id: vendor_id,
+              }
             : undefined,
           search_date_from && search_date_to
             ? {
-              join_date: {
-                gte: new Date(`${search_date_from}T00:00:00.000Z`),
-                lte: new Date(`${search_date_to}T23:59:59.000Z`),
-              },
-            }
+                join_date: {
+                  gte: new Date(`${search_date_from}T00:00:00.000Z`),
+                  lte: new Date(`${search_date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ],
         deleted_at: null,
-        is_active: true
+        is_active: true,
       };
 
       const tukang = await this.dbService.tukang.findMany({
@@ -272,7 +279,7 @@ export class TukangService {
           id,
           deleted_at: null,
           deleted_by: null,
-          is_active: true
+          is_active: true,
         },
         include: {
           users: true,
@@ -300,144 +307,151 @@ export class TukangService {
     files?: TukangFiles,
   ) {
     try {
-      // if (!updateTukangDto.service_types)
-      //   throw new BadRequestException('Service type cannot be null.');
-      // if (!updateTukangDto.service_types.length)
-      //   throw new BadRequestException('Service type should be an one or many.');
-
       console.log(updateTukangDto);
       const { id: user_id } = user;
 
       const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
         ? Object.entries(files).map((file) => {
-          if (file[0].length) {
-            const newFile = file[1].map((item) => ({
-              document_name: file[0],
-              path: item.filename,
-              created_by: user_id,
-            }));
+            if (file[0].length) {
+              const newFile = file[1].map((item) => ({
+                document_name: file[0],
+                path: item.filename,
+                created_by: user_id,
+              }));
 
-            return newFile;
-          }
-        })
+              return newFile;
+            }
+          })
         : undefined;
       console.log(updateTukangDto.service_types);
 
-      const tukangServiceTypesUpsert: Prisma.tukang_serviceUpsertWithWhereUniqueWithoutTukangInput[] = updateTukangDto.service_types ?
-        updateTukangDto.service_types.map((item) => ({
-          where: {
-            id: item.id ?? 0,
-            tukang_id: id,
-          },
-          create: {
-            service_type_id: item.service_type_id,
-            created_by: user_id,
-          },
-          update: {
-            service_type_id: item.service_type_id,
-            updated_by: user_id,
-            updated_at: new Date(),
-          },
-        })) : undefined;
+      const tukangServiceTypesUpsert: Prisma.tukang_serviceUpsertWithWhereUniqueWithoutTukangInput[] =
+        updateTukangDto.service_types
+          ? updateTukangDto.service_types.map((item) => ({
+              where: {
+                id: item.id ?? 0,
+                tukang_id: id,
+              },
+              create: {
+                service_type_id: item.service_type_id,
+                created_by: user_id,
+              },
+              update: {
+                service_type_id: item.service_type_id,
+                updated_by: user_id,
+                updated_at: new Date(),
+              },
+            }))
+          : undefined;
 
-
-        const tukangAreaUpsert: Prisma.tukang_areaUpsertWithWhereUniqueWithoutTukangInput[] = updateTukangDto.tukang_area ?
-        updateTukangDto.tukang_area.map((item) => ({
-          where: {
-            id: item.id ?? 0,
-            tukang_id: id,
-          },
-          create: {
-            area_id: item.area_id,
-            created_by: user_id,
-          },
-          update: {
-            area_id: item.area_id,
-            updated_by: user_id,
-            updated_at: new Date(),
-          },
-        })) : undefined;
-
+      const tukangAreaUpsert: Prisma.tukang_areaUpsertWithWhereUniqueWithoutTukangInput[] =
+        updateTukangDto.tukang_area
+          ? updateTukangDto.tukang_area.map((item) => ({
+              where: {
+                id: item.id ?? 0,
+                tukang_id: id,
+              },
+              create: {
+                area_id: item.area_id,
+                created_by: user_id,
+              },
+              update: {
+                area_id: item.area_id,
+                updated_by: user_id,
+                updated_at: new Date(),
+              },
+            }))
+          : undefined;
 
       const tukangUpdate: Prisma.tukangUpdateInput = {
-        ...(updateTukangDto.vendor_id ? {
-          vendor: {
-            connect: {
-              id: updateTukangDto.vendor_id,
-            },
-          },
-        } : undefined),
-        email: updateTukangDto.email,
-        full_name: updateTukangDto.full_name,
-        ktp_number: updateTukangDto.ktp_number,
-        join_date: updateTukangDto.join_date
+        ...(updateTukangDto?.vendor_id
+          ? {
+              vendor: {
+                connect: {
+                  id: updateTukangDto.vendor_id,
+                },
+              },
+            }
+          : undefined),
+        email: updateTukangDto?.email,
+        full_name: updateTukangDto?.full_name,
+        ktp_number: updateTukangDto?.ktp_number,
+        join_date: updateTukangDto?.join_date
           ? new Date(updateTukangDto.join_date)
           : undefined,
-        address: updateTukangDto.address,
-        phone_number: updateTukangDto.phone_number,
-        bod: updateTukangDto.bod ? new Date(updateTukangDto.bod) : undefined,
+        address: updateTukangDto?.address,
+        phone_number: updateTukangDto?.phone_number,
+        bod: updateTukangDto?.bod ? new Date(updateTukangDto.bod) : undefined,
         is_active: Boolean(updateTukangDto.is_active),
-        ...(tukangServiceTypesUpsert ? {
-          tukang_service: {
-            upsert: tukangServiceTypesUpsert,
-          },
-        } : undefined),
-        ...(tukangAreaUpsert ? {
-          tukang_area: {
-            upsert: tukangAreaUpsert
-          }
-        } : undefined),
+        ...(tukangServiceTypesUpsert
+          ? {
+              tukang_service: {
+                upsert: tukangServiceTypesUpsert,
+              },
+            }
+          : undefined),
+        ...(tukangAreaUpsert
+          ? {
+              tukang_area: {
+                upsert: tukangAreaUpsert,
+              },
+            }
+          : undefined),
         ...(tukangFiles
           ? {
-            tukang_document: {
-              createMany: {
-                data: tukangFiles.flat(),
+              tukang_document: {
+                createMany: {
+                  data: tukangFiles.flat(),
+                },
               },
-            },
-          }
+            }
           : undefined),
       };
 
-
-      const data =
-        await this.dbService.$transaction([
-          this.dbService.tukang.update({
-            where: {
-              id,
-            },
-            data: tukangUpdate,
-          }),
-          ...(updateTukangDto.is_active != null ? [
-            this.dbService.tukang_document.updateMany({
-              where: {
-                tukang_id: id,
-              },
-              data: {
-                deleted_at: new Date(),
-                deleted_by: user_id,
-              },
-            }),
-          ] : []),
-          ...(updateTukangDto.service_types ? [
-            this.dbService.tukang_service.updateMany({
-              ...(updateTukangDto.service_types ? {
+      const data = await this.dbService.$transaction([
+        this.dbService.tukang.update({
+          where: {
+            id,
+          },
+          data: tukangUpdate,
+        }),
+        ...(updateTukangDto.is_active != null
+          ? [
+              this.dbService.tukang_document.updateMany({
                 where: {
                   tukang_id: id,
-                  NOT: updateTukangDto.service_types.map((item) => {
-                    return {
-                      service_type_id: item.service_type_id,
-                      id: item?.id,
-                    };
-                  })
                 },
-              } : undefined),
-              data: {
-                deleted_at: new Date(),
-                deleted_by: user_id,
-              },
-            }),
-          ] : [])
-        ]);
+                data: {
+                  deleted_at: new Date(),
+                  deleted_by: user_id,
+                },
+              }),
+            ]
+          : []),
+        ...(updateTukangDto.service_types
+          ? [
+              this.dbService.tukang_service.updateMany({
+                ...(updateTukangDto.service_types
+                  ? {
+                      where: {
+                        tukang_id: id,
+                        NOT: updateTukangDto.service_types.map((item) => {
+                          return {
+                            service_type_id: item.service_type_id,
+                            id: item?.id,
+                          };
+                        }),
+                      },
+                    }
+                  : undefined),
+                data: {
+                  deleted_at: new Date(),
+                  deleted_by: user_id,
+                },
+              }),
+            ]
+          : []),
+      ]);
 
       return data[0];
     } catch (error) {
@@ -485,29 +499,25 @@ export class TukangService {
       const { data } = await this.findAll(queryParams);
 
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Profile Sales ',
-        {
-          properties:
-          {
-            tabColor:
-            {
-              argb: 'FF4CAF50'
-            },
-            outlineLevelCol: 6,
-            outlineLevelRow: 40,
+      const worksheet = workbook.addWorksheet('Data Profile Sales ', {
+        properties: {
+          tabColor: {
+            argb: 'FF4CAF50',
           },
-          pageSetup: {
-            margins: {
-              left: 90.7,
-              right: 0.7,
-              top: 0.75,
-              bottom: 0.75,
-              header: 0.3,
-              footer: 0.3
-            }
-          }
-        }
-      );
+          outlineLevelCol: 6,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
 
       worksheet.columns = [
         { header: 'Tukang Id', key: 'id', width: 20 },
@@ -528,28 +538,32 @@ export class TukangService {
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: '0000FF' }
+          fgColor: { argb: '0000FF' },
         };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          right: { style: 'thin' },
         };
       });
 
-
-      data.forEach(tukang => {
-        const formattedDateTime = (date) => `${date.toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        })}, ${date.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit'
-        })}`;
-        const tukangService = tukang.tukang_service ? tukang.tukang_service.map((service) => service.service_type.service_type).join(',') : ''
+      data.forEach((tukang) => {
+        const formattedDateTime = (date) =>
+          `${date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${date.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+        const tukangService = tukang.tukang_service
+          ? tukang.tukang_service
+              .map((service) => service.service_type.service_type)
+              .join(',')
+          : '';
         const row = worksheet.addRow({
           id: tukang.id,
           company_name: tukang.vendor ? tukang.vendor.company_name : '',
@@ -560,7 +574,9 @@ export class TukangService {
           bod: tukang.bod ? formattedDateTime(new Date(tukang.bod)) : '',
           ktp_number: tukang.ktp_number ? tukang.ktp_number : '',
           username: tukang.users ? tukang.users.username : '',
-          join_date: tukang.join_date ? formattedDateTime(new Date(tukang.join_date)) : formattedDateTime(new Date(tukang.created_at)),
+          join_date: tukang.join_date
+            ? formattedDateTime(new Date(tukang.join_date))
+            : formattedDateTime(new Date(tukang.created_at)),
           tukang_service: tukangService,
         });
 
@@ -570,11 +586,10 @@ export class TukangService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         });
       });
-
 
       const getFormattedDate = () => {
         const now = new Date();
@@ -594,11 +609,21 @@ export class TukangService {
         return path.join(folderPath, excelFileName);
       };
 
-      const writeWorkbookAndSendResponse = async (workbook, excelFilePath, res) => {
+      const writeWorkbookAndSendResponse = async (
+        workbook,
+        excelFilePath,
+        res,
+      ) => {
         await workbook.xlsx.writeFile(excelFilePath);
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
 
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
@@ -609,12 +634,11 @@ export class TukangService {
         const excelFilePath = createExcelFilePath(baseName);
 
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
-      }
+      };
 
       return generateExcelFile(data, res);
     } catch (error) {
       throw error;
     }
-
   }
 }

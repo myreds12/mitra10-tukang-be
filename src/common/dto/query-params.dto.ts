@@ -51,6 +51,12 @@ export class QueryParamsDto {
 
   @IsOptional()
   @IsNotEmpty()
+  @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
+  @Type(() => Array<Number>)
+  work_order_status?: number[];
+
+  @IsOptional()
+  @IsNotEmpty()
   @IsDateString()
   date_from?: string;
 

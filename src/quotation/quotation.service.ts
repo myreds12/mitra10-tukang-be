@@ -3,7 +3,7 @@ import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { Prisma, users } from '@prisma/client';
+import { Prisma, quotation, users } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -21,7 +21,7 @@ export class QuotationService {
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
 
   private readonly logger = new Logger(QuotationService.name);
 
@@ -52,9 +52,9 @@ export class QuotationService {
       const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
         quotation_files
           ? quotation_files.map((item) => ({
-            path: item.filename,
-            created_by: user_id,
-          }))
+              path: item.filename,
+              created_by: user_id,
+            }))
           : undefined;
 
       const statusForEmail = await this.dbService.status.findFirst({
@@ -148,12 +148,12 @@ export class QuotationService {
         },
         ...(promotion
           ? {
-            promotion: {
-              connect: {
-                id: promotion.id,
+              promotion: {
+                connect: {
+                  id: promotion.id,
+                },
               },
-            },
-          }
+            }
           : undefined),
         store: {
           connect: {
@@ -226,24 +226,24 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    order: { vendor: { company_name: { contains: search } } },
-                  },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    {
+                      order: { vendor: { company_name: { contains: search } } },
+                    },
+                    { store: { store_name: { contains: search } } },
+                    { quotation_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -410,18 +410,20 @@ export class QuotationService {
           },
         },
       });
-      const promotion = updateQuotationDto.promotion_id ? await this.dbService.promotion.findFirst({
-        where: {
-          id: updateQuotationDto.promotion_id,
-        },
-        include: {
-          promotion_stores: {
-            include: {
-              store: true,
+      const promotion = updateQuotationDto.promotion_id
+        ? await this.dbService.promotion.findFirst({
+            where: {
+              id: updateQuotationDto.promotion_id,
             },
-          },
-        },
-      }) : undefined;
+            include: {
+              promotion_stores: {
+                include: {
+                  store: true,
+                },
+              },
+            },
+          })
+        : undefined;
 
       const quotationfiles =
         quotation_files?.map((item) => ({
@@ -452,9 +454,9 @@ export class QuotationService {
 
             final_price = Number(
               price * quantity +
-              (item.margin_type === MarginType.PERCENTAGE
-                ? price * quantity * (+item.margin / 100)
-                : +item.margin),
+                (item.margin_type === MarginType.PERCENTAGE
+                  ? price * quantity * (+item.margin / 100)
+                  : +item.margin),
             );
           }
 
@@ -531,10 +533,10 @@ export class QuotationService {
           data: {
             status: updateQuotationDto?.quotation_status
               ? {
-                connect: {
-                  id: updateQuotationDto.quotation_status,
-                },
-              }
+                  connect: {
+                    id: updateQuotationDto.quotation_status,
+                  },
+                }
               : undefined,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
@@ -560,10 +562,10 @@ export class QuotationService {
             updated_at: new Date(),
             quotation_files: quotation_files
               ? {
-                createMany: {
-                  data: evidence,
-                },
-              }
+                  createMany: {
+                    data: evidence,
+                  },
+                }
               : undefined,
             quotation_details: {
               upsert: quotationDetailsUpsert,
@@ -581,7 +583,7 @@ export class QuotationService {
           Number(quotation.quotation_grand_total),
           quotation.store_id,
           quotation.order.sales_id,
-          quotation.id,
+          quotation,
         );
       }
 
@@ -854,38 +856,38 @@ export class QuotationService {
       data.forEach((quotation) => {
         const itemName = quotation.quotation_details
           ? quotation.quotation_details
-            .map((item) => item?.name || 'N/a')
-            .join(', ')
+              .map((item) => item?.name || 'N/a')
+              .join(', ')
           : 'N/a';
         const itemQuantity = quotation.quotation_details
           ? quotation.quotation_details
-            .map((item) => item?.quantity || 'N/a')
-            .join(', ')
+              .map((item) => item?.quantity || 'N/a')
+              .join(', ')
           : 'N/a';
         const itemUnit = quotation.quotation_details
           ? quotation.quotation_details
-            .map((item) => item?.unit || 'N/a')
-            .join(', ')
+              .map((item) => item?.unit || 'N/a')
+              .join(', ')
           : 'N/a';
         const tukangName = quotation.order.work_orders
           ? quotation.order.work_orders.work_order_tukang
-            .map((item) => item?.tukang?.full_name)
-            .join(', ')
+              .map((item) => item?.tukang?.full_name)
+              .join(', ')
           : 'N/a';
         const workOrderItems = quotation.quotation_details
           ? quotation.quotation_details
-            .map((item) => item?.work_order_items?.name || 'N/a')
-            .join(', ')
+              .map((item) => item?.work_order_items?.name || 'N/a')
+              .join(', ')
           : 'N/a';
         const workOrderItemsQuantity = quotation.quotation_details
           ? quotation.quotation_details
-            .map((item) => item?.work_order_items?.quantity || 'N/a')
-            .join(', ')
+              .map((item) => item?.work_order_items?.quantity || 'N/a')
+              .join(', ')
           : 'N/a';
         const workOrderItemsUnit = quotation.quotation_details
           ? quotation.quotation_details
-            .map((item) => item?.work_order_items?.unit || 'N/a')
-            .join(', ')
+              .map((item) => item?.work_order_items?.unit || 'N/a')
+              .join(', ')
           : 'N/a';
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
@@ -899,9 +901,9 @@ export class QuotationService {
         const grandTotal = Number(quotation.quotation_grand_total);
         const formattedGrandTotal = !isNaN(grandTotal)
           ? new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(grandTotal)
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
           : 'Rp. 0';
         const row = worksheet.addRow({
           id: quotation.id,
@@ -1042,10 +1044,11 @@ export class QuotationService {
     grandTotal: number,
     storeId: number,
     salesId: number,
-    quotationId: number,
+    quotation: quotation,
   ) {
-    console.log(grandTotal, "TOTAL");
-    
+    console.log(grandTotal, 'TOTAL');
+    const { id: quotation_id, order_id } = quotation;
+
     const filteredIncentive = await this.dbService.setting_incentive.findMany({
       where: {
         stores: {
@@ -1063,42 +1066,47 @@ export class QuotationService {
     const closestIncentive =
       filteredIncentive.length > 0
         ? filteredIncentive.reduce((closest, current) =>
-          Math.abs(Number(current.min_order) - grandTotal) <
+            Math.abs(Number(current.min_order) - grandTotal) <
             Math.abs(Number(closest.min_order) - grandTotal)
-            ? current
-            : closest,
-        )
+              ? current
+              : closest,
+          )
         : null;
     console.log(closestIncentive);
-    let comission = 0;
-    if (closestIncentive) {
-      if (closestIncentive.type === 1) {
-        comission += grandTotal * (Number(closestIncentive.incentive) / 100);
-      } else if (closestIncentive.type === 2) {
-        comission += Number(closestIncentive.incentive);
-      }
+    if (!closestIncentive) return null;
 
-      await this.dbService.sales_incentive.create({
-        data: {
-          incentive: {
-            connect: {
-              id: closestIncentive.id,
-            },
-          },
-          sales: {
-            connect: {
-              id: salesId,
-            },
-          },
-          quotation: {
-            connect: {
-              id: quotationId,
-            },
-          },
-          nominal: comission,
-          status: IncentiveStatus.DRAFT,
-        },
-      });
+    let comission = 0;
+    if (closestIncentive.type === 1) {
+      comission += grandTotal * (Number(closestIncentive.incentive) / 100);
+    } else if (closestIncentive.type === 2) {
+      comission += Number(closestIncentive.incentive);
     }
+
+    const salesIncentive = await this.dbService.sales_incentive.create({
+      data: {
+        incentive: {
+          connect: {
+            id: closestIncentive.id,
+          },
+        },
+        sales: {
+          connect: {
+            id: salesId,
+          },
+        },
+        quotation: {
+          connect: {
+            id: quotation_id,
+          },
+        },
+        nominal: comission,
+        status: IncentiveStatus.DRAFT,
+      },
+    });
+
+    await this.dbService.orders.update({
+      where: { id: order_id },
+      data: { grand_total_comission: salesIncentive.nominal },
+    });
   }
 }

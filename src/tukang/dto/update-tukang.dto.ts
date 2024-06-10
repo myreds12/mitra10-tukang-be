@@ -43,10 +43,8 @@ export class UpdateTukangDto {
   @IsOptional()
   npwp_file?: Express.Multer.File[] | Express.Multer.File;
 
-
-  @IsOptional()
-  @Type(() => Number)  
+  @Type(() => Number)
   @IsNumber()
   @IsIn([0, 1])
-  is_active?: number;
+  is_active: number;
 }

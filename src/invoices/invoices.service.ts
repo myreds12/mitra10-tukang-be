@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -15,7 +20,7 @@ import * as path from 'path';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   private readonly logger = new Logger(InvoicesService.name);
   async create(
     createInvoiceDto: CreateInvoiceDto,
@@ -28,19 +33,21 @@ export class InvoicesService {
       // Prepare evidences if available
       const evidences = invoice_evidences?.length
         ? invoice_evidences.map((item) => ({
-          evidence_location: item.filename,
-          created_by: user_id,
-        }))
+            evidence_location: item.filename,
+            created_by: user_id,
+          }))
         : [];
 
       // Get provided order IDs
       const providedOrder = createInvoiceDto.invoice_details
-        ? createInvoiceDto.invoice_details.map(({ order_id }) => Number(order_id))
+        ? createInvoiceDto.invoice_details.map(({ order_id }) =>
+            Number(order_id),
+          )
         : [];
 
       if (providedOrder.length === 0) {
-        this.logger.error("No Order Id Provided");
-        throw new Error("No Order Id Provided");
+        this.logger.error('No Order Id Provided');
+        throw new Error('No Order Id Provided');
       }
 
       const orders = await this.dbService.orders.findMany({
@@ -48,41 +55,83 @@ export class InvoicesService {
           id: {
             in: providedOrder,
           },
+          invoice_details: {
+            none: {},
+          },
+          work_orders: {
+            status: {
+              category: {
+                in: ['WORKEND', 'DONE'],
+              },
+            },
+          },
         },
         include: {
           m_order_details: true,
           quotation: true,
+          work_orders: true,
+          invoice_details: {
+            select: {
+              id: true,
+            },
+          },
         },
       });
+      console.log(orders);
+
+      if (
+        orders.filter((order) => order.payment_type === 'gratis').length !== 0
+      ) {
+        throw new BadRequestException(
+          'Order yang di input tidak boleh dengan payment type GRATIS',
+        );
+      }
+
+      if (orders.filter((order) => !order?.work_orders).length !== 0) {
+        throw new BadRequestException(
+          'Status order yang dipilih saat ini masih belum selesai',
+        );
+      }
+
+      if (
+        orders.filter((order) => order.invoice_details.length !== 0).length !==
+        0
+      ) {
+        throw new BadRequestException(
+          'Beberapa order yang dipilih sudah dirilis Invoice-nya',
+        );
+      }
 
       let totalGrandTotal = 0;
       let totalQuotationGrandTotal = 0;
+      let invoiceDetails = [];
 
       orders.forEach((order) => {
         if (order?.payment_type === 'survey') {
-          totalGrandTotal += Number(order.grand_total) || 0;
-        } else if (order?.payment_type === 'pemasangan_tanpa_survey' || order?.payment_type === 'gratis') {
           if (order.quotation && order.quotation.length > 0) {
             const quotationTotal = order.quotation.reduce((acc, quotation) => {
+              invoiceDetails.push({
+                order_id: order.id,
+                total: quotation.quotation_grand_total,
+              });
               return acc + (Number(quotation.quotation_grand_total) || 0);
             }, 0);
             totalQuotationGrandTotal += quotationTotal;
           }
+        } else if (order?.payment_type === 'pemasangan_tanpa_survey') {
+          invoiceDetails.push({
+            order_id: order.id,
+            total: order.grand_total,
+          });
+          totalGrandTotal += Number(order.grand_total) || 0;
         }
       });
 
       const totalAmount = totalGrandTotal + totalQuotationGrandTotal;
-      console.log(totalAmount);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
-      const invoiceDetails = createInvoiceDto.invoice_details
-        ? createInvoiceDto.invoice_details.map((item) => ({
-          order_id: item.order_id,
-        }))
-        : [];
-
-      console.log(invoiceDetails, "DETAILS");
+      console.log(invoiceDetails, 'DETAILS');
 
       const data = {
         vendor: {
@@ -98,13 +147,15 @@ export class InvoicesService {
             data: evidences,
           },
         },
-        ...(invoiceDetails.length > 0 ? {
-          invoice_details: {
-            createMany: {
-              data: invoiceDetails,
-            },
-          },
-        } : {}),
+        ...(invoiceDetails.length > 0
+          ? {
+              invoice_details: {
+                createMany: {
+                  data: invoiceDetails,
+                },
+              },
+            }
+          : {}),
         created_by: user_id,
       };
 
@@ -112,15 +163,14 @@ export class InvoicesService {
         this.dbService.invoices.create({ data }),
       ]);
 
-      await this.invoiceLogs(invoices.id, invoices)
+      await this.invoiceLogs(invoices.id, invoices);
       this.logger.log(`Invoice successfully create with ID: ${invoices.id}`);
       return invoices;
     } catch (error) {
-      console.error("Error creating invoice:", error);
+      console.error('Error creating invoice:', error);
       throw error;
     }
-  };
-
+  }
 
   async findAll(query: QueryParamsDto) {
     try {
@@ -134,7 +184,7 @@ export class InvoicesService {
         vendor_id,
         monthly,
         status,
-        invoice_status
+        invoice_status,
       } = query;
       const skip = page * take - take;
       const now = new Date();
@@ -143,42 +193,44 @@ export class InvoicesService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    invoice_number: { contains: search },
-                  },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    {
+                      invoice_number: { contains: search },
+                    },
+                  ],
+                },
+              ]
             : []),
-          ...(invoice_status ? [
-            {
-              status: invoice_status
-            }
-          ] : []),
+          ...(invoice_status
+            ? [
+                {
+                  status: invoice_status,
+                },
+              ]
+            : []),
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor_id: {
-                equals: vendor_id,
-              },
-            }
+                vendor_id: {
+                  equals: vendor_id,
+                },
+              }
             : undefined,
           monthly
             ? {
-              created_at: {
-                gte: new Date(now.getFullYear(), 0, 1),
-                lte: new Date(now.getFullYear(), 11, 31),
-              },
-            }
+                created_at: {
+                  gte: new Date(now.getFullYear(), 0, 1),
+                  lte: new Date(now.getFullYear(), 11, 31),
+                },
+              }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -195,15 +247,18 @@ export class InvoicesService {
           vendor: true,
           invoice_details: {
             include: {
-              order: true
+              order: true,
             },
           },
         },
       });
-      const grandTotalAmount = invoices.reduce((acc, curr) => (acc + Number(curr.total_amount)), 0)
+      const grandTotalAmount = invoices.reduce(
+        (acc, curr) => acc + Number(curr.total_amount),
+        0,
+      );
 
       const total = await this.dbService.invoices.count({
-        where
+        where,
       });
 
       return {
@@ -236,9 +291,9 @@ export class InvoicesService {
             include: {
               order: {
                 include: {
-                  quotation: true
-                }
-              }
+                  quotation: true,
+                },
+              },
             },
           },
         },
@@ -270,7 +325,7 @@ export class InvoicesService {
         // },
       });
 
-      return invoice
+      return invoice;
     } catch (error) {
       console.error(error);
       throw error;
@@ -297,19 +352,23 @@ export class InvoicesService {
       });
 
       if (!invoice) {
-        this.logger.error("Invoice id not found");
-        throw new NotFoundException(`Invoice not found with id ${id}`)
+        this.logger.error('Invoice id not found');
+        throw new NotFoundException(`Invoice not found with id ${id}`);
       }
 
-      const evidences = invoice_evidences?.map((item) => ({
-        evidence_location: item.filename,
-        created_by: user_id,
-      })) || [];
+      const evidences =
+        invoice_evidences?.map((item) => ({
+          evidence_location: item.filename,
+          created_by: user_id,
+        })) || [];
 
-      const providedOrderIds = updateInvoiceDto.invoice_details?.map(({ order_id }) => Number(order_id)) || [];
+      const providedOrderIds =
+        updateInvoiceDto.invoice_details?.map(({ order_id }) =>
+          Number(order_id),
+        ) || [];
       if (providedOrderIds.length === 0) {
-        this.logger.error("No Order Id Provided");
-        throw new Error("No Order Id Provided");
+        this.logger.error('No Order Id Provided');
+        throw new Error('No Order Id Provided');
       }
 
       const orders = await this.dbService.orders.findMany({
@@ -320,15 +379,16 @@ export class InvoicesService {
       let totalAmount = 0;
       const invoiceDetails = updateInvoiceDto.invoice_details.map((item) => {
         const order = orders.find((order) => order.id === item.order_id);
-        let totalAmount = 0;
-
+        let total = 0;
         if (order) {
           if (order.payment_type === 'survey') {
-            totalAmount += Number(order.grand_total) || 0;
-          } else if (order.payment_type === 'pemasangan_tanpa_survey' || order.payment_type === 'gratis') {
             order.quotation.forEach((quotation) => {
-              totalAmount += Number(quotation.quotation_grand_total) || 0;
+              total = Number(quotation.quotation_grand_total) || 0;
+              totalAmount += total;
             });
+          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+            total = Number(order.grand_total) || 0;
+            totalAmount += total;
           }
         }
 
@@ -336,10 +396,12 @@ export class InvoicesService {
           where: { id: item.id ?? 0 },
           create: {
             order: { connect: { id: item.order_id } },
+            total,
             created_by: user_id,
           },
           update: {
             order_id: item.order_id,
+            total,
             updated_at: new Date(),
             updated_by: user_id,
           },
@@ -355,9 +417,11 @@ export class InvoicesService {
         updated_by: user_id,
       };
 
-      const detailsIds = updateInvoiceDto.invoice_details ? updateInvoiceDto.invoice_details
-        .filter((x) => Boolean(x?.id))
-        .map((item) => item?.id) : undefined;
+      const detailsIds = updateInvoiceDto.invoice_details
+        ? updateInvoiceDto.invoice_details
+            .filter((x) => Boolean(x?.id))
+            .map((item) => item?.id)
+        : undefined;
 
       const [syncFiles, syncDetails, updatedInvoice] =
         await this.dbService.$transaction([
@@ -374,10 +438,10 @@ export class InvoicesService {
             where: {
               ...(detailsIds && detailsIds.length
                 ? {
-                  id: {
-                    notIn: detailsIds,
-                  },
-                }
+                    id: {
+                      notIn: detailsIds,
+                    },
+                  }
                 : undefined),
               invoice_id: invoice.id,
             },
@@ -396,12 +460,10 @@ export class InvoicesService {
       await this.invoiceLogs(invoice.id, updatedInvoice);
       return updatedInvoice;
     } catch (error) {
-      console.error("Error updating invoice:", error);
+      console.error('Error updating invoice:', error);
       throw error;
     }
   }
-
-
 
   async remove(id: number, user: users) {
     try {
@@ -571,21 +633,26 @@ export class InvoicesService {
       });
 
       data.forEach((invoice) => {
-        const invoiceOrder = invoice.invoice_details ? invoice.invoice_details.map((item) => item?.order_id || 'N/a').join(', ') : 'N/a';
-        const formattedDateTime = (dateTime) => `${new Date(dateTime).toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })}, ${dateTime.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`;
+        const invoiceOrder = invoice.invoice_details
+          ? invoice.invoice_details
+              .map((item) => item?.order_id || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
         const grandTotal = Number(invoice.total_amount);
         const formattedGrandTotal = !isNaN(grandTotal)
           ? new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(grandTotal)
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
           : 'Rp. 0';
         const row = worksheet.addRow({
           id: invoice.id,
@@ -608,7 +675,6 @@ export class InvoicesService {
           };
         });
       });
-
 
       const getFormattedDate = () => {
         const now = new Date();
@@ -659,7 +725,7 @@ export class InvoicesService {
 
       return generateExcelFile(res);
     } catch (error) {
-      console.error(error)
+      console.error(error);
       throw error;
     }
   }
@@ -680,7 +746,6 @@ export class InvoicesService {
         const note = row.getCell(2).value;
         console.log(note);
 
-
         if (invoiceId != null) {
           if (typeof note === 'string') {
             await this.updateInvoiceWithNotes(invoiceId, note);
@@ -689,7 +754,6 @@ export class InvoicesService {
           }
         }
       }
-
 
       return updatedInvoiceCount;
     } catch (error) {
@@ -752,17 +816,17 @@ export class InvoicesService {
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
-        res: Response
+        res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
 
         res.setHeader(
           'Content-Type',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename=${path.basename(excelFilePath)}`
+          `attachment; filename=${path.basename(excelFilePath)}`,
         );
 
         const fileStream = fs.createReadStream(excelFilePath);
@@ -782,16 +846,13 @@ export class InvoicesService {
     }
   }
 
-  async invoiceLogs(
-    invoice_id: number,
-    data: any,
-  ) {
+  async invoiceLogs(invoice_id: number, data: any) {
     await this.dbService.invoice_logs.create({
       data: {
         invoice: {
           connect: {
-            id: invoice_id
-          }
+            id: invoice_id,
+          },
         },
         data: JSON.stringify(data ?? {}),
       },
@@ -802,12 +863,14 @@ export class InvoicesService {
     try {
       await this.dbService.invoices.update({
         where: { id: invoiceId },
-        data: { description: note }
+        data: { description: note },
       });
     } catch (error) {
-      this.logger.error(`Error updating invoice with ID ${invoiceId} with note: ${note}`, error);
+      this.logger.error(
+        `Error updating invoice with ID ${invoiceId} with note: ${note}`,
+        error,
+      );
       throw error;
     }
   }
-
 }

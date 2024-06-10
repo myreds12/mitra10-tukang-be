@@ -24,7 +24,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     try {
@@ -47,21 +47,22 @@ export class AuthService {
             password: await hashSync(dto.password, 12),
             role_id: dto.role_id,
             //FIXME: CHECK THIS CODE
-            ...(dto.vendor_id ? {
-              pic_vendor: {
-                create: {
-                  pic_name: dto.pic_name,
-                  vendor: {
-                    connect: {
-                      id: dto.vendor_id
-                    }
+            ...(dto.vendor_id
+              ? {
+                  pic_vendor: {
+                    create: {
+                      pic_name: dto.pic_name,
+                      vendor: {
+                        connect: {
+                          id: dto.vendor_id,
+                        },
+                      },
+                      email_address: dto.email,
+                    },
                   },
-                  email_address: dto.email
                 }
-              }
-            } : undefined)
+              : undefined),
           },
-
         }),
       ]);
 
@@ -90,21 +91,22 @@ export class AuthService {
         },
         data: {
           username: dto.username,
-          password: await hash(dto.password, 12),
-          ...(dto.id_pic ? {
-            pic_vendor: {
-              update: {
-                where: {
-                  id: dto.id_pic
+          password: dto?.password ? await hash(dto.password, 12) : undefined,
+          ...(dto.id_pic
+            ? {
+                pic_vendor: {
+                  update: {
+                    where: {
+                      id: dto.id_pic,
+                    },
+                    data: {
+                      pic_name: dto.pic_name,
+                      email_address: dto.email,
+                    },
+                  },
                 },
-                data: {
-                  pic_name: dto.pic_name,
-                  email_address: dto.email
-                }
               }
-            }
-
-          } : undefined)
+            : undefined),
         },
       });
 
@@ -183,8 +185,8 @@ export class AuthService {
           },
           pic_vendor: {
             include: {
-              vendor: true
-            }
+              vendor: true,
+            },
           },
         },
       });
@@ -249,7 +251,7 @@ export class AuthService {
       if (
         user.forget_password &&
         new Date(user.forget_password) <
-        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+          new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
       ) {
         await this.dbService.users.update({
           where: {
@@ -353,42 +355,50 @@ export class AuthService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { page, take, search, date_from, date_to, vendor_id, store_id } = query;
+      const { page, take, search, date_from, date_to, vendor_id, store_id } =
+        query;
       const skip = page * take - take;
 
       const where: Prisma.usersWhereInput = {
         AND: [
           ...(search
             ? [
-              {
-                OR: [{ username: { contains: search } }],
-              },
-            ]
+                {
+                  OR: [{ username: { contains: search } }],
+                },
+              ]
             : []),
-            ...(vendor_id ? [{
-              pic_vendor: {
-                some:{
-                  vendor_id: vendor_id
-                
-                }
-              }
-            }] : []),
-            ...(store_id ? [ {
-              store: {
-                some: {
-                  id:{in: store_id}
-                }
-              }
-            }] : []),
+          ...(vendor_id
+            ? [
+                {
+                  pic_vendor: {
+                    some: {
+                      vendor_id: vendor_id,
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(store_id
+            ? [
+                {
+                  store: {
+                    some: {
+                      id: { in: store_id },
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -399,7 +409,6 @@ export class AuthService {
         }
         return take;
       };
-
 
       const user = await this.dbService.users.findMany({
         where,
@@ -413,8 +422,8 @@ export class AuthService {
           tukang: true,
           pic_vendor: {
             include: {
-              vendor: true
-            }
+              vendor: true,
+            },
           },
         },
         orderBy: {
@@ -450,9 +459,9 @@ export class AuthService {
           tukang: true,
           pic_vendor: {
             include: {
-              vendor: true
-            }
-          }
+              vendor: true,
+            },
+          },
         },
       });
 
