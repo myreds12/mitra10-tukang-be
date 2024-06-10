@@ -23,6 +23,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { UpdateUserDto } from './dto/update-user.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -50,9 +51,9 @@ export class AuthController {
   async update(
     @Param('id', ParseIntPipe) id: number,
 
-    @Body() registerDto: CreateRegisterDto,
+    @Body() dto: UpdateUserDto,
   ) {
-    return await this.authService.updateUser(id, registerDto);
+    return await this.authService.updateUser(id, dto);
   }
 
   @HttpCode(200)

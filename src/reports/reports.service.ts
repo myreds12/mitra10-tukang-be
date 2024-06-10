@@ -175,6 +175,15 @@ export class ReportsService {
       const statusDone = statuses.find((i) =>
         i.category.toLocaleLowerCase().includes('done'),
       );
+      const statusRefund = statuses.find((i) =>
+        i.category.toLocaleLowerCase().includes('refund'),
+      );
+      const statusCancel = statuses.find((i) =>
+        i.category.toLocaleLowerCase().includes('cancel'),
+      );
+      const statusReschedule = statuses.find((i) =>
+        i.category.toLocaleLowerCase().includes('reschedule'),
+      );
       const statusUnpaid = statuses.find((i) =>
         i.category.toLocaleLowerCase().includes('unpaid'),
       );
@@ -291,13 +300,6 @@ export class ReportsService {
               updated_by: true,
             },
           },
-          invoice_orders: {
-            select: {
-              id: true,
-              invoice_id: true,
-              invoices: true,
-            },
-          },
           store: {
             where: {
               deleted_at: null,
@@ -331,7 +333,6 @@ export class ReportsService {
             },
             select: {
               id: true,
-              user_id: true,
               company_name: true,
               address: true,
               phone_number: true,
@@ -438,14 +439,35 @@ export class ReportsService {
           },
         })
         .then((data) => data._sum.grand_total);
+
+      const quoteInGrandTotal = await this.dbService.quotation
+        .aggregate({
+          where: {
+            order_id: {
+              in: orders.map((item) => item.id),
+            },
+            status: {
+              category: {
+                contains: 'QUOTEIN',
+              },
+            },
+          },
+          _sum: {
+            quotation_grand_total: true,
+          },
+        })
+        .then((data) => data._sum.quotation_grand_total);
+
       const totalOrdersPerMonth = {};
-      const ordersMonth = {};
       const totalOrderGrandTotalPerMonth = {};
       const totalCompleteOrderPerMonth = {};
       const totalUnpaidOrderPerMonth = {};
       const totalSurveyStartOrderPerMonth = {};
       const totalSurveyReqOrderPerMonth = {};
       const totalSurveyDoneOrderPerMonth = {};
+      const totalRescheduleOrderPerMonth = {};
+      const totalRefundOrderPerMonth = {};
+      const totalCancelOrderPerMonth = {};
       const allMonths = [
         'Januari',
         'Februari',
@@ -468,6 +490,9 @@ export class ReportsService {
         totalSurveyStartOrderPerMonth[month] = 0;
         totalSurveyReqOrderPerMonth[month] = 0;
         totalSurveyDoneOrderPerMonth[month] = 0;
+        totalRescheduleOrderPerMonth[month] = 0;
+        totalRefundOrderPerMonth[month] = 0;
+        totalCancelOrderPerMonth[month] = 0;
       });
 
       orders.forEach((order) => {
@@ -476,16 +501,12 @@ export class ReportsService {
         });
         const grandTotalPerMonth = Number(order.grand_total);
 
-        console.log(order, 'ORDER', order.status.category, 'ORDER STATUS');
-
         if (!totalOrdersPerMonth[month]) {
           totalOrdersPerMonth[month] = 0;
         }
 
         totalOrdersPerMonth[month]++;
         totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
-        ordersMonth[month] = ordersMonth[month] || [];
-        ordersMonth[month].push(order);
 
         if (order.status.category === statusDone.category) {
           totalCompleteOrderPerMonth[month]++;
@@ -502,6 +523,15 @@ export class ReportsService {
         if (order.status.category === statusSurveyReq.category) {
           totalSurveyReqOrderPerMonth[month]++;
         }
+        if (order.status.category === statusCancel.category) {
+          totalCancelOrderPerMonth[month]++;
+        }
+        if (order.status.category === statusRefund.category) {
+          totalRefundOrderPerMonth[month]++;
+        }
+        if (order.status.category === statusReschedule.category) {
+          totalRescheduleOrderPerMonth[month]++;
+        }
       });
 
       const monthlyOrders = allMonths.map((month) => ({
@@ -513,15 +543,17 @@ export class ReportsService {
         totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0,
         totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0,
         totalSurveyDoneOrder: totalSurveyDoneOrderPerMonth[month] || 0,
-        ordersMonth: ordersMonth[month] || [],
+        totalRescheduleOrder: totalRescheduleOrderPerMonth[month] || 0,
+        totalRefundOrder: totalRefundOrderPerMonth[month] || 0,
+        totalCancelOrder: totalCancelOrderPerMonth[month] || 0,
       }));
 
       return {
-        data: orders,
+        data: monthlyOrders,
         meta: {
           total: count,
           orderGrandTotal,
-          monthlyOrders,
+          quoteInGrandTotal,
         },
       };
     } catch (error) {
@@ -943,11 +975,7 @@ export class ReportsService {
                 include: {
                   order: {
                     include: {
-                      invoice_orders: {
-                        include: {
-                          invoices: true,
-                        },
-                      },
+                      quotation: true,
                     },
                   },
                 },
@@ -961,9 +989,9 @@ export class ReportsService {
         tukang.map(async (tukangItem) => {
           const totalInvoices = await this.dbService.invoices.aggregate({
             where: {
-              invoice_orders: {
+              invoice_details: {
                 some: {
-                  orders: {
+                  order: {
                     work_orders: {
                       work_order_tukang: {
                         some: {
@@ -976,7 +1004,7 @@ export class ReportsService {
               },
             },
             _sum: {
-              total_quotation_grand_total: true,
+              total_amount: true,
             },
           });
 
@@ -999,7 +1027,7 @@ export class ReportsService {
 
           return {
             tukang: tukangItem,
-            totalInvoices: totalInvoices._sum?.total_quotation_grand_total || 0,
+            totalInvoices: totalInvoices._sum?.total_amount || 0,
             totalQuotations: totalQuotations._sum?.quotation_grand_total || 0,
           };
         }),

@@ -9,6 +9,7 @@ import {
   IsString,
 } from 'class-validator';
 import { ServiceType } from './service-type.class.interface';
+import { TukangAreaDto } from './tukang-area.dto';
 
 export class CreateTukangDto {
   @ApiProperty()
@@ -32,6 +33,10 @@ export class CreateTukangDto {
   @ApiProperty({ type: [ServiceType] }) // This represents an array of VendorService
   @Type(() => ServiceType)
   service_types?: ServiceType[];
+
+  @ApiProperty({type: [TukangAreaDto]})
+  @Type(() => TukangAreaDto)
+  tukang_area?: TukangAreaDto[]
 
   join_date?: string;
 

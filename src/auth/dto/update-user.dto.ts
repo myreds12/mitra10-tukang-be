@@ -1,24 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export class CreateRegisterDto {
+export class UpdateUserDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  username: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  password: string;
-
-  @ApiProperty()
   @IsOptional()
-  @Type(() => Number)
-  role_id?: number
+  username?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  password?: string;
+
 
   //FIXME: CHECK THIS CODE 
+  @ApiProperty()
+  @IsOptional()
+  id_pic: number;
+
   @ApiProperty()
   @IsOptional()
   vendor_id?: number;

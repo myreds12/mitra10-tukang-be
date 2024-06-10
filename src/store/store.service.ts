@@ -25,7 +25,6 @@ export class StoreService {
   ) {}
   async create(dto: CreateStoreDto, user_id: number) {
     try {
-      
       const role = await this.dbService.roles.findFirst({
         where: {
           name: {
@@ -61,6 +60,7 @@ export class StoreService {
           created_by: user_id,
         },
       });
+      
       await this.emailQueue.add(
         'send-credential-mail',
         {

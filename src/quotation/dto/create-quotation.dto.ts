@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ValidateNested } from 'class-validator';
+import { IsOptional, ValidateNested } from 'class-validator';
 import QuotationDetails from './quotation-details';
 
 class QuotationFile {
@@ -18,6 +18,10 @@ export class CreateQuotationDto {
 
   @Type(() => Number)
   order_id: number;
+  
+  @IsOptional()
+  @Type(() => Number)
+  promotion_id?: number;
 
   @Type(() => Number)
   store_id: number;

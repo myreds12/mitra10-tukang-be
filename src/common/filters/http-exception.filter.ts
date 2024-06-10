@@ -1,5 +1,6 @@
 import {
   ArgumentsHost,
+  BadRequestException,
   Catch,
   ExceptionFilter,
   HttpException,
@@ -9,21 +10,36 @@ import {
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
-    const request = ctx.getRequest();
-    const status = exception.getStatus();
+    const ctxResponse = ctx.getResponse();
+    const ctxRequest = ctx.getRequest();
+    const exStatus = exception.getStatus();
+    const exResponse = exception.getResponse();
 
-    const err = {
-      statusCode: status,
-      message: exception.message,
+    const err: {
+      statusCode: string | number;
+      message: string | object;
+      timestamp: string;
+      path: string | object;
+    } = {
+      statusCode: exStatus,
+      message:  exStatus === 500
+      ? `Terjadi kesalahan dari sisi server, mohon hubungi Administrator. Code: ${exStatus}.`
+      : exception.message,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: ctxRequest.url,
     };
 
-    if (process.env.NODE_ENV !== 'production') {
-      err['stack'] = exception.stack.split('\n').map(line => line.trim());
+    if (
+      exception instanceof BadRequestException &&
+      typeof exResponse === 'object'
+    ) {
+      err['message'] = (exResponse as { message: string }).message;
     }
 
-    response.status(status).json(err);
+    if (process.env.NODE_ENV !== 'production') {
+      err['stack'] = exception.stack.split('\n').map((line) => line.trim());
+    }
+
+    ctxResponse.status(exStatus).json(err);
   }
 }

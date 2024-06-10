@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -23,12 +23,12 @@ export class VendorService {
     user: users,
   ) {
     try {
+      console.log(createVendorDto);
       const { id: user_id } = user;
-
       const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
-        ? Object.entries(files).map((file) => {
-            if (file[1].length) {
-              const newFile = file[1].map((item) => ({
+      ? Object.entries(files).map((file) => {
+        if (file[1].length) {
+          const newFile = file[1].map((item) => ({
                 document_name: file[0],
                 path: item.filename,
                 created_by: user_id,
@@ -37,42 +37,31 @@ export class VendorService {
               return newFile;
             }
           })
-        : undefined;
-
-      const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
-        createVendorDto.area_id
+          : undefined;
+          
+          const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
+          createVendorDto.area_id
           ? createVendorDto.area_id.map((area_id) => ({
-              area_id,
-              default_discount: createVendorDto.discount,
-              default_markup: createVendorDto.markup,
-              created_by: user_id,
-            }))
+            area_id,
+            default_discount: createVendorDto.discount,
+            default_markup: createVendorDto.markup,
+            created_by: user_id,
+          }))
           : undefined;
-
-      const vendorBankData: Prisma.vendor_bankCreateInput = {
-        account_name: createVendorDto.account_name,
-        account_number: createVendorDto.account_number,
-        bank: {
-          connect: {
-            id: createVendorDto.bank_id,
-          },
-        },
-        created_by: user_id,
-      };
-
       const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
-        createVendorDto.service_type_id
-          ? createVendorDto.service_type_id.map((item) => {
-              return {
-                service_type_id: item,
-              };
-            })
-          : undefined;
-
+      createVendorDto.service_type_id
+      ? createVendorDto.service_type_id.map((item) => {
+        return {
+          service_type_id: item,
+        };
+      })
+      : undefined;
+      
+      //FIXME: CHECK THIS CODE
       const role = await this.dbService.roles.findFirst({
         where: {
           name: {
-            contains: 'admin vendor',
+            contains: 'owner vendor',
           },
         },
       });
@@ -96,11 +85,6 @@ export class VendorService {
       });
 
       const vendorData: Prisma.vendorCreateInput = {
-        users: {
-          connect: {
-            id: users.id,
-          },
-        },
         max_order: createVendorDto.max_order,
         address: createVendorDto.address,
         pic_name: createVendorDto.pic_name,
@@ -109,6 +93,11 @@ export class VendorService {
         phone_number: createVendorDto.phone_number,
         ktp_number: createVendorDto.ktp_number,
         npwp_number: createVendorDto.npwp_number,
+        bank: {
+          connect: {
+            id: createVendorDto.bank_id
+          }
+        },
         join_date: createVendorDto.join_date
           ? new Date(createVendorDto.join_date)
           : null,
@@ -145,8 +134,11 @@ export class VendorService {
             data: vendorStore,
           },
         },
-        vendor_bank: {
-          create: vendorBankData,
+        pic_vendor: {
+          create: {
+            user_id: users.id,
+            pic_name: createVendorDto.pic_name,
+          }
         },
       };
 
@@ -242,15 +234,25 @@ export class VendorService {
             }
           },
           tukang: true,
-          users: true,
+          pic_vendor: {
+            include: {
+              users: {
+                select: {
+                  id: true,
+                  username: true,
+                  roles: {
+                    select: {
+                      id: true,
+                      name: true,
+                    }
+                  }
+                }
+              }
+            }
+          },
           vendor_area: {
             include: {
               area: true,
-            },
-          },
-          vendor_bank: {
-            include: {
-              bank: true,
             },
           },
           vendor_document: true,
@@ -310,7 +312,7 @@ export class VendorService {
         );
       }
 
-      const total = await this.dbService.vendor.count();
+      const total = await this.dbService.vendor.count({where});
 
       return {
         data: vendor,
@@ -335,16 +337,15 @@ export class VendorService {
               deleted_at: null
             }
           },
+          pic_vendor: {
+            include: {
+              users: true
+            }
+          },
           tukang: true,
-          users: true,
           vendor_area: {
             include: {
               area: true,
-            },
-          },
-          vendor_bank: {
-            include: {
-              bank: true,
             },
           },
           vendor_document: true,
@@ -642,18 +643,6 @@ export class VendorService {
               },
             },
           },
-          vendor_bank: {
-            updateMany: {
-              where: {
-                vendor_id: id,
-              },
-              data: {
-                deleted_by: user_id,
-                deleted_at: new Date(),
-                is_active: false,
-              },
-            },
-          },
         },
       });
 
@@ -761,7 +750,7 @@ export class VendorService {
         vendor_service: serviceType,
         vendor_store: servingStore,
         vendor_area: servingArea,
-        username: vendor.users ? vendor.users.username  : '',
+        username: vendor.pic_vendor ? vendor.pic_vendor.map(item => `${item.users.username || 'N/a'}(${item.users.roles.name || 'Tidak Ada Role'})`).join(', ')  : '',
         join_date: formattedDateTime
       });
 

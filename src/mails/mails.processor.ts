@@ -19,7 +19,7 @@ export class EmailProcessor {
     private readonly mailerService: MailerService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) {}
+  ) { }
   private readonly logger = new Logger(EmailProcessor.name);
 
   @OnQueueFailed()
@@ -71,7 +71,7 @@ export class EmailProcessor {
     });
   }
 
-  async generatePDF(data: any) {}
+  async generatePDF(data: any) { }
 
   @Process('send-order-mail')
   async sendOrderMail(job: Job<OrderMailInterface>) {
@@ -93,6 +93,16 @@ export class EmailProcessor {
           receipt_number: true,
           request_survey: true,
           grand_total: true,
+          work_orders: {
+            select: {
+              id: true,
+              work_order_tukang: {
+                include: {
+                  tukang: true
+                }
+              }
+            }
+          },
           store: {
             select: {
               email: true,
@@ -102,6 +112,13 @@ export class EmailProcessor {
               phone_number_1: true,
               phone_number_2: true,
             },
+          },
+          status: {
+            select: {
+              id: true,
+              description: true,
+              category: true,
+            }
           },
           members: {
             select: {
@@ -152,20 +169,32 @@ export class EmailProcessor {
         message,
       };
 
+
       const { bcc, cc } = message;
       const storeMail = order.store.email;
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      const defaultBcc = bcc
+      let defaultBcc = bcc
         .split(',')
         .concat(
           this.configService.get<string>('MAIL_BCC_LIST').split(','),
           storeMail,
           adminHo,
-        );
+        ).filter(email => email);
+
+      // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
+      //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
+      //   console.log(tukangEmail, "EMAIL TUKANG");
+
+      //   if (tukangEmail) {
+      //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
+      //   }
+      // }
 
       const uniqueBcc = [...new Set(defaultBcc)];
+
+
 
       if (order.members.email) {
         await this.mailerService.sendMail({
@@ -223,7 +252,7 @@ export class EmailProcessor {
         },
         include: {
           employee: true,
-          vendor: true,
+          pic_vendor: true,
           sales: true,
           tukang: true,
         },
@@ -236,9 +265,9 @@ export class EmailProcessor {
       let to = users.username.includes('@')
         ? users.username
         : users.employee?.email ??
-          users.vendor?.email_address ??
-          users.tukang[0]?.email ??
-          'example@example.com';
+        users.pic_vendor[0]?.email_address ??
+        users.tukang[0]?.email ??
+        'example@example.com';
       console.log(to);
       const data = {
         users,
@@ -286,7 +315,7 @@ export class EmailProcessor {
         },
         include: {
           employee: true,
-          vendor: true,
+          pic_vendor: true,
           store: true,
           sales: true,
           tukang: true,
@@ -298,7 +327,7 @@ export class EmailProcessor {
       const to =
         userEmail ||
         users.employee?.email ||
-        users.vendor?.email_address ||
+        users.pic_vendor[0]?.email_address ||
         users.tukang[0]?.email ||
         users.store[0]?.email ||
         'example@example.com';

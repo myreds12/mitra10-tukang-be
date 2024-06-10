@@ -9,7 +9,7 @@ import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
-import * as fs from 'fs'
+import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
@@ -52,6 +52,16 @@ export class TukangService {
           ? createTukangDto.service_types.map((item) => {
               return {
                 service_type_id: item.service_type_id,
+                created_by: user_id,
+              };
+            })
+          : undefined;
+
+      const tukangArea: Prisma.tukang_areaCreateManyTukangInput[] =
+        createTukangDto.tukang_area
+          ? createTukangDto.tukang_area.map((item) => {
+              return {
+                area_id: item.area_id,
                 created_by: user_id,
               };
             })
@@ -101,6 +111,15 @@ export class TukangService {
               },
             }
           : undefined),
+        ...(tukangArea
+          ? {
+              tukang_area: {
+                createMany: {
+                  data: tukangArea,
+                },
+              },
+            }
+          : undefined),
         ...(tukangServiceTypes
           ? {
               tukang_service: {
@@ -116,8 +135,8 @@ export class TukangService {
         this.dbService.tukang.create({
           data: tukangData,
           include: {
-            users: true
-          }
+            users: true,
+          },
         }),
       ]);
       this.emailQueue.add(
@@ -151,6 +170,7 @@ export class TukangService {
         search_date_from,
         search_date_to,
         service_types,
+        area_id,
       } = query;
       const skip = page * take - take;
 
@@ -188,6 +208,15 @@ export class TukangService {
                 },
               }
             : undefined,
+          area_id
+            ? {
+                tukang_area: {
+                  some: {
+                    area_id: area_id,
+                  },
+                },
+              }
+            : undefined,
           vendor_id
             ? {
                 vendor_id: vendor_id,
@@ -211,6 +240,7 @@ export class TukangService {
             : undefined,
         ],
         deleted_at: null,
+        is_active: true,
       };
 
       const tukang = await this.dbService.tukang.findMany({
@@ -247,6 +277,9 @@ export class TukangService {
       const tukang = await this.dbService.tukang.findFirst({
         where: {
           id,
+          deleted_at: null,
+          deleted_by: null,
+          is_active: true,
         },
         include: {
           users: true,
@@ -274,11 +307,7 @@ export class TukangService {
     files?: TukangFiles,
   ) {
     try {
-      if (!updateTukangDto.service_types)
-        throw new BadRequestException('Service type cannot be null.');
-      if (!updateTukangDto.service_types.length)
-        throw new BadRequestException('Service type should be an one or many.');
-
+      console.log(updateTukangDto);
       const { id: user_id } = user;
 
       const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
@@ -297,40 +326,77 @@ export class TukangService {
       console.log(updateTukangDto.service_types);
 
       const tukangServiceTypesUpsert: Prisma.tukang_serviceUpsertWithWhereUniqueWithoutTukangInput[] =
-        updateTukangDto.service_types.map((item) => ({
-          where: {
-            id: item.id ?? 0,
-            tukang_id: id,
-          },
-          create: {
-            service_type_id: item.service_type_id,
-            created_by: user_id,
-          },
-          update: {
-            service_type_id: item.service_type_id,
-            updated_by: user_id,
-            updated_at: new Date(),
-          },
-        }));
+        updateTukangDto.service_types
+          ? updateTukangDto.service_types.map((item) => ({
+              where: {
+                id: item.id ?? 0,
+                tukang_id: id,
+              },
+              create: {
+                service_type_id: item.service_type_id,
+                created_by: user_id,
+              },
+              update: {
+                service_type_id: item.service_type_id,
+                updated_by: user_id,
+                updated_at: new Date(),
+              },
+            }))
+          : undefined;
+
+      const tukangAreaUpsert: Prisma.tukang_areaUpsertWithWhereUniqueWithoutTukangInput[] =
+        updateTukangDto.tukang_area
+          ? updateTukangDto.tukang_area.map((item) => ({
+              where: {
+                id: item.id ?? 0,
+                tukang_id: id,
+              },
+              create: {
+                area_id: item.area_id,
+                created_by: user_id,
+              },
+              update: {
+                area_id: item.area_id,
+                updated_by: user_id,
+                updated_at: new Date(),
+              },
+            }))
+          : undefined;
 
       const tukangUpdate: Prisma.tukangUpdateInput = {
-        vendor: {
-          connect: {
-            id: updateTukangDto.vendor_id,
-          },
-        },
-        email: updateTukangDto.email,
-        full_name: updateTukangDto.full_name,
-        ktp_number: updateTukangDto.ktp_number,
-        join_date: updateTukangDto.join_date
+        ...(updateTukangDto?.vendor_id
+          ? {
+              vendor: {
+                connect: {
+                  id: updateTukangDto.vendor_id,
+                },
+              },
+            }
+          : undefined),
+        email: updateTukangDto?.email,
+        full_name: updateTukangDto?.full_name,
+        ktp_number: updateTukangDto?.ktp_number,
+        join_date: updateTukangDto?.join_date
           ? new Date(updateTukangDto.join_date)
           : undefined,
-        address: updateTukangDto.address,
-        phone_number: updateTukangDto.phone_number,
-        bod: new Date(updateTukangDto.bod),
-        tukang_service: {
-          upsert: tukangServiceTypesUpsert,
-        },
+        address: updateTukangDto?.address,
+        phone_number: updateTukangDto?.phone_number,
+        bod: updateTukangDto?.bod ? new Date(updateTukangDto.bod) : undefined,
+        is_active: Boolean(updateTukangDto.is_active),
+        ...(tukangServiceTypesUpsert
+          ? {
+              tukang_service: {
+                upsert: tukangServiceTypesUpsert,
+              },
+            }
+          : undefined),
+        ...(tukangAreaUpsert
+          ? {
+              tukang_area: {
+                upsert: tukangAreaUpsert,
+              },
+            }
+          : undefined),
         ...(tukangFiles
           ? {
               tukang_document: {
@@ -342,43 +408,52 @@ export class TukangService {
           : undefined),
       };
 
-      const [syncDocument, syncServiceType, tukang] =
-        await this.dbService.$transaction([
-          this.dbService.tukang_document.updateMany({
-            where: {
-              tukang_id: id,
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            },
-          }),
-          this.dbService.tukang_service.updateMany({
-            where: {
-              tukang_id: id,
-              NOT: updateTukangDto.service_types
-                ? updateTukangDto.service_types.map((item) => {
-                    return {
-                      service_type_id: item.service_type_id,
-                      id: item?.id,
-                    };
-                  })
-                : undefined,
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            },
-          }),
-          this.dbService.tukang.update({
-            where: {
-              id,
-            },
-            data: tukangUpdate,
-          }),
-        ]);
+      const data = await this.dbService.$transaction([
+        this.dbService.tukang.update({
+          where: {
+            id,
+          },
+          data: tukangUpdate,
+        }),
+        ...(updateTukangDto.is_active != null
+          ? [
+              this.dbService.tukang_document.updateMany({
+                where: {
+                  tukang_id: id,
+                },
+                data: {
+                  deleted_at: new Date(),
+                  deleted_by: user_id,
+                },
+              }),
+            ]
+          : []),
+        ...(updateTukangDto.service_types
+          ? [
+              this.dbService.tukang_service.updateMany({
+                ...(updateTukangDto.service_types
+                  ? {
+                      where: {
+                        tukang_id: id,
+                        NOT: updateTukangDto.service_types.map((item) => {
+                          return {
+                            service_type_id: item.service_type_id,
+                            id: item?.id,
+                          };
+                        }),
+                      },
+                    }
+                  : undefined),
+                data: {
+                  deleted_at: new Date(),
+                  deleted_by: user_id,
+                },
+              }),
+            ]
+          : []),
+      ]);
 
-      return tukang;
+      return data[0];
     } catch (error) {
       console.error(error);
       throw error;
@@ -420,17 +495,14 @@ export class TukangService {
   }
 
   async tukangExportExcel(res: Response, queryParams: QueryParamsDto) {
-    try{
+    try {
       const { data } = await this.findAll(queryParams);
 
-    const workbook = new exceljs.Workbook();
-    const worksheet = workbook.addWorksheet('Data Profile Sales ',
-      {
-        properties:
-        {
-          tabColor:
-          {
-            argb: 'FF4CAF50'
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Profile Sales ', {
+        properties: {
+          tabColor: {
+            argb: 'FF4CAF50',
           },
           outlineLevelCol: 6,
           outlineLevelRow: 40,
@@ -442,118 +514,131 @@ export class TukangService {
             top: 0.75,
             bottom: 0.75,
             header: 0.3,
-            footer: 0.3
-          }
-        }
-      }
-    );
-
-    worksheet.columns = [
-      { header: 'Tukang Id', key: 'id', width: 20 },
-      { header: 'Nama Vendor', key: 'company_name', width: 35 },
-      { header: 'Nama Tukang', key: 'full_name', width: 35 },
-      { header: 'Alamat', key: 'address', width: 35 },
-      { header: 'Email', key: 'email', width: 35 },
-      { header: 'Phone Number', key: 'phone_number', width: 35 },
-      { header: 'Tanggal Lahir', key: 'bod', width: 35 },
-      { header: 'Nomor KTP', key: 'ktp_number', width: 35 },
-      { header: 'Username', key: 'username', width: 35 },
-      { header: 'Tanggal Bergabung', key: 'join_date', width: 50 },
-      { header: 'Service Type', key: 'tukang_service', width: 50 },
-    ];
-
-    worksheet.getRow(1).eachCell((cell) => {
-      cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: '0000FF' }
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
-      };
-    });
-
-
-    data.forEach(tukang => {
-      const formattedDateTime = (date) => `${date.toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      })}, ${date.toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`;
-      const tukangService =  tukang.tukang_service ? tukang.tukang_service.map((service) => service.service_type.service_type).join(',') : ''
-      const row = worksheet.addRow({
-        id: tukang.id,
-        company_name: tukang.vendor ? tukang.vendor.company_name : '',
-        full_name: tukang.full_name ? tukang.full_name : '',
-        address: tukang.address ? tukang.address : '',
-        email: tukang.email ? tukang.email : '',
-        phone_number: tukang.phone_number ? tukang.phone_number : '',
-        bod: tukang.bod ? formattedDateTime( new Date(tukang.bod)) : '',
-        ktp_number: tukang.ktp_number ? tukang.ktp_number : '',
-        username: tukang.users ? tukang.users.username : '',
-        join_date: tukang.join_date ? formattedDateTime(new Date( tukang.join_date)) : formattedDateTime(new Date( tukang.created_at)) ,
-        tukang_service: tukangService,
+            footer: 0.3,
+          },
+        },
       });
 
-      row.eachCell((cell) => {
-        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      worksheet.columns = [
+        { header: 'Tukang Id', key: 'id', width: 20 },
+        { header: 'Nama Vendor', key: 'company_name', width: 35 },
+        { header: 'Nama Tukang', key: 'full_name', width: 35 },
+        { header: 'Alamat', key: 'address', width: 35 },
+        { header: 'Email', key: 'email', width: 35 },
+        { header: 'Phone Number', key: 'phone_number', width: 35 },
+        { header: 'Tanggal Lahir', key: 'bod', width: 35 },
+        { header: 'Nomor KTP', key: 'ktp_number', width: 35 },
+        { header: 'Username', key: 'username', width: 35 },
+        { header: 'Tanggal Bergabung', key: 'join_date', width: 50 },
+        { header: 'Service Type', key: 'tukang_service', width: 50 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          right: { style: 'thin' },
         };
       });
-    });
 
+      data.forEach((tukang) => {
+        const formattedDateTime = (date) =>
+          `${date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${date.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+        const tukangService = tukang.tukang_service
+          ? tukang.tukang_service
+              .map((service) => service.service_type.service_type)
+              .join(',')
+          : '';
+        const row = worksheet.addRow({
+          id: tukang.id,
+          company_name: tukang.vendor ? tukang.vendor.company_name : '',
+          full_name: tukang.full_name ? tukang.full_name : '',
+          address: tukang.address ? tukang.address : '',
+          email: tukang.email ? tukang.email : '',
+          phone_number: tukang.phone_number ? tukang.phone_number : '',
+          bod: tukang.bod ? formattedDateTime(new Date(tukang.bod)) : '',
+          ktp_number: tukang.ktp_number ? tukang.ktp_number : '',
+          username: tukang.users ? tukang.users.username : '',
+          join_date: tukang.join_date
+            ? formattedDateTime(new Date(tukang.join_date))
+            : formattedDateTime(new Date(tukang.created_at)),
+          tukang_service: tukangService,
+        });
 
-    const getFormattedDate = () => {
-      const now = new Date();
-      const tahun = now.getFullYear();
-      const bulan = String(now.getMonth() + 1).padStart(2, '0');
-      const tanggal = String(now.getDate()).padStart(2, '0');
-      return `${tahun}-${bulan}-${tanggal}`;
-    };
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
 
-    const createExcelFilePath = (baseName) => {
-      const folderPath = './uploads/excel/tukang';
-      if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
-      }
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
 
-      const excelFileName = `${baseName}.xlsx`;
-      return path.join(folderPath, excelFileName);
-    };
+      const createExcelFilePath = (baseName) => {
+        const folderPath = './uploads/excel/tukang';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
 
-    const writeWorkbookAndSendResponse = async (workbook, excelFilePath, res) => {
-      await workbook.xlsx.writeFile(excelFilePath);
+        const excelFileName = `${baseName}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
 
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+      const writeWorkbookAndSendResponse = async (
+        workbook,
+        excelFilePath,
+        res,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
 
-      const fileStream = fs.createReadStream(excelFilePath);
-      fileStream.pipe(res);
-    };
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
 
-    const generateExcelFile = async (data, res) => {
-      const baseName = `DataTukang-${getFormattedDate()}`;
-      const excelFilePath = createExcelFilePath(baseName);
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
 
-      await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
-    }
+      const generateExcelFile = async (data, res) => {
+        const baseName = `DataTukang-${getFormattedDate()}`;
+        const excelFilePath = createExcelFilePath(baseName);
 
-    return generateExcelFile(data, res);
-    }catch(error){
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(data, res);
+    } catch (error) {
       throw error;
     }
-    
   }
 }

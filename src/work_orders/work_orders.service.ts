@@ -426,7 +426,7 @@ export class WorkOrdersService {
             .map((x) => x.id)
         : undefined;
 
-      const [syncTukang, syncEvidence, work_order] =
+      const [_syncTukang, _syncEvidence, work_order] =
         await this.dbService.$transaction([
           this.dbService.work_order_tukang.updateMany({
             where: {
@@ -476,6 +476,8 @@ export class WorkOrdersService {
           // }),
           this.dbService.work_orders.update(work_order_data),
         ]);
+
+      await this.orderService.setStatus(work_order.order_id, dataDto.work_order_status, user);
 
       return work_order;
     } catch (error) {

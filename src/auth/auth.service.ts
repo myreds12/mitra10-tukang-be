@@ -8,7 +8,7 @@ import {
 import { CreateLoginDto } from './dto/login.dto';
 import { CreateRegisterDto } from './dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { compare, hash } from 'bcrypt';
+import { compare, hash, hashSync } from 'bcrypt';
 import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
@@ -16,6 +16,7 @@ import { Prisma, users } from '@prisma/client';
 import { PermissionAction } from 'src/casl/enum/permission-action.enum';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 // import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()
@@ -41,7 +42,27 @@ export class AuthService {
 
       const [createUser] = await this.dbService.$transaction([
         this.dbService.users.create({
-          data: { ...dto, role_id: role_id ?? 2 },
+          data: {
+            username: dto.username,
+            password: await hashSync(dto.password, 12),
+            role_id: dto.role_id,
+            //FIXME: CHECK THIS CODE
+            ...(dto.vendor_id
+              ? {
+                  pic_vendor: {
+                    create: {
+                      pic_name: dto.pic_name,
+                      vendor: {
+                        connect: {
+                          id: dto.vendor_id,
+                        },
+                      },
+                      email_address: dto.email,
+                    },
+                  },
+                }
+              : undefined),
+          },
         }),
       ]);
 
@@ -52,7 +73,7 @@ export class AuthService {
     }
   }
 
-  async updateUser(id: number, dto: CreateRegisterDto) {
+  async updateUser(id: number, dto: UpdateUserDto) {
     try {
       const user = await this.dbService.users.findFirst({
         where: {
@@ -70,7 +91,22 @@ export class AuthService {
         },
         data: {
           username: dto.username,
-          password: await hash(dto.password, 12),
+          password: dto?.password ? await hash(dto.password, 12) : undefined,
+          ...(dto.id_pic
+            ? {
+                pic_vendor: {
+                  update: {
+                    where: {
+                      id: dto.id_pic,
+                    },
+                    data: {
+                      pic_name: dto.pic_name,
+                      email_address: dto.email,
+                    },
+                  },
+                },
+              }
+            : undefined),
         },
       });
 
@@ -157,7 +193,11 @@ export class AuthService {
               },
             },
           },
-          vendor: true,
+          pic_vendor: {
+            include: {
+              vendor: true,
+            },
+          },
         },
       });
       console.log(user, dto.username);
@@ -325,7 +365,8 @@ export class AuthService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { page, take, search, date_from, date_to } = query;
+      const { page, take, search, date_from, date_to, vendor_id, store_id } =
+        query;
       const skip = page * take - take;
 
       const where: Prisma.usersWhereInput = {
@@ -334,6 +375,28 @@ export class AuthService {
             ? [
                 {
                   OR: [{ username: { contains: search } }],
+                },
+              ]
+            : []),
+          ...(vendor_id
+            ? [
+                {
+                  pic_vendor: {
+                    some: {
+                      vendor_id: vendor_id,
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(store_id
+            ? [
+                {
+                  store: {
+                    some: {
+                      id: { in: store_id },
+                    },
+                  },
                 },
               ]
             : []),
@@ -350,18 +413,28 @@ export class AuthService {
         ].filter(Boolean),
         deleted_at: null,
       };
+      const getTake = () => {
+        if (take <= 0) {
+          return 100;
+        }
+        return take;
+      };
 
       const user = await this.dbService.users.findMany({
         where,
         skip,
-        take: take > 0 ? take : undefined,
+        take: getTake(),
         include: {
           employee: true,
           store: true,
           roles: true,
           sales: true,
           tukang: true,
-          vendor: true,
+          pic_vendor: {
+            include: {
+              vendor: true,
+            },
+          },
         },
         orderBy: {
           created_at: 'desc',
@@ -394,7 +467,11 @@ export class AuthService {
           sales: true,
           store: true,
           tukang: true,
-          vendor: true,
+          pic_vendor: {
+            include: {
+              vendor: true,
+            },
+          },
         },
       });
 
