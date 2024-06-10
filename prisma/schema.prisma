@@ -543,15 +543,17 @@ model vendor {
   id      Int  @id @default(autoincrement())
   bank_id Int?
 
-  pic_name      String    @default("") @db.VarChar(200)
-  company_name  String    @db.VarChar(45)
-  address       String    @db.VarChar(200)
-  phone_number  String    @db.VarChar(30)
-  ktp_number    String?
-  npwp_number   String?
-  email_address String    @db.VarChar(100)
-  join_date     DateTime? @default(now()) @db.DateTime()
-  is_active     Boolean   @default(true)
+  pic_name       String    @default("") @db.VarChar(200)
+  company_name   String    @db.VarChar(45)
+  address        String    @db.VarChar(200)
+  phone_number   String    @db.VarChar(30)
+  ktp_number     String?
+  npwp_number    String?
+  email_address  String    @db.VarChar(100)
+  join_date      DateTime? @default(now()) @db.DateTime()
+  is_active      Boolean   @default(true)
+  account_name   String?   @default("")
+  account_number Int?      @default(0)
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
