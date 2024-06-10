@@ -204,7 +204,11 @@ export class TukangService {
             }
             : undefined,
             area_id ? {
-              
+              tukang_area: {
+                some: {
+                  area_id: area_id
+                }
+              }
             } : undefined,
           vendor_id
             ? {
@@ -233,13 +237,7 @@ export class TukangService {
       };
 
       const tukang = await this.dbService.tukang.findMany({
-        where: {
-          tukang_area: {
-            some: {
-              
-            }
-          }
-        },
+        where,
         skip,
         take: take <= 0 ? undefined : take,
         include: {
@@ -362,11 +360,13 @@ export class TukangService {
 
 
       const tukangUpdate: Prisma.tukangUpdateInput = {
-        vendor: {
-          connect: {
-            id: updateTukangDto.vendor_id,
+        ...(updateTukangDto.vendor_id ? {
+          vendor: {
+            connect: {
+              id: updateTukangDto.vendor_id,
+            },
           },
-        },
+        } : undefined),
         email: updateTukangDto.email,
         full_name: updateTukangDto.full_name,
         ktp_number: updateTukangDto.ktp_number,
@@ -375,7 +375,7 @@ export class TukangService {
           : undefined,
         address: updateTukangDto.address,
         phone_number: updateTukangDto.phone_number,
-        bod: new Date(updateTukangDto.bod),
+        bod: updateTukangDto.bod ? new Date(updateTukangDto.bod) : undefined,
         is_active: Boolean(updateTukangDto.is_active),
         ...(tukangServiceTypesUpsert ? {
           tukang_service: {
