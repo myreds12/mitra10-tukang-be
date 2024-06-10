@@ -597,8 +597,8 @@ export class SalesService {
       });
 
       worksheet.columns = [
-        { header: 'Sales Id', key: 'id', width: 35 },
         { header: 'Order Id', key: 'order_id', width: 35 },
+        { header: 'Sales Id', key: 'id', width: 35 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -660,7 +660,6 @@ export class SalesService {
     }
   }
 
-  //FIXME: CHECK THIS CODE
   async syncSalesCommission(excelFile: Express.Multer.File) {
     try {
       const workbook = new exceljs.Workbook();

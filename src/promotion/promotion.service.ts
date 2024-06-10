@@ -23,9 +23,12 @@ export class PromotionService {
           : undefined;
 
       const data: Prisma.promotionCreateInput = {
+        name: createPromotionDto.name,
         min_order: createPromotionDto.min_order,
         promotion: createPromotionDto.promotion,
         promotion_type: createPromotionDto.promotion_type,
+        periodic_start: new Date(createPromotionDto.start_date),
+        periodic_end: new Date(createPromotionDto.end_date),
         created_by: user_id,
         created_at: new Date(),
         promotion_stores: {
@@ -75,15 +78,19 @@ export class PromotionService {
                 },
               ]
             : []),
-            ...(store_id ?  [{
-              promotion_stores: {
-                some: {
-                  store_id: {
-                    in: store_id
-                  }
-                }
-              }
-            }] : []),
+          ...(store_id
+            ? [
+                {
+                  promotion_stores: {
+                    some: {
+                      store_id: {
+                        in: store_id,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(date_from && date_to
             ? [
                 {
@@ -191,9 +198,16 @@ export class PromotionService {
           : [];
 
       const data: Prisma.promotionUpdateInput = {
+        name: updatePromotionDto.name,
         min_order: updatePromotionDto.min_order,
         promotion: updatePromotionDto.promotion,
         promotion_type: updatePromotionDto.promotion_type,
+        periodic_start: updatePromotionDto.start_date
+          ? new Date(updatePromotionDto.start_date)
+          : undefined,
+        periodic_end: updatePromotionDto.end_date
+          ? new Date(updatePromotionDto.end_date)
+          : undefined,
         promotion_stores: {
           upsert: promotionStore,
         },

@@ -45,4 +45,6 @@ export class UpdateTukangDto {
   @ApiProperty({ type: 'string', format: 'string' })
   @IsOptional()
   npwp_file?: Express.Multer.File[] | Express.Multer.File;
+
+  active: boolean;
 }

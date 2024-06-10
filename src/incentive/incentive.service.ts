@@ -110,11 +110,13 @@ export class IncentiveService {
         select: {
           id: true,
           name: true,
+          type: true,
           min_order: true,
           incentive: true,
           stores: {
             select: {
               store_id: true,
+              store: true,
             },
           },
         },
@@ -146,11 +148,13 @@ export class IncentiveService {
         select: {
           id: true,
           name: true,
+          type: true,
           min_order: true,
           incentive: true,
           stores: {
             select: {
               store_id: true,
+              store: true,
             },
           },
         },

@@ -103,21 +103,22 @@ model items {
 
 //FIXME: CHECK THIS MODEL
 model promotion {
-  id             Int       @id @default(autoincrement())
-  min_order      Decimal   @default(0) @db.Decimal(32, 2)
-  promotion      Decimal   @default(0) @db.Decimal(32, 2)
-  promotion_type Int?      @default(1) // 1 = Percentage, 2 = Nominal
+  id             Int     @id @default(autoincrement())
+  name           String? @db.VarChar(255)
+  min_order      Decimal @default(0) @db.Decimal(32, 2)
+  promotion      Decimal @default(0) @db.Decimal(32, 2)
+  promotion_type Int?    @default(1) // 1 = Percentage, 2 = Nominal
 
-  periodic_start DateTime?  
+  periodic_start DateTime?
   periodic_end   DateTime?
 
-  created_at     DateTime? @default(now()) @db.DateTime()
-  updated_at     DateTime? @db.DateTime()
-  deleted_at     DateTime? @db.DateTime()
+  created_at DateTime? @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 
-  created_by       Int?
-  updated_by       Int?
-  deleted_by       Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
   quotation        quotation[]
   promotion_stores promotion_stores[]

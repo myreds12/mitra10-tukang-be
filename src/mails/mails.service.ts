@@ -153,89 +153,98 @@ export class MailsService {
     updateEmailMessageDto: UpdateEmailMessageDto,
     user_id: number,
   ) {
-    const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
-      updateEmailMessageDto.terms_detail
-        ? updateEmailMessageDto.terms_detail.map((item) => {
-            return {
-              where: {
-                id: item.id ?? 0,
-              },
-              update: {
-                terms: item.term,
-              },
-              create: {
-                terms: item.term,
-              },
-            };
-          })
-        : undefined;
+    try {
+      const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
+        updateEmailMessageDto.terms_detail
+          ? updateEmailMessageDto.terms_detail.map((item) => {
+              return {
+                where: {
+                  id: item.id ?? 0,
+                },
+                update: {
+                  terms: item.term,
+                },
+                create: {
+                  terms: item.term,
+                },
+              };
+            })
+          : undefined;
 
-    const informationDetail: Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
-      updateEmailMessageDto.information_detail
-        ? updateEmailMessageDto.information_detail.map((item) => {
-            return {
-              where: {
-                id: item.id ?? 0,
-              },
-              update: {
-                information: item.information,
-              },
-              create: {
-                information: item.information,
-              },
-            };
-          })
-        : undefined;
+      const informationDetail: Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
+        updateEmailMessageDto.information_detail
+          ? updateEmailMessageDto.information_detail.map((item) => {
+              return {
+                where: {
+                  id: item.id ?? 0,
+                },
+                update: {
+                  information: item.information,
+                },
+                create: {
+                  information: item.information,
+                },
+              };
+            })
+          : undefined;
 
-    const data: Prisma.email_messagesUpdateInput = {
-      email_type: updateEmailMessageDto.email_type,
-      greetings: updateEmailMessageDto.greetings,
-      welcome_header: updateEmailMessageDto.welcome_header,
-      footer: updateEmailMessageDto.footer,
-      is_active: updateEmailMessageDto.is_active,
-      updated_at: new Date(),
-      updated_by: user_id,
-      terms_detail: {
-        upsert: termsDetail,
-      },
-      information_detail: {
-        upsert: informationDetail,
-      },
-      trigger: updateEmailMessageDto?.trigger_id
-        ? {
-            connect: {
-              id: updateEmailMessageDto.trigger_id,
-            },
-          }
-        : undefined,
-      title: updateEmailMessageDto?.title,
-      bcc: updateEmailMessageDto?.bcc
-        .split(',')
-        .map((s) => s.trim())
-        .join(','),
-      cc: updateEmailMessageDto?.cc
-        .split(',')
-        .map((s) => s.trim())
-        .join(','),
-      csi_template: updateEmailMessageDto?.csi_id
-        ? {
-            connect: {
-              id: updateEmailMessageDto.csi_id,
-            },
-          }
-        : undefined,
-    };
-
-    const [emailMessage] = await this.dbService.$transaction([
-      this.dbService.email_messages.update({
-        where: {
-          id,
+      const data: Prisma.email_messagesUpdateInput = {
+        email_type: updateEmailMessageDto.email_type,
+        greetings: updateEmailMessageDto.greetings,
+        welcome_header: updateEmailMessageDto.welcome_header,
+        footer: updateEmailMessageDto.footer,
+        is_active: Boolean(updateEmailMessageDto.is_active),
+        updated_at: new Date(),
+        updated_by: user_id,
+        terms_detail: {
+          upsert: termsDetail,
         },
-        data,
-      }),
-    ]);
+        information_detail: {
+          upsert: informationDetail,
+        },
+        trigger: updateEmailMessageDto?.trigger_id
+          ? {
+              connect: {
+                id: updateEmailMessageDto.trigger_id,
+              },
+            }
+          : undefined,
+        title: updateEmailMessageDto?.title,
+        bcc: updateEmailMessageDto?.bcc
+          ? updateEmailMessageDto?.bcc
+              .split(',')
+              .map((s) => s.trim())
+              .join(',')
+          : undefined,
+        cc: updateEmailMessageDto?.cc
+          ? updateEmailMessageDto?.cc
+              .split(',')
+              .map((s) => s.trim())
+              .join(',')
+          : undefined,
+        csi_template: updateEmailMessageDto?.csi_id
+          ? {
+              connect: {
+                id: updateEmailMessageDto.csi_id,
+              },
+            }
+          : undefined,
+      };
 
-    return emailMessage;
+      const [emailMessage] = await this.dbService.$transaction([
+        this.dbService.email_messages.update({
+          where: {
+            id,
+          },
+          data,
+        }),
+      ]);
+
+      return emailMessage;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async remove(id: number, user_id: number) {
@@ -351,7 +360,7 @@ export class MailsService {
               status: 1,
             },
           });
-          
+
           const jobId = `send-order-mail-${order.id}-${template_id}`;
           const jobExist = await this.emailQueue.getJob(jobId);
 
