@@ -73,6 +73,12 @@ export class UpdateVendorDto {
 
   email_address?: string;
 
+  @IsOptional()
+  account_name?: string;
+
+  @IsOptional()
+  account_number?: string;
+
   join_date?: Date;
 
   area_id?: number;
@@ -132,6 +138,14 @@ export class UpdateVendorDto {
   @IsOptional()
   @IsString()
   pic_name?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  default_username?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  password?: string;
 }
 
 class VendorStore {

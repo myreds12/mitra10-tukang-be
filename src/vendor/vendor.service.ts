@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { hash } from 'bcrypt';
+import { hash, hashSync } from 'bcrypt';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma, users } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bull';
@@ -90,6 +90,8 @@ export class VendorService {
         pic_name: createVendorDto.pic_name,
         company_name: createVendorDto.company_name,
         email_address: createVendorDto.email_address,
+        account_name: createVendorDto.account_name,
+        account_number: createVendorDto.account_number ? createVendorDto.account_number : undefined,
         phone_number: createVendorDto.phone_number,
         ktp_number: createVendorDto.ktp_number,
         npwp_number: createVendorDto.npwp_number,
@@ -257,6 +259,7 @@ export class VendorService {
               area: true,
             },
           },
+          bank: true,
           vendor_document: true,
           vendor_service: {
             include: {
@@ -356,6 +359,7 @@ export class VendorService {
               service_type: true,
             },
           },
+          bank: true,
           work_orders: true,
           vendor_store: {
             select: {
@@ -396,6 +400,28 @@ export class VendorService {
     try {
       const { id: user_id } = user;
       console.log(updateVendorDto);
+      const vendors = await this.dbService.vendor.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          pic_vendor: {
+            where: {
+              vendor_id: id,
+              users: {
+                roles: {
+                  name: {
+                    contains: 'Owner Vendor',
+                  },
+                },
+              },
+            },
+            include: {
+              users: true,
+            },
+          },
+        },
+      });
 
       const vendorFiles: Prisma.vendor_documentCreateManyInput[] = files
         ? Object.entries(files).map((file) => {
@@ -481,6 +507,8 @@ export class VendorService {
         max_order: updateVendorDto.max_order,
         pic_name: updateVendorDto.pic_name,
         company_name: updateVendorDto.company_name,
+        account_name: updateVendorDto.account_name,
+        account_number: updateVendorDto.account_number ? updateVendorDto.account_number : undefined,
         email_address: updateVendorDto.email_address,
         phone_number: updateVendorDto.phone_number,
         ktp_number: updateVendorDto.ktp_number,
@@ -514,6 +542,23 @@ export class VendorService {
         vendor_store: {
           upsert: vendorStoreUpsert,
         },
+        pic_vendor: {
+          update: {
+            where: {
+              id: vendors.pic_vendor[0].id
+            },
+            data: {
+              email_address: updateVendorDto?.email_address ?? undefined,
+              pic_name: updateVendorDto?.pic_name ?? undefined,
+              users: {
+                update: {
+                  username: updateVendorDto.default_username ?? undefined,
+                  password: updateVendorDto.password ?  await hashSync(updateVendorDto.password, 12) : undefined
+                }
+              }
+            }
+          }
+        }
       };
 
       const [syncVendorStore, syncArea, syncService, syncDocument, vendor] =
