@@ -692,7 +692,7 @@ export class WorkOrdersService {
       const work_order = await this.dbService.work_orders.findUnique({
         where: { id },
       });
-
+      await this.orderService.setStatus(work_order.order_id, updateData.status_id, user);
       return work_order;
     } catch (error) {
       console.error(error);
