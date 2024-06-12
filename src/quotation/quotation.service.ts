@@ -531,6 +531,13 @@ export class QuotationService {
             id,
           },
           data: {
+            ...(promotion ? {
+              promotion: {
+                connect: {
+                  id: updateQuotationDto.promotion_id
+                }
+              }
+            } : undefined),
             status: updateQuotationDto?.quotation_status
               ? {
                   connect: {
@@ -1051,6 +1058,7 @@ export class QuotationService {
 
     const filteredIncentive = await this.dbService.setting_incentive.findMany({
       where: {
+        deleted_at: null,
         stores: {
           some: {
             store_id: storeId,
