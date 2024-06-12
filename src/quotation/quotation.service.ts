@@ -65,7 +65,7 @@ export class QuotationService {
         },
       });
 
-      const promotion = await this.dbService.promotion.findFirst({
+      const promotion = createQuotationDto.promotion_id ? await this.dbService.promotion.findFirst({
         where: {
           id: createQuotationDto.promotion_id,
         },
@@ -76,7 +76,7 @@ export class QuotationService {
             },
           },
         },
-      });
+      }) : undefined;
 
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
