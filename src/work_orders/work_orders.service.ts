@@ -130,6 +130,7 @@ export class WorkOrdersService {
         status,
         order_by,
         tukang_id,
+        vendor_id
       } = queryParamsDto;
       console.log(tukang_id);
 
@@ -147,6 +148,9 @@ export class WorkOrdersService {
               }
             : undefined,
           status ? { status: { id: { in: status } } } : undefined,
+          vendor_id ? {
+            vendor_id: vendor_id
+        } : undefined,
           tukang_id
             ? {
                 work_order_tukang: {
