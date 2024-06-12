@@ -437,6 +437,7 @@ export class OrderService {
               deleted_by: null,
             },
             include: {
+              promotion: true,
               quotation_details: {
                 include: {
                   item: true,
@@ -576,6 +577,7 @@ export class OrderService {
               created_at: 'desc',
             },
             include: {
+              promotion: true,
               quotation_details: true,
               quotation_files: true,
             },
