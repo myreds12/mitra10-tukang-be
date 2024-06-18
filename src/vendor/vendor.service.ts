@@ -90,8 +90,11 @@ export class VendorService {
         pic_name: createVendorDto.pic_name,
         company_name: createVendorDto.company_name,
         email_address: createVendorDto.email_address,
+        nominal_survey: createVendorDto.nominal_survey,
         account_name: createVendorDto.account_name,
-        account_number: createVendorDto.account_number ? createVendorDto.account_number : undefined,
+        account_number: createVendorDto.account_number
+          ? createVendorDto.account_number
+          : undefined,
         phone_number: createVendorDto.phone_number,
         ktp_number: createVendorDto.ktp_number,
         npwp_number: createVendorDto.npwp_number,
@@ -508,7 +511,10 @@ export class VendorService {
         pic_name: updateVendorDto.pic_name,
         company_name: updateVendorDto.company_name,
         account_name: updateVendorDto.account_name,
-        account_number: updateVendorDto.account_number ? updateVendorDto.account_number : undefined,
+        nominal_survey: updateVendorDto.nominal_survey,
+        account_number: updateVendorDto.account_number
+          ? updateVendorDto.account_number
+          : undefined,
         email_address: updateVendorDto.email_address,
         phone_number: updateVendorDto.phone_number,
         ktp_number: updateVendorDto.ktp_number,
@@ -545,7 +551,7 @@ export class VendorService {
         pic_vendor: {
           update: {
             where: {
-              id: vendors.pic_vendor[0].id
+              id: vendors.pic_vendor[0].id,
             },
             data: {
               email_address: updateVendorDto?.email_address ?? undefined,
@@ -553,12 +559,14 @@ export class VendorService {
               users: {
                 update: {
                   username: updateVendorDto.default_username ?? undefined,
-                  password: updateVendorDto.password ?  await hashSync(updateVendorDto.password, 12) : undefined
-                }
-              }
-            }
-          }
-        }
+                  password: updateVendorDto.password
+                    ? await hashSync(updateVendorDto.password, 12)
+                    : undefined,
+                },
+              },
+            },
+          },
+        },
       };
 
       const [syncVendorStore, syncArea, syncService, syncDocument, vendor] =

@@ -111,6 +111,9 @@ export class CreateVendorDto {
   @Type(() => VendorStore)
   @ValidateNested({ each: true })
   vendor_store: VendorStore[];
+
+  @Type(() => Number)
+  nominal_survey?: number;
 }
 
 class VendorStore {

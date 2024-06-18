@@ -119,6 +119,9 @@ export class UpdateVendorDto {
   @Type(() => Number)
   bank_id?: number; 
 
+  @Type(() => Number)
+  nominal_survey?: number;
+
   // @ApiProperty({ type: VendorBank }) // This represents a VendorBank
   // @Type(() => VendorBank)
   // vendor_bank?: VendorBank;
