@@ -13,6 +13,7 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
+import { IncentiveType } from 'src/incentive/dto/incentive-type.enum';
 
 @Injectable()
 export class SalesService {
@@ -576,7 +577,7 @@ export class SalesService {
 
   async generateSalesCommission(id?: number, quotationId?: number) {}
 
-  async templateDefaultExcel(res: Response, status) {
+  async templateDefaultExcel(res: Response) {
     try {
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Template Sales Commission', {
@@ -600,8 +601,13 @@ export class SalesService {
       // Mendefinisikan kolom-kolom header
       worksheet.columns = [
         { header: 'Sales Id', key: 'sales_id', width: 20 },
-        { header: 'Sales Name', key: 'sales_name', width: 20 },
+        { header: 'Nama Sales', key: 'sales_name', width: 20 },
+        { header: 'Bank', key: 'bank_name', width: 30 },
+        { header: 'Nama Akun Bank', key: 'account_name', width: 30 },
+        { header: 'Nomor Akun Bank', key: 'account_number', width: 30 },
+        { header: 'Nama Toko', key: 'store_name', width: 30 },
         { header: 'Order Id', key: 'order_id', width: 20 },
+        { header: 'Nama Customer', key: 'member_name', width: 40 },
         { header: 'Status Order', key: 'status_order', width: 25 },
         { header: 'Incentive Id', key: 'incentive_id', width: 20 },
         { header: 'Incentive Nominal', key: 'incentive_nominal', width: 35 },
@@ -610,7 +616,11 @@ export class SalesService {
           key: 'quotation_grand_total',
           width: 35,
         },
-        { header: 'Received Incentive', key: 'received_incentive', width: 35 },
+        {
+          header: 'Insentif Yang Harus Dibayarkan',
+          key: 'received_incentive',
+          width: 45,
+        },
         { header: 'Status Incentive', key: 'status', width: 25 },
         { header: 'Notes', key: 'notes', width: 35 },
       ];
@@ -633,16 +643,23 @@ export class SalesService {
 
       // Mengambil data dari database
       const salesIncentives = await this.dbService.sales_incentive.findMany({
-        where: {
-          status: {
-            in: status
-          }
-        },
         include: {
           sales: {
             select: {
               id: true,
               full_name: true,
+              account_name: true,
+              account_number: true,
+              store: {
+                select: {
+                  store_name: true,
+                },
+              },
+              bank: {
+                select: {
+                  bank_name: true,
+                },
+              },
             },
           },
           quotation: {
@@ -651,6 +668,11 @@ export class SalesService {
               quotation_grand_total: true,
               order: {
                 select: {
+                  members: {
+                    select: {
+                      full_name: true,
+                    },
+                  },
                   status: {
                     select: {
                       category: true,
@@ -665,15 +687,22 @@ export class SalesService {
         },
       });
 
-      // Mengisi worksheet dengan data
       salesIncentives.forEach((incentive, index) => {
         worksheet.addRow({
           sales_id: incentive.sales_id,
           sales_name: incentive.sales.full_name,
+          bank_name: incentive.sales.bank.bank_name,
+          account_name: incentive.sales.account_name ?? '',
+          account_number: incentive.sales.account_number ?? '',
+          store_name: incentive.sales.store.store_name,
           order_id: incentive.quotation.order_id,
+          member_name: incentive.quotation.order.members.full_name,
           status_order: incentive.quotation.order.status.description,
           incentive_id: incentive.incentive_id,
-          incentive_nominal: Number(incentive.incentive.incentive),
+          incentive_nominal:
+            incentive.incentive.type === IncentiveType.NOMINAL
+              ? Number(incentive.incentive.incentive)
+              : `${incentive.incentive.incentive}%`,
           quotation_grand_total: Number(
             incentive.quotation.quotation_grand_total,
           ),
@@ -783,8 +812,7 @@ export class SalesService {
                 id: pair.incentive_id,
               },
             });
-          console.log(setting_incentive, "SETTING INCENTIVE");
-          
+          console.log(setting_incentive, 'SETTING INCENTIVE');
 
           if (!setting_incentive) {
             console.warn(`Incentive with ID ${pair.incentive_id} not found.`);
@@ -803,7 +831,6 @@ export class SalesService {
             console.warn(`Sales Incentive  not found!`);
             return;
           }
-          
 
           const updateSales = await this.dbService.sales_incentive.update({
             where: {
@@ -816,12 +843,12 @@ export class SalesService {
               updated_by: user.id,
             },
           });
-          updatedCount += 1
+          updatedCount += 1;
         }),
       );
       console.log('SUCCESS');
 
-      return {count: updatedCount};
+      return { count: updatedCount };
     } catch (error) {
       console.error('Error synchronizing commission status:', error);
       throw error;
