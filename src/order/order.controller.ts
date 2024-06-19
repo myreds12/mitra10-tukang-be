@@ -100,7 +100,7 @@ export class OrderController {
   @HttpCode(HttpStatus.OK)
   async testMail(@Param('id', ParseIntPipe) id: number) {
     try {
-      const order = await this.orderService.findOne(id);
+      const {data: order} = await this.orderService.findOne(id);
       if (!order) new NotFoundException('Order not found');
 
       this.logger.verbose(

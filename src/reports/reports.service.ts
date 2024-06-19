@@ -17,35 +17,27 @@ export class ReportsService {
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
-      const { sales_id, store_id, page, take, date_from, date_to } = query;
+      const { sales_id, store_id, page, take, date_from, date_to, status } = query;
       const skip = page * take - take;
-      const where: Prisma.ordersWhereInput = {
+      const where: Prisma.sales_incentiveWhereInput = {
         AND: [
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
-          ...(store_id
-            ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
-                },
-              ]
-            : []),
+          ...(status ? [{ status : {in: status}}] : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
       };
 
-      const order = await this.dbService.orders.findMany({
+      const salesIncetive = await this.dbService.sales_incentive.findMany({
         where,
         skip,
         take: take > 0 ? take : undefined,
@@ -53,107 +45,46 @@ export class ReportsService {
           created_at: 'desc',
         },
         include: {
-          members: true,
-          sales: true,
-          status: true,
-          vendor: true,
-          store: true,
-          m_order_details: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              order_id: true,
-              item_code: true,
-              item_name: true,
-              item_notes: true,
-              item_id: true,
-              item: {
-                select: {
-                  id: true,
-                  item_name: true,
-                  category: true,
-                  prices: true,
-                  default_price: true,
-                  service_name: true,
-                },
-              },
-              unit_price: true,
-              quantity: true,
-              total: true,
-              comission: true,
-              created_by: true,
-              updated_by: true,
-              created_at: true,
-              updated_at: true,
-            },
+          sales: {
+            include:{
+              store: true
+            }
           },
+          incentive: true,
           quotation: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
             include: {
-              quotation_details: {
+              order: {
                 include: {
-                  item: true,
-                },
-              },
-            },
-          },
-          order_files: true,
-          complaints: true,
-          work_orders: {
-            include: {
-              vendor: true,
-              work_order_evidences: true,
-              work_order_tukang: {
-                include: {
-                  tukang: true,
-                },
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-              },
-              work_order_status: {
-                include: {
-                  status: true,
-                  work_order_items: {
-                    include: {
-                      item: true,
-                    },
-                    where: {
-                      deleted_at: null,
-                      deleted_by: null,
-                    },
-                  },
-                },
-                orderBy: {
-                  created_at: 'desc',
-                },
-              },
-            },
-          },
-        },
+                  members: true,
+                }
+              }
+            }
+          }
+        }
       });
       // console.log(sales);
-      const count = await this.dbService.orders.count({
+      const totalIncentive = await this.dbService.sales_incentive.aggregate({
+        where,
+        _sum: {
+          nominal: true
+        }
+      })
+
+
+      const count = await this.dbService.sales_incentive.count({
         where,
       });
 
       return {
-        data: order,
-        meta: { page, take, total: count },
+        data: salesIncetive,
+        meta: {totalIncentive, page, take, total: count },
       };
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-
+  
   async reportOrder(query: QueryParamsDto) {
     try {
       const {
@@ -168,34 +99,21 @@ export class ReportsService {
         vendor_id,
         invoice_status,
         member_id,
+        tukang_id
       } = query;
 
-      const statuses = await this.dbService.status.findMany();
-
-      const statusDone = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('done'),
-      );
-      const statusRefund = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('refund'),
-      );
-      const statusCancel = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('cancel'),
-      );
-      const statusReschedule = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('reschedule'),
-      );
-      const statusUnpaid = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('unpaid'),
-      );
-      const statusSurveyStart = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('surveystart'),
-      );
-      const statusSurveyReq = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('surveyreq'),
-      );
-      const statusSurveyDone = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('surveydone'),
-      );
+      const statusCategories = {
+        totalOrderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
+        totalWIP: ['WORKSTART', 'WIP'],
+        totalOrderDone: ['WORKEND'],
+        totalWaitingSurvey: ['SURVEYREQ'],
+        totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
+        totalComplaint: ['INVESTIGATED'],
+        totalReschedule: ['RESCHEDULE'],
+        totalCancel: ['CANCEL'],
+        totalRefund: ['REFUND'],
+        totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+      };
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -233,6 +151,16 @@ export class ReportsService {
                 },
               }
             : undefined,
+            tukang_id 
+            ? {
+              work_orders: {
+                work_order_tukang: {
+                  some: {
+                    tukang_id: tukang_id
+                  }
+                }
+              }
+            }: undefined,
           ...(date_from && date_to
             ? [
                 {
@@ -253,221 +181,33 @@ export class ReportsService {
           created_at: order_by,
         },
         include: {
-          members: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              area_id: true,
-              area: true,
-              join_location: true,
-              join_location_store: true,
-              full_name: true,
-              email: true,
-              phone_number: true,
-              whatsapp_number: true,
-              address_1: true,
-              address_2: true,
-              zip_code: true,
-              rating: true,
-              join_date: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          sales: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              store_id: true,
-              user_id: true,
-              full_name: true,
-              nik: true,
-              bank_id: true,
-              bank_branch: true,
-              account_name: true,
-              is_active: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          store: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              store_name: true,
-              address: true,
-              area_id: true,
-              area: true,
-              zip_code: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
           status: {
             select: {
               id: true,
               category: true,
-              description: true,
             },
           },
-          complaints: true,
-          vendor: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              company_name: true,
-              address: true,
-              phone_number: true,
-              ktp_number: true,
-              npwp_number: true,
-              email_address: true,
-              join_date: true,
-              is_active: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          m_order_details: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              order_id: true,
-              item_code: true,
-              item_name: true,
-              item_notes: true,
-              item_id: true,
-              item: {
-                select: {
-                  id: true,
-                  item_name: true,
-                  category: true,
-                  default_price: true,
-                  service_name: true,
-                },
-              },
-              sales: true,
-              unit_price: true,
-              quantity: true,
-              total: true,
-              comission: true,
-              created_by: true,
-              updated_by: true,
-              created_at: true,
-              updated_at: true,
-            },
-          },
-          quotation: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            include: {
-              quotation_details: {
-                include: {
-                  item: true,
-                },
-              },
-            },
-          },
-          work_orders: {
-            include: {
-              vendor: true,
-              work_order_evidences: true,
-              work_order_tukang: {
-                include: {
-                  tukang: true,
-                },
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-              },
-              work_order_status: {
-                include: {
-                  status: true,
-                  work_order_items: {
-                    include: {
-                      item: true,
-                    },
-                    where: {
-                      deleted_at: null,
-                      deleted_by: null,
-                    },
-                  },
-                },
-                orderBy: {
-                  created_at: 'desc',
-                },
-              },
-            },
-          },
-          order_files: true,
         },
       });
 
-      const count = await this.dbService.orders.count({
-        where,
-      });
+      const count = await this.dbService.orders.count({ where });
       const orderGrandTotal = await this.dbService.orders
         .aggregate({
           where,
-          _sum: {
-            grand_total: true,
-          },
+          _sum: { grand_total: true },
         })
         .then((data) => data._sum.grand_total);
 
       const quoteInGrandTotal = await this.dbService.quotation
         .aggregate({
           where: {
-            order_id: {
-              in: orders.map((item) => item.id),
-            },
-            status: {
-              category: {
-                contains: 'QUOTEIN',
-              },
-            },
+            order_id: { in: orders.map((item) => item.id) },
+            status: { category: { contains: 'QUOTEIN' } },
           },
-          _sum: {
-            quotation_grand_total: true,
-          },
+          _sum: { quotation_grand_total: true },
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      const totalOrdersPerMonth = {};
-      const totalOrderGrandTotalPerMonth = {};
-      const totalCompleteOrderPerMonth = {};
-      const totalUnpaidOrderPerMonth = {};
-      const totalSurveyStartOrderPerMonth = {};
-      const totalSurveyReqOrderPerMonth = {};
-      const totalSurveyDoneOrderPerMonth = {};
-      const totalRescheduleOrderPerMonth = {};
-      const totalRefundOrderPerMonth = {};
-      const totalCancelOrderPerMonth = {};
       const allMonths = [
         'Januari',
         'Februari',
@@ -483,69 +223,50 @@ export class ReportsService {
         'Desember',
       ];
 
-      allMonths.forEach((month) => {
-        totalOrderGrandTotalPerMonth[month] = 0;
-        totalUnpaidOrderPerMonth[month] = 0;
-        totalCompleteOrderPerMonth[month] = 0;
-        totalSurveyStartOrderPerMonth[month] = 0;
-        totalSurveyReqOrderPerMonth[month] = 0;
-        totalSurveyDoneOrderPerMonth[month] = 0;
-        totalRescheduleOrderPerMonth[month] = 0;
-        totalRefundOrderPerMonth[month] = 0;
-        totalCancelOrderPerMonth[month] = 0;
-      });
+      const summary = allMonths.reduce((acc, month) => {
+        acc[month] = {
+          totalOrder: 0,
+          totalOrderGrandTotal: 0,
+          totalOrderSurvey: 0,
+          totalWIP: 0,
+          totalOrderDone: 0,
+          totalWaitingSurvey: 0,
+          totalWaitingQuotation: 0,
+          totalComplaint: 0,
+          totalReschedule: 0,
+          totalCancel: 0,
+          totalRefund: 0,
+          totalRework: 0,
+          totalUnpaid: 0,
+        };
+        return acc;
+      }, {});
 
       orders.forEach((order) => {
         const month = new Date(order.created_at).toLocaleString('id-ID', {
           month: 'long',
         });
-        const grandTotalPerMonth = Number(order.grand_total);
+        summary[month].totalOrder++;
+        summary[month].totalOrderGrandTotal += Number(order.grand_total);
 
-        if (!totalOrdersPerMonth[month]) {
-          totalOrdersPerMonth[month] = 0;
-        }
+        Object.entries(statusCategories).forEach(([key, statuses]) => {
+          if (statuses.includes(order.status.category)) {
+            summary[month][key]++;
+          }
+        });
 
-        totalOrdersPerMonth[month]++;
-        totalOrderGrandTotalPerMonth[month] += grandTotalPerMonth;
-
-        if (order.status.category === statusDone.category) {
-          totalCompleteOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusUnpaid.category) {
-          totalUnpaidOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusSurveyStart.category) {
-          totalSurveyStartOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusSurveyDone.category) {
-          totalSurveyDoneOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusSurveyReq.category) {
-          totalSurveyReqOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusCancel.category) {
-          totalCancelOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusRefund.category) {
-          totalRefundOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusReschedule.category) {
-          totalRescheduleOrderPerMonth[month]++;
+        if (
+          (order.payment_type === 'survey' ||
+            order.payment_type === 'pemasangan_tanpa_survey') &&
+          order.receipt_number === null
+        ) {
+          summary[month].totalUnpaid++;
         }
       });
 
       const monthlyOrders = allMonths.map((month) => ({
         month,
-        totalOrder: totalOrdersPerMonth[month] || 0,
-        totalOrderGrandTotalPerMonth: totalOrderGrandTotalPerMonth[month] || 0,
-        totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0,
-        totalUnpaidOrder: totalUnpaidOrderPerMonth[month] || 0,
-        totalSurveyStartOrder: totalSurveyStartOrderPerMonth[month] || 0,
-        totalSurveyReqOrder: totalSurveyReqOrderPerMonth[month] || 0,
-        totalSurveyDoneOrder: totalSurveyDoneOrderPerMonth[month] || 0,
-        totalRescheduleOrder: totalRescheduleOrderPerMonth[month] || 0,
-        totalRefundOrder: totalRefundOrderPerMonth[month] || 0,
-        totalCancelOrder: totalCancelOrderPerMonth[month] || 0,
+        ...summary[month],
       }));
 
       return {

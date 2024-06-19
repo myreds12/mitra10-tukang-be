@@ -77,7 +77,6 @@ export class QuotationService {
           },
         },
       }) : undefined;
-
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
           const prices = Number(item.is_customer ? 0 : item?.price ?? 0);
@@ -226,24 +225,24 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      order: { vendor: { company_name: { contains: search } } },
-                    },
-                    { store: { store_name: { contains: search } } },
-                    { quotation_number: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  {
+                    order: { vendor: { company_name: { contains: search } } },
+                  },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -316,9 +315,34 @@ export class QuotationService {
       const total = await this.dbService.quotation.count({
         where,
       });
+      const userIds = [
+        ...new Set(
+          quotation.flatMap((item) => [item.created_by, item.updated_by, item.deleted_by]).filter(Boolean)
+        ),
+      ];
+
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+
+      const userMap = users.reduce(
+        (acc, user) => ({
+          ...acc,
+          [user.id]: user,
+        }),
+        {}
+      );
+
+      const quotationWithUser = quotation.map((item) => ({
+        ...item,
+        created_by: item.created_by ? userMap[item.created_by] || null : null,
+        updated_by: item.updated_by ? userMap[item.updated_by] || null : null,
+        deleted_by: item.deleted_by ? userMap[item.deleted_by] || null : null,
+      }));
 
       return {
-        data: quotation,
+        data: quotationWithUser,
         meta: {
           skip,
           take,
@@ -385,8 +409,24 @@ export class QuotationService {
           store: true,
         },
       });
+      const userIds = [quotation.created_by, quotation.updated_by, quotation.deleted_by].filter(Boolean);
+  
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+  
+      const userMap = Object.fromEntries(users.map(user => [user.id, user]));
+  
+      // Attach user data to the quotations
+      const quotationsWithUser = {
+        ...quotation,
+        created_by: userMap[quotation.created_by] || null,
+        updated_by: userMap[quotation.updated_by] || null,
+        deleted_by: userMap[quotation.deleted_by] || null,
+      };
 
-      return quotation;
+      return quotationsWithUser;
     } catch (error) {
       console.error(error);
       throw error;

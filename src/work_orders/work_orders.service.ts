@@ -24,7 +24,7 @@ export class WorkOrdersService {
     try {
       const { id: user_id } = user;
 
-      const order = await this.orderService.findOne(dataDto.order_id);
+      const {data: order} = await this.orderService.findOne(dataDto.order_id);
 
       if (!order) throw new BadRequestException('Order not found.');
       if (!order.vendor_id)
@@ -103,6 +103,7 @@ export class WorkOrdersService {
           work_order_status: {
             create: workOrderStatus,
           },
+          created_by: user_id
         },
       };
 
@@ -234,9 +235,34 @@ export class WorkOrdersService {
           work_order_evidences: true,
         },
       });
+      const userIds = [
+        ...new Set(
+          work_orders.flatMap((item) => [item.created_by, item.updated_by, item.deleted_by]).filter(Boolean)
+        ),
+      ];
+
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+
+      const userMap = users.reduce(
+        (acc, user) => ({
+          ...acc,
+          [user.id]: user,
+        }),
+        {}
+      );
+
+      const workOrdersWithUser = work_orders.map((item) => ({
+        ...item,
+        created_by: item.created_by ? userMap[item.created_by] || null : null,
+        updated_by: item.updated_by ? userMap[item.updated_by] || null : null,
+        deleted_by: item.deleted_by ? userMap[item.deleted_by] || null : null,
+      }));
 
       return {
-        data: work_orders,
+        data: workOrdersWithUser,
         meta: { skip, page, take, total },
       };
     } catch (error) {
@@ -303,6 +329,22 @@ export class WorkOrdersService {
         },
       });
       if (!work_orders) throw Error('Work Order Not Found!');
+      const userIds = [work_orders.created_by, work_orders.updated_by, work_orders.deleted_by].filter(Boolean);
+  
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+  
+      const userMap = Object.fromEntries(users.map(user => [user.id, user]));
+  
+      // Attach user data to the work_orderss
+      const workOrdersWithUser = {
+        ...work_orders,
+        created_by: userMap[work_orders.created_by] || null,
+        updated_by: userMap[work_orders.updated_by] || null,
+        deleted_by: userMap[work_orders.deleted_by] || null,
+      };
 
       return work_orders;
     } catch (error) {

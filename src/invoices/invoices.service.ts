@@ -17,6 +17,7 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { InvoiceStatus } from './dto/invoice-status.enum';
 
 @Injectable()
 export class InvoicesService {
@@ -37,6 +38,12 @@ export class InvoicesService {
             created_by: user_id,
           }))
         : [];
+
+      const vendor = await this.dbService.vendor.findFirst({
+        where: {
+          id: createInvoiceDto.vendor_id,
+        },
+      });
 
       // Get provided order IDs
       const providedOrder = createInvoiceDto.invoice_details
@@ -127,7 +134,10 @@ export class InvoicesService {
         }
       });
 
-      const totalAmount = totalGrandTotal + totalQuotationGrandTotal;
+      const totalAmount =
+        totalGrandTotal +
+        totalQuotationGrandTotal +
+        Number(vendor.nominal_survey);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
@@ -136,7 +146,7 @@ export class InvoicesService {
       const data = {
         vendor: {
           connect: {
-            id: createInvoiceDto.vendor_id,
+            id: vendor.id,
           },
         },
         status: createInvoiceDto.status,
@@ -161,6 +171,10 @@ export class InvoicesService {
 
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
+        this.dbService.orders.updateMany({
+          where: { id: { in: providedOrder } },
+          data: { project_status_id: 20 },
+        }),
       ]);
 
       await this.invoiceLogs(invoices.id, invoices);
@@ -247,7 +261,11 @@ export class InvoicesService {
           vendor: true,
           invoice_details: {
             include: {
-              order: true,
+              order: {
+                include: {
+                  members: true,
+                },
+              },
             },
           },
         },
@@ -292,6 +310,7 @@ export class InvoicesService {
               order: {
                 include: {
                   quotation: true,
+                  members: true,
                 },
               },
             },
@@ -608,12 +627,15 @@ export class InvoicesService {
       worksheet.columns = [
         { header: 'Invoice Id', key: 'id', width: 10 },
         { header: 'Order Id', key: 'order_id', width: 25 },
+        { header: 'Nama Customer', key: 'member_name', width: 50 },
+        { header: 'Jenis Pengerjaan', key: 'payment_type', width: 50 },
+        { header: 'Nomor Receipt', key: 'receipt_number', width: 60 },
         { header: 'Vendor ID', key: 'vendor_id', width: 50 },
         { header: 'Nama Vendor', key: 'vendor_name', width: 50 },
         { header: 'Nomor Invoice', key: 'invoice_number', width: 50 },
-        { header: 'Notes', key: 'description', width: 50 },
         { header: 'Total Invoice', key: 'total_amount', width: 50 },
         { header: 'Invoice Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Notes', key: 'description', width: 50 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -638,6 +660,33 @@ export class InvoicesService {
               .map((item) => item?.order_id || 'N/a')
               .join(', ')
           : 'N/a';
+        const invoiceOrderCustomer = invoice.invoice_details
+          ? invoice.invoice_details
+              .map((item) => item?.order.members.full_name || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const invoiceOrderReceiptNumber = invoice.invoice_details
+          ? invoice.invoice_details
+              .map((item) => item?.order.receipt_number || 'N/a')
+              .join(', ')
+          : 'N/a';
+        const invoiceOrderPaymentType = invoice.invoice_details
+          ? invoice.invoice_details
+              .map((item) => item?.order.payment_type || 'N/a')
+              .map((paymentType) => {
+                switch (paymentType) {
+                  case 'pemasangan_tanpa_survey':
+                    return 'Pemasangan Tanpa Survey';
+                  case 'survey':
+                    return 'Survey';
+                  case 'gratis':
+                    return 'Gratis';
+                  default:
+                    return 'N/a';
+                }
+              })
+              .join(', ')
+          : 'N/a';
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -657,12 +706,15 @@ export class InvoicesService {
         const row = worksheet.addRow({
           id: invoice.id,
           order_id: invoiceOrder,
+          member_name: invoiceOrderCustomer,
+          payment_type: invoiceOrderPaymentType,
+          receipt_number: invoiceOrderReceiptNumber,
           vendor_id: invoice.vendor ? invoice.vendor_id : 'N/a',
           vendor_name: invoice.vendor ? invoice.vendor.company_name : 'N/a',
           invoice_number: invoice.invoice_number,
-          description: invoice.description ? invoice.description : 'N/a',
           total_amount: formattedGrandTotal,
           created_at: formattedDateTime(invoice.created_at),
+          description: invoice.description ? invoice.description : 'N/a',
         });
 
         row.eachCell((cell) => {
@@ -743,7 +795,7 @@ export class InvoicesService {
       for (let i = 2; i <= sheet.actualRowCount; i++) {
         const row = sheet.getRow(i);
         const invoiceId = row.getCell(1).value as number;
-        const note = row.getCell(2).value;
+        const note = row.getCell(11).value;
         console.log(note);
 
         if (invoiceId != null) {
@@ -764,28 +816,27 @@ export class InvoicesService {
   async templateInvoiceExcel(res: Response) {
     try {
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Template Invoice', {
-        properties: {
-          tabColor: { argb: 'FF4CAF50' },
-          outlineLevelCol: 6,
-          outlineLevelRow: 40,
-        },
-        pageSetup: {
-          margins: {
-            left: 0.7,
-            right: 0.7,
-            top: 0.75,
-            bottom: 0.75,
-            header: 0.3,
-            footer: 0.3,
-          },
-        },
-      });
+      const worksheet = workbook.addWorksheet('Template Invoice');
 
       worksheet.columns = [
         { header: 'Invoice ID', key: 'id', width: 35 },
         { header: 'Notes', key: 'notes', width: 45 },
       ];
+      const dataFromDatabase = await this.dbService.invoices.findMany({
+        where: {
+          status: {
+            in: [InvoiceStatus.WAITING_FOR_PAYMENT],
+          },
+          deleted_at: null
+        },
+      });
+
+      dataFromDatabase.forEach((item) => {
+        worksheet.addRow({
+          id: item.id,
+          notes: item.description,
+        });
+      });
 
       worksheet.getRow(1).eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -803,45 +854,41 @@ export class InvoicesService {
         };
       });
 
-      const createExcelFilePath = (baseName: string) => {
+      const saveWorkbookToFile = async (
+        workbook: exceljs.Workbook,
+        fileName: string,
+      ) => {
         const folderPath = './storage/excel/template/invoice';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }
-        const now = Date.now();
-        const excelFileName = `${baseName}-${now}.xlsx`;
-        return path.join(folderPath, excelFileName);
+        const filePath = path.join(folderPath, fileName);
+        await workbook.xlsx.writeFile(filePath);
+        return filePath;
       };
 
-      const writeWorkbookAndSendResponse = async (
+      const sendWorkbookAsResponse = async (
         workbook: exceljs.Workbook,
-        excelFilePath: string,
+        filePath: string,
         res: Response,
       ) => {
-        await workbook.xlsx.writeFile(excelFilePath);
-
         res.setHeader(
           'Content-Type',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename=${path.basename(excelFilePath)}`,
+          `attachment; filename=${path.basename(filePath)}`,
         );
 
-        const fileStream = fs.createReadStream(excelFilePath);
+        const fileStream = fs.createReadStream(filePath);
         fileStream.pipe(res);
       };
 
-      const generateExcelFile = async (res: Response) => {
-        const baseName = 'TemplateExcelInvoice';
-        const excelFilePath = createExcelFilePath(baseName);
-        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
-      };
-
-      await generateExcelFile(res);
+      const fileName = `TemplateExcelInvoice-${Date.now()}.xlsx`;
+      const filePath = await saveWorkbookToFile(workbook, fileName);
+      await sendWorkbookAsResponse(workbook, filePath, res);
     } catch (error) {
-      console.error(error);
       throw error;
     }
   }
@@ -863,7 +910,7 @@ export class InvoicesService {
     try {
       await this.dbService.invoices.update({
         where: { id: invoiceId },
-        data: { description: note },
+        data: { description: note, status: InvoiceStatus.PAID },
       });
     } catch (error) {
       this.logger.error(

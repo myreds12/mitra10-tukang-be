@@ -244,27 +244,27 @@ export class OrderService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { receipt_number: { contains: search } },
-                    // TODO: FIXME
-                    // { request_survey: { equals: new Date(search) } },
-                    { members: { full_name: { contains: search } } },
-                    {
-                      store: {
-                        store_name: {
-                          contains: search,
-                        },
-                      },
-                    },
-                    {
-                      project_number: {
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  // TODO: FIXME
+                  // { request_survey: { equals: new Date(search) } },
+                  { members: { full_name: { contains: search } } },
+                  {
+                    store: {
+                      store_name: {
                         contains: search,
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                  {
+                    project_number: {
+                      contains: search,
+                    },
+                  },
+                ],
+              },
+            ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -274,28 +274,28 @@ export class OrderService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-                store_id: {
-                  in: store_id,
-                },
-              }
+              store_id: {
+                in: store_id,
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                vendor: {
-                  id: vendor_id,
-                  deleted_at: null,
-                },
-              }
+              vendor: {
+                id: vendor_id,
+                deleted_at: null,
+              },
+            }
             : undefined,
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -334,6 +334,23 @@ export class OrderService {
               created_by: true,
               updated_by: true,
             },
+          },
+          invoice_details:{
+            where: {
+              deleted_at: null
+            },
+            select: {
+              invoices: {
+                select: {
+                 id: true,
+                 status: true,
+                 total_amount: true,
+                 invoice_logs: true, 
+                 description:true,
+                 vendor: true
+                }
+              }
+            }
           },
           sales: {
             where: {
@@ -481,12 +498,37 @@ export class OrderService {
           order_files: true,
         },
       });
+      const userIds = [
+        ...new Set(
+          orders.flatMap((order) => [order.created_by, order.updated_by, order.deleted_by]).filter(Boolean)
+        ),
+      ];
+
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+
+      const userMap = users.reduce(
+        (acc, user) => ({
+          ...acc,
+          [user.id]: user,
+        }),
+        {}
+      );
+
+      const ordersWithUser = orders.map((order) => ({
+        ...order,
+        created_by: order.created_by ? userMap[order.created_by] || null : null,
+        updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
+        deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
+      }));
       const count = await this.dbService.orders.count({
         where,
       });
 
       return {
-        data: orders,
+        data: ordersWithUser,
         meta: {
           total: count,
           page,
@@ -503,7 +545,7 @@ export class OrderService {
 
   async findOne(id: number) {
     try {
-      const orders = await this.dbService.orders.findFirst({
+      const order = await this.dbService.orders.findFirst({
         where: {
           id,
           deleted_at: null,
@@ -617,18 +659,66 @@ export class OrderService {
           invoice_details: true,
         },
       });
-
-      const data = {
-        ...orders,
+  
+      const userIds = [order.created_by, order.updated_by, order.deleted_by].filter(Boolean);
+  
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+  
+      const userMap = Object.fromEntries(users.map(user => [user.id, user]));
+  
+      // Attach user data to the orders
+      const ordersWithUser = {
+        ...order,
+        created_by: userMap[order.created_by] || null,
+        updated_by: userMap[order.updated_by] || null,
+        deleted_by: userMap[order.deleted_by] || null,
       };
-
+  
+      const logs = await this.dbService.mail_logs.findMany({
+        where: {
+          moduleId: id
+        },
+        select: {
+          id: true,
+          emailMessageId: true,
+          moduleId: true,
+          data: true,
+          to: true,
+          status: true,
+          createdAt: true,
+          emailMessages: true,
+        },
+      });
+  
+      const mailLogs = logs.filter(item => {
+        try {
+          const dataMailLogs = JSON.parse(item.data);
+          return dataMailLogs.order && dataMailLogs.order.id === id;
+        } catch (error) {
+          console.error('Failed to parse mail log data', error);
+          return false;
+        }
+      });
+  
+      const data = {
+        ...ordersWithUser,
+      };
+  
       data['order_details'] = data.m_order_details;
       delete data.m_order_details;
-
-      return data;
+  
+      return {
+        data,
+        meta: {
+          mailLogs: mailLogs,
+          dataLogs: mailLogs.map((item) => JSON.parse(item.data))
+        }
+      };
     } catch (error) {
       console.error(error);
-
       throw error;
     }
   }
@@ -658,7 +748,7 @@ export class OrderService {
         }));
 
       console.log('UpdaeDto', updateOrderDto);
-      const order = await this.findOne(id);
+      const {data: order} = await this.findOne(id);
 
       if (!order) throw new NotFoundException('Order not found');
 

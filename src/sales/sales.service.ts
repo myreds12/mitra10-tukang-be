@@ -576,7 +576,7 @@ export class SalesService {
 
   async generateSalesCommission(id?: number, quotationId?: number) {}
 
-  async templateDefaultExcel(res: Response) {
+  async templateDefaultExcel(res: Response, status) {
     try {
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Template Sales Commission', {
@@ -633,6 +633,11 @@ export class SalesService {
 
       // Mengambil data dari database
       const salesIncentives = await this.dbService.sales_incentive.findMany({
+        where: {
+          status: {
+            in: status
+          }
+        },
         include: {
           sales: {
             select: {

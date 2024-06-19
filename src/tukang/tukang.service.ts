@@ -185,6 +185,11 @@ export class TukangService {
                     { phone_number: { contains: search } },
                     { full_name: { contains: search } },
                     { ktp_number: { contains: search } },
+                    {
+                      full_name: {
+                        contains: search,
+                      },
+                    },
                     { vendor: { company_name: { contains: search } } },
                     {
                       tukang_service: {
@@ -240,7 +245,6 @@ export class TukangService {
             : undefined,
         ],
         deleted_at: null,
-        is_active: true,
       };
 
       const tukang = await this.dbService.tukang.findMany({
@@ -250,6 +254,11 @@ export class TukangService {
         include: {
           users: true,
           vendor: true,
+          tukang_area: {
+            include: {
+              area: true,
+            },
+          },
           tukang_service: {
             include: {
               service_type: true,
@@ -277,13 +286,15 @@ export class TukangService {
       const tukang = await this.dbService.tukang.findFirst({
         where: {
           id,
-          deleted_at: null,
-          deleted_by: null,
-          is_active: true,
         },
         include: {
           users: true,
           vendor: true,
+          tukang_area: {
+            include: {
+              area: true,
+            },
+          },
           tukang_service: {
             include: {
               service_type: true,

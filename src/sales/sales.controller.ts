@@ -77,8 +77,8 @@ export class SalesController {
 
   @Get('/export-excel-template')
   @UseGuards()
-  async salesExportTemplateExcel(@Res() res: Response) {
-    return await this.salesService.templateDefaultExcel(res);
+  async salesExportTemplateExcel(@Res() res: Response, @Query() {status}: QueryParamsDto) {
+    return await this.salesService.templateDefaultExcel(res, status);
   }
 
   @Get('next-code')
