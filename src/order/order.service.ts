@@ -465,6 +465,12 @@ export class OrderService {
           },
           work_orders: {
             include: {
+              request_tukang: {
+                include: {
+                  tukang_to_request_tukang: true,
+                  tukang_to_replace_tukang: true
+                }
+              },
               vendor: true,
               work_order_evidences: true,
               work_order_tukang: {
@@ -626,6 +632,12 @@ export class OrderService {
           },
           work_orders: {
             include: {
+              request_tukang: {
+                include: {
+                  tukang_to_request_tukang: true,
+                  tukang_to_replace_tukang: true
+                }
+              },
               vendor: true,
               work_order_evidences: true,
               work_order_tukang: {
@@ -914,8 +926,10 @@ export class OrderService {
                 )
               ) {
                 total = Number(itemPrice) * item.quantity;
-                grand_total += total;
+                grand_total += total + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) : 0);
                 grand_total_comission += comission;
+              } else if([PAYMENT_TYPE.SURVEY].includes(updateOrderDto.payment_type) || order.payment_type.includes(PAYMENT_TYPE.SURVEY)){
+                grand_total += Number(order.grand_total) + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) : 0);
               }
 
               return {
@@ -959,7 +973,11 @@ export class OrderService {
             })
           : undefined;
 
+          console.log(grand_total);
+          
+
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
+        additional_fee: updateOrderDto?.additional_fee ?? undefined,
         member_id: updateOrderDto?.member_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
         vendor_id: updateOrderDto?.vendor_id ?? undefined,
@@ -1304,6 +1322,8 @@ export class OrderService {
                   item: true,
                 },
               },
+              promotion: true,
+              quotation_files: true
             },
           },
           order_files: true,

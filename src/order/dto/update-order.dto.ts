@@ -62,6 +62,10 @@ export class UpdateOrderDto {
   @IsOptional()
   payment_type?: PAYMENT_TYPE;
 
+  @IsOptional()
+  @Type(() => Number)
+  additional_fee?: number;
+
   @Type(() => OrderDetailDto)
   order_details?: OrderDetailDto[];
 
