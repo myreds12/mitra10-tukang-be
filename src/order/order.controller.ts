@@ -52,6 +52,19 @@ export class OrderController {
   ) {}
   private readonly logger = new Logger(OrderController.name);
 
+
+  @Get('/calender')
+  // @CheckPermissions([PermissionAction.READ, menuName])
+  @UseGuards(JwtAuthGuard)
+  async orderCalender(@Query() query: QueryParamsDto) {
+    try {
+      return await this.orderService.orderCalender(query);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   @Get('/export-excel')
   @UseGuards()
   async orderExportExcel(
