@@ -6,4 +6,6 @@ export enum MailType {
   COMPLAINT = 5,
   RESCHEDULE = 6,
   CSI = 7,
+  REPLACE_TUKANG_FROM_VENDOR = 8,
+  REPLACE_TUKANG_FROM_TUKANG = 9,
 }

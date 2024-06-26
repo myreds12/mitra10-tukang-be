@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsDate,
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -10,6 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { MarginType } from 'src/quotation/dto/margin-type.enum';
 
 export class CreateVendorDto {
   @ApiProperty()
@@ -23,6 +25,15 @@ export class CreateVendorDto {
   @IsNotEmpty()
   @IsString()
   address: string;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  margin_nominal: number;
+  
+  @ApiProperty()
+  @Type(() => Number)
+  margin_type: MarginType;
 
   @IsString()
   phone_number: string;
@@ -55,8 +66,9 @@ export class CreateVendorDto {
   @IsString()
   pic_name: string;
 
-  @IsString()
-  markup: string;
+  @IsOptional()
+  // @IsString()
+  markup?: string;
 
   @IsString()
   @IsOptional()

@@ -128,7 +128,7 @@ export class CsiService {
         where: { id: orderId },
       });
 
-      await this.emailQueue.add('send-csi-email', { id, orderId });
+      await this.emailQueue.add('send-csi-mail', { modeule_id: id, order_id: orderId });
     } catch (error) {
       console.error(error);
       throw error;

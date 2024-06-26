@@ -159,6 +159,7 @@ export class AuthService {
               phone_number_1: true,
               phone_number_2: true,
               email: true,
+              area: true
             }
           },
           roles: {
@@ -176,6 +177,7 @@ export class AuthService {
                 select: {
                   id: true,
                   store_name: true,
+                  area: true
                 },
               },
             },

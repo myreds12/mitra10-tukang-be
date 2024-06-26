@@ -6,7 +6,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
-import * as fs from 'fs'
+import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
@@ -33,12 +33,13 @@ export class MemberService {
       //   },
       // });
 
-      if (email_check && createMemberDto.email)
-        throw new BadRequestException('Email already exist!');
+      if (email_check) throw new BadRequestException('Email already exist!');
       // if (phone_wa_check)
       //   throw new BadRequestException(
       //     'Phone or WhatsApp number already exist!',
       //   );
+      if (!createMemberDto.email)
+        throw new BadRequestException('Email must be fill');
 
       const numberMember =
         createMemberDto.phone_number ?? createMemberDto.whatsapp_number;
@@ -123,7 +124,7 @@ export class MemberService {
           area: true,
           order: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               complaints: true,
@@ -163,10 +164,10 @@ export class MemberService {
         where: { id: id },
         include: {
           join_location_store: true,
-          order: {  
+          order: {
             where: {
-            deleted_at: null
-          },
+              deleted_at: null,
+            },
             include: {
               complaints: true,
               store: true,
@@ -244,29 +245,25 @@ export class MemberService {
       const data = await this.findAll(queryParams);
 
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Profile Sales ',
-        {
-          properties:
-          {
-            tabColor:
-            {
-              argb: 'FF4CAF50'
-            },
-            outlineLevelCol: 6,
-            outlineLevelRow: 40,
+      const worksheet = workbook.addWorksheet('Data Profile Sales ', {
+        properties: {
+          tabColor: {
+            argb: 'FF4CAF50',
           },
-          pageSetup: {
-            margins: {
-              left: 90.7,
-              right: 0.7,
-              top: 0.75,
-              bottom: 0.75,
-              header: 0.3,
-              footer: 0.3
-            }
-          }
-        }
-      );
+          outlineLevelCol: 6,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
 
       worksheet.columns = [
         { header: 'Member Id', key: 'id', width: 20 },
@@ -285,22 +282,23 @@ export class MemberService {
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: '0000FF' }
+          fgColor: { argb: '0000FF' },
         };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          right: { style: 'thin' },
         };
       });
 
-
-      data.forEach(member => {
+      data.forEach((member) => {
         const row = worksheet.addRow({
           id: member.id,
-          store_name: member.join_location_store ? member.join_location_store.store_name : '',
+          store_name: member.join_location_store
+            ? member.join_location_store.store_name
+            : '',
           area: member.area ? member.area.area : '',
           full_name: member.full_name ? member.full_name : '',
           email: member.email ? member.email : '',
@@ -316,11 +314,10 @@ export class MemberService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         });
       });
-
 
       const createExcelFilePath = (baseName) => {
         const folderPath = './storage/excel/member';
@@ -332,11 +329,21 @@ export class MemberService {
         return path.join(folderPath, excelFileName);
       };
 
-      const writeWorkbookAndSendResponse = async (workbook, excelFilePath, res) => {
+      const writeWorkbookAndSendResponse = async (
+        workbook,
+        excelFilePath,
+        res,
+      ) => {
         await workbook.xlsx.writeFile(excelFilePath);
 
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
 
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
@@ -354,7 +361,7 @@ export class MemberService {
         const excelFilePath = createExcelFilePath(baseName);
 
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
-      }
+      };
 
       return generateExcelFile(data, res);
     } catch (error) {

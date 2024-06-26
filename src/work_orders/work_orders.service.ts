@@ -7,6 +7,9 @@ import { Prisma, users, work_orders } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import { VendorService } from 'src/vendor/vendor.service';
 import { StatusDetails } from './dto/work-order-status.dto';
+import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class WorkOrdersService {
@@ -14,6 +17,7 @@ export class WorkOrdersService {
     private readonly dbService: PrismaService,
     private orderService: OrderService,
     private vendorService: VendorService,
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
   async create(
@@ -24,7 +28,7 @@ export class WorkOrdersService {
     try {
       const { id: user_id } = user;
 
-      const {data: order} = await this.orderService.findOne(dataDto.order_id);
+      const { data: order } = await this.orderService.findOne(dataDto.order_id);
 
       if (!order) throw new BadRequestException('Order not found.');
       if (!order.vendor_id)
@@ -48,6 +52,12 @@ export class WorkOrdersService {
             created_by: user_id,
           };
         });
+      const requestTukang = dataDto.work_order_tukang?.map((item) => {
+        return {
+          request_tukang: item.tukang_id,
+          created_by: user_id,
+        };
+      });
 
       const workOrderStatus = {
         status: {
@@ -100,10 +110,15 @@ export class WorkOrdersService {
               data: workOrderTukang,
             },
           },
+          request_tukang: {
+            createMany: {
+              data: requestTukang,
+            },
+          },
           work_order_status: {
             create: workOrderStatus,
           },
-          created_by: user_id
+          created_by: user_id,
         },
       };
 
@@ -131,7 +146,7 @@ export class WorkOrdersService {
         status,
         order_by,
         tukang_id,
-        vendor_id
+        vendor_id,
       } = queryParamsDto;
       console.log(tukang_id);
 
@@ -139,19 +154,34 @@ export class WorkOrdersService {
       const where: Prisma.work_ordersWhereInput = {
         AND: [
           search
+          ? {
+              OR: [
+                ...(isNaN(Date.parse(search))
+                  ? []
+                  : [
+                      { request_work_time: { equals: new Date(search) } },
+                      { survey_date: { equals: new Date(search) } },
+                      { work_start_date: { equals: new Date(search) } },
+                      { work_end_date: { equals: new Date(search) } },
+                    ]),
+                {
+                  order: {
+                    members: {
+                      full_name: {
+                        contains: search,
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : undefined,
+          status ? { status: { id: { in: status } } } : undefined,
+          vendor_id
             ? {
-                OR: [
-                  { request_work_time: { equals: new Date(search) } },
-                  { survey_date: { equals: new Date(search) } },
-                  { work_start_date: { equals: new Date(search) } },
-                  { work_end_date: { equals: new Date(search) } },
-                ],
+                vendor_id: vendor_id,
               }
             : undefined,
-          status ? { status: { id: { in: status } } } : undefined,
-          vendor_id ? {
-            vendor_id: vendor_id
-        } : undefined,
           tukang_id
             ? {
                 work_order_tukang: {
@@ -209,6 +239,12 @@ export class WorkOrdersService {
               },
             },
           },
+          request_tukang: {
+            include: {
+              tukang_to_request_tukang: true,
+              tukang_to_replace_tukang: true,
+            },
+          },
           work_order_tukang: {
             include: {
               tukang: true,
@@ -221,6 +257,7 @@ export class WorkOrdersService {
               work_order_items: {
                 include: {
                   item: true,
+                  quotation_details: true,
                 },
                 where: {
                   deleted_at: null,
@@ -237,7 +274,13 @@ export class WorkOrdersService {
       });
       const userIds = [
         ...new Set(
-          work_orders.flatMap((item) => [item.created_by, item.updated_by, item.deleted_by]).filter(Boolean)
+          work_orders
+            .flatMap((item) => [
+              item.created_by,
+              item.updated_by,
+              item.deleted_by,
+            ])
+            .filter(Boolean),
         ),
       ];
 
@@ -251,7 +294,7 @@ export class WorkOrdersService {
           ...acc,
           [user.id]: user,
         }),
-        {}
+        {},
       );
 
       const workOrdersWithUser = work_orders.map((item) => ({
@@ -303,6 +346,12 @@ export class WorkOrdersService {
               },
             },
           },
+          request_tukang: {
+            include: {
+              tukang_to_request_tukang: true,
+              tukang_to_replace_tukang: true,
+            },
+          },
           work_order_tukang: {
             include: {
               tukang: true,
@@ -316,6 +365,7 @@ export class WorkOrdersService {
               work_order_items: {
                 include: {
                   item: true,
+                  quotation_details: true,
                 },
                 where: {
                   deleted_at: null,
@@ -329,15 +379,19 @@ export class WorkOrdersService {
         },
       });
       if (!work_orders) throw Error('Work Order Not Found!');
-      const userIds = [work_orders.created_by, work_orders.updated_by, work_orders.deleted_by].filter(Boolean);
-  
+      const userIds = [
+        work_orders.created_by,
+        work_orders.updated_by,
+        work_orders.deleted_by,
+      ].filter(Boolean);
+
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       });
-  
-      const userMap = Object.fromEntries(users.map(user => [user.id, user]));
-  
+
+      const userMap = Object.fromEntries(users.map((user) => [user.id, user]));
+
       // Attach user data to the work_orderss
       const workOrdersWithUser = {
         ...work_orders,
@@ -523,7 +577,11 @@ export class WorkOrdersService {
           this.dbService.work_orders.update(work_order_data),
         ]);
 
-      await this.orderService.setStatus(work_order.order_id, dataDto.work_order_status, user);
+      await this.orderService.setStatus(
+        work_order.order_id,
+        dataDto.work_order_status,
+        user,
+      );
 
       return work_order;
     } catch (error) {
@@ -734,8 +792,139 @@ export class WorkOrdersService {
       const work_order = await this.dbService.work_orders.findUnique({
         where: { id },
       });
-      await this.orderService.setStatus(work_order.order_id, updateData.status_id, user);
+      await this.orderService.setStatus(
+        work_order.order_id,
+        updateData.status_id,
+        user,
+      );
       return work_order;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async replaceTukang(
+    id: number,
+    updateDto: UpdateWorkOrderDto,
+    user: users,
+    files: Express.Multer.File[],
+  ) {
+    try {
+      const workOrder = await this.dbService.work_orders.findUniqueOrThrow({
+        where: { id },
+      });
+      const evidences = files.map((file) => ({
+        evidence_location: file.filename,
+        created_by: user.id,
+      }));
+
+      const upsertResults = await this.dbService.$transaction(
+        async (transaction) => {
+          const results = await Promise.all(
+            updateDto.replace_tukang?.map(async (item) => {
+              const data = {
+                where: { id: item.id ?? 0 },
+                create: {
+                  work_order_id: id,
+                  request_tukang: item.tukang_id,
+                  notes: item.notes
+                    ? `CREATED: ${item.notes.replace(/\n/g, '\nCREATED: ')}`
+                    : '',
+                  created_by: user.id,
+                  created_at: new Date(),
+                  request_tukang_evidence: { createMany: { data: evidences } },
+                },
+                update: {
+                  tukang_replace: item.tukang_id,
+                  status: item.status,
+                  notes: item.notes
+                    ? `${
+                        ReplaceTukangStatus[item.status]
+                      }: ${item.notes.replace(
+                        /\n/g,
+                        `\n${ReplaceTukangStatus[item.status]}: `,
+                      )}`
+                    : ReplaceTukangStatus[item.status],
+                  updated_by: user.id,
+                  updated_at: new Date(),
+                  request_tukang_evidence: { createMany: { data: evidences } },
+                },
+              };
+
+              const existingRequestTukang =
+                await transaction.request_tukang.findUnique({
+                  where: { id: item.id },
+                  select: { request_tukang: true },
+                });
+
+              data.create.request_tukang = existingRequestTukang.request_tukang;
+
+              return transaction.request_tukang.upsert(data);
+            }),
+          );
+
+          if (
+            updateDto.replace_tukang?.some(
+              (item) => item.status === ReplaceTukangStatus.APPROVE,
+            )
+          ) {
+            const tukangIds = updateDto.replace_tukang.map(
+              (item) => item.tukang_id,
+            );
+
+            await transaction.work_order_tukang.updateMany({
+              where: {
+                work_order_id: id,
+                tukang_id: {
+                  in: tukangIds,
+                },
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user.id,
+              },
+            });
+
+            const workOrderTukangData = updateDto.replace_tukang.map(
+              (item) => ({
+                work_order_id: id,
+                tukang_id: item.tukang_id,
+                created_by: user.id,
+                created_at: new Date(),
+              }),
+            );
+
+            await transaction.work_order_tukang.createMany({
+              data: workOrderTukangData,
+            });
+          }
+
+          return results;
+        },
+      );
+
+      const roles = (
+        await this.dbService.users.findUniqueOrThrow({
+          where: { id: user.id },
+          select: { roles: { select: { name: true } } },
+        })
+      ).roles.name;
+      if (roles.includes('Owner Vendor') || roles.includes('Admin Vendor')) {
+        upsertResults.forEach((result) => {
+          if (result.status === ReplaceTukangStatus.WAITING_FOR_APPROVVE) {
+            this.emailQueue.add('send-replace-tukang-from-vendor', {
+              module_id: result.tukang_replace,
+            });
+          }
+        });
+      } else if (roles.includes('Tukang')) {
+        this.emailQueue.add('send-replace-tukang-from-tukang', {
+          module_id: user.id,
+        });
+      }
+
+      return upsertResults;
     } catch (error) {
       console.error(error);
       throw error;

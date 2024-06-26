@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsIn, IsOptional, ValidateNested } from 'class-validator';
 import QuotationDetails from './quotation-details';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateQuotationDto {
   description?: string;
@@ -15,6 +16,10 @@ export class UpdateQuotationDto {
 
   @Type(() => Number)
   quotation_status: number;
+
+  @ApiProperty()
+  @IsOptional()
+  receipt_quotation: string;
 
   @Type(() => Number)
   store_id: number;

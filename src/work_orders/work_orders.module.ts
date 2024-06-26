@@ -6,6 +6,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
 import { VendorModule } from 'src/vendor/vendor.module';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [WorkOrdersController],
@@ -22,6 +23,13 @@ import { VendorModule } from 'src/vendor/vendor.module';
           callback(null, filename);
         },
       }),
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+      defaultJobOptions: {
+        attempts: 3,
+        delay: 5000
+      },
     }),
   ],
 })

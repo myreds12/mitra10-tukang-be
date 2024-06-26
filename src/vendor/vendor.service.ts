@@ -85,6 +85,8 @@ export class VendorService {
       });
 
       const vendorData: Prisma.vendorCreateInput = {
+        margin_nominal: createVendorDto.margin_nominal,
+        margin_type: createVendorDto.margin_type,
         max_order: createVendorDto.max_order,
         address: createVendorDto.address,
         pic_name: createVendorDto.pic_name,
@@ -240,7 +242,15 @@ export class VendorService {
               deleted_at: null,
             },
           },
-          tukang: true,
+          tukang: {
+            include: {
+              tukang_area: {
+                include: {
+                  area: true
+                }
+              }
+            }
+          },
           pic_vendor: {
             include: {
               users: {
@@ -350,7 +360,15 @@ export class VendorService {
               users: true,
             },
           },
-          tukang: true,
+          tukang: {
+            include: {
+              tukang_area: {
+                include: {
+                  area: true
+                }
+              }
+            }
+          },
           vendor_area: {
             include: {
               area: true,
@@ -506,6 +524,8 @@ export class VendorService {
       console.log(updateVendorDto);
 
       const vendorData: Prisma.vendorUpdateInput = {
+        margin_nominal: updateVendorDto.margin_nominal,
+        margin_type: updateVendorDto.margin_type,
         address: updateVendorDto.address,
         max_order: updateVendorDto.max_order,
         pic_name: updateVendorDto.pic_name,

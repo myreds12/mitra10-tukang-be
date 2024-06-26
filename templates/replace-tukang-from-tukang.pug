@@ -1,0 +1,157 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset='UTF-8')
+    meta(name='viewport' content='width=device-width, initial-scale=1.0')
+    title Preview Email Order
+
+    style.
+      #preview-email th, td {
+        padding: 5px;
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+      #preview-email .text-end {
+        text-align: end;
+      }
+      #preview-email .text-white {
+        color: #ffff;
+      }
+      #preview-email .normal {
+        font-weight: 400;
+      }
+      #preview-email .semibold {
+        font-weight: 600;
+      }
+      #preview-email .bold {
+        font-weight: 700;
+      }
+      #preview-email {
+        font-family: Arial, Helvetica, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #preview-email .card {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      #preview-email .card .card-body {
+        min-height: 50vh;
+        padding: 2rem !important;
+      }
+      #preview-email .card-header {
+        display: block !important;
+        padding: 10px 0 0 30px;
+        min-height: 5px;
+      }
+      #preview-email .card-header .header-information .header-title h3 {
+        margin: 5px;
+      }
+      #preview-email .card-header .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      #preview-email .card-header .content-header .header-information .header-logo {
+        display: flex;
+        align-items: center;
+      }
+      #preview-email .card-body .detail-pemesanan {
+        margin-bottom: 20px;
+      }
+      #preview-email .card-body .detail-pemesanan h4 {
+        margin: 5px 0px 5px 0;
+        padding: 0px;
+      }
+      #preview-email .detail-syarat ol li {
+        margin: 0px 0px 15px 0px;
+      }
+      #preview-email .card-footer .bank-payment h5 {
+        margin: 15px;
+        padding: 0px;
+      }
+      #preview-email .card-footer .payment-evidence h5 {
+        margin: 15px;
+        padding: 0px;
+      }
+        #preview-email table.table-detail-pemesanan {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 20px;
+      }
+      #preview-email .table-responsive {
+        overflow-x: auto;
+      }
+      #preview-email .header-img-wrapper {
+        flex: 1;
+      }
+      #preview-email .footer-img-wrapper {
+        flex: 1;
+      }
+      #preview-email .header-img {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      @media screen and (max-width: 576px) {
+        #preview-email .card-header .content-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        #preview-email .card-header .content-header .header-logo {
+          margin-bottom: 1rem;
+        }
+        #preview-email .header-img-wrapper {
+          margin-bottom: 1rem;
+        }
+        #preview-email .footer-img-wrapper {
+          margin-bottom: 1rem;
+        }
+        #preview-email .card-footer {
+          font-size: 0.75rem; 
+        }
+        #preview-email h2 {
+          font-size: 1.2rem;
+        }
+        #preview-email .card-body .title h3 {
+          font-size: 1rem; 
+        }
+        #preview-email .card-body .title h4 {
+          font-size: 0.75rem; 
+        }
+        #preview-email .card-body .detail-pemesanan h4 {
+          font-size: 0.75rem; 
+        }
+        #preview-email .table-responsive {
+          font-size: 1rem;
+        }
+        #preview-email .card-body .detail-syarat {
+          font-size: 0.75rem; 
+        }
+      }
+
+  body
+    section#preview-email
+      .card
+        .card-header
+          .header-img-wrapper
+            img.header-img(src='https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg' alt='header-email-instalasi-01' border='0')
+          .content-header
+            .header-information
+              .header-logo
+                img.h-30px.logo.mb-3.pe-1(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png' alt='Logo Mitra10' style='width: 50px; height: 25px')
+                h2 Instalasi & Service Mitra 10
+        .card-body
+          .title
+            h3 #{data.message.greetings}, Vendor #{data.users.tukang[0].vendor.company_name}
+          .title
+            h3 Kami ingin menginformasikan bahwa Tukang atas nama #{data.users.tukang[0].full_name} melakukan pergantian tukang dengan alasan "Jadwal tukang yang padat". 
+            h3 Terimakasih atas kerja sama anda
+            .footer-title
+              h4.bold #{data.message.footer}
+            .footer-img-wrapper
+            img.header-img(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg' border='0' alt='footer-email-instalasi-02')

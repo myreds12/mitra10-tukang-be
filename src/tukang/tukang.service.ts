@@ -257,6 +257,7 @@ export class TukangService {
           tukang_area: {
             include: {
               area: true,
+              tukang: true
             },
           },
           tukang_service: {
@@ -293,6 +294,7 @@ export class TukangService {
           tukang_area: {
             include: {
               area: true,
+              tukang: true
             },
           },
           tukang_service: {

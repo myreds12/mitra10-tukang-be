@@ -42,10 +42,10 @@ export class ComplaintsService {
         },
       });
 
-      if (
-        !COMPLAINT_STATUS.category.includes('INVESTIGATED' || 'WARRANTYCLAIM')
-      )
-        throw new BadRequestException('Status does not exist!');
+      // if (
+      //   !COMPLAINT_STATUS.category.includes('INVESTIGATED' || 'WARRANTYCLAIM')
+      // )
+      //   throw new BadRequestException('Status does not exist!');
 
       const findOrder = await this.dbService.orders.findFirst({
         where: {
@@ -58,16 +58,20 @@ export class ComplaintsService {
         i.category.toLocaleLowerCase().includes('done'),
       );
 
+      const workEnd = status.find((i) =>
+        i.category.toLocaleLowerCase().includes('workend'),
+      );
+
       if (!findOrder) throw new BadRequestException('Order does not exist!');
       let now = new Date();
       now.setDate(now.getDate() + 7);
 
-      if (
-        createComplaintDto.type === 2 &&
-        findOrder.created_at < now &&
-        findOrder.project_status_id !== statusDone.id
-      )
-        throw new BadRequestException('You cannot claim this order!');
+      // if (
+      //   (findOrder.created_at > now &&
+      //     findOrder.project_status_id !== statusDone.id) ||
+      //   findOrder.project_status_id !== workEnd.id
+      // )
+      //   throw new BadRequestException('You cannot claim this order!');
 
       const complaintData: Prisma.complaintsCreateInput = {
         orders: {
@@ -133,6 +137,7 @@ export class ComplaintsService {
         order_by,
         tukang_id,
         store_id,
+        vendor_id
       } = query;
       const skip = page * take - take;
 
@@ -144,11 +149,18 @@ export class ComplaintsService {
             : null,
           store_id
             ? {
-                store_id: {
-                  in: store_id,
+                orders: {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
               }
             : undefined,
+          vendor_id ? {
+            orders: {
+              vendor_id: vendor_id
+            }
+          } : undefined,
           tukang_id
             ? {
                 orders: {

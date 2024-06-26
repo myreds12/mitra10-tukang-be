@@ -75,7 +75,11 @@ export class InvoicesService {
         },
         include: {
           m_order_details: true,
-          quotation: true,
+          quotation: {
+            include: {
+              quotation_details: true,
+            },
+          },
           work_orders: true,
           invoice_details: {
             select: {
@@ -116,21 +120,34 @@ export class InvoicesService {
       orders.forEach((order) => {
         if (order?.payment_type === 'survey') {
           if (order.quotation && order.quotation.length > 0) {
-            const quotationTotal = order.quotation.reduce((acc, quotation) => {
-              invoiceDetails.push({
-                order_id: order.id,
-                total: quotation.quotation_grand_total,
-              });
-              return acc + (Number(quotation.quotation_grand_total) || 0);
+            const totalMargin = order.quotation.reduce((acc, quotation) => {
+              const quotationMargin = quotation.quotation_details.reduce(
+                (accDetail, detail) => {
+                  return accDetail + (Number(detail.margin) || 0);
+                },
+                0,
+              );
+
+              return acc + quotationMargin;
             }, 0);
-            totalQuotationGrandTotal += quotationTotal;
+            totalQuotationGrandTotal += totalMargin;
+            invoiceDetails.push({
+              order_id: order.id,
+              total: totalMargin,
+            });
           }
         } else if (order?.payment_type === 'pemasangan_tanpa_survey') {
+          const totalMargin =
+            vendor.margin_type === 1
+              ? +order.grand_total * (+vendor.margin_nominal / 100)
+              : vendor.margin_type === 2
+              ? +order.grand_total - +vendor.margin_nominal
+              : 0;
           invoiceDetails.push({
             order_id: order.id,
-            total: order.grand_total,
+            total: totalMargin,
           });
-          totalGrandTotal += Number(order.grand_total) || 0;
+          totalGrandTotal += totalMargin || 0;
         }
       });
 
@@ -360,9 +377,12 @@ export class InvoicesService {
     try {
       const { id: user_id } = user;
 
+      
+
       const invoice = await this.dbService.invoices.findFirstOrThrow({
         where: { id },
         include: {
+          vendor: true,
           invoice_details: {
             where: { deleted_at: null },
             include: { order: true },
@@ -392,7 +412,11 @@ export class InvoicesService {
 
       const orders = await this.dbService.orders.findMany({
         where: { id: { in: providedOrderIds } },
-        include: { m_order_details: true, quotation: true },
+        include: { m_order_details: true, quotation: {
+          include:{
+            quotation_details: true
+          }
+        } },
       });
 
       let totalAmount = 0;
@@ -402,12 +426,23 @@ export class InvoicesService {
         if (order) {
           if (order.payment_type === 'survey') {
             order.quotation.forEach((quotation) => {
-              total = Number(quotation.quotation_grand_total) || 0;
-              totalAmount += total;
+              total = quotation.quotation_details.reduce(
+                (accDetail, detail) => {
+                   return accDetail + (Number(detail.margin) || 0);
+                },
+                0,
+              );
             });
-          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-            total = Number(order.grand_total) || 0;
             totalAmount += total;
+          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+            total =
+            invoice.vendor.margin_type === 1
+              ? +order.grand_total * (+invoice.vendor.margin_nominal / 100)
+              : invoice.vendor.margin_type === 2
+              ? +order.grand_total - +invoice.vendor.margin_nominal
+              : 0;
+
+            totalAmount += total
           }
         }
 
@@ -601,20 +636,43 @@ export class InvoicesService {
 
   async invoiceExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { data } = await this.findAll(queryParams);
+      const data = await this.dbService.orders.findMany({
+        where: {
+          deleted_at: null,
+          deleted_by: null,
+        },
+        include: {
+          members: true,
+          vendor: true,
+          store: true,
+          invoice_details: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              invoices: true,
+              order: {
+                include: {
+                  members: true,
+                  vendor: true,
+                  store: true,
+                },
+              },
+            },
+          },
+        },
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Invoice', {
         properties: {
-          tabColor: {
-            argb: '097969',
-          },
+          tabColor: { argb: '097969' },
           outlineLevelCol: 2,
           outlineLevelRow: 40,
         },
         pageSetup: {
           margins: {
-            left: 90.7,
+            left: 0.7,
             right: 0.7,
             top: 0.75,
             bottom: 0.75,
@@ -625,7 +683,7 @@ export class InvoicesService {
       });
 
       worksheet.columns = [
-        { header: 'Invoice Id', key: 'id', width: 10 },
+        { header: 'Invoice Id', key: 'invoice_id', width: 10 },
         { header: 'Order Id', key: 'order_id', width: 25 },
         { header: 'Nama Customer', key: 'member_name', width: 50 },
         { header: 'Jenis Pengerjaan', key: 'payment_type', width: 50 },
@@ -634,7 +692,7 @@ export class InvoicesService {
         { header: 'Nama Vendor', key: 'vendor_name', width: 50 },
         { header: 'Nomor Invoice', key: 'invoice_number', width: 50 },
         { header: 'Total Invoice', key: 'total_amount', width: 50 },
-        { header: 'Invoice Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Invoice Dibuat', key: 'created_at', width: 30 },
         { header: 'Notes', key: 'description', width: 50 },
       ];
 
@@ -654,77 +712,62 @@ export class InvoicesService {
         };
       });
 
-      data.forEach((invoice) => {
-        const invoiceOrder = invoice.invoice_details
-          ? invoice.invoice_details
-              .map((item) => item?.order_id || 'N/a')
-              .join(', ')
-          : 'N/a';
-        const invoiceOrderCustomer = invoice.invoice_details
-          ? invoice.invoice_details
-              .map((item) => item?.order.members.full_name || 'N/a')
-              .join(', ')
-          : 'N/a';
-        const invoiceOrderReceiptNumber = invoice.invoice_details
-          ? invoice.invoice_details
-              .map((item) => item?.order.receipt_number || 'N/a')
-              .join(', ')
-          : 'N/a';
-        const invoiceOrderPaymentType = invoice.invoice_details
-          ? invoice.invoice_details
-              .map((item) => item?.order.payment_type || 'N/a')
-              .map((paymentType) => {
-                switch (paymentType) {
-                  case 'pemasangan_tanpa_survey':
-                    return 'Pemasangan Tanpa Survey';
-                  case 'survey':
-                    return 'Survey';
-                  case 'gratis':
-                    return 'Gratis';
-                  default:
-                    return 'N/a';
-                }
-              })
-              .join(', ')
-          : 'N/a';
-        const formattedDateTime = (dateTime) =>
-          `${new Date(dateTime).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}, ${dateTime.toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`;
-        const grandTotal = Number(invoice.total_amount);
-        const formattedGrandTotal = !isNaN(grandTotal)
-          ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(grandTotal)
-          : 'Rp. 0';
-        const row = worksheet.addRow({
-          id: invoice.id,
-          order_id: invoiceOrder,
-          member_name: invoiceOrderCustomer,
-          payment_type: invoiceOrderPaymentType,
-          receipt_number: invoiceOrderReceiptNumber,
-          vendor_id: invoice.vendor ? invoice.vendor_id : 'N/a',
-          vendor_name: invoice.vendor ? invoice.vendor.company_name : 'N/a',
-          invoice_number: invoice.invoice_number,
-          total_amount: formattedGrandTotal,
-          created_at: formattedDateTime(invoice.created_at),
-          description: invoice.description ? invoice.description : 'N/a',
-        });
+      data.forEach((order) => {
+        order.invoice_details.forEach((detail) => {
+          const invoice = detail.invoices;
+          const member = order.members ? order.members.full_name : 'N/a';
+          const paymentType = (() => {
+            switch (order.payment_type) {
+              case 'pemasangan_tanpa_survey':
+                return 'Pemasangan Tanpa Survey';
+              case 'survey':
+                return 'Survey';
+              case 'gratis':
+                return 'Gratis';
+              default:
+                return 'N/a';
+            }
+          })();
+          const formattedDateTime = (dateTime) =>
+            `${new Date(dateTime).toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`;
+          const grandTotal = Number(invoice.total_amount);
+          const formattedGrandTotal = !isNaN(grandTotal)
+            ? new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+              }).format(grandTotal)
+            : 'Rp. 0';
 
-        row.eachCell((cell) => {
-          cell.alignment = { vertical: 'middle', horizontal: 'left' };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' },
-          };
+          const row = worksheet.addRow({
+            invoice_id: invoice.id,
+            order_id: order.id,
+            member_name: member,
+            payment_type: paymentType,
+            receipt_number: order.receipt_number || 'N/a',
+            vendor_id: order.vendor ? order.vendor_id : 'N/a',
+            vendor_name: order.vendor ? order.vendor.company_name : 'N/a',
+            invoice_number: invoice.invoice_number,
+            total_amount: formattedGrandTotal,
+            created_at: formattedDateTime(invoice.created_at),
+            description: invoice.description || 'N/a',
+          });
+
+          row.eachCell((cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' },
+            };
+          });
         });
       });
 
@@ -827,7 +870,7 @@ export class InvoicesService {
           status: {
             in: [InvoiceStatus.WAITING_FOR_PAYMENT],
           },
-          deleted_at: null
+          deleted_at: null,
         },
       });
 

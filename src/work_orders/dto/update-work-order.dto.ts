@@ -13,6 +13,7 @@ import {
 import { WorkOrderTukang } from './wo-tukang.dto';
 import { StatusDetails } from './work-order-status.dto';
 import { UpdatedWorkOrderEvidences } from './update.work-order-evidences.dto';
+import { ReplaceTukangDto } from './replace-tukang.dto';
 
 export class UpdateWorkOrderDto {
   @ApiProperty()
@@ -31,24 +32,31 @@ export class UpdateWorkOrderDto {
   @ValidateNested({ each: true })
   work_order_tukang?: WorkOrderTukang[];
 
+  @IsOptional()
   @Type(() => StatusDetails)
   @ValidateNested({ each: true })
-  status_details: StatusDetails;
+  status_details?: StatusDetails;
+
+  @ApiProperty({ type: [ReplaceTukangDto] })
+  @Type(() => ReplaceTukangDto)
+  @ValidateNested({ each: true })
+  replace_tukang?: ReplaceTukangDto[];
 
   // @IsNotEmpty()
   @IsString()
   @IsOptional()
-  request_work_time: string;
+  request_work_time?: string;
 
   // @IsNotEmpty()
   // @IsString()
   @IsOptional()
   @Transform(({ value }) => new Date(value))
-  survey_date: string | Date;
+  survey_date?: string | Date;
 
+  @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  work_order_status: number;
+  work_order_status?: number;
 
   @IsOptional()
   @Transform(({ value }) => new Date(value))

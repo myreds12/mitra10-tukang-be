@@ -12,6 +12,7 @@ import { CsiMailInterface } from '../common/interface/mails/csi-mail-interface';
 import { RescheduleMailInterface } from '../common/interface/mails/reschedule-mail-interface';
 import { RefundMailInterface } from '../common/interface/mails/refund-mail-interface';
 import { ComplaintMailInterface } from '../common/interface/mails/complaint-mail-interface';
+import { ReplaceTukangFromVendor } from 'src/common/interface/mails/replace-tukang-from-vendor.interface';
 
 @Processor('email')
 export class EmailProcessor {
@@ -181,7 +182,7 @@ export class EmailProcessor {
           this.configService.get<string>('MAIL_BCC_LIST').split(','),
           storeMail,
           adminHo,
-        ).filter(email => email);
+        ).filter(email => email && email.trim() !== '');
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
       //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
@@ -488,14 +489,33 @@ export class EmailProcessor {
   @Process('send-csi-mail')
   async sendcsimail(job: Job<CsiMailInterface>) {
     try {
-      const { module_id: csi_id } = job.data;
+      console.log('[sendcsimail] Start');
+      
+      const { module_id, order_id } = job.data;
+      console.log(module_id, job);
+      
       const csi = await this.dbService.csi_template.findFirst({
         where: {
-          id: csi_id,
+          id: module_id,
           deleted_at: null,
         },
       });
+      console.log(csi);
+
+      const order = await this.dbService.orders.findFirst({
+        where: {
+          id: order_id
+        },
+        include: {
+          members: true
+        }
+      });
+
+      console.log(order);
+      
+      
       if (!csi) throw new NotFoundException('csi not found!');
+      if (!order) throw new NotFoundException('order not found!');
 
       const message = await this.dbService.email_messages.findFirst({
         where: {
@@ -508,9 +528,200 @@ export class EmailProcessor {
         },
       });
       if (!message) throw new NotFoundException('message not found!');
+      const data = {
+        csi,
+        order,
+        message
+      };
+      // const { bcc, cc } = message;
+      // const vendor = tukang.vendor.email_address;
+      // TODO: add admin ho as bcc too
 
+      // const defaultBcc = bcc
+      //   .split(',')
+      //   .concat(
+      //     this.configService.get<string>('MAIL_BCC_LIST').split(','),
+      //   );
+      
+      //   console.log("BCC: ",bcc);
+      //   console.log("DEFAULT BCC: ",defaultBcc);
+        
+
+      // const uniqueBcc = [...new Set(defaultBcc)];
       // add csi mail template here
+      if (order.members.email) {
+        await this.mailerService.sendMail({
+          to: data.order.members.email, // list of receivers
+          from: 'noreply@mitra10.com', // sender address
+          // bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
+          template: 'csi',
+          context: { data },
+        });
+        console.log("SUCCESS")
+      }
+      await this.maillogs(
+        order_id,
+        message.id,
+        {
+          to: order.members.email,
+          cc: '',
+          bcc: '',
+        },
+        1,
+        data,
+      );
     } catch (error) {
+      this.logger.error(error);
+    }
+  }
+  @Process('send-replace-tukang-from-vendor')
+  async sendReplaceTukangFromVendor(job: Job<ReplaceTukangFromVendor>) {
+    try {
+      console.log('[sendReplaceTukangFromVendor] Start');
+      const { module_id: id, template_id } = job.data
+      
+      const tukang = await this.dbService.tukang.findFirst({
+        where: {
+          id
+        },
+        include: {
+          vendor: true
+        }
+      });
+      console.log('[sendReplaceTukangFromVendor] tukang:', tukang);
+      if (!tukang) throw new NotFoundException('Tukang not found!');
+
+
+      const message = await this.getMessage(MailType.REPLACE_TUKANG_FROM_VENDOR, template_id);
+      console.log('[sendReplaceTukangFromVendor] message:', message);
+
+      if (!message) throw new NotFoundException('message not found!');
+
+      const data = {
+        tukang,
+        message,
+      };
+
+      const { bcc, cc } = message;
+      const vendor = tukang.vendor.email_address;
+      // TODO: add admin ho as bcc too
+      const adminHo = '';
+
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          vendor,
+          adminHo,
+        );
+
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (tukang.email) {
+        await this.mailerService.sendMail({
+          to: data.tukang.email, // list of receivers
+          from: data.tukang.vendor.email_address ?? 'noreply@mitra10.com', // sender address
+          bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
+          template: 'replace-tukang-from-vendor',
+          context: { data },
+        });
+        console.log("SUCCESS")
+      }
+      await this.maillogs(
+        id,
+        message.id,
+        {
+          to: tukang.email,
+          cc: '',
+          bcc: uniqueBcc.join(','),
+        },
+        1,
+        data,
+      );
+      console.log('[sendReplaceTukangFromVendor] End');
+    } catch (error) {
+      console.error('[sendReplaceTukangFromVendor] Error:', error);
+      this.logger.error(error);
+    }
+  }
+  
+  @Process('send-replace-tukang-from-tukang')
+  async sendReplaceTukangFromTukang(job: Job<ReplaceTukangFromVendor>) {
+    try {
+      console.log('[sendReplaceTukangFromTukang] Start');
+      const { module_id: id, template_id } = job.data;
+      console.log(id)
+
+      const users = await this.dbService.users.findFirst({
+        where: {
+          id
+        },
+        include: {
+          tukang: {
+            include: {
+              vendor: true
+            }
+          }
+        }
+      });
+      console.log('[sendReplaceTukangFromTukang] users:', users);
+      if (!users) throw new NotFoundException('Vendor not found!');
+
+
+      const message = await this.getMessage(MailType.REPLACE_TUKANG_FROM_TUKANG, template_id);
+      console.log('[sendReplaceTukangFromTukang] message:', message);
+
+      if (!message) throw new NotFoundException('message not found!');
+
+      const data = {
+        users,
+        message,
+      };
+
+      console.log(users.tukang[0].vendor.company_name)
+
+      const { bcc, cc } = message;
+
+      // TODO: add admin ho as bcc too
+      const adminHo = '';
+
+      const defaultBcc = bcc
+        .split(',')
+        .concat(
+          this.configService.get<string>('MAIL_BCC_LIST').split(','),
+          users.tukang[0].email,
+          adminHo,
+        );
+
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (users.tukang[0].vendor.email_address) {
+        await this.mailerService.sendMail({
+          to: data.users.tukang[0].vendor.email_address, // list of receivers
+          from: data.users.tukang[0].email ?? 'noreply@mitra10.com', // sender address
+          bcc: uniqueBcc.join(','),
+          subject: message.title, // Subject line
+          template: 'replace-tukang-from-tukang',
+          context: { data },
+        });
+        console.log('[sendReplaceTukangFromTukang] Mail sent');
+      }
+      await this.maillogs(
+        id,
+        message.id,
+        {
+          to: users.tukang[0].email,
+          cc: '',
+          bcc: uniqueBcc.join(','),
+        },
+        1,
+        data,
+      );
+      console.log('[sendReplaceTukangFromTukang] End');
+    } catch (error) {
+      console.error('[sendReplaceTukangFromTukang] Error:', error);
       this.logger.error(error);
     }
   }
@@ -771,6 +982,8 @@ export class EmailProcessor {
     status: number,
     data: any = null,
   ) {
+    console.log(moduleId);
+    
     await this.dbService.mail_logs.create({
       data: {
         emailMessages: {

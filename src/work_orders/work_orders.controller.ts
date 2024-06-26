@@ -13,6 +13,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  UploadedFile,
 } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -21,11 +22,14 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
   FileFieldsInterceptor,
+  FileInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { StatusDetails } from './dto/work-order-status.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @ApiTags('Work Orders')
 @Controller('work-orders')
@@ -63,6 +67,30 @@ export class WorkOrdersController {
       files,
     );
   }
+
+  @Post(':id/replace-tukang')
+  @UseInterceptors(
+    FilesInterceptor('file', 10,{
+      storage: diskStorage({
+        destination: './uploads/request-tukang',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = `${Date.now()}`;
+          const filename = `${uniqueSuffix}${extname(file.originalname)}`;
+          callback(null, filename);
+        },
+      }),
+    }),
+  )
+  async replaceTukang(
+    @Param('id') id: number,
+    @Body() updateDto: UpdateWorkOrderDto,
+    @UploadedFiles() file: Express.Multer.File[],
+    @Request() req: RequestWithUser,
+  ) {
+    
+    return await this.workOrdersService.replaceTukang(id, updateDto, req.user, file);
+  }
+
 
   @Post('')
   @UseInterceptors(FilesInterceptor('work_order_evidences', 5))

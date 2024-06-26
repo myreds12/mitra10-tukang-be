@@ -162,6 +162,10 @@ export class StoreService {
         where: {
           id,
         },
+        include: {
+          area: true,
+          users: true
+        }
       });
 
       return store;
@@ -177,6 +181,7 @@ export class StoreService {
           id
         },
         include: {
+          area: true,
           users: true
         }
       });

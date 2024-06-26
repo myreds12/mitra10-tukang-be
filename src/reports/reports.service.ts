@@ -21,6 +21,13 @@ export class ReportsService {
       const skip = page * take - take;
       const where: Prisma.sales_incentiveWhereInput = {
         AND: [
+          ...(store_id ? [{
+            sales: {
+              store_id: {
+                in: store_id
+              }
+            }
+          }]: []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status : {in: status}}] : []),
           ...(date_from && date_to
@@ -544,9 +551,9 @@ export class ReportsService {
       const statusWorkStart = statuses.find((i) =>
         i.category.toLocaleLowerCase().includes('workstart'),
       );
-      const statusWIP = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('wip'),
-      );
+      // const statusWIP = statuses.find((i) =>
+      //   i.category.toLocaleLowerCase().includes('wip'),
+      // );
       const statusWorkEnd = statuses.find((i) =>
         i.category.toLocaleLowerCase().includes('workend'),
       );
@@ -603,7 +610,7 @@ export class ReportsService {
       const ordersMonth = {};
       const totalCompleteOrderPerMonth = {};
       const totalWorkStartWorkOrdersPerMonth = {};
-      const totalWIPOrderPerMonth = {};
+      // const totalWIPOrderPerMonth = {};
       const totalWorkEndOrderPerMonth = {};
       const allMonths = [
         'Januari',
@@ -623,7 +630,7 @@ export class ReportsService {
       allMonths.forEach((month) => {
         totalWorkStartWorkOrdersPerMonth[month] = 0;
         totalCompleteOrderPerMonth[month] = 0;
-        totalWIPOrderPerMonth[month] = 0;
+        // totalWIPOrderPerMonth[month] = 0;
         totalWorkEndOrderPerMonth[month] = 0;
       });
 
@@ -646,9 +653,9 @@ export class ReportsService {
         if (order.status.category === statusWorkStart.category) {
           totalWorkStartWorkOrdersPerMonth[month]++;
         }
-        if (order.status.category === statusWIP.category) {
-          totalWIPOrderPerMonth[month]++;
-        }
+        // if (order.status.category === statusWIP.category) {
+        //   totalWIPOrderPerMonth[month]++;
+        // }
         if (order.status.category === statusWorkEnd.category) {
           totalWorkEndOrderPerMonth[month]++;
         }
@@ -667,7 +674,6 @@ export class ReportsService {
         totalOrder: totalWorkOrdersPerMonth[month] || 0,
         totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0,
         totalUnpaidOrder: totalWorkStartWorkOrdersPerMonth[month] || 0,
-        totalWIPOrder: totalWIPOrderPerMonth[month] || 0,
         totalWorkEndOrder: totalWorkEndOrderPerMonth[month] || 0,
         totalSurveyOrder: grandTotalSurveyOrderPerMonth[month] || 0,
         workOrdersMonth: ordersMonth[month] || [],

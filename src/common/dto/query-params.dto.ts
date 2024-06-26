@@ -74,8 +74,9 @@ export class QueryParamsDto {
   search_date_to: string;
 
   @IsOptional()
-  @IsNotEmpty()
-  top_best: boolean;
+  @Type(() => Number)
+  @IsIn([0,1])
+  top_best?: number;
 
   @IsOptional()
   @IsNotEmpty()

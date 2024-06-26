@@ -585,6 +585,7 @@ export class QuotationService {
                   },
                 }
               : undefined,
+            receipt_quotation: updateQuotationDto?.receipt_quotation ?? undefined,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,
@@ -634,7 +635,7 @@ export class QuotationService {
         );
       }
 
-      this.orderService.setStatus(
+      await this.orderService.setStatus(
         quotation.order_id,
         quotation.quotation_status,
         user,

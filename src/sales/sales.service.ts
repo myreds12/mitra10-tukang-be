@@ -240,7 +240,7 @@ export class SalesService {
         skip,
         take: getTake(),
         orderBy: {
-          ...(top_best === true
+          ...(Boolean(top_best)
             ? {
                 order_total: 'desc',
               }
@@ -644,9 +644,9 @@ export class SalesService {
       // Mengambil data dari database
       const salesIncentives = await this.dbService.sales_incentive.findMany({
         where: {
-          status: {
-            in: status
-          }
+         sales: {
+          store_id: 14
+         }
         },
         include: {
           sales: {
@@ -694,16 +694,16 @@ export class SalesService {
 
       salesIncentives.forEach((incentive, index) => {
         worksheet.addRow({
-          sales_id: incentive.sales_id,
-          sales_name: incentive.sales.full_name,
-          bank_name: incentive.sales.bank.bank_name,
-          account_name: incentive.sales.account_name ?? '',
-          account_number: incentive.sales.account_number ?? '',
-          store_name: incentive.sales.store.store_name,
-          order_id: incentive.quotation.order_id,
-          member_name: incentive.quotation.order.members.full_name,
-          status_order: incentive.quotation.order.status.description,
-          incentive_id: incentive.incentive_id,
+          sales_id: incentive.sales_id ?? '',
+          sales_name: incentive?.sales?.full_name ?? '',
+          bank_name: incentive?.sales?.bank?.bank_name ?? '',
+          account_name: incentive.sales?.account_name ?? '',
+          account_number: incentive?.sales?.account_number ?? '',
+          store_name: incentive?.sales?.store?.store_name ?? '',
+          order_id: incentive?.quotation?.order_id ?? '',
+          member_name: incentive?.quotation?.order?.members?.full_name ?? '',
+          status_order: incentive?.quotation?.order?.status?.description ?? '',
+          incentive_id: incentive?.incentive_id ?? '',
           incentive_nominal:
             incentive.incentive.type === IncentiveType.NOMINAL
               ? Number(incentive.incentive.incentive)
@@ -713,7 +713,7 @@ export class SalesService {
           ),
           received_incentive: Number(incentive.nominal),
           status: IncentiveStatus[incentive.status],
-          notes: incentive.notes,
+          notes: incentive?.notes ?? '',
         });
       });
 

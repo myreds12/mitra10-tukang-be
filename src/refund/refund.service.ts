@@ -9,7 +9,6 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 
-
 @Injectable()
 export class RefundService {
   constructor(private readonly dbService: PrismaService) {}
@@ -40,7 +39,7 @@ export class RefundService {
         },
         status: {
           connect: {
-            id: createRefundDto.refund_status,
+            id: createRefundDto.refund_status, 
           },
         },
         date_approve: createRefundDto.date_approve
@@ -70,8 +69,17 @@ export class RefundService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { order_by, date_from, date_to, page, search, status, take } =
-        query;
+      const {
+        order_by,
+        date_from,
+        date_to,
+        page,
+        search,
+        status,
+        take,
+        store_id,
+        vendor_id,
+      } = query;
       const skip = page * take - take;
       const where: Prisma.refundWhereInput = {
         AND: [
@@ -86,6 +94,26 @@ export class RefundService {
               ]
             : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
+          ...(store_id
+            ? [
+                {
+                  orders: {
+                    store_id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(vendor_id
+            ? [
+                {
+                  orders: {
+                    vendor_id: vendor_id,
+                  },
+                },
+              ]
+            : []),
           ...(date_from && date_to
             ? [
                 {
@@ -249,23 +277,26 @@ export class RefundService {
           : undefined;
 
       const refundConn = {
+        ...(updateRefundDto.order_id ?{
         orders: {
           connect: {
             id: updateRefundDto.order_id,
           },
-        },
-        status: {
+        }
+       } : undefined),
+        ...(updateRefundDto.refund_status ?
+        {status: {
           connect: {
             id: updateRefundDto.refund_status,
           },
-        },
+        }} : undefined),
       };
       const refundData = {
-        date_approve: new Date(updateRefundDto.date_approve),
-        date_of_filing: new Date(updateRefundDto.date_of_filing),
-        approval_number: updateRefundDto.approval_number,
-        notes: updateRefundDto.notes,
-        reason: updateRefundDto.reason,
+        date_approve: updateRefundDto.date_approve ? new Date(updateRefundDto.date_approve) : undefined,
+        date_of_filing: updateRefundDto.date_of_filing ? new Date(updateRefundDto.date_of_filing) : undefined,
+        approval_number: updateRefundDto?.approval_number ?? undefined,
+        notes: updateRefundDto?.notes ?? undefined,
+        reason: updateRefundDto?.reason ?? undefined,
         penalty_nominal: updateRefundDto.penalty_nominal
           ? updateRefundDto.penalty_nominal
           : null,
@@ -296,7 +327,7 @@ export class RefundService {
   async refundExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const { data } = await this.findAll(queryParams);
-  
+
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Refund', {
         properties: {
@@ -315,7 +346,7 @@ export class RefundService {
           },
         },
       });
-  
+
       worksheet.columns = [
         { header: 'Refund ID', key: 'id', width: 15 },
         { header: 'Order ID', key: 'order_id', width: 15 },
@@ -328,7 +359,7 @@ export class RefundService {
         { header: 'Tanggal Pengajuan', key: 'date_of_filing', width: 25 },
         { header: 'Refund Dibuat', key: 'created_at', width: 25 },
       ];
-  
+
       worksheet.getRow(1).eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -344,7 +375,7 @@ export class RefundService {
           right: { style: 'thin' },
         };
       });
-  
+
       data.forEach((refund) => {
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
@@ -355,26 +386,32 @@ export class RefundService {
             hour: '2-digit',
             minute: '2-digit',
           })}`;
-  
-        const formattedCurrency = (amount) => 
-          amount ? new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(amount) : 'Rp. 0';
-  
+
+        const formattedCurrency = (amount) =>
+          amount
+            ? new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+              }).format(amount)
+            : 'Rp. 0';
+
         const row = worksheet.addRow({
           id: refund.id,
           order_id: refund.order_id,
           notes: refund.notes,
           reason: refund.reason,
-          approval_number: refund.approval_number ? refund.approval_number : 'N/a',
+          approval_number: refund.approval_number
+            ? refund.approval_number
+            : 'N/a',
           voucher: refund.voucher ? refund.voucher : 'N/a',
           penalty_nominal: formattedCurrency(refund.penalty_nominal),
-          date_approve: refund.date_approve ? formattedDateTime(refund.date_approve) : 'N/a',
+          date_approve: refund.date_approve
+            ? formattedDateTime(refund.date_approve)
+            : 'N/a',
           date_of_filing: formattedDateTime(refund.date_of_filing),
           created_at: formattedDateTime(refund.created_at),
         });
-  
+
         row.eachCell((cell) => {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
           cell.border = {
@@ -393,7 +430,7 @@ export class RefundService {
         style: 'currency',
         currency: 'IDR',
       }).format(totalGrandTotal);
-  
+
       const totalRow = worksheet.addRow({
         id: 'Total',
         order_id: '',
@@ -408,7 +445,7 @@ export class RefundService {
       });
       totalRow.getCell('A').value = 'Total Pengembalian';
       totalRow.getCell('J').value = formattedTotalGrandTotal;
-  
+
       totalRow.eachCell((cell) => {
         cell.font = { bold: true };
         cell.alignment = { vertical: 'middle', horizontal: 'left' };
@@ -419,12 +456,11 @@ export class RefundService {
           right: { style: 'thin' },
         };
       });
-  
+
       totalRow.height = 30;
-  
+
       worksheet.mergeCells(`A${totalRow.number}:I${totalRow.number}`);
-  
-  
+
       const getFormattedDate = () => {
         const now = new Date();
         const tahun = now.getFullYear();
@@ -432,50 +468,49 @@ export class RefundService {
         const tanggal = String(now.getDate()).padStart(2, '0');
         return `${tahun}-${bulan}-${tanggal}`;
       };
-  
+
       const createExcelFilePath = (baseName: string) => {
         const folderPath = './storage/excel/refund';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }
         const now = Date.now();
-  
+
         const excelFileName = `${baseName}-${now}.xlsx`;
         return path.join(folderPath, excelFileName);
       };
-  
+
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
-        res: Response
+        res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-  
+
         res.setHeader(
           'Content-Type',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename=${path.basename(excelFilePath)}`
+          `attachment; filename=${path.basename(excelFilePath)}`,
         );
-  
+
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
-  
+
       const generateExcelFile = async (res) => {
         const formattedDate = getFormattedDate();
         const baseName = `DataRefund-${formattedDate}`;
         const excelFilePath = createExcelFilePath(baseName);
-  
+
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
-  
+
       return generateExcelFile(res);
     } catch (error) {
       throw error;
     }
   }
-  
 }

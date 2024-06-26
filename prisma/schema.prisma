@@ -482,6 +482,8 @@ model tukang {
   work_order_tukang work_order_tukang[]
   work_order_items  work_order_items[]
   tukang_area       tukang_area[]
+  request_tukang    request_tukang[]    @relation("request_tukang")
+  replace_tukang    request_tukang[]    @relation("replace_tukang")
 }
 
 model tukang_area {
@@ -554,6 +556,8 @@ model vendor {
   is_active      Boolean   @default(true)
   account_name   String?   @default("")
   account_number String?   @default("")
+  margin_type    Int       @default(1)
+  margin_nominal Decimal   @default(0) @db.Decimal(32, 2)
   nominal_survey Decimal   @default(0) @db.Decimal(32, 2)
 
   created_at DateTime  @default(now()) @db.DateTime()
@@ -620,7 +624,7 @@ model vendor_area {
   area_id   Int?
 
   default_discount Decimal @default(0) @db.Decimal(32, 2)
-  default_markup   String  @db.VarChar(45)
+  default_markup   String?  @db.VarChar(45)
   default_unit     String  @default("unit") @db.VarChar(45)
   is_active        Boolean @default(true)
 
@@ -671,6 +675,7 @@ model status {
 
   category    String
   description String
+  status_urgency Int? @default(0)
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime?
@@ -885,6 +890,7 @@ model quotation {
   quotation_disc        Decimal  @default(0) @db.Decimal(32, 2)
   quotation_promotion   Decimal  @default(0) @db.Decimal(32, 2)
   quotation_grand_total Decimal  @db.Decimal(32, 2)
+  receipt_quotation     String?  @db.NVarChar(30)
 
   created_by Int?
   updated_by Int?
@@ -1099,6 +1105,7 @@ model work_orders {
   vendor               vendor                 @relation(fields: [vendor_id], references: [id])
   work_order_tukang    work_order_tukang[]
   work_order_status    work_order_status[]
+  request_tukang       request_tukang[]
 }
 
 model work_order_tukang {
@@ -1117,6 +1124,47 @@ model work_order_tukang {
 
   work_orders work_orders @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tukang      tukang      @relation(fields: [tukang_id], references: [id])
+}
+
+model request_tukang {
+  id Int @id @default(autoincrement())
+
+  work_order_id  Int  @map("workOrderId")
+  request_tukang Int? @map("requestTukang")
+  tukang_replace Int? @map("tukangReplace")
+  status         Int  @default(1) // 1 = DRAFT, 2 = APPROVE, 3 = REJECT
+
+  notes String @default("") @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  tukang_to_request_tukang tukang?                   @relation("request_tukang", fields: [request_tukang], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tukang_to_replace_tukang tukang?                   @relation("replace_tukang", fields: [tukang_replace], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders              work_orders               @relation(fields: [work_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  request_tukang_evidence  request_tukang_evidence[]
+}
+
+model request_tukang_evidence {
+  id Int @id @default(autoincrement())
+
+  request_tukang_id Int    @map("requestTukangId")
+  evidence_location String
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  request_tukang request_tukang @relation(fields: [request_tukang_id], references: [id])
 }
 
 model work_order_evidences {
