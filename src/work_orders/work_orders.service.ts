@@ -646,6 +646,9 @@ export class WorkOrdersService {
           // },
           vendor: true,
           work_order_status: {
+            where: {
+              deleted_at: null
+            },
             orderBy: { created_at: 'desc' },
             include: {
               status: true,
