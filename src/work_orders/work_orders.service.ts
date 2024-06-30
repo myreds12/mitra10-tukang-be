@@ -240,18 +240,27 @@ export class WorkOrdersService {
             },
           },
           request_tukang: {
+            where: {
+              deleted_at: null
+            },
             include: {
               tukang_to_request_tukang: true,
               tukang_to_replace_tukang: true,
             },
           },
           work_order_tukang: {
+            where: {
+              deleted_at: null
+            },
             include: {
               tukang: true,
             },
           },
           vendor: true,
           work_order_status: {
+            where: {
+              deleted_at: null
+            },
             include: {
               status: true,
               work_order_items: {
@@ -637,7 +646,9 @@ export class WorkOrdersService {
           // },
           vendor: true,
           work_order_status: {
-            
+            where: {
+              deleted_at: null
+            },
             orderBy: { created_at: 'desc' },
             include: {
               status: true,
