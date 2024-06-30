@@ -9,6 +9,9 @@ export class CreateComplaintDto {
 
   description: string;
 
+  @IsOptional()
+  pic_name?: string;
+
   @Type(() => Number)
   complaint_channel: number;
 

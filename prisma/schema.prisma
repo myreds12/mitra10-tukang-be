@@ -624,7 +624,7 @@ model vendor_area {
   area_id   Int?
 
   default_discount Decimal @default(0) @db.Decimal(32, 2)
-  default_markup   String?  @db.VarChar(45)
+  default_markup   String? @db.VarChar(45)
   default_unit     String  @default("unit") @db.VarChar(45)
   is_active        Boolean @default(true)
 
@@ -673,9 +673,9 @@ model vendor_service {
 model status {
   id Int @id @default(autoincrement())
 
-  category    String
-  description String
-  status_urgency Int? @default(0)
+  category       String
+  description    String
+  status_urgency Int?   @default(0)
 
   created_at DateTime  @default(now()) @db.DateTime()
   updated_at DateTime?
@@ -975,11 +975,12 @@ model complaint_channels {
 }
 
 model complaints {
-  id                Int  @id @default(autoincrement())
+  id                Int     @id @default(autoincrement())
   order_id          Int
   complaint_channel Int?
   complaint_status  Int?
-  type              Int  @default(1) // 1 = COMPLAINT, 2 =  CLAIMGARANSI
+  pic_name          String? @db.VarChar(150)
+  type              Int     @default(1) // 1 = COMPLAINT, 2 =  CLAIMGARANSI
 
   description String @db.Text()
 
@@ -1041,7 +1042,7 @@ model complaint_evidence {
 
 model remedials {
   id           Int  @id @default(autoincrement())
-  remedial_pic Int?
+  remedial_pic String? @default("") @db.VarChar(150)
   complaint_id Int
 
   remedial_action      String

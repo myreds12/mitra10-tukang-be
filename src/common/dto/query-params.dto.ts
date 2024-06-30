@@ -43,6 +43,12 @@ export class QueryParamsDto {
   @IsNotEmpty()
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
   @Type(() => Array<Number>)
+  vendor?: number[];
+
+  @IsOptional()
+  @IsNotEmpty()
+  @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
+  @Type(() => Array<Number>)
   status?: number[];
 
   @IsOptional()

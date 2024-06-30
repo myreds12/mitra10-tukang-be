@@ -18,6 +18,7 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { InvoiceStatus } from './dto/invoice-status.enum';
+import { MarginType } from 'src/quotation/dto/margin-type.enum';
 
 @Injectable()
 export class InvoicesService {
@@ -114,28 +115,17 @@ export class InvoicesService {
       }
 
       let totalGrandTotal = 0;
-      let totalQuotationGrandTotal = 0;
       let invoiceDetails = [];
 
       orders.forEach((order) => {
         if (order?.payment_type === 'survey') {
-          if (order.quotation && order.quotation.length > 0) {
-            const totalMargin = order.quotation.reduce((acc, quotation) => {
-              const quotationMargin = quotation.quotation_details.reduce(
-                (accDetail, detail) => {
-                  return accDetail + (Number(detail.margin) || 0);
-                },
-                0,
-              );
-
-              return acc + quotationMargin;
-            }, 0);
-            totalQuotationGrandTotal += totalMargin;
-            invoiceDetails.push({
-              order_id: order.id,
-              total: totalMargin,
-            });
-          }
+            const totalMargin =
+            Number(vendor.nominal_survey);
+          invoiceDetails.push({
+            order_id: order.id,
+            total: totalMargin,
+          });
+          totalGrandTotal += totalMargin || 0;
         } else if (order?.payment_type === 'pemasangan_tanpa_survey') {
           const totalMargin =
             vendor.margin_type === 1
@@ -152,9 +142,7 @@ export class InvoicesService {
       });
 
       const totalAmount =
-        totalGrandTotal +
-        totalQuotationGrandTotal +
-        Number(vendor.nominal_survey);
+        totalGrandTotal;
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
@@ -250,9 +238,7 @@ export class InvoicesService {
             : undefined,
           vendor_id
             ? {
-                vendor_id: {
-                  equals: vendor_id,
-                },
+                vendor_id: vendor_id,
               }
             : undefined,
           monthly
@@ -425,16 +411,12 @@ export class InvoicesService {
         let total = 0;
         if (order) {
           if (order.payment_type === 'survey') {
-            order.quotation.forEach((quotation) => {
-              total = quotation.quotation_details.reduce(
-                (accDetail, detail) => {
-                   return accDetail + (Number(detail.margin) || 0);
-                },
-                0,
-              );
-            });
+            total =
+            Number(invoice.vendor.nominal_survey)
+
+            totalAmount += total
             totalAmount += total;
-          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+          }else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
             invoice.vendor.margin_type === 1
               ? +order.grand_total * (+invoice.vendor.margin_nominal / 100)

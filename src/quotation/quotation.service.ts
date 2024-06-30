@@ -723,58 +723,58 @@ export class QuotationService {
     return quotation;
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
-  async syncQuotationMail() {
-    try {
-      this.logger.verbose('Initiate syncQuotationMail');
+  // @Cron(CronExpression.EVERY_10_SECONDS)
+  // async syncQuotationMail() {
+  //   try {
+  //     this.logger.verbose('Initiate syncQuotationMail');
 
-      // TODO: SEARCH QUOTATION WHERE READINESS 2 AND QUOTATION STATUS QUOTEOUT
-      const quotations = await this.dbService.quotation.findMany({
-        where: {
-          status: {
-            category: {
-              contains: 'QUOTEOUT',
-            },
-          },
-          readiness: 2,
-        },
-        take: 10,
-      });
+  //     // TODO: SEARCH QUOTATION WHERE READINESS 2 AND QUOTATION STATUS QUOTEOUT
+  //     const quotations = await this.dbService.quotation.findMany({
+  //       where: {
+  //         status: {
+  //           category: {
+  //             contains: 'QUOTEOUT',
+  //           },
+  //         },
+  //         readiness: 2,
+  //       },
+  //       take: 10,
+  //     });
 
-      if (!quotations.length) {
-        this.logger.log('No pending quotation to send');
-        return 0;
-      }
+  //     if (!quotations.length) {
+  //       this.logger.log('No pending quotation to send');
+  //       return 0;
+  //     }
 
-      this.logger.log(`${quotations.length} pending quotations found`);
-      await Promise.all(
-        quotations.map(async (quotation) => {
-          const { id } = quotation;
-          this.logger.log(`${quotations.length} pending quotations found`);
+  //     this.logger.log(`${quotations.length} pending quotations found`);
+  //     await Promise.all(
+  //       quotations.map(async (quotation) => {
+  //         const { id } = quotation;
+  //         this.logger.log(`${quotations.length} pending quotations found`);
 
-          // TODO: TRIGGER SEND EMAIL
-          await this.emailQueue.add('send-quotation-mail', { id });
+  //         // TODO: TRIGGER SEND EMAIL
+  //         await this.emailQueue.add('send-quotation-mail', { id });
 
-          // TODO: CHANGE CURRENT QUOTATION STATUS TO READINESS 4
-          await this.dbService.quotation.update({
-            where: {
-              id,
-            },
-            data: {
-              readiness: 4,
-            },
-          });
-        }),
-      );
+  //         // TODO: CHANGE CURRENT QUOTATION STATUS TO READINESS 4
+  //         await this.dbService.quotation.update({
+  //           where: {
+  //             id,
+  //           },
+  //           data: {
+  //             readiness: 4,
+  //           },
+  //         });
+  //       }),
+  //     );
 
-      this.logger.log('Finished syncQuotationMail');
+  //     this.logger.log('Finished syncQuotationMail');
 
-      return quotations.length;
-    } catch (error) {
-      this.logger.error(error);
-      throw error;
-    }
-  }
+  //     return quotations.length;
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     throw error;
+  //   }
+  // }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {

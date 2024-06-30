@@ -13,6 +13,7 @@ import { MailType } from './enum/mail_type.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
+import { QuotationMailInterface } from 'src/common/interface/mails';
 
 @Injectable()
 export class MailsService {
@@ -147,7 +148,6 @@ export class MailsService {
 
     return emailMessage;
   }
-
 
   async update(
     id: number,
@@ -401,51 +401,79 @@ export class MailsService {
     const quotations = await this.dbService.quotation.findMany({
       where: {
         quotation_status: status_id,
+        readiness: 2,
         deleted_at: null,
         deleted_by: null,
       },
     });
 
     if (quotations.length) {
+      const jobsToRemove = await this.emailQueue.getJobs([
+        'active',
+        'waiting',
+        'delayed',
+        'completed',
+        'failed',
+      ]);
+      const jobsToRemovePrefix = 'send-quotation-mail';
+
+      // Remove existing jobs with the specified prefix
+      for (const job of jobsToRemove) {
+        const jobId = job.id.toString(); // Convert job ID to string
+        if (jobId.startsWith(jobsToRemovePrefix)) {
+          await job.remove();
+          // console.log(`Removed job with ID: ${job.id}`);
+        }
+      }
+
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];
+        // console.log('Quotation ID:', quotation.id);
         const countSendedEmail = await this.countMailLogs(
           quotation.id,
           template_id,
         );
+        // console.log(countSendedEmail, 'COUNT SEND EMAIL');
+
         const jobId = `send-quotation-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
+        // console.log('Job Exist:', jobExist, 'for Job ID:', jobId);
 
-        if (!countSendedEmail && !jobExist) {
+        if (countSendedEmail === 0 && !jobExist) {
           this.logger.log(
-            `Sending email for quotation ${quotation.id} - ${quotation.quotation_number}`,
+            `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
+          const jobData = {
+            module_id: quotation.id,
+            template_id: template_id,
+          };
           jobs.push({
             name: 'send-quotation-mail',
-            data: {
-              id: quotation.id,
-              template_id,
-            },
+            data: jobData,
             opts: {
               jobId,
               delay,
             },
           });
-          delay += 3000;
+          delay += 5000;
         }
       }
 
       if (jobs.length > 0) {
-        this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
+        this.logger.verbose(
+          `Jobs triggered [${jobs.length}] => ${JSON.stringify(jobs)}`,
+        );
         await this.emailQueue.addBulk(jobs);
+        console.log('Jobs added to the queue:', jobs); // Confirm jobs are added
       }
     } else {
       this.logger.verbose(`Quotation not found for status id ${status_id}`);
     }
   }
+
 
   async handleComplaintTriggers(template_id: number, status_id: number) {
     const complaints = await this.dbService.complaints.findMany({
@@ -483,7 +511,7 @@ export class MailsService {
           jobs.push({
             name: 'send-complaint-mail',
             data: {
-              complaint_id: complaint.id,
+              module_id: complaint.id,
               template_id,
             },
             opts: {
@@ -540,7 +568,7 @@ export class MailsService {
           jobs.push({
             name: 'send-reschedule-mail',
             data: {
-              reschedule_id: reschedule.id,
+              module_id: reschedule.id,
               template_id,
             },
             opts: {
@@ -572,7 +600,7 @@ export class MailsService {
 
     if (refunds.length) {
       this.logger.log(
-        `Reschedule found for status id ${status_id} [${refunds.length}]`,
+        `Refund found for status id ${status_id} [${refunds.length}]`,
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
@@ -597,7 +625,7 @@ export class MailsService {
           jobs.push({
             name: 'send-refund-mail',
             data: {
-              refund_id: refund.id,
+              module_id: refund.id,
               template_id,
             },
             opts: {

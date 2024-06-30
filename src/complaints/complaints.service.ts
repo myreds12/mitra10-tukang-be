@@ -90,6 +90,7 @@ export class ComplaintsService {
           },
         },
         description: createComplaintDto.description,
+        pic_name: createComplaintDto.pic_name,
         complaint_date: new Date(createComplaintDto.complaint_date),
         type: createComplaintDto.type,
         created_by: user_id,
@@ -158,7 +159,9 @@ export class ComplaintsService {
             : undefined,
           vendor_id ? {
             orders: {
-              vendor_id: vendor_id
+              vendor_id: {
+                equals: vendor_id
+              }
             }
           } : undefined,
           tukang_id
@@ -299,7 +302,11 @@ export class ComplaintsService {
               complaint_evidence: true,
             },
           },
-          remedials: true,
+          remedials: {
+            include: {
+              remedial_evidences: true
+            }
+          },
           status: true,
           orders: {
             include: {
@@ -376,6 +383,7 @@ export class ComplaintsService {
         Object.entries({
           orders: orderConn,
           complaint_channels: complaint_channelsConn,
+          pic_name: updateComplaintDto.pic_name,
           description: updateComplaintDto.description ?? undefined,
           complaint_date: updateComplaintDto.complaint_date
             ? new Date(updateComplaintDto.complaint_date)

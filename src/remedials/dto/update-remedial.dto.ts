@@ -11,7 +11,7 @@ export class UpdateRemedialDto {
   ra_date_start: string;
   ra_date_end?: string;
 
-  remedial_pic: number;
+  remedial_pic?: string;
 
   @Type(() => String)
   remedial_pic_position: string;

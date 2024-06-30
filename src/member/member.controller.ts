@@ -59,7 +59,7 @@ export class MemberController {
   }
 
   @Post('/:id')
-  @HttpCode(HttpStatus.ACCEPTED)
+  @HttpCode(HttpStatus.CREATED)
   update(
     @Param('id') id: string,
     @Body() updateMemberDto: UpdateMemberDto,

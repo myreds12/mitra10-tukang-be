@@ -153,7 +153,7 @@ export class UpdateVendorDto {
   vendor_store: VendorStore[];
 
   @IsOptional()
-  @IsString()
+  // @IsString()
   pic_name?: string;
 
   @ApiProperty()

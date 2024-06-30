@@ -62,7 +62,7 @@ export class CsiController {
 
   @Post(':id/send/:orderId')
   @HttpCode(HttpStatus.OK)
-  async sendcsimail(id: number, orderId: number) {
+  async sendcsimail(@Param('id') id: number,@Param('orderId') orderId: number) {
     await this.csiService.sendCsiMail(id, orderId);
   }
 

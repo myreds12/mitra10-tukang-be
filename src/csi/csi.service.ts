@@ -123,12 +123,12 @@ export class CsiService {
 
   async sendCsiMail(id: number, orderId: number) {
     try {
-      await this.findOne(id);
-      await this.dbService.orders.findFirstOrThrow({
+      const csi =  await this.findOne(id);
+      const order =  await this.dbService.orders.findFirstOrThrow({
         where: { id: orderId },
       });
 
-      await this.emailQueue.add('send-csi-mail', { modeule_id: id, order_id: orderId });
+      await this.emailQueue.add('send-csi-mail', { modeule_id: csi.id, order_id: order.id });
     } catch (error) {
       console.error(error);
       throw error;

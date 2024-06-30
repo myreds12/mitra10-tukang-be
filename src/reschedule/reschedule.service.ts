@@ -103,7 +103,18 @@ export class RescheduleService {
   }
 
   async findAll(query: QueryParamsDto) {
-    const { take, page, search, status, date_from, date_to, order_by, store_id, vendor_id } = query;
+    const {
+      take,
+      page,
+      search,
+      status,
+      date_from,
+      date_to,
+      order_by,
+      store_id,
+      vendor_id,
+      tukang_id,
+    } = query;
     const skip = page * take - take;
 
     const where: Prisma.rescheduleWhereInput = {
@@ -117,22 +128,41 @@ export class RescheduleService {
               },
             ]
           : []),
-        ...(store_id ? [
-          {
-            order: {
-              store_id: {
-                in: store_id
-              }
-            }
-          }
-        ]: []),
-        ...(vendor_id ? [
-          {
-            order: {
-              vendor_id: vendor_id
-            }
-          }
-        ]:[]),
+        ...(store_id
+          ? [
+              {
+                order: {
+                  store_id: {
+                    in: store_id,
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(tukang_id
+          ? [
+              {
+                order: {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
+                    },
+                  },
+                },
+              },
+            ]
+          : []),
+        ...(vendor_id
+          ? [
+              {
+                order: {
+                  vendor_id: vendor_id,
+                },
+              },
+            ]
+          : []),
         ...(date_from && date_to
           ? [
               {

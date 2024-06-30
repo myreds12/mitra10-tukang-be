@@ -63,7 +63,7 @@ export class CreateVendorDto {
   @Min(3)
   max_order: number;
 
-  @IsString()
+  // @IsString()
   pic_name: string;
 
   @IsOptional()

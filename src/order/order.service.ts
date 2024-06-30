@@ -1629,6 +1629,7 @@ export class OrderService {
         store_id,
         vendor_id,
         work_order_status,
+        vendor
       } = queryParams;
 
       const skip = page * take - take;
@@ -1672,10 +1673,12 @@ export class OrderService {
               },
             }
             : undefined,
-          vendor_id
+          vendor
             ? {
               vendor: {
-                id: vendor_id,
+                id: {
+                  in: vendor
+                },
                 deleted_at: null,
               },
             }

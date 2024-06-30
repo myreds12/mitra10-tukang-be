@@ -56,6 +56,7 @@ export class RemedialsService {
         remedial_evidences: {
           create: evidences,
         },
+        
       };
 
       const remedial_options: Prisma.remedialsCreateArgs = {
@@ -81,7 +82,7 @@ export class RemedialsService {
         skip: skip,
         take: take,
         where: {
-          remedial_action: {
+        remedial_action: {
             contains: search ?? null,
           },
           status: {

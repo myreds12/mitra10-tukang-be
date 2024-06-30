@@ -122,6 +122,7 @@ export class ReportsService {
         totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
       };
 
+      
       const where: Prisma.ordersWhereInput = {
         AND: [
           ...(search

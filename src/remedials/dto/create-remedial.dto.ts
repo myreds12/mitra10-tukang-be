@@ -10,8 +10,8 @@ export class CreateRemedialDto {
   ra_date_start: string;
   ra_date_end?: string;
 
-  @Type(() => Number)
-  remedial_pic: number;
+  // @Type(() => Number)
+  remedial_pic: string;
 
   @Type(() => String)
   remedial_pic_position: string;

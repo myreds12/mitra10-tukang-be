@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { UpdateRefundDto } from './dto/update-refund.dto';
 import { Prisma, users } from '@prisma/client';
@@ -19,7 +19,12 @@ export class RefundService {
   ) {
     try {
       const { id: user_id } = user;
-
+      const order = await this.dbService.orders.findFirst({
+        where: {
+          id: createRefundDto.order_id,
+        }
+      });
+      if(!order) throw new BadRequestException('Order not found');
       const evidences:
         | Array<Prisma.refund_evidencesCreateManyRefundInput>
         | undefined =
@@ -49,9 +54,7 @@ export class RefundService {
         notes: createRefundDto.notes,
         reason: createRefundDto.reason,
         approval_number: createRefundDto.approval_number,
-        penalty_nominal: createRefundDto.penalty_nominal
-          ? createRefundDto.penalty_nominal
-          : null,
+        penalty_nominal: order.grand_total,
         voucher: createRefundDto.voucher ? createRefundDto.voucher : null,
         created_by: user_id,
       };
@@ -109,7 +112,7 @@ export class RefundService {
             ? [
                 {
                   orders: {
-                    vendor_id: vendor_id,
+                    vendor_id: vendor_id
                   },
                 },
               ]

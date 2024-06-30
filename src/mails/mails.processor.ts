@@ -20,7 +20,7 @@ export class EmailProcessor {
     private readonly mailerService: MailerService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) { }
+  ) {}
   private readonly logger = new Logger(EmailProcessor.name);
 
   @OnQueueFailed()
@@ -72,7 +72,7 @@ export class EmailProcessor {
     });
   }
 
-  async generatePDF(data: any) { }
+  async generatePDF(data: any) {}
 
   @Process('send-order-mail')
   async sendOrderMail(job: Job<OrderMailInterface>) {
@@ -99,10 +99,10 @@ export class EmailProcessor {
               id: true,
               work_order_tukang: {
                 include: {
-                  tukang: true
-                }
-              }
-            }
+                  tukang: true,
+                },
+              },
+            },
           },
           store: {
             select: {
@@ -119,7 +119,7 @@ export class EmailProcessor {
               id: true,
               description: true,
               category: true,
-            }
+            },
           },
           members: {
             select: {
@@ -170,19 +170,21 @@ export class EmailProcessor {
         message,
       };
 
-
       const { bcc, cc } = message;
       const storeMail = order.store.email;
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
       let defaultBcc = bcc
-        .split(',')
-        .concat(
-          this.configService.get<string>('MAIL_BCC_LIST').split(','),
-          storeMail,
-          adminHo,
-        ).filter(email => email && email.trim() !== '');
+        ? bcc
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
+        : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
       //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
@@ -192,20 +194,25 @@ export class EmailProcessor {
       //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
       //   }
       // }
-
       const uniqueBcc = [...new Set(defaultBcc)];
 
+      const mailOptions = {
+        to: data.order.members.email,
+        from: 'noreply@mitra10.com',
+        subject: message.title,
+        template: 'index',
+        bcc,
+        context: { data },
+      };
 
+      if (uniqueBcc.length > 0) {
+        mailOptions.bcc = uniqueBcc.join(',');
+      } else {
+        mailOptions.bcc = '';
+      }
 
       if (order.members.email) {
-        await this.mailerService.sendMail({
-          to: data.order.members.email, // list of receivers
-          from: 'noreply@mitra10.com', // sender address
-          bcc: uniqueBcc.join(','),
-          subject: message.title, // Subject line
-          template: 'index',
-          context: { data },
-        });
+        await this.mailerService.sendMail(mailOptions);
       }
 
       await this.maillogs(
@@ -214,7 +221,7 @@ export class EmailProcessor {
         {
           to: order.members.email,
           cc: '',
-          bcc: uniqueBcc.join(','),
+          bcc: mailOptions.bcc,
         },
         1,
         data,
@@ -266,9 +273,9 @@ export class EmailProcessor {
       let to = users.username.includes('@')
         ? users.username
         : users.employee?.email ??
-        users.pic_vendor[0]?.email_address ??
-        users.tukang[0]?.email ??
-        'example@example.com';
+          users.pic_vendor[0]?.email_address ??
+          users.tukang[0]?.email ??
+          'example@example.com';
       console.log(to);
       const data = {
         users,
@@ -363,11 +370,19 @@ export class EmailProcessor {
   @Process('send-quotation-mail')
   async sendQuotationMail(job: Job<QuotationMailInterface>) {
     try {
-      const { module_id: id, template_id, to, orderId } = job.data;
-      if (!id) throw new NotFoundException('quotation_id is null!');
+      const { module_id, template_id } = job.data;
+      console.log('Job data received:', job.data); // Log the entire job data
+      console.log('QUOTATION ID:', module_id);
+      console.log('TEMPLATE ID:', template_id);
+
+      if (!module_id) {
+        console.error('quotation_id is null!');
+        throw new NotFoundException('quotation_id is null!');
+      }
+
       const quotation = await this.dbService.quotation.findFirst({
         where: {
-          id: id,
+          id: module_id,
           deleted_at: null,
           order: {
             deleted_at: null,
@@ -413,10 +428,17 @@ export class EmailProcessor {
           store: true,
         },
       });
-      if (!quotation) throw new NotFoundException('quotation not found!');
+
+      if (!quotation) {
+        console.error('Quotation not found!');
+        throw new NotFoundException('quotation not found!');
+      }
 
       const message = await this.getMessage(MailType.QUOTATIONS, template_id);
-      if (!message) throw new NotFoundException('message not found!');
+      if (!message) {
+        console.error('Message not found!');
+        throw new NotFoundException('message not found!');
+      }
 
       const data = {
         quotation,
@@ -425,17 +447,13 @@ export class EmailProcessor {
       const { bcc, cc } = message;
 
       const storeMail = quotation.store.email;
-      // TODO: add admin ho as bcc too
       const adminHo = '';
 
       let defaultTo = quotation.order.members.email;
-      if (to) {
-        defaultTo = to;
-      }
-      if (orderId) {
+      if (quotation.order_id) {
         const checkOrder = await this.dbService.orders.findFirst({
           where: {
-            id: orderId,
+            id: quotation.order_id,
           },
           select: {
             members: {
@@ -450,36 +468,56 @@ export class EmailProcessor {
           defaultTo = checkOrder.members.email;
         }
       }
-      const defaultBcc = bcc
-        .split(',')
-        .concat(
-          this.configService.get<string>('MAIL_BCC_LIST').split(','),
-          storeMail,
-          adminHo,
-        );
 
+      let defaultBcc = bcc
+        ? bcc
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
+        : [];
       const uniqueBcc = [...new Set(defaultBcc)];
 
       if (quotation.order.members.email) {
-        await this.mailerService.sendMail({
-          to: defaultTo, // list of receivers
-          bcc: uniqueBcc.join(','),
-          from: 'noreply@mitra10.com', // sender address
-          subject: 'Email Quotation', // Subject line
+        const mailOptions = {
+          to: defaultTo,
+          from: 'noreply@mitra10.com',
+          subject: message.title,
           template: 'quotation',
+          bcc,
           context: { data },
-        });
+        };
+
+        if (uniqueBcc.length > 0) {
+          mailOptions.bcc = uniqueBcc.join(',');
+        } else {
+          mailOptions.bcc = '';
+        }
+
+        await this.mailerService.sendMail(mailOptions);
         this.maillogs(
-          id,
+          module_id,
           message.id,
           {
             to: quotation.order.members.email,
             cc: '',
-            bcc: uniqueBcc.join(','),
+            bcc: mailOptions.bcc,
           },
           1,
           data,
         );
+
+        await this.dbService.quotation.update({
+          where: {
+            id: module_id,
+          },
+          data: {
+            readiness: 4,
+          },
+        });
       }
     } catch (error) {
       this.logger.error(error);
@@ -490,10 +528,10 @@ export class EmailProcessor {
   async sendcsimail(job: Job<CsiMailInterface>) {
     try {
       console.log('[sendcsimail] Start');
-      
+
       const { module_id, order_id } = job.data;
       console.log(module_id, job);
-      
+
       const csi = await this.dbService.csi_template.findFirst({
         where: {
           id: module_id,
@@ -504,16 +542,15 @@ export class EmailProcessor {
 
       const order = await this.dbService.orders.findFirst({
         where: {
-          id: order_id
+          id: order_id,
         },
         include: {
-          members: true
-        }
+          members: true,
+        },
       });
 
       console.log(order);
-      
-      
+
       if (!csi) throw new NotFoundException('csi not found!');
       if (!order) throw new NotFoundException('order not found!');
 
@@ -531,7 +568,7 @@ export class EmailProcessor {
       const data = {
         csi,
         order,
-        message
+        message,
       };
       // const { bcc, cc } = message;
       // const vendor = tukang.vendor.email_address;
@@ -542,10 +579,9 @@ export class EmailProcessor {
       //   .concat(
       //     this.configService.get<string>('MAIL_BCC_LIST').split(','),
       //   );
-      
+
       //   console.log("BCC: ",bcc);
       //   console.log("DEFAULT BCC: ",defaultBcc);
-        
 
       // const uniqueBcc = [...new Set(defaultBcc)];
       // add csi mail template here
@@ -558,7 +594,7 @@ export class EmailProcessor {
           template: 'csi',
           context: { data },
         });
-        console.log("SUCCESS")
+        console.log('SUCCESS');
       }
       await this.maillogs(
         order_id,
@@ -575,25 +611,28 @@ export class EmailProcessor {
       this.logger.error(error);
     }
   }
+
   @Process('send-replace-tukang-from-vendor')
   async sendReplaceTukangFromVendor(job: Job<ReplaceTukangFromVendor>) {
     try {
       console.log('[sendReplaceTukangFromVendor] Start');
-      const { module_id: id, template_id } = job.data
-      
+      const { module_id: id, template_id } = job.data;
+
       const tukang = await this.dbService.tukang.findFirst({
         where: {
-          id
+          id,
         },
         include: {
-          vendor: true
-        }
+          vendor: true,
+        },
       });
       console.log('[sendReplaceTukangFromVendor] tukang:', tukang);
       if (!tukang) throw new NotFoundException('Tukang not found!');
 
-
-      const message = await this.getMessage(MailType.REPLACE_TUKANG_FROM_VENDOR, template_id);
+      const message = await this.getMessage(
+        MailType.REPLACE_TUKANG_FROM_VENDOR,
+        template_id,
+      );
       console.log('[sendReplaceTukangFromVendor] message:', message);
 
       if (!message) throw new NotFoundException('message not found!');
@@ -627,7 +666,7 @@ export class EmailProcessor {
           template: 'replace-tukang-from-vendor',
           context: { data },
         });
-        console.log("SUCCESS")
+        console.log('SUCCESS');
       }
       await this.maillogs(
         id,
@@ -646,31 +685,33 @@ export class EmailProcessor {
       this.logger.error(error);
     }
   }
-  
+
   @Process('send-replace-tukang-from-tukang')
   async sendReplaceTukangFromTukang(job: Job<ReplaceTukangFromVendor>) {
     try {
       console.log('[sendReplaceTukangFromTukang] Start');
       const { module_id: id, template_id } = job.data;
-      console.log(id)
+      console.log(id);
 
       const users = await this.dbService.users.findFirst({
         where: {
-          id
+          id,
         },
         include: {
           tukang: {
             include: {
-              vendor: true
-            }
-          }
-        }
+              vendor: true,
+            },
+          },
+        },
       });
       console.log('[sendReplaceTukangFromTukang] users:', users);
       if (!users) throw new NotFoundException('Vendor not found!');
 
-
-      const message = await this.getMessage(MailType.REPLACE_TUKANG_FROM_TUKANG, template_id);
+      const message = await this.getMessage(
+        MailType.REPLACE_TUKANG_FROM_TUKANG,
+        template_id,
+      );
       console.log('[sendReplaceTukangFromTukang] message:', message);
 
       if (!message) throw new NotFoundException('message not found!');
@@ -680,7 +721,7 @@ export class EmailProcessor {
         message,
       };
 
-      console.log(users.tukang[0].vendor.company_name)
+      console.log(users.tukang[0].vendor.company_name);
 
       const { bcc, cc } = message;
 
@@ -775,25 +816,44 @@ export class EmailProcessor {
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      const defaultBcc = bcc
-        .split(',')
-        .concat(
-          this.configService.get<string>('MAIL_BCC_LIST').split(','),
-          storeMail,
-          adminHo,
-        );
+      let defaultBcc = bcc
+        ? bcc
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
+        : [];
 
+      // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
+      //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
+      //   console.log(tukangEmail, "EMAIL TUKANG");
+
+      //   if (tukangEmail) {
+      //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
+      //   }
+      // }
       const uniqueBcc = [...new Set(defaultBcc)];
 
+      const mailOptions = {
+        to: data.reschedule.order.members.email, // list of receivers
+        from: 'noreply@mitra10.com', // sender address
+        bcc,
+        subject: message.title, // Subject line
+        template: 'reschedule',
+        context: { data },
+      };
+
+      if (uniqueBcc.length > 0) {
+        mailOptions.bcc = uniqueBcc.join(',');
+      } else {
+        mailOptions.bcc = '';
+      }
+
       if (reschedule.order.members.email) {
-        await this.mailerService.sendMail({
-          to: data.reschedule.order.members.email, // list of receivers
-          from: 'noreply@mitra10.com', // sender address
-          bcc: uniqueBcc.join(','),
-          subject: message.title, // Subject line
-          template: 'reschedule',
-          context: { data },
-        });
+        await this.mailerService.sendMail(mailOptions);
       }
 
       await this.maillogs(
@@ -802,7 +862,7 @@ export class EmailProcessor {
         {
           to: reschedule.order.members.email,
           cc: '',
-          bcc: uniqueBcc.join(','),
+          bcc: mailOptions.bcc,
         },
         1,
         data,
@@ -859,25 +919,44 @@ export class EmailProcessor {
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      const defaultBcc = bcc
-        .split(',')
-        .concat(
-          this.configService.get<string>('MAIL_BCC_LIST').split(','),
-          storeMail,
-          adminHo,
-        );
+      let defaultBcc = bcc
+        ? bcc
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
+        : [];
 
+      // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
+      //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
+      //   console.log(tukangEmail, "EMAIL TUKANG");
+
+      //   if (tukangEmail) {
+      //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
+      //   }
+      // }
       const uniqueBcc = [...new Set(defaultBcc)];
 
+      const mailOptions = {
+        to: data.refund.orders.members.email, // list of receivers
+        from: 'noreply@mitra10.com', // sender address
+        bcc,
+        subject: message.title, // Subject line
+        template: 'refund',
+        context: { data },
+      };
+
+      if (uniqueBcc.length > 0) {
+        mailOptions.bcc = uniqueBcc.join(',');
+      } else {
+        mailOptions.bcc = '';
+      }
+
       if (refund.orders.members.email) {
-        await this.mailerService.sendMail({
-          to: data.refund.orders.members.email, // list of receivers
-          from: 'noreply@mitra10.com', // sender address
-          bcc: uniqueBcc.join(','),
-          subject: message.title, // Subject line
-          template: 'refund',
-          context: { data },
-        });
+        await this.mailerService.sendMail(mailOptions);
       }
 
       await this.maillogs(
@@ -886,7 +965,7 @@ export class EmailProcessor {
         {
           to: refund.orders.members.email,
           cc: '',
-          bcc: uniqueBcc.join(','),
+          bcc: mailOptions.bcc,
         },
         1,
         data,
@@ -898,13 +977,13 @@ export class EmailProcessor {
 
   @Process('send-complaint-mail')
   async sendComplaintMail(job: Job<ComplaintMailInterface>) {
-    const { module_id: reschedule_id, template_id } = job.data;
+    const { module_id: complaint_id, template_id } = job.data;
     try {
-      if (!reschedule_id) throw new NotFoundException('reschedule_id is null!');
+      if (!complaint_id) throw new NotFoundException('complaint_id is null!');
 
       const complaint = await this.dbService.complaints.findFirst({
         where: {
-          id: reschedule_id,
+          id: complaint_id,
           orders: {
             deleted_at: null,
           },
@@ -938,29 +1017,48 @@ export class EmailProcessor {
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      const defaultBcc = bcc
-        .split(',')
-        .concat(
-          this.configService.get<string>('MAIL_BCC_LIST').split(','),
-          storeMail,
-          adminHo,
-        );
+      let defaultBcc = bcc
+        ? bcc
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
+        : [];
 
+      // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
+      //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
+      //   console.log(tukangEmail, "EMAIL TUKANG");
+
+      //   if (tukangEmail) {
+      //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
+      //   }
+      // }
       const uniqueBcc = [...new Set(defaultBcc)];
 
+      const mailOptions = {
+        to: data.complaint.orders.members.email, // list of receivers
+        from: 'noreply@mitra10.com', // sender address
+        bcc,
+        subject: message.title, // Subject line
+        template: 'complaint',
+        context: { data },
+      };
+
+      if (uniqueBcc.length > 0) {
+        mailOptions.bcc = uniqueBcc.join(',');
+      } else {
+        mailOptions.bcc = '';
+      }
+
       if (complaint.orders.members.email) {
-        await this.mailerService.sendMail({
-          to: data.complaint.orders.members.email, // list of receivers
-          from: 'noreply@mitra10.com', // sender address
-          bcc: uniqueBcc.join(','),
-          subject: message.title, // Subject line
-          template: 'complaint',
-          context: { data },
-        });
+        await this.mailerService.sendMail(mailOptions);
       }
 
       await this.maillogs(
-        reschedule_id,
+        complaint_id,
         message.id,
         {
           to: complaint.orders.members.email,
@@ -983,7 +1081,7 @@ export class EmailProcessor {
     data: any = null,
   ) {
     console.log(moduleId);
-    
+
     await this.dbService.mail_logs.create({
       data: {
         emailMessages: {

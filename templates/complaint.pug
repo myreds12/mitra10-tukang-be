@@ -229,7 +229,7 @@ html(lang="en")
             .payment-evidence
               h4 Silahkan kirim bukti bayar anda melalui :
               h5 Telp :  #{data.complaint.orders.store.phone_number_1 ? data.complaint.orders.store.phone_number_1 : data.complaint.orders.store.phone_number_2}
-              h5 Email : #{data.complaint.orders.store.email ? data.order.store.email : 'Email belum tersedia'}
+              h5 Email : #{data.complaint.orders.store.email ? data.complaint.orders.store.email : 'Email belum tersedia'}
             .footer-title
               h4.bold #{data.message.footer}
             .footer-img-wrapper

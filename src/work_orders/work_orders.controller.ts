@@ -37,6 +37,18 @@ import { extname } from 'path';
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
+
+  @Get('/calender')
+  // @CheckPermissions([PermissionAction.READ, menuName])
+  async orderCalender(@Query() query: QueryParamsDto) {
+    try {
+      return await this.workOrdersService.calenderWorkOrder(query);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   @Post(':id/set-materials')
   @UseInterceptors(
     FileFieldsInterceptor([

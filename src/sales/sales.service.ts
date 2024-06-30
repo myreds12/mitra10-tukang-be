@@ -577,8 +577,9 @@ export class SalesService {
 
   async generateSalesCommission(id?: number, quotationId?: number) {}
 
-  async templateDefaultExcel(res: Response, status) {
+  async templateDefaultExcel(res: Response, query: QueryParamsDto) {
     try {
+      const {status, store_id} = query;
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Template Sales Commission', {
         properties: {
@@ -641,13 +642,35 @@ export class SalesService {
         };
       });
 
+      const where: Prisma.sales_incentiveWhereInput = {
+        AND: [
+          ...(status
+            ? [
+              {
+                status: {
+                  in: status
+                }
+              }
+              ]
+            : []),
+          ...(store_id
+            ? [
+              {
+                sales: {
+                  store_id: {
+                    in: store_id,
+                  }
+                }
+              },
+              ]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+
       // Mengambil data dari database
       const salesIncentives = await this.dbService.sales_incentive.findMany({
-        where: {
-         sales: {
-          store_id: 14
-         }
-        },
+        where,
         include: {
           sales: {
             select: {
