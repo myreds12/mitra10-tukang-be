@@ -374,10 +374,6 @@ export class OrderService {
             },
           },
           store: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
             select: {
               id: true,
               store_name: true,
@@ -417,6 +413,19 @@ export class OrderService {
                 },
               },
             },
+          },
+          order_history: {
+            select: {
+              order_id: true,
+              created_at: true,
+              status: {
+                select: {
+                  id: true,
+                  category: true,
+                  description: true,
+                },
+                }
+              }
           },
           m_order_details: {
             where: {
@@ -1921,6 +1930,179 @@ export class OrderService {
         },
       };
     }catch(error){
+      throw error;
+    }
+  }
+
+  async orderExportExcelHO(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Order', {
+        properties: {
+          tabColor: {
+            argb: 'FF00FF00',
+          },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Order Id', key: 'id', width: 10 },
+        { header: 'Nama Toko', key: 'store_name', width: 35 },
+        { header: 'Nama Customer', key: 'full_name', width: 35 },
+        { header: 'Alamat', key: 'address', width: 40 },
+        { header: 'Nomor Telepon Customer', key: 'member_number', width: 35 },
+        { header: 'Jenis Pengerjaan', key: 'payment_type', width: 30 },
+        { header: 'Nama Tukang', key: 'tukang_name', width: 40 },
+        { header: 'Order Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Tanggal Request Survey', key: 'request_survey', width: 30 },
+        { header: 'Tanggal Permintaan Survey', key: 'surveyreq_date', width: 30 },
+        { header: 'Tanggal Survey Dimulai', key: 'surveystart_date', width: 30 },
+        { header: 'Tanggal Survey Selesai', key: 'surveyend_date', width: 30 },
+        { header: 'Tanggal Permintaan Pengerjaan', key: 'workreq_date', width: 30 },
+        { header: 'Tanggal Pengerjaan Dimulai', key: 'workstart_date', width: 30 },
+        { header: 'Tanggal Pengerjaan Berakhir', key: 'workend_date', width: 30 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((order) => {
+        const tukangName = order.work_orders
+          ? order.work_orders.work_order_tukang
+              .map((item) => item?.tukang?.full_name)
+              .join(', ')
+          : 'N/a';
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+        const grandTotal = Number(order.grand_total);
+        const formattedGrandTotal = !isNaN(grandTotal)
+          ? new Intl.NumberFormat('id-ID', {
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
+          : 'Rp. 0';
+        const row = worksheet.addRow({
+          id: order.id,
+          store_name: order.store ? order.store.store_name : 'N/a',
+          full_name: order.members ? order.members.full_name : 'N/a',
+          address: order.members.address_1 ? order.members.address_1 : order.members.address_2,
+          member_number: order.members.phone_number ? order.members.phone_number : order.members.whatsapp_number,
+          payment_type:
+            order.payment_type === 'pemasangan_tanpa_survey'
+              ? 'Pemasangan Tanpa Survey'
+              : order.payment_type === 'survey'
+              ? 'Survey'
+              : order.payment_type === 'gratis'
+              ? 'Gratis'
+              : 'N/a',
+          tukang_name: tukangName,
+          created_at: formattedDateTime(order.created_at),
+          request_survey: order.request_survey
+            ? formattedDateTime(order.request_survey)
+            : 'N/a',
+          surveyreq_date: order.order_history.find((i) => i.status.category.toLowerCase().includes('surveyreq')) ? formattedDateTime(order.order_history.find((i) => i.status.category.toLowerCase().includes('surveyreq')).created_at) : 'N/a',
+          surveystart_date: order.order_history.find((i) => i.status.category.toLowerCase().includes('surveystart')) ? formattedDateTime(order.order_history.find((i) => i.status.category.toLowerCase().includes('surveystart')).created_at) : 'N/a',
+          surveyend_date: order.order_history.find((i) => i.status.category.toLowerCase().includes('surveyend')) ? formattedDateTime(order.order_history.find((i) => i.status.category.toLowerCase().includes('surveyend')).created_at) : 'N/a',
+          workreq_date: order.order_history.find((i) => i.status.category.toLowerCase().includes('workreq')) ? formattedDateTime(order.order_history.find((i) => i.status.category.toLowerCase().includes('workreq')).created_at) : 'N/a',
+          workstart_date: order.order_history.find((i) => i.status.category.toLowerCase().includes('workstart')) ? formattedDateTime(order.order_history.find((i) => i.status.category.toLowerCase().includes('workstart')).created_at) : 'N/a', 
+          workend_date: order.order_history.find((i) => i.status.category.toLowerCase().includes('workend')) ? formattedDateTime(order.order_history.find((i) => i.status.category.toLowerCase().includes('workend')).created_at) : 'N/a',
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/order';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataOrder-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(res);
+    } catch (error) {
       throw error;
     }
   }

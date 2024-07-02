@@ -53,6 +53,15 @@ export class OrderController {
   private readonly logger = new Logger(OrderController.name);
 
 
+  @Get('/export-excel-ho')
+  @UseGuards(JwtAuthGuard)
+  async orderExportExcelHO(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.orderService.orderExportExcelHO(res, query);
+  }
+
   @Get('/calender')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)
@@ -66,7 +75,7 @@ export class OrderController {
   }
 
   @Get('/export-excel')
-  @UseGuards()
+  @UseGuards(JwtAuthGuard)
   async orderExportExcel(
     @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse,
