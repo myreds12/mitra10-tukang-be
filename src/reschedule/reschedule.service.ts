@@ -5,6 +5,7 @@ import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateRescheduleDto } from './dto/update-reschedule.dto';
 import { OrderService } from 'src/order/order.service';
+import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
 
 @Injectable()
 export class RescheduleService {
@@ -28,16 +29,13 @@ export class RescheduleService {
       },
     });
 
-    // const status = await this.dbService.status.findMany({
-    //   where: {
-    //     id: {
-    //       in: [
-    //         rescheduleDto.status_id,
-    //         rescheduleDto.reschedule_status.status_id,
-    //       ],
-    //     },
-    //   },
-    // });
+    const [status] = await this.dbService.status.findMany({
+      where: {
+       category: {
+        contains: 'RESCHEDULE'
+       }
+      },
+    });
 
     if (!order) {
       throw new Error('Order not found');
@@ -54,7 +52,7 @@ export class RescheduleService {
       {
         status: {
           connect: {
-            id: rescheduleDto.reschedule_status.status_id,
+            id: status.id,
           },
         },
         description: rescheduleDto.reschedule_status.description,
@@ -97,7 +95,7 @@ export class RescheduleService {
       },
     });
 
-    await this.orderService.setStatus(order.id, rescheduleDto.status_id, user);
+    // await this.orderService.setStatus(order.id, rescheduleDto.status_id, user);
 
     return reschedule;
   }
@@ -324,16 +322,24 @@ export class RescheduleService {
       },
     });
 
-    // const status = await this.dbService.status.findMany({
-    //   where: {
-    //     id: {
-    //       in: [
-    //         rescheduleDto.status_id,
-    //         rescheduleDto.reschedule_status.status_id,
-    //       ],
-    //     },
-    //   },
-    // });
+    // const statusUpdate = await this.dbService.status.findMany({
+    //   where:{
+    //     category: {
+    //       in: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'REWORKREQ', 'REWORSTART', 'REWORKEND',]
+    //     }
+    //   }
+    // })
+
+    const status = await this.dbService.status.findFirst({
+      where: {
+        id: {
+          in: [
+            rescheduleDto.reschedule_status.status_id,
+          ],
+        },
+      },
+    });
+
 
     if (!order) {
       throw new Error('Order not found');
@@ -389,11 +395,13 @@ export class RescheduleService {
         id,
       },
       data: {
+       ...(status.category.toLowerCase().includes('rescheduleapprovedbyho') ? {
         order: {
-          connect: {
-            id: order.id,
-          },
+          update: {
+            request_survey: rescheduleDto.reschedule_date,
+          }
         },
+       } : undefined), 
         status: {
           connect: {
             id: rescheduleDto.status_id,
@@ -427,7 +435,7 @@ export class RescheduleService {
       this.dbService.reschedule.update(rescheduleData),
     ]);
 
-    await this.orderService.setStatus(order.id, rescheduleDto.status_id, user);
+    // await this.orderService.setStatus(order.id, rescheduleDto.status_id, user);
     return reschedule;
   }
 

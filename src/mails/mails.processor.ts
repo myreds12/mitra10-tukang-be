@@ -197,7 +197,7 @@ export class EmailProcessor {
       const uniqueBcc = [...new Set(defaultBcc)];
 
       const mailOptions = {
-        to: data.order.members.email,
+        cc: data.order.members.email,
         from: 'noreply@mitra10.com',
         subject: message.title,
         template: 'index',

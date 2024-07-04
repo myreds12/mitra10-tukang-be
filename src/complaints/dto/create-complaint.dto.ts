@@ -11,7 +11,7 @@ export class CreateComplaintDto {
 
   @IsOptional()
   pic_name?: string;
-
+  
   @Type(() => Number)
   complaint_channel: number;
 
@@ -25,8 +25,9 @@ export class CreateComplaintDto {
   @Type(() => Number)
   complaint_status: number;
 
+  @IsOptional()
   @Type(() => CreateComplaintHistoriesDto)
-  complaint_histories: CreateComplaintHistoriesDto;
+  complaint_histories?: CreateComplaintHistoriesDto;
 
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
   complaint_evidences: Array<Express.Multer.File>;

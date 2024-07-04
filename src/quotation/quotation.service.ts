@@ -1095,6 +1095,8 @@ export class QuotationService {
     quotation: quotation,
   ) {
     console.log(grandTotal, 'TOTAL');
+    console.log(storeId, 'STORE');
+    
     const { id: quotation_id, order_id } = quotation;
 
     const filteredIncentive = await this.dbService.setting_incentive.findMany({

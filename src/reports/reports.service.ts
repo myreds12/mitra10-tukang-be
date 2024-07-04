@@ -111,7 +111,7 @@ export class ReportsService {
 
       const statusCategories = {
         totalOrderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
-        totalWIP: ['WORKSTART', 'WIP'],
+        totalWIP: ['WORKSTART'],
         totalOrderDone: ['WORKEND'],
         totalWaitingSurvey: ['SURVEYREQ'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
@@ -799,4 +799,5 @@ export class ReportsService {
       throw error;
     }
   }
+
 }

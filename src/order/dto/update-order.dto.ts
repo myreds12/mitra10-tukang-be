@@ -70,4 +70,7 @@ export class UpdateOrderDto {
   order_details?: OrderDetailDto[];
 
   request_survey?: string;
+
+  @IsOptional()
+  notes?:string;
 }

@@ -154,6 +154,7 @@ export class OrderService {
       );
 
       const orderData = {
+        notes: createOrderDto.notes,
         project_address: createOrderDto.project_address,
         project_number: createOrderDto.project_number,
         receipt_number: createOrderDto.receipt_number,
@@ -989,6 +990,7 @@ export class OrderService {
           
 
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
+        notes: updateOrderDto?.notes ?? undefined,
         additional_fee: updateOrderDto?.additional_fee ?? undefined,
         member_id: updateOrderDto?.member_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,

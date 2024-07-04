@@ -79,7 +79,7 @@ export class MemberService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { search, date_from, date_to, store_id } = query;
+      const { search, date_from, date_to, store_id, page, take } = query;
 
       const where: Prisma.membersWhereInput = {
         AND: [
@@ -117,8 +117,11 @@ export class MemberService {
         ].filter(Boolean),
         deleted_at: null,
       };
+      const skip = page * take - take;
       const member = await this.dbService.members.findMany({
         where,
+        skip,
+        take: take > 0 ? take : undefined,
         include: {
           join_location_store: true,
           area: true,
@@ -128,6 +131,7 @@ export class MemberService {
             },
             include: {
               complaints: true,
+              status: true,
               store: true,
               sales: true,
               m_order_details: true,
@@ -150,7 +154,19 @@ export class MemberService {
             ?.totalOrder || 0,
       }));
 
-      return dataMember;
+        const count = await this.dbService.members.count({
+          where
+        });
+
+      return {
+        data: dataMember,
+        meta: {
+          total: count,
+          page,
+          take,
+          takeTotal: member.length,
+        },
+      };
     } catch (error) {
       console.log(error);
 
@@ -242,7 +258,7 @@ export class MemberService {
 
   async memberExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const data = await this.findAll(queryParams);
+      const {data} = await this.findAll(queryParams);
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Profile Sales ', {

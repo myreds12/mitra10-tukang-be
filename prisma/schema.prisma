@@ -704,6 +704,7 @@ model orders {
 
   project_address       String
   project_number        String    @default("0")
+  notes                 String?   @db.VarChar(2555)
   receipt_number        String?   @db.NVarChar(30)
   request_survey        DateTime? @db.DateTime()
   payment_type          String    @db.VarChar(200)
@@ -1041,7 +1042,7 @@ model complaint_evidence {
 }
 
 model remedials {
-  id           Int  @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   remedial_pic String? @default("") @db.VarChar(150)
   complaint_id Int
 

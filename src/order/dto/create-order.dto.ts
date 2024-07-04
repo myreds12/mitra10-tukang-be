@@ -68,4 +68,7 @@ export class CreateOrderDto {
 
   @Type(() => Number)
   additional_fee: number;
+
+  @IsOptional()
+  notes?:string;
 }

@@ -14,6 +14,7 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { x } from 'pdfkit';
 
 @Injectable()
 export class ComplaintsService {
@@ -138,7 +139,7 @@ export class ComplaintsService {
         order_by,
         tukang_id,
         store_id,
-        vendor_id
+        vendor_id,
       } = query;
       const skip = page * take - take;
 
@@ -157,13 +158,15 @@ export class ComplaintsService {
                 },
               }
             : undefined,
-          vendor_id ? {
-            orders: {
-              vendor_id: {
-                equals: vendor_id
+          vendor_id
+            ? {
+                orders: {
+                  vendor_id: {
+                    equals: vendor_id,
+                  },
+                },
               }
-            }
-          } : undefined,
+            : undefined,
           tukang_id
             ? {
                 orders: {
@@ -304,8 +307,8 @@ export class ComplaintsService {
           },
           remedials: {
             include: {
-              remedial_evidences: true
-            }
+              remedial_evidences: true,
+            },
           },
           status: true,
           orders: {
@@ -346,12 +349,15 @@ export class ComplaintsService {
         },
       });
 
+      const status = await this.dbService.status.findMany();
+
       if (!complaints)
         throw new HttpException('Complaint Not Found!', HttpStatus.NOT_FOUND);
 
       await this.dbService.complaint_evidence.updateMany({
         where: {
-          complaint_history_id: updateComplaintDto.complaint_histories.id ?? 0,
+          complaint_history_id:
+            updateComplaintDto?.complaint_histories?.id ?? 0,
         },
         data: {
           deleted_at: new Date(),
@@ -371,6 +377,48 @@ export class ComplaintsService {
             },
           }
         : undefined;
+
+      const orders = await this.dbService.orders.findFirst({
+        where: {
+          id: updateComplaintDto?.order_id ?? complaints.order_id,
+        },
+        include: {
+          status: true,
+        },
+      });
+      let statusOrderUpdate;
+
+      const complaintApprovedByHoStatus = status.find((x) =>
+        x.category.toLocaleLowerCase().includes('complaintapprovedbyho'),
+      )?.id;
+      const surveyStatusCategories = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND'];
+      const workStatusCategories = ['WORKREQ', 'WORKSTART', 'WORKEND'];
+
+      if (
+        complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
+        surveyStatusCategories.includes(orders.status.category) 
+      ) {
+        statusOrderUpdate = status.find((x) =>
+          x.category.toLowerCase().includes('resurveyreq'),
+        ).id;
+      } else if (
+        complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
+        workStatusCategories.includes(orders.status.category) 
+      ) {
+        statusOrderUpdate = status.find((x) =>
+          x.category.toLowerCase().includes('reworkreq'),
+        ).id;
+      }
+
+      // console.log(
+      //   Boolean(surveyStatusCategories.includes(orders.status.category)),
+      // );
+      // console.log(
+      //   Boolean(workStatusCategories.includes(orders.status.category)),
+      // );
+
+      // console.log(statusOrderUpdate);
+
       const complaint_channelsConn = updateComplaintDto.complaint_channel
         ? {
             connect: {
@@ -388,13 +436,13 @@ export class ComplaintsService {
           complaint_date: updateComplaintDto.complaint_date
             ? new Date(updateComplaintDto.complaint_date)
             : undefined,
-          complaint_status: updateComplaintDto?.complaint_status,
+          // complaint_status: updateComplaintDto?.complaint_status,
           updated_by: user_id,
           complaint_histories: {
             create: {
               status_id: complaints.complaint_status,
               reason:
-                updateComplaintDto?.complaint_histories.reason ?? undefined,
+                updateComplaintDto?.complaint_histories?.reason ?? undefined,
               created_by: user_id,
               complaint_evidence: evidences.length
                 ? {
@@ -407,19 +455,34 @@ export class ComplaintsService {
           },
         }).filter(([key, value]) => value !== undefined),
       );
+      // const complaintsUpdate = await this.dbService.complaints.update({
+      //   where: {
+      //     id: id,
+      //   },
+      //   data: complaintData,
+      // });
+      // console.log('update', complaintsUpdate);
+
       console.log('complaintData', complaintData);
-      this.orderService.setStatus(
-        updateComplaintDto?.order_id,
-        updateComplaintDto?.complaint_status,
-        user,
-      );
+      if(statusOrderUpdate){
+        await this.orderService.setStatus(orders.id, statusOrderUpdate, user);
+      }
 
       const [complaint] = await this.dbService.$transaction([
         this.dbService.complaints.update({
           where: {
             id: id,
           },
-          data: complaintData,
+          data: {
+            ...complaintData,
+            ...(updateComplaintDto.complaint_status ? {
+              status: {
+                connect: {
+                  id: updateComplaintDto?.complaint_status,
+                },
+              },
+            } : undefined)
+          },
         }),
       ]);
 

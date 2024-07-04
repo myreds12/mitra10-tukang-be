@@ -122,7 +122,7 @@ export class WorkOrdersService {
         },
       };
 
-      this.orderService.setStatus(order.id, dataDto.work_order_status, user);
+      await this.orderService.setStatus(order.id, dataDto.work_order_status, user);
 
       const [work_order] = await this.dbService.$transaction([
         this.dbService.work_orders.create(work_order_data),
@@ -951,6 +951,8 @@ export class WorkOrdersService {
       throw error;
     }
   }
+
+  
 
   async delete(id: number, user_id: number) {
     await this.dbService.work_orders.update({
