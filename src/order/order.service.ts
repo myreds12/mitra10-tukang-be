@@ -936,14 +936,11 @@ export class OrderService {
                 )
               ) {
                 total = Number(itemPrice) * item.quantity;
-                grand_total += total + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) : 0);
+                grand_total += total + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) - +order.additional_fee : 0);
                 grand_total_comission += comission;
-              } else if([PAYMENT_TYPE.SURVEY].includes(updateOrderDto.payment_type) || order.payment_type.includes(PAYMENT_TYPE.SURVEY)){
-                grand_total += Number(order.grand_total) + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) : 0);
-              } else if([PAYMENT_TYPE.GRATIS].includes(updateOrderDto.payment_type) || order.payment_type.includes(PAYMENT_TYPE.GRATIS)){
-                grand_total += Number(order.grand_total) + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) : 0);
+              } else{
+                grand_total += Number(order.grand_total) + (updateOrderDto.additional_fee ? Number(updateOrderDto.additional_fee) - +order.additional_fee : 0);
               }
-              
 
               return {
                 where: { id: item?.id ?? 0, order_id: id },
