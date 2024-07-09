@@ -475,7 +475,7 @@ export class OrderService {
           },
           work_orders: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               request_tukang: {
@@ -1444,8 +1444,6 @@ export class OrderService {
                 {
                   OR: [
                     { receipt_number: { contains: search } },
-                    // TODO: FIXME
-                    // { request_survey: { equals: new Date(search) } },
                     { members: { full_name: { contains: search } } },
                     {
                       store: {
@@ -1499,8 +1497,6 @@ export class OrderService {
       };
 
       const data = await this.dbService.orders.findMany({
-        skip,
-        take: 0,
         where,
         orderBy: {
           created_at: order_by,
@@ -1671,7 +1667,7 @@ export class OrderService {
           },
           work_orders: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               request_tukang: {
@@ -1713,6 +1709,9 @@ export class OrderService {
           order_files: true,
         },
       });
+
+      // Log data to verify it is fetched correctly
+      console.log('Fetched Data:', data);
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Order', {
@@ -1789,7 +1788,7 @@ export class OrderService {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
-          })}, ${dateTime.toLocaleTimeString('id-ID', {
+          })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit',
           })}`;
@@ -1931,8 +1930,9 @@ export class OrderService {
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
 
-      return generateExcelFile(res);
+      return await generateExcelFile(res);
     } catch (error) {
+      console.error('Error:', error);
       throw error;
     }
   }
