@@ -41,6 +41,7 @@ export class QuotationService {
         },
         include: {
           sales: true,
+          vendor: true
         },
       });
 
@@ -124,6 +125,8 @@ export class QuotationService {
           grandTotal -= Number(promotion.promotion);
         }
       }
+
+      // grandTotal =+ order.vendor.type === 1 ? grandTotal * Number(order.vendor.pkp_nominal)  : 0;
 
       console.log(promotion, 'PROMOTION');
 
@@ -855,7 +858,7 @@ export class QuotationService {
       });
 
       worksheet.columns = [
-        { header: 'Quotation Id', key: 'id', width: 10 },
+        { header: 'Quotation Id', key: 'id', width: 25 },
         { header: 'Order Id', key: 'order_id', width: 25 },
         { header: 'Jenis Jasa', key: 'item_name', width: 50 },
         { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
@@ -881,6 +884,7 @@ export class QuotationService {
         { header: 'Nama Vendor', key: 'company_name', width: 30 },
         { header: 'Nama Sales', key: 'sales_name', width: 35 },
         { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
+        { header: 'Status Payment', key: 'status_payment', width: 30 },
         { header: 'Quotation Dibuat ', key: 'created_at', width: 30 },
         { header: 'Grand Total', key: 'grand_total', width: 25 },
       ];
@@ -917,6 +921,7 @@ export class QuotationService {
               .map((item) => item?.unit || 'N/a')
               .join(', ')
           : 'N/a';
+        const statusPayment = quotation.receipt_quotation ? 'Dibayar' : 'Belum Dibayar';
         const tukangName = quotation.order.work_orders
           ? quotation.order.work_orders.work_order_tukang
               .map((item) => item?.tukang?.full_name)
@@ -978,6 +983,7 @@ export class QuotationService {
             ? quotation.order.sales.full_name
             : 'N/a',
           tukang_name: tukangName,
+          status_payment: statusPayment,
           created_at: formattedDateTime(quotation.created_at),
           grand_total: formattedGrandTotal,
         });
@@ -1016,6 +1022,7 @@ export class QuotationService {
         company_name: '',
         sales_name: '',
         tukang_name: '',
+        status_payment: '',
         created_at: '',
         grand_total: formattedTotalGrandTotal,
       });
@@ -1033,7 +1040,7 @@ export class QuotationService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:N${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
