@@ -913,9 +913,6 @@ export class QuotationService {
                   },
                 },
                 work_order_tukang: {
-                  where: {
-                    deleted_at: null
-                  },
                   include: {
                     tukang: true,
                   },
@@ -1004,9 +1001,9 @@ export class QuotationService {
       data.forEach((quotation) => {
         const itemName = quotation.quotation_details
           ? quotation.quotation_details
-              .map((item) => item?.name || 'N/a')
+              .map((item) => item?.name || '-')
               .join(', ')
-          : 'N/a';
+          : '-';
         const itemQuantity = quotation?.quotation_details?.some(item => item.quantity && item)
           ? quotation.quotation_details
               .map((item) => item?.quantity || '1')
@@ -1019,10 +1016,10 @@ export class QuotationService {
           : 'Satuan tidak tersedia';
         const statusPayment = quotation?.receipt_quotation ? 'Dibayar' : 'Belum Dibayar';
         const tukangName = quotation?.order?.work_orders?.work_order_tukang
-          ? quotation.order.work_orders.work_order_tukang
-              .map((item) => item?.tukang?.full_name)
-              .join(', ')
-          : 'N/a';
+        ? [...new Set(quotation.order.work_orders.work_order_tukang
+            .map((item) => item?.tukang?.full_name))]
+            .join(', ')
+        : 'Tukang belum ditugaskan';
         const workOrderItems = quotation?.quotation_details?.some(item => item.work_order_items_id && item)
           ? quotation.quotation_details
               .map((item) => item?.work_order_items?.name || '-')
@@ -1030,12 +1027,12 @@ export class QuotationService {
           : 'Material tidak ditambahkan';
         const workOrderItemsQuantity = quotation?.quotation_details?.some(item => item.work_order_items_id && item)
           ? quotation.quotation_details
-              .map((item) => item?.work_order_items?.quantity || 'N/a')
+              .map((item) => item?.work_order_items?.quantity || '-')
               .join(', ')
           : 'Material tidak ditambahkan';
         const workOrderItemsUnit =quotation?.quotation_details?.some(item => item.work_order_items_id && item)
           ? quotation.quotation_details
-              .map((item) => item?.work_order_items?.unit || 'N/a')
+              .map((item) => item?.work_order_items?.unit || '-')
               .join(', ')
           : 'Material tidak ditambahkan';
         const formattedDateTime = (dateTime) =>
@@ -1056,8 +1053,8 @@ export class QuotationService {
           : 'Rp. 0';
         const row = worksheet.addRow({
           id: quotation.id,
-          order_id: quotation.order ? quotation.order.id : 'N/a',
-          member_name: quotation.order.members ? quotation.order.members.full_name : 'N/a',
+          order_id: quotation.order ? quotation.order.id : '-',
+          member_name: quotation.order.members ? quotation.order.members.full_name : '-',
           item_name: itemName,
           item_quantity: itemQuantity,
           item_unit: itemUnit,
@@ -1066,10 +1063,10 @@ export class QuotationService {
           work_order_items_unit: workOrderItemsUnit,
           quotation_date: quotation.quotation_date
             ? formattedDateTime(quotation.quotation_date)
-            : 'N/a',
+            : 'Tanggal quotation belum ditentukan',
           quotation_validity: quotation.quotation_validity
             ? formattedDateTime(quotation.quotation_validity)
-            : 'N/a',
+            : 'Tanggal validasi quotation belum ditentukan',
           store_name: quotation.order.store
             ? quotation.order.store.store_name
             : 'N/a',

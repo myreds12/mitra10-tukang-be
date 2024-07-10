@@ -1698,10 +1698,6 @@ export class OrderService {
                 include: {
                   tukang: true,
                 },
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
               },
               work_order_status: {
                 include: {
@@ -1794,18 +1790,18 @@ export class OrderService {
 
       data.forEach((order) => {
         const itemName = order.m_order_details
-          ? order.m_order_details.map((item) => item?.item_name).join(', ')
-          : 'N/a';
+          ? order.m_order_details.map((item) => item?.item_name || '-').join(', ')
+          : 'Item belum ditentukan';
         const categoryName = order.m_order_details
           ? order.m_order_details
-              .map((item) => item.item?.category?.category_name)
+              .map((item) => item.item?.category?.category_name || '-')
               .join(', ')
-          : 'N/a';
+          : 'Category Belum ditentukan';
         const tukangName = order?.work_orders?.work_order_tukang
-          ? order?.work_orders?.work_order_tukang
-              .map((item) => item?.tukang?.full_name)
-              .join(', ')
-          : 'N/a';
+        ? [...new Set(order.work_orders.work_order_tukang
+            .map((item) => item?.tukang?.full_name))]
+            .join(', ')
+        : 'Tukang belum ditugaskan';
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -1832,6 +1828,7 @@ export class OrderService {
               : 0;
 
           if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
+            totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;
             grandTotalValue = new Intl.NumberFormat('id-ID', {
               style: 'currency',
               currency: 'IDR',
@@ -1841,7 +1838,7 @@ export class OrderService {
           }
         }
 
-        totalGrandTotalValue += !isNaN(Number(grandTotal))
+        totalGrandTotalValue += !isNaN(Number()) && order.payment_type != 'survey'
           ? Number(grandTotal)
           : 0;
 
@@ -1862,14 +1859,14 @@ export class OrderService {
           store_name: order.store ? order.store.store_name : 'N/a',
           item_name: itemName,
           category_name: categoryName,
-          member_number: order.members ? order.members.member_number : 'N/a',
+          member_number: order.members ? order.members.member_number : 'Member tidak memiliki nomor member',
           full_name: order.members ? order.members.full_name : 'N/a',
           whatsapp_number: order.members.whatsapp_number
             ? order.members.whatsapp_number
-            : 'N/a',
+            : 'Member tidak memiliki nomor whastapp',
           phone_number: order.members.phone_number
             ? order.members.phone_number
-            : 'N/a',
+            : 'Member tidak memiliki nomor telepon',
           company_name: order.vendor ? order.vendor.company_name : 'N/a',
           sales_name: order.sales ? order.sales.full_name : 'N/a',
           tukang_name: tukangName,
