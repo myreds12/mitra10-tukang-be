@@ -551,11 +551,20 @@ export class OrderService {
       const count = await this.dbService.orders.count({
         where,
       });
+      const orderGrandTotal = await this.dbService.orders
+        .aggregate({
+          where,
+          _sum: {
+            grand_total: true,
+          },
+        })
+        .then((data) => data._sum.grand_total);
 
       return {
         data: ordersWithUser,
         meta: {
           total: count,
+          orderGrandTotal,
           page,
           take,
           takeTotal: orders.length,
@@ -1778,7 +1787,7 @@ export class OrderService {
               .map((item) => item.item?.category?.category_name)
               .join(', ')
           : 'N/a';
-        const tukangName = order.work_orders.work_order_tukang
+        const tukangName = order.work_orders
           ? order.work_orders.work_order_tukang
               .map((item) => item?.tukang?.full_name)
               .join(', ')

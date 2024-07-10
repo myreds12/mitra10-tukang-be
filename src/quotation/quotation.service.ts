@@ -833,7 +833,90 @@ export class QuotationService {
 
   async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { data } = await this.findAll(queryParams);
+      const { take, page, search, status, date_from, date_to, order_by } =
+      queryParams;
+    const where: Prisma.quotationWhereInput = {
+      AND: [
+        status ? { status: { id: { in: status } } } : null,
+        ...(search
+          ? [
+            {
+              OR: [
+                {
+                  order: { vendor: { company_name: { contains: search } } },
+                },
+                { store: { store_name: { contains: search } } },
+                { quotation_number: { contains: search } },
+              ],
+            },
+          ]
+          : []),
+        date_from && date_to
+          ? {
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
+          : null,
+      ].filter((condition) => Boolean(condition)),
+      deleted_at: null,
+      order: {
+        deleted_at: null,
+      },
+    };
+    const data = await this.dbService.quotation.findMany({
+      where,
+      orderBy: {
+        created_at: order_by,
+      },
+      include: {
+        promotion: true,
+        quotation_files: true,
+        quotation_details: {
+          include: {
+            category: true,
+            work_order_items: true,
+          },
+        },
+        order: {
+          include: {
+            m_order_details: {
+              where: {
+                deleted_at: null,
+              },
+            },
+            vendor: true,
+            store: true,
+            members: true,
+            sales: true,
+            work_orders: {
+              include: {
+                work_order_evidences: true,
+                work_order_status: {
+                  include: {
+                    work_order_items: {
+                      orderBy: {
+                        id: 'desc',
+                      },
+                    },
+                  },
+                },
+                work_order_tukang: {
+                  include: {
+                    tukang: true,
+                  },
+                },
+                status: true,
+              },
+            },
+          },
+        },
+        status: true,
+        store: true,
+      },
+    });
+
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Quotation', {
