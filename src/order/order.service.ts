@@ -1778,8 +1778,8 @@ export class OrderService {
               .map((item) => item.item?.category?.category_name)
               .join(', ')
           : 'N/a';
-        const tukangName = order.work_orders.work_order_tukang
-          ? order.work_orders.work_order_tukang
+        const tukangName = order?.work_orders?.work_order_tukang
+          ? order?.work_orders?.work_order_tukang
               .map((item) => item?.tukang?.full_name)
               .join(', ')
           : 'N/a';
