@@ -126,7 +126,6 @@ export class QuotationService {
         }
       }
 
-      // grandTotal =+ order.vendor.type === 1 ? grandTotal * Number(order.vendor.pkp_nominal)  : 0;
 
       console.log(promotion, 'PROMOTION');
 
