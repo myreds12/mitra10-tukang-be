@@ -298,6 +298,13 @@ export class OrderService {
                 },
               ]
             : []),
+          // {
+          //   invoice_details: {
+          //     none: {
+          //       deleted_at: null
+          //     }
+          //   }
+          // }
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -1720,7 +1727,7 @@ export class OrderService {
       });
 
       // Log data to verify it is fetched correctly
-      console.log('Fetched Data:', data);
+      // console.log('Fetched Data:', data);
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Order', {
@@ -1759,6 +1766,12 @@ export class OrderService {
         { header: 'Nama Sales', key: 'sales_name', width: 35 },
         { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
         { header: 'Order Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Grand Total Survey', key: 'grand_total_survey', width: 30 },
+        {
+          header: 'Quotation Grand Total ',
+          key: 'quotation_grand_total',
+          width: 30,
+        },
         { header: 'Grand Total', key: 'grand_total', width: 25 },
       ];
 
@@ -1777,6 +1790,7 @@ export class OrderService {
           right: { style: 'thin' },
         };
       });
+      let totalGrandTotalValue = 0;
 
       data.forEach((order) => {
         const itemName = order.m_order_details
@@ -1808,6 +1822,29 @@ export class OrderService {
               currency: 'IDR',
             }).format(grandTotal)
           : 'Rp. 0';
+        let grandTotalValue = formattedGrandTotal;
+
+        if (order.payment_type === 'survey') {
+          const grandTotalSurvey = Number(order.grand_total);
+          const quotationGrandTotal =
+            order && order.quotation && order.quotation.length > 0
+              ? Number(order.quotation[0]?.quotation_grand_total || 0)
+              : 0;
+
+          if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
+            grandTotalValue = new Intl.NumberFormat('id-ID', {
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotalSurvey + quotationGrandTotal);
+          } else {
+            grandTotalValue = 'N/a';
+          }
+        }
+
+        totalGrandTotalValue += !isNaN(Number(grandTotal))
+          ? Number(grandTotal)
+          : 0;
+
         const row = worksheet.addRow({
           id: order.id,
           request_survey: order.request_survey
@@ -1837,7 +1874,20 @@ export class OrderService {
           sales_name: order.sales ? order.sales.full_name : 'N/a',
           tukang_name: tukangName,
           created_at: formattedDateTime(order.created_at),
-          grand_total: formattedGrandTotal,
+          grand_total_survey:
+            order.payment_type === 'survey'
+              ? formattedGrandTotal
+              : 'Order Tidak Survey',
+          quotation_grand_total:
+            order.quotation && order.payment_type === 'survey'
+              ? new Intl.NumberFormat('id-ID', {
+                  style: 'currency',
+                  currency: 'IDR',
+                }).format(
+                  Number(order?.quotation[0]?.quotation_grand_total) || 0,
+                )
+              : 'Order Tidak Survey',
+          grand_total: grandTotalValue,
         });
 
         row.eachCell((cell) => {
@@ -1851,14 +1901,13 @@ export class OrderService {
         });
       });
 
-      const totalGrandTotal = data.reduce(
-        (total, order) => total + Number(order.grand_total),
-        0,
-      );
-      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
+      // Setelah selesai iterasi, format totalGrandTotalValue menjadi format mata uang yang diinginkan
+      const formattedTotalGrandTotalValue = new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
-      }).format(totalGrandTotal);
+      }).format(totalGrandTotalValue);
+
+      // Gunakan formattedTotalGrandTotalValue untuk membuat baris total seperti yang Anda lakukan sebelumnya di dalam worksheet
       const totalRow = worksheet.addRow({
         id: 'Total',
         store_name: '',
@@ -1873,8 +1922,9 @@ export class OrderService {
         category_name: '',
         tukang_name: '',
         created_at: '',
-        request_survey: '',
-        grand_total: formattedTotalGrandTotal,
+        grand_total_survey: '',
+        quotation_grand_total: '',
+        grand_total: formattedTotalGrandTotalValue, // Gunakan total yang sudah diformat di sini
       });
 
       totalRow.eachCell((cell) => {
@@ -1890,7 +1940,7 @@ export class OrderService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:Q${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();

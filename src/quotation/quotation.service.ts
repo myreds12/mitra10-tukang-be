@@ -292,6 +292,9 @@ export class QuotationService {
                     },
                   },
                   work_order_tukang: {
+                    where: {
+                      deleted_at: null
+                    },
                     include: {
                       tukang: true,
                     },
@@ -876,7 +879,11 @@ export class QuotationService {
         quotation_details: {
           include: {
             category: true,
-            work_order_items: true,
+            work_order_items: {
+              where: {
+                deleted_at: null
+              }
+            },
           },
         },
         order: {
@@ -894,6 +901,9 @@ export class QuotationService {
               include: {
                 work_order_evidences: true,
                 work_order_status: {
+                  where: {
+                    deleted_at: null
+                  },
                   include: {
                     work_order_items: {
                       orderBy: {
@@ -903,6 +913,9 @@ export class QuotationService {
                   },
                 },
                 work_order_tukang: {
+                  where: {
+                    deleted_at: null
+                  },
                   include: {
                     tukang: true,
                   },
@@ -942,6 +955,7 @@ export class QuotationService {
       worksheet.columns = [
         { header: 'Quotation Id', key: 'id', width: 25 },
         { header: 'Order Id', key: 'order_id', width: 25 },
+        { header: 'Nama Customer', key: 'member_name', width: 40 },
         { header: 'Jenis Jasa', key: 'item_name', width: 50 },
         { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
         { header: 'Unit Jasa', key: 'item_unit', width: 50 },
@@ -993,37 +1007,37 @@ export class QuotationService {
               .map((item) => item?.name || 'N/a')
               .join(', ')
           : 'N/a';
-        const itemQuantity = quotation.quotation_details
+        const itemQuantity = quotation?.quotation_details?.some(item => item.quantity && item)
           ? quotation.quotation_details
-              .map((item) => item?.quantity || 'N/a')
+              .map((item) => item?.quantity || '1')
               .join(', ')
-          : 'N/a';
-        const itemUnit = quotation.quotation_details
+          : 'Quantity tidak tersedia';
+        const itemUnit = quotation?.quotation_details?.some(item => item.unit && item)
           ? quotation.quotation_details
-              .map((item) => item?.unit || 'N/a')
+              .map((item) => item?.unit || 'Satuan tidak ditulis')
               .join(', ')
-          : 'N/a';
-        const statusPayment = quotation.receipt_quotation ? 'Dibayar' : 'Belum Dibayar';
-        const tukangName = quotation.order.work_orders
+          : 'Satuan tidak tersedia';
+        const statusPayment = quotation?.receipt_quotation ? 'Dibayar' : 'Belum Dibayar';
+        const tukangName = quotation?.order?.work_orders?.work_order_tukang
           ? quotation.order.work_orders.work_order_tukang
               .map((item) => item?.tukang?.full_name)
               .join(', ')
           : 'N/a';
-        const workOrderItems = quotation.quotation_details
+        const workOrderItems = quotation?.quotation_details?.some(item => item.work_order_items_id && item)
           ? quotation.quotation_details
-              .map((item) => item?.work_order_items?.name || 'N/a')
+              .map((item) => item?.work_order_items?.name || '-')
               .join(', ')
-          : 'N/a';
-        const workOrderItemsQuantity = quotation.quotation_details
+          : 'Material tidak ditambahkan';
+        const workOrderItemsQuantity = quotation?.quotation_details?.some(item => item.work_order_items_id && item)
           ? quotation.quotation_details
               .map((item) => item?.work_order_items?.quantity || 'N/a')
               .join(', ')
-          : 'N/a';
-        const workOrderItemsUnit = quotation.quotation_details
+          : 'Material tidak ditambahkan';
+        const workOrderItemsUnit =quotation?.quotation_details?.some(item => item.work_order_items_id && item)
           ? quotation.quotation_details
               .map((item) => item?.work_order_items?.unit || 'N/a')
               .join(', ')
-          : 'N/a';
+          : 'Material tidak ditambahkan';
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -1043,6 +1057,7 @@ export class QuotationService {
         const row = worksheet.addRow({
           id: quotation.id,
           order_id: quotation.order ? quotation.order.id : 'N/a',
+          member_name: quotation.order.members ? quotation.order.members.full_name : 'N/a',
           item_name: itemName,
           item_quantity: itemQuantity,
           item_unit: itemUnit,
