@@ -86,6 +86,10 @@ export class QueryParamsDto {
 
   @IsOptional()
   @Type(() => Number)
+  item_type?: number;
+
+  @IsOptional()
+  @Type(() => Number)
   @IsIn([0,1])
   is_invoice?: number;
 

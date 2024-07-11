@@ -25,6 +25,10 @@ export class UpdateInvoiceDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
   
   @IsOptional()
   @ValidateNested({ each: true })

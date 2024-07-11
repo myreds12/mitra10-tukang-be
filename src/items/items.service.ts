@@ -7,7 +7,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @Injectable()
 export class ItemsService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(createItemDto: CreateItemDto, user_id: number) {
     try {
       const {
@@ -118,7 +118,7 @@ export class ItemsService {
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     try {
       const { id, role_id } = user;
-      const { search, take, page, group_by, all_store, store_id, is_free,  } =
+      const { search, take, page, group_by, all_store, store_id, is_free, item_type } =
         queryParamsDto;
       const category_id = +search ? Number.parseInt(search) : undefined;
       const now = new Date();
@@ -146,51 +146,52 @@ export class ItemsService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      service_name: {
-                        contains: search,
-                      },
-                    },
-                  ],
-                },
-              ]
-            : []),
-          ...(is_free === 1
-            ? [
-                {
-                  prices: {
-                    every: {
-                      price: 0,
+              {
+                OR: [
+                  {
+                    service_name: {
+                      contains: search,
                     },
                   },
+                ],
+              },
+            ]
+            : []),
+          ...(item_type ? [{ type: { equals: item_type } }] : []),
+          ...(is_free === 1
+            ? [
+              {
+                prices: {
+                  every: {
+                    price: 0,
+                  },
                 },
-              ]
+              },
+            ]
             : []),
           category_id
             ? {
-                category_id: {
-                  equals: category_id,
-                },
-              }
+              category_id: {
+                equals: category_id,
+              },
+            }
             : undefined,
           ...(all_store === 1
             ? [
-                {
-                  prices: {
-                    every: {
-                      price_stores: {
-                        every: {
-                          store_id: {
-                            in: allStore,
-                          },
+              {
+                prices: {
+                  every: {
+                    price_stores: {
+                      every: {
+                        store_id: {
+                          in: allStore,
                         },
                       },
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           // sales.sales
           //   ? {
