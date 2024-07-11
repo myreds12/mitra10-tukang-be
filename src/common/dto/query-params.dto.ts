@@ -85,6 +85,11 @@ export class QueryParamsDto {
   top_best?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsIn([0,1])
+  is_invoice?: number;
+
+  @IsOptional()
   @IsNotEmpty()
   group_by?: string;
 

@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDate,
+  IsEnum,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -11,6 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { MarginType } from 'src/quotation/dto/margin-type.enum';
+import { VendorPkp } from '../enum/vendor_type.enum';
 
 class VendorBank {
   @IsNumber()
@@ -62,6 +64,14 @@ class VendorService {
 export class UpdateVendorDto {
   @ApiProperty()
   company_name?: string;
+
+  @Transform(({ value }) => Number(value))
+  @Type(() => Number)
+  vendor_type?: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  pkp_nominal?: number;
   
   @Type(() => Number)
   @IsOptional()
@@ -80,8 +90,8 @@ export class UpdateVendorDto {
   @IsOptional()
   @ApiProperty()
   @Type(() => Number)
-  @IsIn([MarginType])
   margin_type: number;
+
 
   phone_number?: string;
 

@@ -75,7 +75,11 @@ export class InvoicesService {
           },
         },
         include: {
-          m_order_details: true,
+          m_order_details: {
+            include: {
+              item: true,
+            },
+          },
           quotation: {
             include: {
               quotation_details: true,
@@ -91,13 +95,13 @@ export class InvoicesService {
       });
       console.log(orders);
 
-      if (
-        orders.filter((order) => order.payment_type === 'gratis').length !== 0
-      ) {
-        throw new BadRequestException(
-          'Order yang di input tidak boleh dengan payment type GRATIS',
-        );
-      }
+      // if (
+      //   orders.filter((order) => order.payment_type === 'gratis').length !== 0
+      // ) {
+      //   throw new BadRequestException(
+      //     'Order yang di input tidak boleh dengan payment type GRATIS',
+      //   );
+      // }
 
       if (orders.filter((order) => !order?.work_orders).length !== 0) {
         throw new BadRequestException(
@@ -119,8 +123,7 @@ export class InvoicesService {
 
       orders.forEach((order) => {
         if (order?.payment_type === 'survey') {
-            const totalMargin =
-            Number(vendor.nominal_survey);
+          const totalMargin = Number(vendor.nominal_survey);
           invoiceDetails.push({
             order_id: order.id,
             total: totalMargin,
@@ -129,10 +132,20 @@ export class InvoicesService {
         } else if (order?.payment_type === 'pemasangan_tanpa_survey') {
           const totalMargin =
             vendor.margin_type === 1
-              ? +order.grand_total * (+vendor.margin_nominal / 100)
+              ? +order.grand_total + (+order.grand_total * ((100 - +vendor.margin_nominal) / 100))
               : vendor.margin_type === 2
-              ? +order.grand_total - +vendor.margin_nominal
+              ? +order.grand_total + +vendor.margin_nominal
               : 0;
+          invoiceDetails.push({
+            order_id: order.id,
+            total: totalMargin,
+          });
+          totalGrandTotal += totalMargin || 0;
+        } else if (order?.payment_type === 'gratis') {
+          const totalMargin = order.m_order_details
+            .filter((i) => i.item.type === 1)
+            .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
+
           invoiceDetails.push({
             order_id: order.id,
             total: totalMargin,
@@ -141,9 +154,13 @@ export class InvoicesService {
         }
       });
 
-      const totalAmount =
-        totalGrandTotal;
+      console.log(totalGrandTotal);
 
+      const totalAmount = vendor.type === 1 
+      ? totalGrandTotal + (totalGrandTotal * +vendor.pkp_nominal) 
+      : totalGrandTotal;
+      console.log(totalAmount);
+      
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
       console.log(invoiceDetails, 'DETAILS');
@@ -312,6 +329,11 @@ export class InvoicesService {
             include: {
               order: {
                 include: {
+                  m_order_details: {
+                    include: {
+                      item: true
+                    }
+                  },
                   quotation: true,
                   members: true,
                 },
@@ -363,8 +385,6 @@ export class InvoicesService {
     try {
       const { id: user_id } = user;
 
-      
-
       const invoice = await this.dbService.invoices.findFirstOrThrow({
         where: { id },
         include: {
@@ -398,11 +418,18 @@ export class InvoicesService {
 
       const orders = await this.dbService.orders.findMany({
         where: { id: { in: providedOrderIds } },
-        include: { m_order_details: true, quotation: {
-          include:{
-            quotation_details: true
-          }
-        } },
+        include: {
+          m_order_details: {
+            include: {
+              item: true,
+            },
+          },
+          quotation: {
+            include: {
+              quotation_details: true,
+            },
+          },
+        },
       });
 
       let totalAmount = 0;
@@ -411,20 +438,28 @@ export class InvoicesService {
         let total = 0;
         if (order) {
           if (order.payment_type === 'survey') {
-            total =
-            Number(invoice.vendor.nominal_survey)
+            total = Number(invoice.vendor.nominal_survey);
 
-            totalAmount += total
             totalAmount += total;
-          }else if (order.payment_type === 'pemasangan_tanpa_survey') {
+            totalAmount += total;
+          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
-            invoice.vendor.margin_type === 1
-              ? +order.grand_total * (+invoice.vendor.margin_nominal / 100)
-              : invoice.vendor.margin_type === 2
-              ? +order.grand_total - +invoice.vendor.margin_nominal
-              : 0;
+              invoice.vendor.margin_type === 1
+                ? +order.grand_total * (+invoice.vendor.margin_nominal / 100)
+                : invoice.vendor.margin_type === 2
+                ? +order.grand_total - +invoice.vendor.margin_nominal
+                : 0;
 
-            totalAmount += total
+            totalAmount += total;
+          } else if (order?.payment_type === 'gratis') {
+            total = order.m_order_details
+              .filter((i) => i.item.type === 1)
+              .reduce(
+                (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                0,
+              );
+
+            totalAmount += total;
           }
         }
 

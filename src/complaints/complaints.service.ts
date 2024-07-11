@@ -377,33 +377,53 @@ export class ComplaintsService {
             },
           }
         : undefined;
-
+        
+        const surveyStatusCategories = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND'];
+        const workStatusCategories = ['WORKREQ', 'WORKSTART', 'WORKEND'];
       const orders = await this.dbService.orders.findFirst({
         where: {
           id: updateComplaintDto?.order_id ?? complaints.order_id,
         },
         include: {
           status: true,
+          order_history: {
+            where: {
+              status: {
+                category: {
+                  in: [...surveyStatusCategories, ...workStatusCategories],
+                }
+              },
+              deleted_at: null
+            },
+            include: {
+              status: true
+            },
+            orderBy: {
+              created_at: 'desc'
+            },
+            take: 10
+          }
         },
       });
+      console.log(orders);
+      
       let statusOrderUpdate;
 
       const complaintApprovedByHoStatus = status.find((x) =>
         x.category.toLocaleLowerCase().includes('complaintapprovedbyho'),
       )?.id;
-      const surveyStatusCategories = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND'];
-      const workStatusCategories = ['WORKREQ', 'WORKSTART', 'WORKEND'];
+     
 
       if (
         complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
-        surveyStatusCategories.includes(orders.status.category) 
+        surveyStatusCategories.includes(orders.order_history[0].status.category) 
       ) {
         statusOrderUpdate = status.find((x) =>
           x.category.toLowerCase().includes('resurveyreq'),
         ).id;
       } else if (
         complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
-        workStatusCategories.includes(orders.status.category) 
+        workStatusCategories.includes(orders.order_history[0].status.category) 
       ) {
         statusOrderUpdate = status.find((x) =>
           x.category.toLowerCase().includes('reworkreq'),

@@ -237,6 +237,7 @@ export class OrderService {
         store_id,
         vendor_id,
         work_order_status,
+        is_invoice,
       } = queryParams;
 
       const skip = page * take - take;
@@ -298,13 +299,34 @@ export class OrderService {
                 },
               ]
             : []),
-          // {
-          //   invoice_details: {
-          //     none: {
-          //       deleted_at: null
+          // ...(Boolean(is_invoice) ? {
+          //     invoice_details: {
+          //       none: {
+          //         deleted_at: null
+          //       }
           //     }
-          //   }
-          // }
+          //   } : {}),
+          ...(Boolean(is_invoice)
+            ? [
+                {
+                  invoice_details: {
+                    none: {
+                      deleted_at: null,
+                    },
+                  },
+                  // order_history: {
+                  //   some: {
+                  //     status: {
+                  //       category: {
+                  //         in: ['SURVEYDONE', 'WORKEND', 'DONE'],
+                  //       },
+                  //     },
+                  //   },
+                  // },
+                },
+              ]
+            : []),
+          //
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -558,14 +580,22 @@ export class OrderService {
       const count = await this.dbService.orders.count({
         where,
       });
-      const orderGrandTotal = await this.dbService.orders
-        .aggregate({
-          where,
-          _sum: {
-            grand_total: true,
-          },
-        })
-        .then((data) => data._sum.grand_total);
+      const orderGrandTotal = orders.reduce((total, order) => {
+        let grandTotal = Number(order.grand_total) || 0;
+
+        if (order.payment_type === 'survey' && order.quotation) {
+          const quotationGrandTotal = order.quotation.reduce(
+            (qTotal, quotation) => {
+              return qTotal + Number(quotation.quotation_grand_total);
+            },
+            0,
+          );
+
+          grandTotal += quotationGrandTotal;
+        }
+
+        return total + grandTotal;
+      }, 0);
 
       return {
         data: ordersWithUser,
@@ -1790,7 +1820,9 @@ export class OrderService {
 
       data.forEach((order) => {
         const itemName = order.m_order_details
-          ? order.m_order_details.map((item) => item?.item_name || '-').join(', ')
+          ? order.m_order_details
+              .map((item) => item?.item_name || '-')
+              .join(', ')
           : 'Item belum ditentukan';
         const categoryName = order.m_order_details
           ? order.m_order_details
@@ -1798,10 +1830,14 @@ export class OrderService {
               .join(', ')
           : 'Category Belum ditentukan';
         const tukangName = order?.work_orders?.work_order_tukang
-        ? [...new Set(order.work_orders.work_order_tukang
-            .map((item) => item?.tukang?.full_name))]
-            .join(', ')
-        : 'Tukang belum ditugaskan';
+          ? [
+              ...new Set(
+                order.work_orders.work_order_tukang.map(
+                  (item) => item?.tukang?.full_name,
+                ),
+              ),
+            ].join(', ')
+          : 'Tukang belum ditugaskan';
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -1838,9 +1874,10 @@ export class OrderService {
           }
         }
 
-        totalGrandTotalValue += !isNaN(Number()) && order.payment_type != 'survey'
-          ? Number(grandTotal)
-          : 0;
+        totalGrandTotalValue +=
+          !isNaN(Number()) && order.payment_type != 'survey'
+            ? Number(grandTotal)
+            : 0;
 
         const row = worksheet.addRow({
           id: order.id,
@@ -1859,7 +1896,9 @@ export class OrderService {
           store_name: order.store ? order.store.store_name : 'N/a',
           item_name: itemName,
           category_name: categoryName,
-          member_number: order.members ? order.members.member_number : 'Member tidak memiliki nomor member',
+          member_number: order.members
+            ? order.members.member_number
+            : 'Member tidak memiliki nomor member',
           full_name: order.members ? order.members.full_name : 'N/a',
           whatsapp_number: order.members.whatsapp_number
             ? order.members.whatsapp_number

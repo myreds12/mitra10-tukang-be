@@ -85,6 +85,8 @@ export class VendorService {
       });
 
       const vendorData: Prisma.vendorCreateInput = {
+        type: createVendorDto?.vendor_type,
+        pkp_nominal: createVendorDto.pkp_nominal,
         margin_nominal: createVendorDto.margin_nominal,
         margin_type: createVendorDto.margin_type,
         max_order: createVendorDto.max_order,
@@ -190,7 +192,15 @@ export class VendorService {
         date_to,
         store_id,
         vendor_with_max_order,
+        top_best
       } = query;
+      // ...(Boolean(top_best)
+      //       ? {
+      //           order_total: 'desc',
+      //         }
+      //       : {
+      //           created_at: order_by,
+      //         }),
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const formattedDate = now.toISOString();
@@ -319,6 +329,12 @@ export class VendorService {
           },
         },
       });
+      if(Boolean(top_best)){
+        vendor = vendor.sort((a, b) => b.orders.length - a.orders.length);
+      }
+      if (take > 0) {
+        vendor = vendor.slice(0, take);
+      }
       console.log(new Date(), new Date('2024-05-03'), new Date().toISOString());
       if (vendor_with_max_order) {
         vendor = vendor.filter(
@@ -524,6 +540,8 @@ export class VendorService {
       console.log(updateVendorDto);
 
       const vendorData: Prisma.vendorUpdateInput = {
+        type: updateVendorDto?.vendor_type,
+        pkp_nominal: updateVendorDto?.pkp_nominal,
         margin_nominal: updateVendorDto.margin_nominal,
         margin_type: updateVendorDto.margin_type,
         address: updateVendorDto.address,

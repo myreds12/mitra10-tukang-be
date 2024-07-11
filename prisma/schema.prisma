@@ -81,11 +81,13 @@ model employee {
 model items {
   id Int @id @default(autoincrement())
 
-  item_name     String? @db.VarChar(255)
-  item_code     String? @db.VarChar(255)
-  service_name  String  @db.VarChar(255)
-  default_price Decimal @default(0) @db.Decimal(32, 2)
-  category_id   Int
+  type            Int?    @default(1) // 1 = GRATIS, 2 = PEMASANGAN_TANPA_SURVEY
+  invoice_nominal Decimal @default(0) @db.Decimal(32, 2)
+  item_name       String? @db.VarChar(255)
+  item_code       String? @db.VarChar(255)
+  service_name    String  @db.VarChar(255)
+  default_price   Decimal @default(0) @db.Decimal(32, 2)
+  category_id     Int
 
   created_at DateTime? @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
@@ -545,6 +547,8 @@ model vendor {
   id      Int  @id @default(autoincrement())
   bank_id Int?
 
+  type           Int?      @default(1) // 1 = NON PKP, 2 = PKP
+  pkp_nominal    Decimal   @default(0) @db.Decimal(32, 2)
   pic_name       String    @default("") @db.VarChar(200)
   company_name   String    @db.VarChar(45)
   address        String    @db.VarChar(200)
@@ -1047,7 +1051,7 @@ model remedials {
   complaint_id Int
 
   remedial_action      String
-  ra_date_start        DateTime  @db.Date()
+  ra_date_start        DateTime?  @db.Date()
   ra_date_end          DateTime? @db.Date()
   remedial_pic_positon String?   @default("") @db.VarChar(50)
   remedial_status      Int?

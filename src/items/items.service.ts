@@ -17,6 +17,8 @@ export class ItemsService {
         default_price,
         category_id,
         prices,
+        item_type,
+        invoice_nominal
       } = createItemDto;
 
       const createdItem = await this.dbService.items.create({
@@ -25,6 +27,8 @@ export class ItemsService {
           item_name,
           service_name,
           default_price,
+          type: item_type,
+          invoice_nominal,
           category: { connect: { id: category_id } },
         },
       });
@@ -114,7 +118,7 @@ export class ItemsService {
   async findAll(queryParamsDto: QueryParamsDto, user: users) {
     try {
       const { id, role_id } = user;
-      const { search, take, page, group_by, all_store, store_id, is_free } =
+      const { search, take, page, group_by, all_store, store_id, is_free,  } =
         queryParamsDto;
       const category_id = +search ? Number.parseInt(search) : undefined;
       const now = new Date();
@@ -429,6 +433,8 @@ export class ItemsService {
       const itemQuery = {
         where: { id },
         data: {
+          type: UpdateDataDto?.item_type,
+          invoice_nominal: UpdateDataDto?.invoice_nominal,
           item_code: UpdateDataDto?.item_code,
           item_name: UpdateDataDto?.item_name,
           service_name: UpdateDataDto?.name,

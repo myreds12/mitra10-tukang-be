@@ -8,7 +8,7 @@ export class UpdateRemedialDto {
   @ApiProperty()
   remedial_action: string;
 
-  ra_date_start: string;
+  ra_date_start?: string;
   ra_date_end?: string;
 
   remedial_pic?: string;

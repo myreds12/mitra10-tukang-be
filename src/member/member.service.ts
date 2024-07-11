@@ -79,7 +79,7 @@ export class MemberService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { search, date_from, date_to, store_id, page, take } = query;
+      const { search, date_from, date_to, store_id, page, take, top_best } = query;
 
       const where: Prisma.membersWhereInput = {
         AND: [
@@ -118,7 +118,7 @@ export class MemberService {
         deleted_at: null,
       };
       const skip = page * take - take;
-      const member = await this.dbService.members.findMany({
+      let member = await this.dbService.members.findMany({
         where,
         skip,
         take: take > 0 ? take : undefined,
@@ -139,6 +139,12 @@ export class MemberService {
           },
         },
       });
+      if(Boolean(top_best)){
+        member = member.sort((a, b) => b.order.length - a.order.length);
+      }
+      if (take > 0) {
+        member = member.slice(0, take);
+      }
       const memberOrderSummary = member.map((item) => ({
         memberId: item.id,
         totalOrder: item.order.reduce(

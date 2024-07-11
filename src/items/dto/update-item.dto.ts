@@ -1,11 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   ValidateNested,
 } from 'class-validator';
+import { ITEM_TYPE } from '../enum/item_type.enum';
 
 export class UpdateItemDto {
   item_code?: string;
@@ -21,6 +23,14 @@ export class UpdateItemDto {
 
   @Type(() => Number)
   default_price?: number;
+
+  @Transform(({ value }) => Number(value))
+  @IsEnum(ITEM_TYPE)
+  item_type?: ITEM_TYPE;
+
+  @Type(() => Number)
+  invoice_nominal?: number;
+
 
   @Type(() => Prices)
   @IsNotEmpty()

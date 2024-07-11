@@ -788,16 +788,16 @@ export class WorkOrdersService {
               }),
             ]
           : []),
-        this.dbService.work_order_status.updateMany({
-          where: {
-            id: recentWorkStatus?.id ?? 0,
-            work_order_id: id,
-          },
-          data: {
-            deleted_at: new Date(),
-            deleted_by: user.id,
-          },
-        }),
+        // this.dbService.work_order_status.updateMany({
+        //   where: {
+        //     id: recentWorkStatus?.id ?? 0,
+        //     work_order_id: id,
+        //   },
+        //   data: {
+        //     deleted_at: new Date(),
+        //     deleted_by: user.id,
+        //   },
+        // }),
         this.dbService.work_orders.update({
           where: { id },
           data: {

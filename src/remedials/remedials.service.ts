@@ -49,7 +49,7 @@ export class RemedialsService {
         remedial_action: createRemedialDto.remedial_action,
         remedial_pic: createRemedialDto.remedial_pic,
         remedial_pic_positon: createRemedialDto.remedial_pic_position,
-        ra_date_start: new Date(createRemedialDto.ra_date_start),
+        ra_date_start: createRemedialDto.ra_date_start ?  new Date(createRemedialDto.ra_date_start)  : undefined,
         ra_date_end: createRemedialDto.ra_date_end
           ? new Date(createRemedialDto.ra_date_end)
           : undefined,
@@ -164,7 +164,7 @@ export class RemedialsService {
         remedial_action: updateRemedialDto.remedial_action,
         remedial_pic: updateRemedialDto.remedial_pic,
         remedial_pic_positon: updateRemedialDto?.remedial_pic_position,
-        ra_date_start: new Date(updateRemedialDto.ra_date_start),
+        ra_date_start: updateRemedialDto.ra_date_start ? new Date(updateRemedialDto.ra_date_start)  : undefined,
         ra_date_end: updateRemedialDto.ra_date_end
           ? new Date(updateRemedialDto.ra_date_end)
           : undefined,

@@ -108,21 +108,25 @@ export class ReportsService {
         member_id,
         tukang_id
       } = query;
-
+  
       const statusCategories = {
-        totalOrderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
-        totalWIP: ['WORKSTART'],
-        totalOrderDone: ['WORKEND'],
         totalWaitingSurvey: ['SURVEYREQ'],
+        totalSurveyStart: ['SURVEYSTART'],
+        totalSurveyEnd: ['SURVEYEND'],
+        orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
+        totalWaitingWork: ['WORKREQ'],
+        totalWIP: ['WORKSTART', 'WIP'],
+        totalOrderDone: ['WORKEND'],
+        orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
-        totalComplaint: ['INVESTIGATED'],
-        totalReschedule: ['RESCHEDULE'],
+        totalWaitingQuotationVendor: ['QUOTEIN'],
+        totalWaitingQuotationCustomer: ['QUOTEOUT'],
         totalCancel: ['CANCEL'],
-        totalRefund: ['REFUND'],
+        totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
         totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+        totalWaitingResolve: ['INVESTIGATED'],
       };
-
-      
+  
       const where: Prisma.ordersWhereInput = {
         AND: [
           ...(search
@@ -159,7 +163,7 @@ export class ReportsService {
                 },
               }
             : undefined,
-            tukang_id 
+          tukang_id 
             ? {
               work_orders: {
                 work_order_tukang: {
@@ -182,7 +186,7 @@ export class ReportsService {
         ].filter(Boolean),
         deleted_at: null,
       };
-
+  
       const orders = await this.dbService.orders.findMany({
         where,
         orderBy: {
@@ -197,7 +201,34 @@ export class ReportsService {
           },
         },
       });
-
+  
+      const complaints = await this.dbService.complaints.findMany({
+        where: {
+          created_at: {
+            gte: new Date(date_from),
+            lte: new Date(`${date_to}T23:59:59.000Z`),
+          },
+        },
+      });
+  
+      const reschedules = await this.dbService.reschedule.findMany({
+        where: {
+          created_at: {
+            gte: new Date(date_from),
+            lte: new Date(`${date_to}T23:59:59.000Z`),
+          },
+        },
+      });
+  
+      const refunds = await this.dbService.refund.findMany({
+        where: {
+          created_at: {
+            gte: new Date(date_from),
+            lte: new Date(`${date_to}T23:59:59.000Z`),
+          },
+        },
+      });
+  
       const count = await this.dbService.orders.count({ where });
       const orderGrandTotal = await this.dbService.orders
         .aggregate({
@@ -205,7 +236,7 @@ export class ReportsService {
           _sum: { grand_total: true },
         })
         .then((data) => data._sum.grand_total);
-
+  
       const quoteInGrandTotal = await this.dbService.quotation
         .aggregate({
           where: {
@@ -215,7 +246,7 @@ export class ReportsService {
           _sum: { quotation_grand_total: true },
         })
         .then((data) => data._sum.quotation_grand_total);
-
+  
       const allMonths = [
         'Januari',
         'Februari',
@@ -230,53 +261,112 @@ export class ReportsService {
         'November',
         'Desember',
       ];
-
+  
       const summary = allMonths.reduce((acc, month) => {
         acc[month] = {
           totalOrder: 0,
           totalOrderGrandTotal: 0,
-          totalOrderSurvey: 0,
+          totalWaitingSurvey: 0,
+          totalSurveyStart: 0,
+          totalSurveyEnd: 0,
+          orderSurvey: 0,
+          totalUnpaidReceipt: 0,
+          totalUnpaidQuotation: 0,
+          totalWaitingWork: 0,
           totalWIP: 0,
           totalOrderDone: 0,
-          totalWaitingSurvey: 0,
+          orderWork: 0,
           totalWaitingQuotation: 0,
+          totalWaitingQuotationVendor: 0,
+          totalWaitingQuotationCustomer: 0,
+          totalCancel: 0,
           totalComplaint: 0,
           totalReschedule: 0,
-          totalCancel: 0,
           totalRefund: 0,
+          totalWaitingResolve: 0,
+          totalResurvey: 0,
           totalRework: 0,
-          totalUnpaid: 0,
+          totalActiveWarranty: 0,
+          totalExpiredWarranty: 0,
         };
         return acc;
       }, {});
-
+  
+      const H_PLUS_7_DAYS = 7 * 24 * 60 * 60 * 1000;
+  
       orders.forEach((order) => {
         const month = new Date(order.created_at).toLocaleString('id-ID', {
           month: 'long',
         });
+  
         summary[month].totalOrder++;
         summary[month].totalOrderGrandTotal += Number(order.grand_total);
-
+  
         Object.entries(statusCategories).forEach(([key, statuses]) => {
           if (statuses.includes(order.status.category)) {
             summary[month][key]++;
           }
         });
-
+  
+        if (order.receipt_number === null) {
+          summary[month].totalUnpaidReceipt++;
+        }
+  
         if (
           (order.payment_type === 'survey' ||
             order.payment_type === 'pemasangan_tanpa_survey') &&
           order.receipt_number === null
         ) {
-          summary[month].totalUnpaid++;
+          summary[month].totalUnpaidReceipt++;
+        }
+  
+        const now = new Date();
+        const workEndDate = new Date(order.created_at);
+        const warrantyExpirationDate = new Date(
+          workEndDate.getTime() + H_PLUS_7_DAYS
+        );
+  
+        if (order.status.category === 'WORKEND') {
+          if (now <= warrantyExpirationDate) {
+            summary[month].totalActiveWarranty++;
+          } else {
+            summary[month].totalExpiredWarranty++;
+          }
         }
       });
-
+  
+      complaints.forEach((complaint) => {
+        const month = new Date(complaint.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+        if (summary[month]) {
+          summary[month].totalComplaint++;
+        }
+      });
+  
+      reschedules.forEach((reschedule) => {
+        const month = new Date(reschedule.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+        if (summary[month]) {
+          summary[month].totalReschedule++;
+        }
+      });
+  
+      refunds.forEach((refund) => {
+        const month = new Date(refund.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+        if (summary[month]) {
+          summary[month].totalRefund++;
+        }
+      });
+  
       const monthlyOrders = allMonths.map((month) => ({
         month,
         ...summary[month],
       }));
-
+  
       return {
         data: monthlyOrders,
         meta: {
@@ -290,7 +380,7 @@ export class ReportsService {
       throw error;
     }
   }
-
+  
   async complaintReport(queryParamsDto: QueryParamsDto) {
     try {
       const {

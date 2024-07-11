@@ -7,7 +7,7 @@ export class CreateRemedialDto {
 
   remedial_action: string;
 
-  ra_date_start: string;
+  ra_date_start?: string;
   ra_date_end?: string;
 
   // @Type(() => Number)
