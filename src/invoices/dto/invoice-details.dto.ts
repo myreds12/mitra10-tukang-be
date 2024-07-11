@@ -11,5 +11,8 @@ export class InvoiceDetails {
   quotation_id?: number;
 
   @Type(() => Number)
+  type?: number;
+
+  @Type(() => Number)
   order_id?: number;
 }

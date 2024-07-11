@@ -81,8 +81,9 @@ model employee {
 model items {
   id Int @id @default(autoincrement())
 
-  type            Int?    @default(1) // 1 = GRATIS, 2 = PEMASANGAN_TANPA_SURVEY
+  type            Int?    @default(0) // 1 = GRATIS, 2 = PEMASANGAN_TANPA_SURVEY
   invoice_nominal Decimal @default(0) @db.Decimal(32, 2)
+  invoices_prices Decimal @default(0) @db.Decimal(32, 2)
   item_name       String? @db.VarChar(255)
   item_code       String? @db.VarChar(255)
   service_name    String  @db.VarChar(255)
@@ -1051,7 +1052,7 @@ model remedials {
   complaint_id Int
 
   remedial_action      String
-  ra_date_start        DateTime?  @db.Date()
+  ra_date_start        DateTime? @db.Date()
   ra_date_end          DateTime? @db.Date()
   remedial_pic_positon String?   @default("") @db.VarChar(50)
   remedial_status      Int?
@@ -1246,11 +1247,13 @@ model invoices {
   id        Int @id @default(autoincrement())
   vendor_id Int @map("vendorId")
 
-  status Int @db.Int() // 1 = WAITING FOR PAYMENT, 2 = PAID, 3 = INVOICE DECLINED
+  status Int  @db.Int() // 1 = INVOICE CHECK, 2 = APPROVE, 3 = REJECTED, 4 = WAITING FOR DOCUMENT, 5 = INVOICE GIVEN TO FINANCE, 6 = INVOICE PAID
 
   total_amount   Decimal? @db.Decimal(32, 2)
+  pkp_nominal    Decimal? @db.Decimal(32, 2)
   invoice_number String
   description    String?  @db.VarChar(400)
+  notes          String?  @db.VarChar(500)
 
   created_by Int?
   updated_by Int?
@@ -1269,10 +1272,12 @@ model invoices {
 model invoice_details {
   id Int @id @default(autoincrement())
 
-  invoice_id Int @map("invoiceId")
-  order_id   Int @map("orderId")
+  type       Int? @default(1) // 1 = SURVEI SELESAI, 2 = PENGERJAAN SELESAI
+  invoice_id Int  @map("invoiceId")
+  order_id   Int  @map("orderId")
 
-  total Int? @default(0) @db.Int()
+  total          Int?    @default(0) @db.Int()
+  invoice_number String? @db.VarChar(50)
 
   created_by Int? @map("createdBy")
   updated_by Int? @map("updatedBy")

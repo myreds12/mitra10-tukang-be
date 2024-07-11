@@ -691,7 +691,11 @@ export class OrderService {
             },
             include: {
               promotion: true,
-              quotation_details: true,
+              quotation_details: {
+                where: {
+                  deleted_at: null
+                }
+              },
               quotation_files: true,
             },
           },
