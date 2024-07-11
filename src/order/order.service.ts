@@ -1784,6 +1784,7 @@ export class OrderService {
         { header: 'Order Id', key: 'id', width: 10 },
         { header: 'Tanggal Request', key: 'request_survey', width: 25 },
         { header: 'Nomor Receipt', key: 'receipt_number', width: 30 },
+        { header: 'Receipt Quotation', key: 'receipt_quotation', width: 30 },
         { header: 'Payment Type', key: 'payment_type', width: 30 },
         { header: 'Nama Toko', key: 'store_name', width: 25 },
         { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
@@ -1888,7 +1889,8 @@ export class OrderService {
           request_survey: order.request_survey
             ? formattedDateTime(order.request_survey)
             : 'N/a',
-          receipt_number: order.receipt_number ? order.receipt_number : 'N/a',
+          receipt_quotation : order.payment_type === 'survey' && order?.quotation[0]?.receipt_quotation ? order?.quotation[0]?.receipt_quotation : 'Receipt Quotation tidak ada',
+          receipt_number: order.receipt_number ? order.receipt_number : 'Receipt belum terbit',
           payment_type:
             order.payment_type === 'pemasangan_tanpa_survey'
               ? 'Pemasangan Tanpa Survey'
@@ -1956,6 +1958,7 @@ export class OrderService {
         project_number: '',
         company_name: '',
         sales_name: '',
+        receipt_quotation:'',
         receipt_number: '',
         payment_type: '',
         item_name: '',
@@ -1980,7 +1983,7 @@ export class OrderService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:Q${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:R${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
