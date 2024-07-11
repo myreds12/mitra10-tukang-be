@@ -1782,6 +1782,7 @@ export class OrderService {
         { header: 'Nomor Receipt', key: 'receipt_number', width: 30 },
         { header: 'Receipt Quotation', key: 'receipt_quotation', width: 30 },
         { header: 'Payment Type', key: 'payment_type', width: 30 },
+        { header: 'Order Status', key: 'status_order', width: 30 },
         { header: 'Nama Toko', key: 'store_name', width: 25 },
         { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
         { header: 'Category', key: 'category_name', width: 30 },
@@ -1895,6 +1896,7 @@ export class OrderService {
               : order.payment_type === 'gratis'
               ? 'Gratis'
               : 'N/a',
+          order_status: order?.status?.description ?? 'Order Tidak Memiliki Status',
           store_name: order.store ? order.store.store_name : 'N/a',
           item_name: itemName,
           category_name: categoryName,
@@ -1957,6 +1959,7 @@ export class OrderService {
         receipt_quotation:'',
         receipt_number: '',
         payment_type: '',
+        status_order: '',
         item_name: '',
         category_name: '',
         tukang_name: '',
