@@ -693,8 +693,8 @@ export class OrderService {
               promotion: true,
               quotation_details: {
                 where: {
-                  deleted_at: null
-                }
+                  deleted_at: null,
+                },
               },
               quotation_files: true,
             },
@@ -1854,12 +1854,9 @@ export class OrderService {
             minute: '2-digit',
           })}`;
         const grandTotal = Number(order.grand_total);
-        const formattedGrandTotal = !isNaN(grandTotal)
-          ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(grandTotal)
-          : 'Rp. 0';
+        const formattedGrandTotal : number = grandTotal
+          ? grandTotal
+          : 0;
         let grandTotalValue = formattedGrandTotal;
 
         if (order.payment_type === 'survey') {
@@ -1871,12 +1868,9 @@ export class OrderService {
 
           if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
             totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;
-            grandTotalValue = new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(grandTotalSurvey + quotationGrandTotal);
+            grandTotalValue = grandTotalSurvey + quotationGrandTotal;
           } else {
-            grandTotalValue = 'N/a';
+            grandTotalValue = 0;
           }
         }
 
@@ -1890,8 +1884,14 @@ export class OrderService {
           request_survey: order.request_survey
             ? formattedDateTime(order.request_survey)
             : 'N/a',
-          receipt_quotation : order.payment_type === 'survey' && order?.quotation[0]?.receipt_quotation ? order?.quotation[0]?.receipt_quotation : 'Receipt Quotation tidak ada',
-          receipt_number: order.receipt_number ? order.receipt_number : 'Receipt belum terbit',
+          receipt_quotation:
+            order.payment_type === 'survey' &&
+            order?.quotation[0]?.receipt_quotation
+              ? order?.quotation[0]?.receipt_quotation
+              : 'Receipt Quotation tidak ada',
+          receipt_number: order.receipt_number
+            ? order.receipt_number
+            : 'Receipt belum terbit',
           payment_type:
             order.payment_type === 'pemasangan_tanpa_survey'
               ? 'Pemasangan Tanpa Survey'
@@ -1900,7 +1900,8 @@ export class OrderService {
               : order.payment_type === 'gratis'
               ? 'Gratis'
               : 'N/a',
-          order_status: order?.status?.description ?? 'Order Tidak Memiliki Status',
+          order_status:
+            order?.status?.description ?? 'Order Tidak Memiliki Status',
           store_name: order.store ? order.store.store_name : 'N/a',
           item_name: itemName,
           category_name: categoryName,
@@ -1924,12 +1925,7 @@ export class OrderService {
               : 'Order Tidak Survey',
           quotation_grand_total:
             order.quotation && order.payment_type === 'survey'
-              ? new Intl.NumberFormat('id-ID', {
-                  style: 'currency',
-                  currency: 'IDR',
-                }).format(
-                  Number(order?.quotation[0]?.quotation_grand_total) || 0,
-                )
+              ? Number(order?.quotation[0]?.quotation_grand_total) || 0
               : 'Order Tidak Survey',
           grand_total: grandTotalValue,
         });
@@ -1960,7 +1956,7 @@ export class OrderService {
         project_number: '',
         company_name: '',
         sales_name: '',
-        receipt_quotation:'',
+        receipt_quotation: '',
         receipt_number: '',
         payment_type: '',
         status_order: '',
