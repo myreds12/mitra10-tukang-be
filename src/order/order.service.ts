@@ -1854,9 +1854,7 @@ export class OrderService {
             minute: '2-digit',
           })}`;
         const grandTotal = Number(order.grand_total);
-        const formattedGrandTotal : number = grandTotal
-          ? grandTotal
-          : 0;
+        const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
         let grandTotalValue = formattedGrandTotal;
 
         if (order.payment_type === 'survey') {
@@ -1900,7 +1898,7 @@ export class OrderService {
               : order.payment_type === 'gratis'
               ? 'Gratis'
               : 'N/a',
-          order_status:
+          status_order:
             order?.status?.description ?? 'Order Tidak Memiliki Status',
           store_name: order.store ? order.store.store_name : 'N/a',
           item_name: itemName,
@@ -1920,9 +1918,7 @@ export class OrderService {
           tukang_name: tukangName,
           created_at: formattedDateTime(order.created_at),
           grand_total_survey:
-            order.payment_type === 'survey'
-              ? formattedGrandTotal
-              : 0,
+            order.payment_type === 'survey' ? formattedGrandTotal : 0,
           quotation_grand_total:
             order.quotation && order.payment_type === 'survey'
               ? Number(order?.quotation[0]?.quotation_grand_total) || 0
@@ -1942,7 +1938,7 @@ export class OrderService {
       });
 
       // Setelah selesai iterasi, format totalGrandTotalValue menjadi format mata uang yang diinginkan
-      
+
       // Gunakan formattedTotalGrandTotalValue untuk membuat baris total seperti yang Anda lakukan sebelumnya di dalam worksheet
       const totalRow = worksheet.addRow({
         id: 'Total',
@@ -2461,9 +2457,7 @@ export class OrderService {
             minute: '2-digit',
           })}`;
         const grandTotal = Number(order.grand_total);
-        const formattedGrandTotal = !isNaN(grandTotal)
-          ? Number(grandTotal)
-          : 0;
+        const formattedGrandTotal = !isNaN(grandTotal) ? Number(grandTotal) : 0;
         const row = worksheet.addRow({
           id: order.id,
           store_name: order.store ? order.store.store_name : 'N/a',
