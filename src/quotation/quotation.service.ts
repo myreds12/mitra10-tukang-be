@@ -1096,10 +1096,7 @@ export class QuotationService {
         (total, order) => total + Number(order.quotation_grand_total),
         0,
       );
-      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-      }).format(totalGrandTotal);
+      const formattedTotalGrandTotal = Number(totalGrandTotal);
       const totalRow = worksheet.addRow({
         id: 'Total',
         order_id: '',
