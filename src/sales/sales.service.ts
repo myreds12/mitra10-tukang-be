@@ -885,7 +885,87 @@ export class SalesService {
 
   async salesExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { data } = await this.findAll(queryParams);
+      const {
+        search,
+        take,
+        page,
+        date_from,
+        date_to,
+        order_by,
+        top_best,
+        store_id,
+      } = queryParams;
+      const skip = page * take - take;
+      const where: Prisma.salesWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { full_name: { contains: search } },
+                    { sales_brand: { contains: search } },
+                    {
+                      sales_categories: {
+                        some: {
+                          categories: { category_name: { contains: search } },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(store_id
+            ? [
+                {
+                  store_id: {
+                    in: store_id,
+                  },
+                },
+              ]
+            : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
+                },
+              ]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      }; 
+
+      const data = await this.dbService.sales.findMany({
+        where,
+        skip,
+        orderBy: {
+          ...(Boolean(top_best)
+            ? {
+                order_total: 'desc',
+              }
+            : {
+                created_at: order_by,
+              }),
+        },
+        include: {
+          bank: true,
+          store: true,
+          sales_brands: {
+            include: {
+              brands: true,
+            },
+          },
+          sales_categories: {
+            include: {
+              categories: true,
+            },
+          },
+          users: true,
+        },
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Profile Sales ', {
