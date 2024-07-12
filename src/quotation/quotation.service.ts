@@ -69,6 +69,7 @@ export class QuotationService {
       const promotion = createQuotationDto.promotion_id ? await this.dbService.promotion.findFirst({
         where: {
           id: createQuotationDto.promotion_id,
+          deleted_at: null
         },
         include: {
           promotion_stores: {
@@ -459,6 +460,7 @@ export class QuotationService {
         ? await this.dbService.promotion.findFirst({
             where: {
               id: updateQuotationDto.promotion_id,
+              deleted_at: null
             },
             include: {
               promotion_stores: {
@@ -1046,11 +1048,8 @@ export class QuotationService {
           })}`;
         const grandTotal = Number(quotation.quotation_grand_total);
         const formattedGrandTotal = !isNaN(grandTotal)
-          ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(grandTotal)
-          : 'Rp. 0';
+          ? Number(grandTotal)
+          : 0;
         const row = worksheet.addRow({
           id: quotation.id,
           order_id: quotation.order ? quotation.order.id : '-',

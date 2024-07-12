@@ -1922,11 +1922,11 @@ export class OrderService {
           grand_total_survey:
             order.payment_type === 'survey'
               ? formattedGrandTotal
-              : 'Order Tidak Survey',
+              : 0,
           quotation_grand_total:
             order.quotation && order.payment_type === 'survey'
               ? Number(order?.quotation[0]?.quotation_grand_total) || 0
-              : 'Order Tidak Survey',
+              : 0,
           grand_total: grandTotalValue,
         });
 
@@ -1942,11 +1942,7 @@ export class OrderService {
       });
 
       // Setelah selesai iterasi, format totalGrandTotalValue menjadi format mata uang yang diinginkan
-      const formattedTotalGrandTotalValue = new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-      }).format(totalGrandTotalValue);
-
+      
       // Gunakan formattedTotalGrandTotalValue untuk membuat baris total seperti yang Anda lakukan sebelumnya di dalam worksheet
       const totalRow = worksheet.addRow({
         id: 'Total',
@@ -1966,7 +1962,7 @@ export class OrderService {
         created_at: '',
         grand_total_survey: '',
         quotation_grand_total: '',
-        grand_total: formattedTotalGrandTotalValue, // Gunakan total yang sudah diformat di sini
+        grand_total: Number(totalGrandTotalValue), // Gunakan total yang sudah diformat di sini
       });
 
       totalRow.eachCell((cell) => {
@@ -2466,11 +2462,8 @@ export class OrderService {
           })}`;
         const grandTotal = Number(order.grand_total);
         const formattedGrandTotal = !isNaN(grandTotal)
-          ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(grandTotal)
-          : 'Rp. 0';
+          ? Number(grandTotal)
+          : 0;
         const row = worksheet.addRow({
           id: order.id,
           store_name: order.store ? order.store.store_name : 'N/a',
