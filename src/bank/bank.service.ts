@@ -38,6 +38,9 @@ export class BankService {
         skip,
         take: take <= 0 ? undefined : take,
         where,
+        orderBy: {
+          bank_name: 'asc'
+        }
       });
 
       const total = await this.dbService.bank.count({
