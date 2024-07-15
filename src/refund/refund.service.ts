@@ -22,9 +22,9 @@ export class RefundService {
       const order = await this.dbService.orders.findFirst({
         where: {
           id: createRefundDto.order_id,
-        }
+        },
       });
-      if(!order) throw new BadRequestException('Order not found');
+      if (!order) throw new BadRequestException('Order not found');
       const evidences:
         | Array<Prisma.refund_evidencesCreateManyRefundInput>
         | undefined =
@@ -32,6 +32,16 @@ export class RefundService {
           evidence_location: evidence.filename,
           created_by: user_id,
         })) ?? undefined;
+      const now = new Date();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const year = now.getFullYear().toString();
+
+      const refundCount = await this.dbService.refund.count();
+      const nextRefundNumber = refundCount + 1;
+
+      const approvalNumber = `REFUND-${month}${year}-${nextRefundNumber
+        .toString()
+        .padStart(2, '0')}`;
 
       const data: Prisma.refundCreateInput = {
         refund_evidences: {
@@ -44,7 +54,7 @@ export class RefundService {
         },
         status: {
           connect: {
-            id: createRefundDto.refund_status, 
+            id: createRefundDto.refund_status,
           },
         },
         date_approve: createRefundDto.date_approve
@@ -53,7 +63,7 @@ export class RefundService {
         date_of_filing: new Date(createRefundDto.date_of_filing),
         notes: createRefundDto.notes,
         reason: createRefundDto.reason,
-        approval_number: createRefundDto.approval_number,
+        approval_number: approvalNumber,
         penalty_nominal: order.grand_total,
         voucher: createRefundDto.voucher ? createRefundDto.voucher : null,
         created_by: user_id,
@@ -82,6 +92,8 @@ export class RefundService {
         take,
         store_id,
         vendor_id,
+        claim_voucher,
+        penalty_vendor
       } = query;
       const skip = page * take - take;
       const where: Prisma.refundWhereInput = {
@@ -108,11 +120,29 @@ export class RefundService {
                 },
               ]
             : []),
+          ...(Boolean(claim_voucher)
+            ? [
+                {
+                  voucher: {
+                    not: null,
+                  },
+                },
+              ]
+            : []),
+            ...(Boolean(penalty_vendor)
+            ? [
+                {
+                  penalty_nominal: {
+                    not: null,
+                  },
+                },
+              ]
+            : []),
           ...(vendor_id
             ? [
                 {
                   orders: {
-                    vendor_id: vendor_id
+                    vendor_id: vendor_id,
                   },
                 },
               ]
@@ -280,23 +310,32 @@ export class RefundService {
           : undefined;
 
       const refundConn = {
-        ...(updateRefundDto.order_id ?{
-        orders: {
-          connect: {
-            id: updateRefundDto.order_id,
-          },
-        }
-       } : undefined),
-        ...(updateRefundDto.refund_status ?
-        {status: {
-          connect: {
-            id: updateRefundDto.refund_status,
-          },
-        }} : undefined),
+        ...(updateRefundDto.order_id
+          ? {
+              orders: {
+                connect: {
+                  id: updateRefundDto.order_id,
+                },
+              },
+            }
+          : undefined),
+        ...(updateRefundDto.refund_status
+          ? {
+              status: {
+                connect: {
+                  id: updateRefundDto.refund_status,
+                },
+              },
+            }
+          : undefined),
       };
       const refundData = {
-        date_approve: updateRefundDto.date_approve ? new Date(updateRefundDto.date_approve) : undefined,
-        date_of_filing: updateRefundDto.date_of_filing ? new Date(updateRefundDto.date_of_filing) : undefined,
+        date_approve: updateRefundDto.date_approve
+          ? new Date(updateRefundDto.date_approve)
+          : new Date(),
+        date_of_filing: updateRefundDto.date_of_filing
+          ? new Date(updateRefundDto.date_of_filing)
+          : undefined,
         approval_number: updateRefundDto?.approval_number ?? undefined,
         notes: updateRefundDto?.notes ?? undefined,
         reason: updateRefundDto?.reason ?? undefined,

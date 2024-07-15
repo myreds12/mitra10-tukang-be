@@ -41,7 +41,7 @@ export class QuotationService {
         },
         include: {
           sales: true,
-          vendor: true
+          vendor: true,
         },
       });
 
@@ -66,19 +66,21 @@ export class QuotationService {
         },
       });
 
-      const promotion = createQuotationDto.promotion_id ? await this.dbService.promotion.findFirst({
-        where: {
-          id: createQuotationDto.promotion_id,
-          deleted_at: null
-        },
-        include: {
-          promotion_stores: {
-            include: {
-              store: true,
+      const promotion = createQuotationDto.promotion_id
+        ? await this.dbService.promotion.findFirst({
+            where: {
+              id: createQuotationDto.promotion_id,
+              deleted_at: null,
             },
-          },
-        },
-      }) : undefined;
+            include: {
+              promotion_stores: {
+                include: {
+                  store: true,
+                },
+              },
+            },
+          })
+        : undefined;
       const quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
           const prices = Number(item.is_customer ? 0 : item?.price ?? 0);
@@ -126,7 +128,6 @@ export class QuotationService {
           grandTotal -= Number(promotion.promotion);
         }
       }
-
 
       console.log(promotion, 'PROMOTION');
 
@@ -220,33 +221,58 @@ export class QuotationService {
 
   async findAll(queryParamsDto: QueryParamsDto) {
     try {
-      const { take, page, search, status, date_from, date_to, order_by } =
-        queryParamsDto;
+      const {
+        take,
+        page,
+        search,
+        status,
+        date_from,
+        date_to,
+        order_by,
+        vendor_id,
+        promotion,
+      } = queryParamsDto;
       const skip = page * take - take;
       const where: Prisma.quotationWhereInput = {
         AND: [
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    order: { vendor: { company_name: { contains: search } } },
-                  },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    {
+                      order: { vendor: { company_name: { contains: search } } },
+                    },
+                    { store: { store_name: { contains: search } } },
+                    { quotation_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : null,
+          vendor_id
+            ? {
+                order: {
+                  vendor_id: vendor_id,
+                },
+              }
+            : undefined,
+          ...(Boolean(promotion)
+            ? [
+                {
+                  promotion_id: {
+                    not: null,
+                  },
+                },
+              ]
+            : []),
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
         order: {
@@ -294,7 +320,7 @@ export class QuotationService {
                   },
                   work_order_tukang: {
                     where: {
-                      deleted_at: null
+                      deleted_at: null,
                     },
                     include: {
                       tukang: true,
@@ -323,7 +349,13 @@ export class QuotationService {
       });
       const userIds = [
         ...new Set(
-          quotation.flatMap((item) => [item.created_by, item.updated_by, item.deleted_by]).filter(Boolean)
+          quotation
+            .flatMap((item) => [
+              item.created_by,
+              item.updated_by,
+              item.deleted_by,
+            ])
+            .filter(Boolean),
         ),
       ];
 
@@ -337,7 +369,7 @@ export class QuotationService {
           ...acc,
           [user.id]: user,
         }),
-        {}
+        {},
       );
 
       const quotationWithUser = quotation.map((item) => ({
@@ -415,15 +447,19 @@ export class QuotationService {
           store: true,
         },
       });
-      const userIds = [quotation.created_by, quotation.updated_by, quotation.deleted_by].filter(Boolean);
-  
+      const userIds = [
+        quotation.created_by,
+        quotation.updated_by,
+        quotation.deleted_by,
+      ].filter(Boolean);
+
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       });
-  
-      const userMap = Object.fromEntries(users.map(user => [user.id, user]));
-  
+
+      const userMap = Object.fromEntries(users.map((user) => [user.id, user]));
+
       // Attach user data to the quotations
       const quotationsWithUser = {
         ...quotation,
@@ -448,29 +484,29 @@ export class QuotationService {
     try {
       const { id: user_id } = user;
       const { quotation_files, quotation_receipts } = files;
-
-      const STATUS_QUOTEOUT = await this.dbService.status.findFirst({
+      const quotationForUpdate = await this.dbService.quotation.findFirst({
         where: {
-          category: {
-            contains: 'QUOTEOUT',
+          id,
+        },
+        include: {
+          promotion: true,
+        },
+      });
+
+      const promotion = await this.dbService.promotion.findFirst({
+        where: {
+          id:
+            updateQuotationDto?.promotion_id ??
+            quotationForUpdate?.promotion?.id,
+        },
+        include: {
+          promotion_stores: {
+            include: {
+              store: true,
+            },
           },
         },
       });
-      const promotion = updateQuotationDto.promotion_id
-        ? await this.dbService.promotion.findFirst({
-            where: {
-              id: updateQuotationDto.promotion_id,
-              deleted_at: null
-            },
-            include: {
-              promotion_stores: {
-                include: {
-                  store: true,
-                },
-              },
-            },
-          })
-        : undefined;
 
       const quotationfiles =
         quotation_files?.map((item) => ({
@@ -578,13 +614,15 @@ export class QuotationService {
             id,
           },
           data: {
-            ...(promotion ? {
-              promotion: {
-                connect: {
-                  id: updateQuotationDto.promotion_id
+            ...(promotion
+              ? {
+                  promotion: {
+                    connect: {
+                      id: updateQuotationDto.promotion_id,
+                    },
+                  },
                 }
-              }
-            } : undefined),
+              : undefined),
             status: updateQuotationDto?.quotation_status
               ? {
                   connect: {
@@ -592,7 +630,8 @@ export class QuotationService {
                   },
                 }
               : undefined,
-            receipt_quotation: updateQuotationDto?.receipt_quotation ?? undefined,
+            receipt_quotation:
+              updateQuotationDto?.receipt_quotation ?? undefined,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,
@@ -839,96 +878,95 @@ export class QuotationService {
   async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const { take, page, search, status, date_from, date_to, order_by } =
-      queryParams;
-    const where: Prisma.quotationWhereInput = {
-      AND: [
-        status ? { status: { id: { in: status } } } : null,
-        ...(search
-          ? [
-            {
-              OR: [
+        queryParams;
+      const where: Prisma.quotationWhereInput = {
+        AND: [
+          status ? { status: { id: { in: status } } } : null,
+          ...(search
+            ? [
                 {
-                  order: { vendor: { company_name: { contains: search } } },
+                  OR: [
+                    {
+                      order: { vendor: { company_name: { contains: search } } },
+                    },
+                    { store: { store_name: { contains: search } } },
+                    { quotation_number: { contains: search } },
+                  ],
                 },
-                { store: { store_name: { contains: search } } },
-                { quotation_number: { contains: search } },
-              ],
-            },
-          ]
-          : []),
-        date_from && date_to
-          ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
-          : null,
-      ].filter((condition) => Boolean(condition)),
-      deleted_at: null,
-      order: {
-        deleted_at: null,
-      },
-    };
-    const data = await this.dbService.quotation.findMany({
-      where,
-      orderBy: {
-        created_at: order_by,
-      },
-      include: {
-        promotion: true,
-        quotation_files: true,
-        quotation_details: {
-          include: {
-            category: true,
-            work_order_items: {
-              where: {
-                deleted_at: null
+              ]
+            : []),
+          date_from && date_to
+            ? {
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               }
-            },
-          },
-        },
+            : null,
+        ].filter((condition) => Boolean(condition)),
+        deleted_at: null,
         order: {
-          include: {
-            m_order_details: {
-              where: {
-                deleted_at: null,
+          deleted_at: null,
+        },
+      };
+      const data = await this.dbService.quotation.findMany({
+        where,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          promotion: true,
+          quotation_files: true,
+          quotation_details: {
+            include: {
+              category: true,
+              work_order_items: {
+                where: {
+                  deleted_at: null,
+                },
               },
             },
-            vendor: true,
-            store: true,
-            members: true,
-            sales: true,
-            work_orders: {
-              include: {
-                work_order_evidences: true,
-                work_order_status: {
-                  where: {
-                    deleted_at: null
-                  },
-                  include: {
-                    work_order_items: {
-                      orderBy: {
-                        id: 'desc',
+          },
+          order: {
+            include: {
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+              vendor: true,
+              store: true,
+              members: true,
+              sales: true,
+              work_orders: {
+                include: {
+                  work_order_evidences: true,
+                  work_order_status: {
+                    where: {
+                      deleted_at: null,
+                    },
+                    include: {
+                      work_order_items: {
+                        orderBy: {
+                          id: 'desc',
+                        },
                       },
                     },
                   },
-                },
-                work_order_tukang: {
-                  include: {
-                    tukang: true,
+                  work_order_tukang: {
+                    include: {
+                      tukang: true,
+                    },
                   },
+                  status: true,
                 },
-                status: true,
               },
             },
           },
+          status: true,
+          store: true,
         },
-        status: true,
-        store: true,
-      },
-    });
-
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Quotation', {
@@ -1006,33 +1044,49 @@ export class QuotationService {
               .map((item) => item?.name || '-')
               .join(', ')
           : '-';
-        const itemQuantity = quotation?.quotation_details?.some(item => item.quantity && item)
+        const itemQuantity = quotation?.quotation_details?.some(
+          (item) => item.quantity && item,
+        )
           ? quotation.quotation_details
               .map((item) => item?.quantity || '1')
               .join(', ')
           : 'Quantity tidak tersedia';
-        const itemUnit = quotation?.quotation_details?.some(item => item.unit && item)
+        const itemUnit = quotation?.quotation_details?.some(
+          (item) => item.unit && item,
+        )
           ? quotation.quotation_details
               .map((item) => item?.unit || 'Satuan tidak ditulis')
               .join(', ')
           : 'Satuan tidak tersedia';
-        const statusPayment = quotation?.receipt_quotation ? 'Dibayar' : 'Belum Dibayar';
+        const statusPayment = quotation?.receipt_quotation
+          ? 'Dibayar'
+          : 'Belum Dibayar';
         const tukangName = quotation?.order?.work_orders?.work_order_tukang
-        ? [...new Set(quotation.order.work_orders.work_order_tukang
-            .map((item) => item?.tukang?.full_name))]
-            .join(', ')
-        : 'Tukang belum ditugaskan';
-        const workOrderItems = quotation?.quotation_details?.some(item => item.work_order_items_id && item)
+          ? [
+              ...new Set(
+                quotation.order.work_orders.work_order_tukang.map(
+                  (item) => item?.tukang?.full_name,
+                ),
+              ),
+            ].join(', ')
+          : 'Tukang belum ditugaskan';
+        const workOrderItems = quotation?.quotation_details?.some(
+          (item) => item.work_order_items_id && item,
+        )
           ? quotation.quotation_details
               .map((item) => item?.work_order_items?.name || '-')
               .join(', ')
           : 'Material tidak ditambahkan';
-        const workOrderItemsQuantity = quotation?.quotation_details?.some(item => item.work_order_items_id && item)
+        const workOrderItemsQuantity = quotation?.quotation_details?.some(
+          (item) => item.work_order_items_id && item,
+        )
           ? quotation.quotation_details
               .map((item) => item?.work_order_items?.quantity || '-')
               .join(', ')
           : 'Material tidak ditambahkan';
-        const workOrderItemsUnit =quotation?.quotation_details?.some(item => item.work_order_items_id && item)
+        const workOrderItemsUnit = quotation?.quotation_details?.some(
+          (item) => item.work_order_items_id && item,
+        )
           ? quotation.quotation_details
               .map((item) => item?.work_order_items?.unit || '-')
               .join(', ')
@@ -1047,13 +1101,13 @@ export class QuotationService {
             minute: '2-digit',
           })}`;
         const grandTotal = Number(quotation.quotation_grand_total);
-        const formattedGrandTotal = !isNaN(grandTotal)
-          ? Number(grandTotal)
-          : 0;
+        const formattedGrandTotal = !isNaN(grandTotal) ? Number(grandTotal) : 0;
         const row = worksheet.addRow({
           id: quotation.id,
           order_id: quotation.order ? quotation.order.id : '-',
-          member_name: quotation.order.members ? quotation.order.members.full_name : '-',
+          member_name: quotation.order.members
+            ? quotation.order.members.full_name
+            : '-',
           item_name: itemName,
           item_quantity: itemQuantity,
           item_unit: itemUnit,
@@ -1193,7 +1247,7 @@ export class QuotationService {
   ) {
     console.log(grandTotal, 'TOTAL');
     console.log(storeId, 'STORE');
-    
+
     const { id: quotation_id, order_id } = quotation;
 
     const filteredIncentive = await this.dbService.setting_incentive.findMany({

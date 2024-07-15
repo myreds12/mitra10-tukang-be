@@ -98,6 +98,7 @@ export class InvoicesService {
         },
       });
       console.log('orders:', orders);
+      
 
       let totalGrandTotal = 0;
       let invoiceDetails = [];
@@ -122,7 +123,7 @@ export class InvoicesService {
               console.log("COUNT 1");
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin = Number(vendor.nominal_survey);
+              const totalMargin = Number(order?.quotation[0]?.quotation_grand_total) - (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_grand_total));
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -135,7 +136,7 @@ export class InvoicesService {
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
               const totalMargin =
                 vendor.margin_type === 1
-                  ? +order.grand_total - (((100 - +vendor.margin_nominal) / 100) * +order.grand_total)
+                  ? +order.grand_total - (((+vendor.margin_nominal) / 100) * +order.grand_total)
                   : vendor.margin_type === 2
                     ? +order.grand_total - +vendor.margin_nominal
                     : 0;
@@ -298,6 +299,14 @@ export class InvoicesService {
             include: {
               order: {
                 include: {
+                  m_order_details: {
+                    where:{
+                      deleted_at: null
+                    },
+                    include: {
+                      item: true
+                    }
+                  },
                   members: true,
                 },
               },
@@ -345,6 +354,9 @@ export class InvoicesService {
               order: {
                 include: {
                   m_order_details: {
+                    where:{
+                      deleted_at: null
+                    },
                     include: {
                       item: true
                     }
@@ -429,13 +441,13 @@ export class InvoicesService {
       console.log('evidences:', evidences);
 
       const providedOrderIds =
-        updateInvoiceDto.invoice_details?.map(({ order_id }) =>
+        updateInvoiceDto?.invoice_details?.map(({ order_id }) =>
           Number(order_id),
-        ) || [];
-      if (providedOrderIds.length === 0) {
-        this.logger.error('No Order Id Provided');
-        throw new Error('No Order Id Provided');
-      }
+        ) || undefined;
+      // if (providedOrderIds.length === 0) {
+      //   this.logger.error('No Order Id Provided');
+      //   throw new Error('No Order Id Provided');
+      // }
 
       console.log('providedOrderIds:', providedOrderIds);
 
@@ -458,7 +470,7 @@ export class InvoicesService {
       console.log('orders:', orders);
 
       let totalAmount = 0;
-      const invoiceDetails = updateInvoiceDto.invoice_details.map((item) => {
+      const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details?.map((item) => {
         const order = orders.find((order) => order.id === item.order_id);
         let total = 0;
 
@@ -467,12 +479,12 @@ export class InvoicesService {
             total = Number(invoice.vendor.nominal_survey);
             totalAmount += total;
           } else if (order.payment_type === 'survey' && item.type === 2) {
-            total = Number(invoice.vendor.nominal_survey);
+            total = Number(order?.quotation[0]?.quotation_grand_total) - (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_grand_total));;
             totalAmount += total;
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
               invoice.vendor.margin_type === 1
-                ? +order.grand_total - (((100 - +invoice.vendor.margin_nominal) / 100) * +order.grand_total)
+                ? +order.grand_total - (((+invoice.vendor.margin_nominal) / 100) * +order.grand_total)
                 : invoice.vendor.margin_type === 2
                   ? +order.grand_total - +invoice.vendor.margin_nominal
                   : 0;
@@ -502,15 +514,18 @@ export class InvoicesService {
             updated_by: user_id,
           },
         };
-      });
+      }) : undefined;
 
       console.log('invoiceDetails:', invoiceDetails);
-
-      if (invoice.vendor.type === 1) {
+      if (invoice.vendor.type === 1 && updateInvoiceDto.invoice_details) {
         totalAmount += totalAmount * (Number(invoice.vendor.pkp_nominal) / 100)
       }
+
       const invoiceData = {
-        total_amount: totalAmount,
+        total_amount: totalAmount  != 0 ? totalAmount : undefined,
+        ...(updateInvoiceDto.status === 6 ? {
+          invoice_to_finance_date: new Date()
+        } : undefined),
         status: updateInvoiceDto.status,
         description: updateInvoiceDto?.description ?? undefined,
         notes: updateInvoiceDto?.notes ?? undefined,
@@ -699,11 +714,6 @@ export class InvoicesService {
             where: { id: invoice.id },
             data: { status: 4 },
           });
-        } else {
-          await this.dbService.invoices.update({
-            where: { id: invoice.id },
-            data: { status: 5 },
-          });
         }
       });
 
@@ -720,10 +730,18 @@ export class InvoicesService {
 
   async invoiceExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
+      const {invoice_status} = queryParams;
       const data = await this.dbService.orders.findMany({
         where: {
           deleted_at: null,
           deleted_by: null,
+          invoice_details: {
+            some: {
+              invoices: {
+                status: invoice_status
+              }
+            }
+          }
         },
         include: {
           members: true,

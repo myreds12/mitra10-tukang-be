@@ -1247,13 +1247,14 @@ model invoices {
   id        Int @id @default(autoincrement())
   vendor_id Int @map("vendorId")
 
-  status Int  @db.Int() // 1 = INVOICE CHECK, 2 = APPROVE, 3 = REJECTED, 4 = WAITING FOR DOCUMENT, 5 = INVOICE GIVEN TO FINANCE, 6 = INVOICE PAID
+  status Int @db.Int() // 1 = INVOICE CHECK, 2 = APPROVE, 3 = REJECTED, 4 = WAITING FOR DOCUMENT, 5 = INVOICE GIVEN TO FINANCE, 6 = INVOICE PAID
 
-  total_amount   Decimal? @db.Decimal(32, 2)
-  pkp_nominal    Decimal? @db.Decimal(32, 2)
-  invoice_number String
-  description    String?  @db.VarChar(400)
-  notes          String?  @db.VarChar(500)
+  total_amount            Decimal?  @db.Decimal(32, 2)
+  pkp_nominal             Decimal?  @db.Decimal(32, 2)
+  invoice_number          String
+  invoice_to_finance_date DateTime? @db.DateTime()
+  description             String?   @db.VarChar(400)
+  notes                   String?   @db.VarChar(500)
 
   created_by Int?
   updated_by Int?

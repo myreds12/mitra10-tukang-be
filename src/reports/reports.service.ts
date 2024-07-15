@@ -786,8 +786,12 @@ export class ReportsService {
   async reportTukang(query: QueryParamsDto) {
     try {
       const tukang = await this.dbService.tukang.findMany({
+        where: {
+          deleted_at: null
+        },
         include: {
           work_order_tukang: {
+            where: {deleted_at: null},
             include: {
               work_orders: {
                 include: {

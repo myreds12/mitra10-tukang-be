@@ -238,6 +238,7 @@ export class OrderService {
         vendor_id,
         work_order_status,
         is_invoice,
+        sent_csi,
       } = queryParams;
 
       const skip = page * take - take;
@@ -249,8 +250,6 @@ export class OrderService {
                 {
                   OR: [
                     { receipt_number: { contains: search } },
-                    // TODO: FIXME
-                    // { request_survey: { equals: new Date(search) } },
                     { members: { full_name: { contains: search } } },
                     {
                       store: {
@@ -299,13 +298,6 @@ export class OrderService {
                 },
               ]
             : []),
-          // ...(Boolean(is_invoice) ? {
-          //     invoice_details: {
-          //       none: {
-          //         deleted_at: null
-          //       }
-          //     }
-          //   } : {}),
           ...(Boolean(is_invoice)
             ? [
                 {
@@ -314,19 +306,9 @@ export class OrderService {
                       deleted_at: null,
                     },
                   },
-                  // order_history: {
-                  //   some: {
-                  //     status: {
-                  //       category: {
-                  //         in: ['SURVEYDONE', 'WORKEND', 'DONE'],
-                  //       },
-                  //     },
-                  //   },
-                  // },
                 },
               ]
             : []),
-          //
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -546,6 +528,7 @@ export class OrderService {
           order_files: true,
         },
       });
+
       const userIds = [
         ...new Set(
           orders
@@ -557,6 +540,22 @@ export class OrderService {
             .filter(Boolean),
         ),
       ];
+
+      const logs = await this.dbService.mail_logs.findMany({
+        where: {
+          moduleId: { in: orders.map((order) => order.id) },
+        },
+        select: {
+          id: true,
+          emailMessageId: true,
+          moduleId: true,
+          data: true,
+          to: true,
+          status: true,
+          createdAt: true,
+          emailMessages: true,
+        },
+      });
 
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
@@ -571,16 +570,49 @@ export class OrderService {
         {},
       );
 
-      const ordersWithUser = orders.map((order) => ({
-        ...order,
-        created_by: order.created_by ? userMap[order.created_by] || null : null,
-        updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
-        deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
-      }));
+      const ordersWithCSI = orders.map((order) => {
+        const orderLogs = logs.filter((log) => log.moduleId === order.id);
+        const csiCount = orderLogs.filter((log) => {
+          let data;
+          try {
+            data = JSON.parse(log.data);
+          } catch (e) {
+            console.error(`Failed to parse JSON for log ID ${log.id}`, e);
+            return false;
+          }
+          return data?.csi;
+        }).length;
+
+        return {
+          ...order,
+          created_by: order.created_by
+            ? userMap[order.created_by] || null
+            : null,
+          updated_by: order.updated_by
+            ? userMap[order.updated_by] || null
+            : null,
+          deleted_by: order.deleted_by
+            ? userMap[order.deleted_by] || null
+            : null,
+          csi_count: csiCount,
+        };
+      });
+
+      // Apply sent_csi filter
+      const filteredOrders = ordersWithCSI.filter((order) => {
+        if (sent_csi === 1) {
+          return order.csi_count > 0;
+        } else if (sent_csi === 0) {
+          return order.csi_count === 0;
+        }
+        return true;
+      });
+
       const count = await this.dbService.orders.count({
         where,
       });
-      const orderGrandTotal = orders.reduce((total, order) => {
+
+      const orderGrandTotal = filteredOrders.reduce((total, order) => {
         let grandTotal = Number(order.grand_total) || 0;
 
         if (order.payment_type === 'survey' && order.quotation) {
@@ -598,13 +630,13 @@ export class OrderService {
       }, 0);
 
       return {
-        data: ordersWithUser,
+        data: filteredOrders,
         meta: {
           total: count,
           orderGrandTotal,
           page,
           take,
-          takeTotal: orders.length,
+          takeTotal: filteredOrders.length,
         },
       };
     } catch (error) {

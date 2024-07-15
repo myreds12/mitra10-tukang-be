@@ -86,6 +86,26 @@ export class QueryParamsDto {
 
   @IsOptional()
   @Type(() => Number)
+  @IsIn([0,1])
+  claim_voucher?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0,1])
+  promotion?: number;
+  
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0,1])
+  sent_csi?: number;  
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0,1])
+  penalty_vendor?: number;
+
+  @IsOptional()
+  @Type(() => Number)
   item_type?: number;
 
   @IsOptional()

@@ -188,15 +188,15 @@ export class StoreService {
       const username = dto.default_username
       ? dto.default_username
       : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
-    const user = await this.dbService.users.update({
+    const user = store.user_id ? await this.dbService.users.update({
       where: {
         id: store.user_id
       },
       data: {
         username,
-        password: await hash(dto?.default_password ?? 'password', 10),
+        password: dto?.default_password ? await hash(dto?.default_password ?? 'password', 10) : store.users.password,
       },
-    });
+    }) : undefined;
       const storeUpdate = await this.dbService.store.update({
         where: {
           id,
