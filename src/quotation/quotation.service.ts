@@ -493,7 +493,7 @@ export class QuotationService {
         },
       });
 
-      const promotion = await this.dbService.promotion.findFirst({
+      const promotion = updateQuotationDto.promotion_id || quotationForUpdate.promotion_id ? await this.dbService.promotion.findFirstOrThrow({
         where: {
           id:
             updateQuotationDto?.promotion_id ??
@@ -506,7 +506,7 @@ export class QuotationService {
             },
           },
         },
-      });
+      }) : undefined;
 
       const quotationfiles =
         quotation_files?.map((item) => ({
@@ -592,6 +592,9 @@ export class QuotationService {
         }
       }
 
+      console.log(promotion);
+      
+
       const [syncDetails, quotation] = await this.dbService.$transaction([
         this.dbService.quotation_details.updateMany({
           where: {
@@ -618,7 +621,7 @@ export class QuotationService {
               ? {
                   promotion: {
                     connect: {
-                      id: updateQuotationDto.promotion_id,
+                      id: updateQuotationDto?.promotion_id ?? quotationForUpdate.promotion_id,
                     },
                   },
                 }
