@@ -110,13 +110,13 @@ export class ReportsService {
       } = query;
   
       const statusCategories = {
-        totalWaitingSurvey: ['SURVEYREQ'],
+        totalWaitingSurvey: ['BOOKED' ,'SURVEYREQ'],
         totalSurveyStart: ['SURVEYSTART'],
         totalSurveyEnd: ['SURVEYEND'],
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
         totalWaitingWork: ['WORKREQ'],
         totalWIP: ['WORKSTART', 'WIP'],
-        totalOrderDone: ['WORKEND'],
+        totalOrderDone: ['WORKEND', 'INVOICEDRAFT', 'INVOICE', 'INVOICESEND', 'DONE'],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
         totalWaitingQuotationVendor: ['QUOTEIN'],
@@ -125,6 +125,7 @@ export class ReportsService {
         totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
         totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
         totalWaitingResolve: ['INVESTIGATED'],
+        totalProgressOrder : ['BOOKED','PICKLIST' ,'SURVEYREQ', 'SURVEYSTART', 'SURVEYEND', 'SURVEYDONE', 'UNPAIDRECEIPT', 'WORKREQ', 'WORKSTART', 'QUOTEIN', 'QUOTEOUT', 'UNPAID', 'PAID', 'INVESTIGATED', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYEND', 'REWORKREQ', 'REWORKSTART'],
       };
   
       const where: Prisma.ordersWhereInput = {
@@ -203,30 +204,36 @@ export class ReportsService {
       });
   
       const complaints = await this.dbService.complaints.findMany({
-        where: {
-          created_at: {
-            gte: new Date(date_from),
-            lte: new Date(`${date_to}T23:59:59.000Z`),
+        ...(date_from && date_to ? {
+          where: {
+            created_at: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
           },
-        },
+        } : undefined)
       });
   
       const reschedules = await this.dbService.reschedule.findMany({
-        where: {
-          created_at: {
-            gte: new Date(date_from),
-            lte: new Date(`${date_to}T23:59:59.000Z`),
+        ...(date_from && date_to ? {
+          where: {
+            created_at: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
           },
-        },
+        } : undefined)
       });
   
       const refunds = await this.dbService.refund.findMany({
-        where: {
-          created_at: {
-            gte: new Date(date_from),
-            lte: new Date(`${date_to}T23:59:59.000Z`),
+        ...(date_from && date_to ? {
+          where: {
+            created_at: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
           },
-        },
+        } : undefined)
       });
   
       const count = await this.dbService.orders.count({ where });
@@ -284,6 +291,7 @@ export class ReportsService {
           totalReschedule: 0,
           totalRefund: 0,
           totalWaitingResolve: 0,
+          totalProgressOrder: 0,
           totalResurvey: 0,
           totalRework: 0,
           totalActiveWarranty: 0,

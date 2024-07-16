@@ -186,39 +186,47 @@ export class SalesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { full_name: { contains: search } },
-                    { sales_brand: { contains: search } },
-                    {
-                      sales_categories: {
-                        some: {
-                          categories: { category_name: { contains: search } },
-                        },
+              {
+                OR: [ 
+                  {
+                    id: !isNaN(+search) ? +search : undefined 
+                  },
+                  { full_name: { contains: search } },
+                  { sales_brand: { contains: search } },
+                  { account_name: { contains: search } },
+                  { phone_number: { contains: search } },
+                  { account_number: { contains: search } },
+                  { nik: { contains: search } },
+                  { bank_branch: { contains: search } },
+                  {
+                    sales_categories: {
+                      some: {
+                        categories: { category_name: { contains: search } },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
+              {
+                store_id: {
+                  in: store_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(date_to),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -242,11 +250,11 @@ export class SalesService {
         orderBy: {
           ...(Boolean(top_best)
             ? {
-                order_total: 'desc',
-              }
+              order_total: 'desc',
+            }
             : {
-                created_at: order_by,
-              }),
+              created_at: order_by,
+            }),
         },
         include: {
           bank: true,
