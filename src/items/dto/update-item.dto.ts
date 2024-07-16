@@ -25,7 +25,7 @@ export class UpdateItemDto {
   default_price?: number;
 
   @Transform(({ value }) => Number(value))
-  @IsEnum(ITEM_TYPE)
+  // @IsEnum(ITEM_TYPE)
   item_type?: ITEM_TYPE;
 
   @Type(() => Number)
