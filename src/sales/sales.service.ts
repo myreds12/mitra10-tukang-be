@@ -446,22 +446,8 @@ export class SalesService {
         updated_by: user_id,
       };
 
-      const [syncSalesCategories, updatedSales] =
+      const updatedSales =
         await this.dbService.$transaction([
-          this.dbService.sales_categories.updateMany({
-            where: {
-              sales_id: id,
-              id: {
-                notIn: updateSalesDto.sales_categories.map(
-                  ({ category_id }) => category_id,
-                ),
-              },
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            },
-          }),
           this.dbService.sales.update({
             where: {
               id,
@@ -471,6 +457,22 @@ export class SalesService {
               users: true,
             },
           }),
+          ...(updateSalesDto.sales_categories ? [
+            this.dbService.sales_categories.updateMany({
+              where: {
+                sales_id: id,
+                id: {
+                  notIn: updateSalesDto.sales_categories.map(
+                    ({ category_id }) => category_id,
+                  ),
+                },
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            })
+          ] : [])
         ]);
 
       this.emailQueue.add(
@@ -484,7 +486,7 @@ export class SalesService {
         },
       );
 
-      return updatedSales;
+      return updatedSales[0];
     } catch (error) {
       console.error(error);
       throw error;
