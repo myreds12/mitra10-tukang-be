@@ -17,28 +17,33 @@ export class ReportsService {
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
-      const { sales_id, store_id, page, take, date_from, date_to, status } = query;
+      const { sales_id, store_id, page, take, date_from, date_to, status } =
+        query;
       const skip = page * take - take;
       const where: Prisma.sales_incentiveWhereInput = {
         AND: [
-          ...(store_id ? [{
-            sales: {
-              store_id: {
-                in: store_id
-              }
-            }
-          }]: []),
+          ...(store_id
+            ? [
+                {
+                  sales: {
+                    store_id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
-          ...(status ? [{ status : {in: status}}] : []),
+          ...(status ? [{ status: { in: status } }] : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -53,9 +58,9 @@ export class ReportsService {
         },
         include: {
           sales: {
-            include:{
-              store: true
-            }
+            include: {
+              store: true,
+            },
           },
           incentive: true,
           quotation: {
@@ -63,20 +68,19 @@ export class ReportsService {
               order: {
                 include: {
                   members: true,
-                }
-              }
-            }
-          }
-        }
+                },
+              },
+            },
+          },
+        },
       });
       // console.log(sales);
       const totalIncentive = await this.dbService.sales_incentive.aggregate({
         where,
         _sum: {
-          nominal: true
-        }
-      })
-
+          nominal: true,
+        },
+      });
 
       const count = await this.dbService.sales_incentive.count({
         where,
@@ -84,14 +88,14 @@ export class ReportsService {
 
       return {
         data: salesIncetive,
-        meta: {totalIncentive, page, take, total: count },
+        meta: { totalIncentive, page, take, total: count },
       };
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-  
+
   async reportOrder(query: QueryParamsDto) {
     try {
       const {
@@ -104,130 +108,113 @@ export class ReportsService {
         payment_type,
         store_id,
         vendor_id,
+        invoice_status,
         member_id,
-        tukang_id
+        tukang_id,
       } = query;
 
       const statusCategories = {
-        totalWaitingSurvey: ['SURVEYREQ'],
+        totalWaitingSurvey: ['BOOKED', 'SURVEYREQ'],
         totalSurveyStart: ['SURVEYSTART'],
         totalSurveyEnd: ['SURVEYEND'],
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
-        totalUnpaidReceipt: ['UNPAIDRECEIPT'],
-        totalUnpaidQuotation: ['UNPAIDQUOTATION'],
         totalWaitingWork: ['WORKREQ'],
         totalWIP: ['WORKSTART', 'WIP'],
-        totalOrderDone: ['WORKEND', 'INVOICEDRAFT', 'INVOICE', 'INVOICESEND', 'DONE'],
+        totalOrderDone: [
+          'WORKEND',
+          'INVOICEDRAFT',
+          'INVOICE',
+          'INVOICESEND',
+          'DONE',
+        ],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
         totalWaitingQuotationVendor: ['QUOTEIN'],
         totalWaitingQuotationCustomer: ['QUOTEOUT'],
         totalCancel: ['CANCEL'],
-        totalComplaint: ['COMPLAINT'],
-        totalReschedule: ['RESCHEDULE'],
-        totalRefund: ['REFUND'],
-        totalWaitingResolve: ['INVESTIGATED'],
         totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
         totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
-        totalProgressOrder : ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND', 'SURVEYDONE', 'UNPAIDRECEIPT', 'WORKREQ', 'WORKSTART', 'WORKEND', 'QUOTEIN', 'QUOTEOUT', 'UNPAID', 'PAID', 'INVESTIGATED', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYEND', 'REWORKREQ', 'REWORKSTART', 'REWORKEND'],
-        totalActiveWarranty: ['ACTIVEWARRANTY'],
-        totalExpiredWarranty: ['EXPIREDWARRANTY'],
+        totalWaitingResolve: ['INVESTIGATED'],
+        totalProgressOrder: [
+          'BOOKED',
+          'PICKLIST',
+          'SURVEYREQ',
+          'SURVEYSTART',
+          'SURVEYEND',
+          'SURVEYDONE',
+          'UNPAIDRECEIPT',
+          'WORKREQ',
+          'WORKSTART',
+          'QUOTEIN',
+          'QUOTEOUT',
+          'UNPAID',
+          'PAID',
+          'INVESTIGATED',
+          'RESURVEYREQ',
+          'RESURVEYSTART',
+          'RESURVEYEND',
+          'REWORKREQ',
+          'REWORKSTART',
+        ],
       };
 
-      // Determine if it's the same day report or monthly report
-      const isSameDay = date_from === date_to;
-      const allHours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-      const allMonths = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-      ];
-      const periods = isSameDay ? allHours : allMonths;
-      console.log(periods);
-      
-
-      // Initialize summary template and summary object
-      const summaryTemplate = {
-        totalOrder: 0,
-        totalOrderGrandTotal: 0,
-        totalWaitingSurvey: 0,
-        totalSurveyStart: 0,
-        totalSurveyEnd: 0,
-        orderSurvey: 0,
-        totalUnpaidReceipt: 0,
-        totalUnpaidQuotation: 0,
-        totalWaitingWork: 0,
-        totalWIP: 0,
-        totalOrderDone: 0,
-        orderWork: 0,
-        totalWaitingQuotation: 0,
-        totalWaitingQuotationVendor: 0,
-        totalWaitingQuotationCustomer: 0,
-        totalCancel: 0,
-        totalComplaint: 0,
-        totalReschedule: 0,
-        totalRefund: 0,
-        totalWaitingResolve: 0,
-        totalResurvey: 0,
-        totalRework: 0,
-        totalProgressOrder: 0,
-        totalActiveWarranty: 0,
-        totalExpiredWarranty: 0,
-      };
-
-      const summary = periods.reduce((acc, period) => {
-        acc[period] = { ...summaryTemplate };
-        return acc;
-      }, {});
-
-      console.log(summary, "SUMMARY");
-      
-
-      // Build where clause for Prisma query
-      const where = {
+      const where: Prisma.ordersWhereInput = {
         AND: [
-          ...(date_from && date_to ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            },
-          ] : []),
-          ...(search ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { request_survey: { equals: new Date(search) } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ] : []),
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { request_survey: { equals: new Date(search) } },
+                    { members: { full_name: { contains: search } } },
+                  ],
+                },
+              ]
+            : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(member_id ? [{ member_id: { equals: member_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
-          ...(store_id ? [{ store_id: { in: store_id } }] : []),
-          ...(vendor_id ? [
-            {
-              vendor: {
-                id: {
-                  equals: vendor_id,
+          ...(store_id
+            ? [
+                {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-                deleted_at: null,
-              },
-            },
-          ] : []),
-          ...(tukang_id ? [
-            {
-              work_orders: {
-                work_order_tukang: {
-                  some: {
-                    tukang_id: tukang_id
-                  }
-                }
+              ]
+            : []),
+          vendor_id
+            ? {
+                vendor: {
+                  id: {
+                    equals: vendor_id,
+                  },
+                  deleted_at: null,
+                },
               }
-            }
-          ] : []),
+            : undefined,
+          tukang_id
+            ? {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
+                    },
+                  },
+                },
+              }
+            : undefined,
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -238,7 +225,6 @@ export class ReportsService {
           created_at: order_by,
         },
         include: {
-          quotation: true,
           status: {
             select: {
               id: true,
@@ -248,109 +234,45 @@ export class ReportsService {
         },
       });
 
-      // Fetch complaints, reschedules, and refunds data
-      const [complaints, reschedules, refunds] = await Promise.all([
-        this.dbService.complaints.findMany({
-          where: {
-            created_at: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          },
-        }),
-        this.dbService.reschedule.findMany({
-          where: {
-            created_at: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          },
-        }),
-        this.dbService.refund.findMany({
-          ...(date_from && date_to ? {
-            where: {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+      const complaints = await this.dbService.complaints.findMany({
+        ...(date_from && date_to
+          ? {
+              where: {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          } : undefined)
-        }),
-      ]);
-
-      // Process data into summary
-      const H_PLUS_7_DAYS = 7 * 24 * 60 * 60 * 1000;
-      const now = new Date();
-
-      orders.forEach((order) => {
-        const period = isSameDay
-          ? new Date(order.created_at).toLocaleString('id-ID', { hour: '2-digit', hour12: false })
-          : new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
-
-        if (summary[period]) {
-          
-          summary[period].totalOrder++;
-          summary[period].totalOrderGrandTotal += Number(order.grand_total);
-
-          Object.entries(statusCategories).forEach(([key, statuses]) => {
-            if (statuses.includes(order.status.category)) {
-              summary[period][key]++;
             }
-          });
+          : undefined),
+      });
 
-          if (order.receipt_number === null) {
-            summary[period].totalUnpaidReceipt++;
-          }
-
-          if (
-            (order.payment_type === 'survey' ||
-              order.payment_type === 'pemasangan_tanpa_survey') &&
-            order?.quotation[0].receipt_quotation === null
-          ) {
-            summary[period].totalUnpaidQuotation++;
-          }
-
-          const workEndDate = new Date(order.created_at);
-          const warrantyExpirationDate = new Date(workEndDate.getTime() + H_PLUS_7_DAYS);
-
-          if (order.status.category === 'WORKEND') {
-            if (now <= warrantyExpirationDate) {
-              summary[period].totalActiveWarranty++;
-            } else {
-              summary[period].totalExpiredWarranty++;
+      const reschedules = await this.dbService.reschedule.findMany({
+        ...(date_from && date_to
+          ? {
+              where: {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
             }
-          }
-        }
+          : undefined),
       });
 
-      // Update summary with complaints, reschedules, and refunds data
-      [complaints, reschedules, refunds].forEach((entityList, index) => {
-        const entityNames = ['totalComplaint', 'totalReschedule', 'totalRefund'];
-        entityList.forEach((entity) => {
-          const period = isSameDay
-            ? new Date(entity.created_at).toLocaleString('id-ID', { hour: '2-digit', hour12: false })
-            : new Date(entity.created_at).toLocaleString('id-ID', { month: 'long' });
-
-          if (summary[period]) {
-            summary[period][entityNames[index]]++;
-          }
-        });
+      const refunds = await this.dbService.refund.findMany({
+        ...(date_from && date_to
+          ? {
+              where: {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            }
+          : undefined),
       });
 
-      // Ensure all periods are accounted for, even if empty
-      periods.forEach(period => {
-        if (!summary[period]) {
-          summary[period] = { ...summaryTemplate };
-        }
-      });
-
-      // Prepare report data
-      const reportData = periods.map((period) => ({
-        period,
-        ...summary[period],
-      }));
-
-      // Aggregate counts and totals
       const count = await this.dbService.orders.count({ where });
       const orderGrandTotal = await this.dbService.orders
         .aggregate({
@@ -369,16 +291,129 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      console.log("Fetched orders:", orders);
-      console.log("Fetched complaints:", complaints);
-      console.log("Fetched reschedules:", reschedules);
-      console.log("Fetched refunds:", refunds);
-      // console.log("Generated summary:", summary);
-      // console.log("Generated report data:", reportData);
+      const allMonths = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
 
-      // Return final report
+      const summary = allMonths.reduce((acc, month) => {
+        acc[month] = {
+          totalOrder: 0,
+          totalOrderGrandTotal: 0,
+          totalWaitingSurvey: 0,
+          totalSurveyStart: 0,
+          totalSurveyEnd: 0,
+          orderSurvey: 0,
+          totalUnpaidReceipt: 0,
+          totalUnpaidQuotation: 0,
+          totalWaitingWork: 0,
+          totalWIP: 0,
+          totalOrderDone: 0,
+          orderWork: 0,
+          totalWaitingQuotation: 0,
+          totalWaitingQuotationVendor: 0,
+          totalWaitingQuotationCustomer: 0,
+          totalCancel: 0,
+          totalComplaint: 0,
+          totalReschedule: 0,
+          totalRefund: 0,
+          totalWaitingResolve: 0,
+          totalProgressOrder: 0,
+          totalResurvey: 0,
+          totalRework: 0,
+          totalActiveWarranty: 0,
+          totalExpiredWarranty: 0,
+        };
+        return acc;
+      }, {});
+
+      const H_PLUS_7_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+      orders.forEach((order) => {
+        const month = new Date(order.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+
+        summary[month].totalOrder++;
+        summary[month].totalOrderGrandTotal += Number(order.grand_total);
+
+        Object.entries(statusCategories).forEach(([key, statuses]) => {
+          if (statuses.includes(order.status.category)) {
+            summary[month][key]++;
+          }
+        });
+
+        if (order.receipt_number === null) {
+          summary[month].totalUnpaidReceipt++;
+        }
+
+        if (
+          (order.payment_type === 'survey' ||
+            order.payment_type === 'pemasangan_tanpa_survey') &&
+          order.receipt_number === null
+        ) {
+          summary[month].totalUnpaidReceipt++;
+        }
+
+        const now = new Date();
+        const workEndDate = new Date(order.created_at);
+        const warrantyExpirationDate = new Date(
+          workEndDate.getTime() + H_PLUS_7_DAYS,
+        );
+
+        if (order.status.category === 'WORKEND') {
+          if (now <= warrantyExpirationDate) {
+            summary[month].totalActiveWarranty++;
+          } else {
+            summary[month].totalExpiredWarranty++;
+          }
+        }
+      });
+
+      complaints.forEach((complaint) => {
+        const month = new Date(complaint.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+        if (summary[month]) {
+          summary[month].totalComplaint++;
+        }
+      });
+
+      reschedules.forEach((reschedule) => {
+        const month = new Date(reschedule.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+        if (summary[month]) {
+          summary[month].totalReschedule++;
+        }
+      });
+
+      refunds.forEach((refund) => {
+        const month = new Date(refund.created_at).toLocaleString('id-ID', {
+          month: 'long',
+        });
+        if (summary[month]) {
+          summary[month].totalRefund++;
+        }
+      });
+
+      const monthlyOrders = allMonths.map((month) => ({
+        month,
+        ...summary[month],
+      }));
+
       return {
-        data: reportData,
+        data: monthlyOrders,
         meta: {
           total: count,
           orderGrandTotal,
@@ -390,7 +425,7 @@ export class ReportsService {
       throw error;
     }
   }
-  
+
   async complaintReport(queryParamsDto: QueryParamsDto) {
     try {
       const {
@@ -797,11 +832,11 @@ export class ReportsService {
     try {
       const tukang = await this.dbService.tukang.findMany({
         where: {
-          deleted_at: null
+          deleted_at: null,
         },
         include: {
           work_order_tukang: {
-            where: {deleted_at: null},
+            where: { deleted_at: null },
             include: {
               work_orders: {
                 include: {
@@ -903,5 +938,4 @@ export class ReportsService {
       throw error;
     }
   }
-
 }
