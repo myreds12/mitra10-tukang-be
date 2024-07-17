@@ -126,9 +126,6 @@ export class MemberService {
           join_location_store: true,
           area: true,
           order: {
-            where: {
-              deleted_at: null,
-            },
             include: {
               complaints: true,
               status: true,
@@ -136,6 +133,9 @@ export class MemberService {
               sales: true,
               m_order_details: true,
             },
+            orderBy: {
+              created_at: 'desc'
+            }
           },
         },
       });
@@ -187,15 +187,16 @@ export class MemberService {
         include: {
           join_location_store: true,
           order: {
-            where: {
-              deleted_at: null,
-            },
             include: {
               complaints: true,
               store: true,
+              status: true,
               sales: true,
               m_order_details: true,
             },
+            orderBy: {
+              created_at: 'desc'
+            }
           },
         },
       });
@@ -262,12 +263,87 @@ export class MemberService {
     }
   }
 
+  //FIXME: FIX JIKA PRISMA SUDAH LIMIT
   async memberExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const {data} = await this.findAll(queryParams);
+      const { search, date_from, date_to, store_id, page, take, top_best } = queryParams;
+
+      const where: Prisma.membersWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { whatsapp_number: { contains: search } },
+                    { member_number: { contains: search } },
+                  ],
+                },
+              ]
+            : []),
+          ...(store_id
+            ? [
+                {
+                  join_location_store: {
+                    id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+      const skip = page * take - take;
+      let member = await this.dbService.members.findMany({
+        where,
+        include: {
+          join_location_store: true,
+          area: true,
+          order: {
+            include: {
+              complaints: true,
+              status: true,
+              store: true,
+              sales: true,
+              m_order_details: true,
+            },
+            orderBy: {
+              created_at: 'desc'
+            }
+          },
+        },
+      });
+      if(Boolean(top_best)){
+        member = member.sort((a, b) => b.order.length - a.order.length);
+      }
+      const memberOrderSummary = member.map((item) => ({
+        memberId: item.id,
+        totalOrder: item.order.reduce(
+          (total, order) => total + Number(order.grand_total),
+          0,
+        ),
+      }));
+
+      const data = member.map((item) => ({
+        ...item,
+        total_summary:
+          memberOrderSummary.find((summary) => summary.memberId === item.id)
+            ?.totalOrder || 0,
+      }));
 
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Profile Sales ', {
+      const worksheet = workbook.addWorksheet('Data Member ', {
         properties: {
           tabColor: {
             argb: 'FF4CAF50',
@@ -290,13 +366,13 @@ export class MemberService {
       worksheet.columns = [
         { header: 'Member Id', key: 'id', width: 20 },
         { header: 'Lokasi Bergabung', key: 'store_name', width: 35 },
-        { header: 'Area', key: 'area', width: 35 },
         { header: 'Nama Member', key: 'full_name', width: 35 },
         { header: 'Email Member', key: 'email', width: 35 },
         { header: 'Phone Number', key: 'phone_number', width: 35 },
         { header: 'Whatsapp Number', key: 'whatsapp_number', width: 35 },
         { header: 'Member Number', key: 'member_number', width: 35 },
         { header: 'Alamat', key: 'address', width: 50 },
+        { header: 'Total Order', key: 'total_order', width: 35 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -321,13 +397,13 @@ export class MemberService {
           store_name: member.join_location_store
             ? member.join_location_store.store_name
             : '',
-          area: member.area ? member.area.area : '',
           full_name: member.full_name ? member.full_name : '',
           email: member.email ? member.email : '',
           phone_number: member.phone_number ? member.phone_number : '',
           whatsapp_number: member.whatsapp_number ? member.whatsapp_number : '',
           member_number: member.member_number,
           address: member.address_1 ? member.address_1 : member.address_2,
+          total_order: member.order ? member.order.length : '0',
         });
 
         row.eachCell((cell) => {

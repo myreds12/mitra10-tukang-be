@@ -28,7 +28,7 @@ import { Response } from 'express';
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
 
-  @Post('/export-excel')
+  @Get('/export-excel')
   @UseGuards()
   async memberExportExcel(
     @Query() query: QueryParamsDto,

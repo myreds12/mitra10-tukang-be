@@ -6,6 +6,10 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateRescheduleDto } from './dto/update-reschedule.dto';
 import { OrderService } from 'src/order/order.service';
 import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class RescheduleService {
@@ -448,5 +452,148 @@ export class RescheduleService {
     });
 
     return reschedule[0] || null;
+  }
+
+  async rescheduleExportExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { data } = await this.findAll(queryParams);
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Refund', {
+        properties: {
+          tabColor: { argb: 'FF00FF00' },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Reschedule ID', key: 'id', width: 15 },
+        { header: 'Order ID', key: 'order_id', width: 15 },
+        { header: 'Nama Customer', key: 'member_name', width: 40 },
+        { header: 'Nomor Member', key: 'member_number', width: 40 },
+        { header: 'Nama Toko', key: 'store_name', width: 40 },
+        { header: 'Tanggal Reschedule', key: 'reschedule_date', width: 40 },
+        { header: 'Order Status', key: 'order_status', width: 40 },
+        { header: 'Reschedule Dibuat', key: 'created_at', width: 25 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((refund) => {
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+
+        const formattedCurrency = (amount) =>
+          amount
+            ? Number(amount)
+            : '0';
+
+        const row = worksheet.addRow({
+          id: refund.id,
+          order_id: refund.order_id,
+          member_name: refund.order.members.full_name,
+          member_number: refund.order.members.member_number,
+          store_name: refund.order.store.store_name,
+          reschedule_date: refund.reschedule_date
+            ? refund.reschedule_date
+            : '',
+          order_status: refund.order.status.description,
+          created_at: formattedDateTime(refund.created_at),
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/reschedule';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const now = Date.now();
+
+        const excelFileName = `${baseName}-${now}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataRefund-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(res);
+    } catch (error) {
+      throw error;
+    }
   }
 }

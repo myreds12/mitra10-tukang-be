@@ -338,10 +338,10 @@ export class VendorService {
       console.log(new Date(), new Date('2024-05-03'), new Date().toISOString());
       if (vendor_with_max_order) {
         vendor = vendor.filter(
-          ({ id, work_orders, max_order, company_name }) => {
+          ({ id, work_orders, max_order, company_name, tukang }) => {
             console.log(`[${id}] ${company_name} - ${work_orders.length}`);
             console.log(work_orders);
-            return max_order > work_orders.length;
+            return tukang.length > work_orders.length;
           },
         );
       }

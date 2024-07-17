@@ -34,6 +34,14 @@ interface UserRequest extends IExpressRequest {
 export class RescheduleController {
   constructor(private readonly rescheduleService: RescheduleService) {}
 
+  @Get('/export-excel')
+  async rescheduleExportExcel(
+    @Res() res: IExpressResponse,
+    @Query() query: QueryParamsDto,
+  ) {
+    return await this.rescheduleService.rescheduleExportExcel(res, query);
+  }
+
   @Get('next-code')
   async getCode() {
     const code = await this.rescheduleService.getCode();

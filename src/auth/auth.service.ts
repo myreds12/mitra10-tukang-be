@@ -163,7 +163,7 @@ export class AuthService {
             }
           },
           roles: {
-            select: { name: true },
+            select: { id: true ,name: true },
           },
           employee: {
             select: {
@@ -187,6 +187,11 @@ export class AuthService {
               id: true,
               user_id: true,
               full_name: true,
+              account_name: true,
+              account_number: true,
+              bank_id: true,
+              phone_number: true,
+              sales_brand: true,
               store: {
                 select: {
                   id: true,
@@ -214,6 +219,25 @@ export class AuthService {
           'Username atau Password salah',
           HttpStatus.UNAUTHORIZED,
         );
+      }
+
+      const roles = await this.dbService.roles.findFirst({
+        where: {
+          name: {
+            contains: 'sales'
+          }
+        }
+      });
+
+      if (user.roles.id === roles.id) {
+        const salesData = user.sales[0];
+        const requiredFields = ['id','full_name', 'bank_id', 'account_name', 'account_number', 'phone_number', 'sales_brand'];
+
+        const isSalesDataIncomplete = requiredFields.some(field => !salesData[field]);
+        if (isSalesDataIncomplete || !salesData.store?.id) {
+
+          throw new HttpException('Data sales tidak lengkap', HttpStatus.FORBIDDEN);
+        }
       }
 
       return await this.generateJwt(

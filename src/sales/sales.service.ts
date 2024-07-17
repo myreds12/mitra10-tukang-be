@@ -589,7 +589,7 @@ export class SalesService {
 
   async templateDefaultExcel(res: Response, query: QueryParamsDto) {
     try {
-      const {status, store_id} = query;
+      const { status, store_id, date_from, date_to } = query;
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Template Sales Commission', {
         properties: {
@@ -661,7 +661,7 @@ export class SalesService {
                   in: status
                 }
               }
-              ]
+            ]
             : []),
           ...(store_id
             ? [
@@ -672,8 +672,18 @@ export class SalesService {
                   }
                 }
               },
-              ]
+            ]
             : []),
+            ...(date_from && date_to
+              ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
+                },
+              ]
+              : []),
         ].filter(Boolean),
         deleted_at: null,
       };

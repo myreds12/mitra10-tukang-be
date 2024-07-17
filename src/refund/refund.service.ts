@@ -368,7 +368,117 @@ export class RefundService {
 
   async refundExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { data } = await this.findAll(queryParams);
+      const {
+        order_by,
+        date_from,
+        date_to,
+        page,
+        search,
+        status,
+        take,
+        store_id,
+        vendor_id,
+        penalty_vendor
+      } = queryParams;
+      const skip = page * take - take;
+      const where: Prisma.refundWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { voucher: { contains: search } },
+                    { reason: { contains: search } },
+                  ],
+                },
+              ]
+            : []),
+          ...(status ? [{ status: { id: { in: status } } }] : []),
+          ...(store_id
+            ? [
+                {
+                  orders: {
+                    store_id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(vendor_id
+            ? [
+                {
+                  orders: {
+                    vendor_id: vendor_id
+                  },
+                },
+              ]
+            : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+
+      const data = await this.dbService.refund.findMany({
+        skip,
+        where,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          orders: {
+            include: {
+              members: true,
+              store: true,
+              vendor: true,
+              work_orders: true,
+              status: true,
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                select: {
+                  id: true,
+                  order_id: true,
+                  item_code: true,
+                  item_name: true,
+                  item_id: true,
+                  item: {
+                    select: {
+                      id: true,
+                      item_name: true,
+                      category: true,
+                      default_price: true,
+                      service_name: true,
+                    },
+                  },
+                  sales: true,
+                  unit_price: true,
+                  quantity: true,
+                  total: true,
+                  comission: true,
+                  created_by: true,
+                  updated_by: true,
+                  created_at: true,
+                  updated_at: true,
+                },
+              },
+            },
+          },
+          refund_evidences: true,
+          status: true,
+        },
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Refund', {
@@ -392,6 +502,9 @@ export class RefundService {
       worksheet.columns = [
         { header: 'Refund ID', key: 'id', width: 15 },
         { header: 'Order ID', key: 'order_id', width: 15 },
+        { header: 'Nama Customer', key: 'member_name', width: 40 },
+        { header: 'Nomor Member', key: 'member_number', width: 40 },
+        { header: 'Nama Toko', key: 'store_name', width: 40 },
         { header: 'Catatan', key: 'notes', width: 40 },
         { header: 'Alasan', key: 'reason', width: 40 },
         { header: 'Nomor Persetujuan', key: 'approval_number', width: 25 },
@@ -431,15 +544,15 @@ export class RefundService {
 
         const formattedCurrency = (amount) =>
           amount
-            ? new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-              }).format(amount)
-            : 'Rp. 0';
+            ?   Number(amount)
+            : '0';
 
         const row = worksheet.addRow({
           id: refund.id,
           order_id: refund.order_id,
+          member_name : refund.orders.members.full_name,
+          member_number : refund.orders.members.member_number,
+          store_name : refund.orders.store.store_name,
           notes: refund.notes,
           reason: refund.reason,
           approval_number: refund.approval_number
@@ -465,17 +578,19 @@ export class RefundService {
         });
       });
 
-      const totalGrandTotal = data.reduce((total, refund) => {
+      const totalGrandTotal = Boolean(penalty_vendor) ? data.reduce((total, refund) => {
         return total + (refund.orders ? Number(refund.orders.grand_total) : 0);
+      }, 0) : data.reduce((total, refund) => {
+        return total + (refund.penalty_nominal ? Number(refund.penalty_nominal) : 0);
       }, 0);
-      const formattedTotalGrandTotal = new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-      }).format(totalGrandTotal);
+      const formattedTotalGrandTotal = Number(totalGrandTotal);
 
       const totalRow = worksheet.addRow({
-        id: 'Total',
+        id: '',
         order_id: '',
+        member_name: '',
+        member_number: '',
+        store_name: '',
         notes: '',
         reason: '',
         approval_number: '',
@@ -485,8 +600,8 @@ export class RefundService {
         date_of_filing: '',
         created_at: '',
       });
-      totalRow.getCell('A').value = 'Total Pengembalian';
-      totalRow.getCell('J').value = formattedTotalGrandTotal;
+      totalRow.getCell('A').value = Boolean(penalty_vendor) ? 'Total Penalty' : 'Total Pengembalian';
+      totalRow.getCell('M').value = formattedTotalGrandTotal;
 
       totalRow.eachCell((cell) => {
         cell.font = { bold: true };
@@ -501,7 +616,7 @@ export class RefundService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:I${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:L${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
