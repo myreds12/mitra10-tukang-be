@@ -236,7 +236,7 @@ export class AuthService {
         const isSalesDataIncomplete = requiredFields.some(field => !salesData[field]);
         if (isSalesDataIncomplete || !salesData.store?.id) {
 
-          throw new HttpException('Data sales tidak lengkap', HttpStatus.FORBIDDEN);
+          throw new HttpException('Data sales tidak lengkap, mohon untuk menghubungi admin toko', HttpStatus.FORBIDDEN);
         }
       }
 
