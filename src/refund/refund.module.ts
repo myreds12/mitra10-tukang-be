@@ -4,11 +4,13 @@ import { RefundController } from './refund.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { OrderModule } from 'src/order/order.module';
 
 @Module({
   controllers: [RefundController],
   providers: [RefundService],
   imports: [
+    OrderModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/refunds',

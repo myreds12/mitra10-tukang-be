@@ -442,6 +442,7 @@ export class EmailProcessor {
 
       const data = {
         quotation,
+        order: quotation.order,
         message,
       };
       const { bcc, cc } = message;
@@ -499,7 +500,7 @@ export class EmailProcessor {
 
         await this.mailerService.sendMail(mailOptions);
         this.maillogs(
-          module_id,
+          quotation.order_id,
           message.id,
           {
             to: quotation.order.members.email,
@@ -808,6 +809,7 @@ export class EmailProcessor {
 
       const data = {
         reschedule,
+        order: reschedule.order_id,
         message,
       };
 
@@ -857,7 +859,7 @@ export class EmailProcessor {
       }
 
       await this.maillogs(
-        reschedule_id,
+        reschedule.order_id,
         message.id,
         {
           to: reschedule.order.members.email,
@@ -911,6 +913,7 @@ export class EmailProcessor {
 
       const data = {
         refund,
+        order: refund.order_id,
         message,
       };
 
@@ -960,7 +963,7 @@ export class EmailProcessor {
       }
 
       await this.maillogs(
-        refund_id,
+        refund.order_id,
         message.id,
         {
           to: refund.orders.members.email,
@@ -1009,6 +1012,7 @@ export class EmailProcessor {
 
       const data = {
         complaint,
+        order: complaint.order_id,
         message,
       };
 
@@ -1058,7 +1062,7 @@ export class EmailProcessor {
       }
 
       await this.maillogs(
-        complaint_id,
+        complaint.order_id,
         message.id,
         {
           to: complaint.orders.members.email,

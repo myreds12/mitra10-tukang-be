@@ -113,67 +113,74 @@ export class ReportsService {
       } = query;
 
       const statusCategories = {
-        totalWaitingSurvey: ['BOOKED', 'SURVEYREQ', 'PICKLIST'],
+        totalPicklist: ['PICKLIST'],
+        totalNewOrder: ['PICKLIST', 'BOOKED', 'BOOK'],
+        totalWaitingSurvey: ['SURVEYREQ'],
         totalSurveyStart: ['SURVEYSTART'],
         totalSurveyEnd: ['SURVEYEND'],
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
         totalUnpaidReceipt: ['UNPAIDRECEIPT'],
         totalUnpaidQuotation: ['UNPAIDQUOTATION'],
-        totalWaitingWork: ['WORKREQ'],
-        totalWIP: ['WORKSTART', 'WIP'],
-        totalOrderDone: ['WORKEND', 'INVOICEDRAFT', 'INVOICE', 'INVOICESEND', 'DONE'],
-        orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
-        totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
         totalWaitingQuotationVendor: ['QUOTEIN'],
         totalWaitingQuotationCustomer: ['QUOTEOUT'],
+        totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
+        totalWaitingWork: ['WORKREQ'],
+        totalWIP: ['WORKSTART'],
+        orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
+        totalOrderComplaint: ['WARRANTYCLAIM'],
+        totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+        totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
+        totalOrderDone: ['WORKEND', 'INVOICEDRAFT', 'INVOICE', 'INVOICESEND', 'DONE'],
         totalCancel: ['CANCEL'],
+        totalProgressOrder: ['BOOKED', 'BOOK', 'PICKLIST', 'SURVEYREQ', 'SURVEYSTART', 'SURVEYEND', 'SURVEYDONE', 'UNPAIDRECEIPT', 'WORKREQ', 'WORKSTART', 'WORKEND', 'QUOTEIN', 'QUOTEOUT', 'UNPAID', 'PAID', 'INVESTIGATED', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYEND', 'REWORKREQ', 'REWORKSTART', 'REWORKEND'],
         totalComplaint: ['COMPLAINT'],
         totalReschedule: ['RESCHEDULE'],
         totalRefund: ['REFUND'],
         totalWaitingResolve: ['INVESTIGATED'],
-        totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
-        totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
-        totalProgressOrder: ['BOOKED', 'BOOK', 'PICKLIST', 'SURVEYREQ', 'SURVEYSTART', 'SURVEYEND', 'SURVEYDONE', 'UNPAIDRECEIPT', 'WORKREQ', 'WORKSTART', 'WORKEND', 'QUOTEIN', 'QUOTEOUT', 'UNPAID', 'PAID', 'INVESTIGATED', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYEND', 'REWORKREQ', 'REWORKSTART', 'REWORKEND'],
         totalActiveWarranty: ['ACTIVEWARRANTY'],
         totalExpiredWarranty: ['EXPIREDWARRANTY'],
       };
 
-      // Determine if it's the same day report or monthly report
+      // Determine if it's the same day report, same month report, or monthly report
       const isSameDay = date_from === date_to;
+      const isSameMonth = new Date(date_from).getMonth() === new Date(date_to).getMonth() && new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
       const allHours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
       const allMonths = [
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
       ];
-      const periods = isSameDay ? allHours : allMonths;
+      const allDaysInMonth = Array.from({ length: new Date(new Date(date_from).getFullYear(), new Date(date_from).getMonth() + 1, 0).getDate() }, (_, i) => (i + 1).toString().padStart(2, '0'));
+      const periods = isSameDay ? allHours : (isSameMonth ? allDaysInMonth : allMonths);
       console.log(periods);
-
 
       // Initialize summary template and summary object
       const summaryTemplate = {
         totalOrder: 0,
         totalOrderGrandTotal: 0,
+        totalPicklist: 0,
+        totalNewOrder: 0,
         totalWaitingSurvey: 0,
         totalSurveyStart: 0,
         totalSurveyEnd: 0,
         orderSurvey: 0,
         totalUnpaidReceipt: 0,
         totalUnpaidQuotation: 0,
-        totalWaitingWork: 0,
-        totalWIP: 0,
-        totalOrderDone: 0,
-        orderWork: 0,
         totalWaitingQuotation: 0,
         totalWaitingQuotationVendor: 0,
         totalWaitingQuotationCustomer: 0,
+        totalWaitingWork: 0,
+        totalWIP: 0,
+        orderWork: 0,
+        totalOrderComplaint: 0,
+        totalRework: 0,
+        totalResurvey: 0,
+        totalOrderDone: 0,
         totalCancel: 0,
+        totalProgressOrder: 0,
         totalComplaint: 0,
         totalReschedule: 0,
         totalRefund: 0,
         totalWaitingResolve: 0,
-        totalResurvey: 0,
-        totalRework: 0,
-        totalProgressOrder: 0,
         totalActiveWarranty: 0,
         totalExpiredWarranty: 0,
       };
@@ -184,7 +191,6 @@ export class ReportsService {
       }, {});
 
       console.log(summary, "SUMMARY");
-
 
       // Build where clause for Prisma query
       const where = {
@@ -289,7 +295,10 @@ export class ReportsService {
       orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', { hour: '2-digit', hour12: false })
-          : new Date(order.created_at).toLocaleString('id-ID', { month: 'long' });
+          : (isSameMonth
+            ? new Date(order.created_at).toLocaleString('id-ID', { day: '2-digit' })
+            : new Date(order.created_at).toLocaleString('id-ID', { month: 'long' })
+          );
 
         if (summary[period]) {
 
@@ -333,7 +342,10 @@ export class ReportsService {
         entityList.forEach((entity) => {
           const period = isSameDay
             ? new Date(entity.created_at).toLocaleString('id-ID', { hour: '2-digit', hour12: false })
-            : new Date(entity.created_at).toLocaleString('id-ID', { month: 'long' });
+            : (isSameMonth
+              ? new Date(entity.created_at).toLocaleString('id-ID', { day: '2-digit' })
+              : new Date(entity.created_at).toLocaleString('id-ID', { month: 'long' })
+            );
 
           if (summary[period]) {
             summary[period][entityNames[index]]++;

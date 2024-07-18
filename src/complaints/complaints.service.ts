@@ -315,14 +315,133 @@ export class ComplaintsService {
             include: {
               members: true,
               sales: true,
-              store: true,
               status: true,
-              vendor: true,
-              m_order_details: {
-                include: {
-                  item: true,
+              vendor: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                select: {
+                  id: true,
+                  company_name: true,
+                  address: true,
+                  phone_number: true,
+                  is_active: true,
+                  work_orders: {
+                    where: {
+                      deleted_at: null,
+                      deleted_by: null,
+                    },
+                  },
                 },
               },
+              store: true,
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                select: {
+                  id: true,
+                  order_id: true,
+                  item_code: true,
+                  item_name: true,
+                  item_id: true,
+                  item: {
+                    select: {
+                      id: true,
+                      item_name: true,
+                      category: true,
+                      prices: true,
+                      default_price: true,
+                      service_name: true,
+                    },
+                  },
+                  item_notes: true,
+                  unit_price: true,
+                  quantity: true,
+                  total: true,
+                  comission: true,
+                  created_by: true,
+                  created_at: true,
+                },
+              },
+              order_files: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+              quotation: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                orderBy: {
+                  created_at: 'desc',
+                },
+                include: {
+                  promotion: true,
+                  quotation_details: {
+                    where: {
+                      deleted_at: null,
+                    },
+                  },
+                  quotation_files: true,
+                },
+              },
+              work_orders: {
+                include: {
+                  request_tukang: {
+                    include: {
+                      tukang_to_request_tukang: true,
+                      tukang_to_replace_tukang: true,
+                    },
+                  },
+                  vendor: true,
+                  work_order_evidences: true,
+                  work_order_tukang: {
+                    include: {
+                      tukang: true,
+                    },
+                    where: {
+                      deleted_at: null,
+                      deleted_by: null,
+                    },
+                  },
+                  work_order_status: {
+                    include: {
+                      status: true,
+                      work_order_items: {
+                        include: {
+                          item: true,
+                        },
+                        where: {
+                          deleted_at: null,
+                          deleted_by: null,
+                        },
+                      },
+                    },
+                    orderBy: {
+                      created_at: 'desc',
+                    },
+                  },
+                },
+              },
+              order_history: {
+                select: {
+                  order_id: true,
+                  payload: true,
+                  created_at: true,
+                  status: {
+                    select: {
+                      id: true,
+                      category: true,
+                      description: true,
+                    },
+                  },
+                },
+              },
+              invoice_details: true,
             },
           },
         },

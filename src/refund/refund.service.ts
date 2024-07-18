@@ -8,10 +8,14 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { OrderService } from 'src/order/order.service';
 
 @Injectable()
 export class RefundService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly orderService: OrderService,
+  ) {}
   async create(
     createRefundDto: CreateRefundDto,
     user: users,
@@ -73,6 +77,16 @@ export class RefundService {
         data,
       });
 
+      const statusOrderUpdate = await this.dbService.status.findFirst({
+        where: {
+          category: {
+            contains: 'CANCELREFUND',
+          },
+        },
+      });
+
+      await this.orderService.setStatus(order.id, statusOrderUpdate.id, user);
+
       return refund;
     } catch (error) {
       console.error(error);
@@ -93,7 +107,7 @@ export class RefundService {
         store_id,
         vendor_id,
         claim_voucher,
-        penalty_vendor
+        penalty_vendor,
       } = query;
       const skip = page * take - take;
       const where: Prisma.refundWhereInput = {
@@ -129,7 +143,7 @@ export class RefundService {
                 },
               ]
             : []),
-            ...(Boolean(penalty_vendor)
+          ...(Boolean(penalty_vendor)
             ? [
                 {
                   penalty_nominal: {
@@ -378,7 +392,7 @@ export class RefundService {
         take,
         store_id,
         vendor_id,
-        penalty_vendor
+        penalty_vendor,
       } = queryParams;
       const skip = page * take - take;
       const where: Prisma.refundWhereInput = {
@@ -409,7 +423,7 @@ export class RefundService {
             ? [
                 {
                   orders: {
-                    vendor_id: vendor_id
+                    vendor_id: vendor_id,
                   },
                 },
               ]
@@ -542,17 +556,14 @@ export class RefundService {
             minute: '2-digit',
           })}`;
 
-        const formattedCurrency = (amount) =>
-          amount
-            ?   Number(amount)
-            : '0';
+        const formattedCurrency = (amount) => (amount ? Number(amount) : '0');
 
         const row = worksheet.addRow({
           id: refund.id,
           order_id: refund.order_id,
-          member_name : refund.orders.members.full_name,
-          member_number : refund.orders.members.member_number,
-          store_name : refund.orders.store.store_name,
+          member_name: refund.orders.members.full_name,
+          member_number: refund.orders.members.member_number,
+          store_name: refund.orders.store.store_name,
           notes: refund.notes,
           reason: refund.reason,
           approval_number: refund.approval_number
@@ -578,11 +589,18 @@ export class RefundService {
         });
       });
 
-      const totalGrandTotal = Boolean(penalty_vendor) ? data.reduce((total, refund) => {
-        return total + (refund.orders ? Number(refund.orders.grand_total) : 0);
-      }, 0) : data.reduce((total, refund) => {
-        return total + (refund.penalty_nominal ? Number(refund.penalty_nominal) : 0);
-      }, 0);
+      const totalGrandTotal = Boolean(penalty_vendor)
+        ? data.reduce((total, refund) => {
+            return (
+              total + (refund.orders ? Number(refund.orders.grand_total) : 0)
+            );
+          }, 0)
+        : data.reduce((total, refund) => {
+            return (
+              total +
+              (refund.penalty_nominal ? Number(refund.penalty_nominal) : 0)
+            );
+          }, 0);
       const formattedTotalGrandTotal = Number(totalGrandTotal);
 
       const totalRow = worksheet.addRow({
@@ -600,7 +618,9 @@ export class RefundService {
         date_of_filing: '',
         created_at: '',
       });
-      totalRow.getCell('A').value = Boolean(penalty_vendor) ? 'Total Penalty' : 'Total Pengembalian';
+      totalRow.getCell('A').value = Boolean(penalty_vendor)
+        ? 'Total Penalty'
+        : 'Total Pengembalian';
       totalRow.getCell('M').value = formattedTotalGrandTotal;
 
       totalRow.eachCell((cell) => {
