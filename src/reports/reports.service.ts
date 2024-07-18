@@ -68,6 +68,7 @@ export class ReportsService {
               order: {
                 include: {
                   members: true,
+                  status: true
                 },
               },
             },
