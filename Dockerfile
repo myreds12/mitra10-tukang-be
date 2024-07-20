@@ -5,8 +5,16 @@
 FROM node:18-alpine AS development
 
 RUN apk add --update \
-  git
+  git 
+#   chromium \
+#   nss \
+#   freetype \
+#   harfbuzz \
+#   ca-certificates \
+#   ttf-freefont
 
+# ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+#     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 # Create app directory
 WORKDIR /usr/src/app
 
