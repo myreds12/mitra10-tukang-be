@@ -130,15 +130,20 @@ export class ReportsService {
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalOrderComplaint: ['WARRANTYCLAIM'],
         totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+        totalReworkDone: ['REWORKEND'],
         totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
+        totalResurveyDone: ['RESURVEYDONE'],
         totalOrderDone: ['WORKEND', 'INVOICEDRAFT', 'INVOICE', 'INVOICESEND', 'DONE'],
         totalCancel: ['CANCEL'],
         totalProgressOrder: ['BOOKED', 'BOOK', 'PICKLIST', 'SURVEYREQ', 'SURVEYSTART', 'SURVEYEND', 'SURVEYDONE', 'UNPAIDRECEIPT', 'WORKREQ', 'WORKSTART', 'WORKEND', 'QUOTEIN', 'QUOTEOUT', 'UNPAID', 'PAID', 'INVESTIGATED', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYEND', 'REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+        totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
+        totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
         totalComplaint: ['COMPLAINT'],
         totalReschedule: ['RESCHEDULE'],
         totalRefund: ['REFUND'],
         totalWaitingResolve: ['INVESTIGATED'],
         totalActiveWarranty: ['ACTIVEWARRANTY'],
+        totalUsedWrranty: ['USEDWARRANTY'],
         totalExpiredWarranty: ['EXPIREDWARRANTY'],
       };
 
@@ -250,6 +255,7 @@ export class ReportsService {
         },
         include: {
           quotation: true,
+          complaints: true,
           status: {
             select: {
               id: true,
@@ -328,6 +334,10 @@ export class ReportsService {
           const warrantyExpirationDate = new Date(workEndDate.getTime() + H_PLUS_7_DAYS);
 
           if (order.status.category === 'WORKEND') {
+            if(order.complaints){
+              summary[period].totalUsedWarranty++;
+            }
+
             if (now <= warrantyExpirationDate) {
               summary[period].totalActiveWarranty++;
             } else {

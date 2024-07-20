@@ -530,7 +530,7 @@ export class EmailProcessor {
     try {
       console.log('[sendcsimail] Start');
 
-      const { module_id, order_id } = job.data;
+      const { module_id, order_id, template_id } = job.data;
       console.log(module_id, job);
 
       const csi = await this.dbService.csi_template.findFirst({
@@ -557,6 +557,7 @@ export class EmailProcessor {
 
       const message = await this.dbService.email_messages.findFirst({
         where: {
+          id: template_id,
           email_type: MailType.CSI,
           is_active: true,
         },

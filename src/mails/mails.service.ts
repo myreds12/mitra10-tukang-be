@@ -314,7 +314,7 @@ export class MailsService {
               break;
 
             case MailType.CSI:
-              // TODO: Add CSI Case
+              await this.handleCsiTriggers(template.id, template.trigger_id);
               break;
 
             default:
@@ -626,6 +626,71 @@ export class MailsService {
             name: 'send-refund-mail',
             data: {
               module_id: refund.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      }
+
+      if (jobs.length > 0) {
+        this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
+        await this.emailQueue.addBulk(jobs);
+      }
+    } else {
+      this.logger.verbose(`Refund not found for status id ${status_id}`);
+    }
+  }
+
+  async handleCsiTriggers(template_id: number, status_id: number) {
+    const orders = await this.dbService.orders.findMany({
+      where: {
+        project_status_id: status_id,
+        deleted_at: null,
+        deleted_by: null,
+      },
+    });
+
+    const csi = await this.dbService.csi_template.findFirst({
+      where: {
+        active: true,
+        deleted_at: null,
+      }
+    })
+
+    if (orders.length) {
+      this.logger.log(
+        `Refund found for status id ${status_id} [${orders.length}]`,
+      );
+
+      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+      let delay: number = 5000;
+
+      for (let index = 0; index < orders.length; index++) {
+        const order = orders[index];
+        const countSendedEmail = await this.dbService.mail_logs.count({
+          where: {
+            moduleId: order.id,
+            emailMessageId: template_id,
+            status: 1,
+          },
+        });
+        const jobId = `send-csi-mail-${csi.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (!countSendedEmail && !jobExist) {
+          this.logger.log(
+            `Sending email for csi ${order.id} status ${status_id}`,
+          );
+          jobs.push({
+            name: 'send-csi-mail',
+            data: {
+              module_id: csi.id,
+              order_id: order.id,
               template_id,
             },
             opts: {

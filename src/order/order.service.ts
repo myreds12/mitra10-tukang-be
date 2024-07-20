@@ -16,6 +16,9 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as pug from 'pug';
+import * as pdf from 'html-pdf';
+import { MailType } from 'src/mails/enum/mail_type.enum';
 
 @Injectable()
 export class OrderService {
@@ -997,8 +1000,19 @@ export class OrderService {
       });
       console.log('Order Detail', orderDetail);
 
+
       let grand_total = 0;
       let grand_total_comission = 0;
+      if(![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
+        updateOrderDto.payment_type,
+      )) {
+        grand_total +=
+          Number(order.grand_total) +
+          (updateOrderDto.additional_fee
+            ? Number(updateOrderDto.additional_fee) -
+              +order.additional_fee
+            : 0);
+      }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
         updateOrderDto.order_details
@@ -1045,14 +1059,7 @@ export class OrderService {
                       +order.additional_fee
                     : 0);
                 grand_total_comission += comission;
-              } else {
-                grand_total +=
-                  Number(order.grand_total) +
-                  (updateOrderDto.additional_fee
-                    ? Number(updateOrderDto.additional_fee) -
-                      +order.additional_fee
-                    : 0);
-              }
+              } 
 
               return {
                 where: { id: item?.id ?? 0, order_id: id },
@@ -2665,5 +2672,121 @@ export class OrderService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async quotationPdf( order_id: number, res: Response) {
+    const quotation = await this.dbService.quotation.findFirst({
+      where: {
+        order_id: order_id,
+        deleted_at: null,
+        order: {
+          deleted_at: null,
+        },
+      },
+      include: {
+        quotation_files: true,
+        quotation_details: {
+          where: {
+            deleted_at: null,
+          },
+          include: {
+            category: true,
+          },
+        },
+        order: {
+          include: {
+            m_order_details: true,
+            members: true,
+            vendor: true,
+            work_orders: {
+              include: {
+                work_order_evidences: true,
+                work_order_status: {
+                  orderBy: {
+                    id: 'desc',
+                  },
+                  include: {
+                    work_order_items: {
+                      orderBy: {
+                        id: 'desc',
+                      },
+                    },
+                  },
+                },
+                work_order_tukang: true,
+                status: true,
+              },
+            },
+          },
+        },
+        status: true,
+        store: true,
+      },
+    });
+
+    if (!quotation) {
+      console.error('Quotation not found!');
+      throw new NotFoundException('quotation not found!');
+    }
+
+    const message = await this.dbService.email_messages.findFirst({
+      where: {
+        is_active: true,
+        email_type: MailType.QUOTATIONS,
+      },
+      select: {
+        id: true,
+        title: true,
+        cc: true,
+        bcc: true,
+        greetings: true,
+        welcome_header: true,
+        footer: true,
+        is_active: true,
+        terms_detail: {
+          select: {
+            id: true,
+            email_messages_id: true,
+            terms: true,
+          },
+        },
+        information_detail: {
+          select: {
+            id: true,
+            email_messages_id: true,
+            information: true,
+          },
+        },
+      },
+    });
+    if (!message) {
+      console.error('Message not found!');
+      throw new NotFoundException('message not found!');
+    }
+
+    const data = {
+      quotation,
+      order: quotation.order,
+      message,
+    };
+    console.log(data.quotation.id, "QUOTATION");
+    // console.log(JSON.stringify(data, null, 2));
+
+
+    const html = pug.renderFile(path.join('templates', 'quotation.pug'), {data});
+
+  
+    // Create PDF from the HTML
+    pdf.create(html).toBuffer((err, buffer) => {
+      if (err) {
+        console.log(err)
+        return res.status(500).send('Error generating PDF')
+      };
+
+      // Set headers to download the PDF
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename=template.pdf');
+      res.send(buffer);
+    });
   }
 }

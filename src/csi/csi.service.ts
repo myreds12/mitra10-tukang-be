@@ -243,7 +243,70 @@ export class CsiService {
     if (match && match[1]) {
       return match[1];
     } else {
-      return null; // or handle invalid URL as needed
+      return null; 
     }
   }
+
+  // @Cron(CronExpression.EVERY_11_HOURS)
+  // async syncSendCsiMail() {
+  //   try {
+  //     const csi = await this.dbService.csi_template.findFirst({
+  //       where: {
+  //         active: true,
+  //         deleted_at: null
+  //       },
+  //       include: {
+  //         csi_answers: {
+  //           select: {
+  //             id: true,
+  //             data: true,
+  //           },
+  //         },
+  //         email_messages: true
+  //       },
+  //     });
+
+  //     if (!csi) {
+  //       this.logger.warn('CSI Template not found!');
+  //       return; 
+  //     }
+
+  //     const statusCategories = ['SURVEYDONE', 'WORKEND'];
+  //     const statusIds = await this.dbService.status.findMany({
+  //       where: {
+  //         category: {
+  //           in: statusCategories
+  //         }
+  //       },
+  //       select: {
+  //         id: true,
+  //       }
+  //     });
+
+  //     const statusIdsArray = statusIds.map(status => status.id);
+
+  //     const orders = await this.dbService.orders.findMany({
+  //       where: {
+  //         project_status_id: {
+  //           in: statusIdsArray
+  //         },
+  //         deleted_at: null
+  //       },
+  //     });
+
+  //     if (!orders || orders.length === 0) {
+  //       this.logger.warn('Orders not found for the defined statuses.');
+  //       return; // Exit function if no orders found
+  //     }
+
+  //     for (const order of orders) {
+  //       await this.emailQueue.add('send-csi-mail', { module_id: csi.id, order_id: order.id });
+  //       this.logger.log(`Added order with ID ${order.id} to the email queue.`);
+  //     }
+
+  //     this.logger.log('Completed syncSendCsiMail job.');
+  //   } catch (error) {
+  //     this.logger.error('Error in syncSendCsiMail job:', error.stack);
+  //   }
+  // }
 }
