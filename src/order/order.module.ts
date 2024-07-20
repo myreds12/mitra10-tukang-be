@@ -4,12 +4,12 @@ import { OrderController } from './order.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Module({
   controllers: [OrderController],
-  providers: [OrderService, StatusService],
+  providers: [OrderService, PdfService],
   exports: [OrderService],
   imports: [
     MulterModule.register({
@@ -26,7 +26,7 @@ import { BullModule } from '@nestjs/bull';
       name: 'email',
       defaultJobOptions: {
         attempts: 3,
-        delay: 5000
+        delay: 5000,
       },
     }),
   ],

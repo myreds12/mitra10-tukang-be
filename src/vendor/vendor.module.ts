@@ -10,7 +10,7 @@ import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [VendorController],
-  providers: [VendorService, OrderService, StatusService],
+  providers: [VendorService],
   exports: [VendorService],
   imports: [
     MulterModule.register({

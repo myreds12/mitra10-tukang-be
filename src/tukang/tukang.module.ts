@@ -10,7 +10,7 @@ import { BullModule } from '@nestjs/bull';
 
 @Module({
   controllers: [TukangController],
-  providers: [TukangService,  OrderService, StatusService],
+  providers: [TukangService],
   imports: [
     MulterModule.register({
       limits: {

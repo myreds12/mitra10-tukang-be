@@ -68,7 +68,7 @@ export class ReportsService {
               order: {
                 include: {
                   members: true,
-                  status: true
+                  status: true,
                 },
               },
             },
@@ -110,7 +110,7 @@ export class ReportsService {
         store_id,
         vendor_id,
         member_id,
-        tukang_id
+        tukang_id,
       } = query;
 
       const statusCategories = {
@@ -133,9 +133,38 @@ export class ReportsService {
         totalReworkDone: ['REWORKEND'],
         totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
         totalResurveyDone: ['RESURVEYDONE'],
-        totalOrderDone: ['WORKEND', 'INVOICEDRAFT', 'INVOICE', 'INVOICESEND', 'DONE'],
+        totalOrderDone: [
+          'WORKEND',
+          'INVOICEDRAFT',
+          'INVOICE',
+          'INVOICESEND',
+          'DONE',
+        ],
         totalCancel: ['CANCEL'],
-        totalProgressOrder: ['BOOKED', 'BOOK', 'PICKLIST', 'SURVEYREQ', 'SURVEYSTART', 'SURVEYEND', 'SURVEYDONE', 'UNPAIDRECEIPT', 'WORKREQ', 'WORKSTART', 'WORKEND', 'QUOTEIN', 'QUOTEOUT', 'UNPAID', 'PAID', 'INVESTIGATED', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYEND', 'REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+        totalProgressOrder: [
+          'BOOKED',
+          'BOOK',
+          'PICKLIST',
+          'SURVEYREQ',
+          'SURVEYSTART',
+          'SURVEYEND',
+          'SURVEYDONE',
+          'UNPAIDRECEIPT',
+          'WORKREQ',
+          'WORKSTART',
+          'WORKEND',
+          'QUOTEIN',
+          'QUOTEOUT',
+          'UNPAID',
+          'PAID',
+          'INVESTIGATED',
+          'RESURVEYREQ',
+          'RESURVEYSTART',
+          'RESURVEYEND',
+          'REWORKREQ',
+          'REWORKSTART',
+          'REWORKEND',
+        ],
         totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
         totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
         totalComplaint: ['COMPLAINT'],
@@ -149,14 +178,41 @@ export class ReportsService {
 
       // Determine if it's the same day report, same month report, or monthly report
       const isSameDay = date_from === date_to;
-      const isSameMonth = new Date(date_from).getMonth() === new Date(date_to).getMonth() && new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
-      const allHours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+      const isSameMonth =
+        new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
+        new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
+      const allHours = Array.from({ length: 24 }, (_, i) =>
+        i.toString().padStart(2, '0'),
+      );
       const allMonths = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
       ];
-      const allDaysInMonth = Array.from({ length: new Date(new Date(date_from).getFullYear(), new Date(date_from).getMonth() + 1, 0).getDate() }, (_, i) => (i + 1).toString().padStart(2, '0'));
-      const periods = isSameDay ? allHours : (isSameMonth ? allDaysInMonth : allMonths);
+      const allDaysInMonth = Array.from(
+        {
+          length: new Date(
+            new Date(date_from).getFullYear(),
+            new Date(date_from).getMonth() + 1,
+            0,
+          ).getDate(),
+        },
+        (_, i) => (i + 1).toString().padStart(2, '0'),
+      );
+      const periods = isSameDay
+        ? allHours
+        : isSameMonth
+        ? allDaysInMonth
+        : allMonths;
       console.log(periods);
 
       // Initialize summary template and summary object
@@ -196,54 +252,62 @@ export class ReportsService {
         return acc;
       }, {});
 
-      console.log(summary, "SUMMARY");
+      console.log(summary, 'SUMMARY');
 
       // Build where clause for Prisma query
       const where = {
         AND: [
-          ...(date_from && date_to ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            },
-          ] : []),
-          ...(search ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { request_survey: { equals: new Date(search) } },
-                { members: { full_name: { contains: search } } },
-              ],
-            },
-          ] : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { request_survey: { equals: new Date(search) } },
+                    { members: { full_name: { contains: search } } },
+                  ],
+                },
+              ]
+            : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(member_id ? [{ member_id: { equals: member_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           ...(store_id ? [{ store_id: { in: store_id } }] : []),
-          ...(vendor_id ? [
-            {
-              vendor: {
-                id: {
-                  equals: vendor_id,
+          ...(vendor_id
+            ? [
+                {
+                  vendor: {
+                    id: {
+                      equals: vendor_id,
+                    },
+                    deleted_at: null,
+                  },
                 },
-                deleted_at: null,
-              },
-            },
-          ] : []),
-          ...(tukang_id ? [
-            {
-              work_orders: {
-                work_order_tukang: {
-                  some: {
-                    tukang_id: tukang_id
-                  }
-                }
-              }
-            }
-          ] : []),
+              ]
+            : []),
+          ...(tukang_id
+            ? [
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -269,29 +333,42 @@ export class ReportsService {
       const [complaints, reschedules, refunds] = await Promise.all([
         this.dbService.complaints.findMany({
           where: {
-            created_at: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
+            ...(date_from && date_to
+              ? {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                }
+              : undefined),
+            deleted_at: null,
           },
         }),
         this.dbService.reschedule.findMany({
           where: {
-            created_at: {
-              gte: new Date(date_from),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
+            ...(date_from && date_to
+              ? {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                }
+              : undefined),
+            deleted_at: null,
           },
         }),
         this.dbService.refund.findMany({
-          ...(date_from && date_to ? {
-            where: {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            },
-          } : undefined)
+          where: {
+            ...(date_from && date_to
+              ? {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                }
+              : undefined),
+            deleted_at: null,
+          },
         }),
       ]);
 
@@ -301,14 +378,19 @@ export class ReportsService {
 
       orders.forEach((order) => {
         const period = isSameDay
-          ? new Date(order.created_at).toLocaleString('id-ID', { hour: '2-digit', hour12: false })
-          : (isSameMonth
-            ? new Date(order.created_at).toLocaleString('id-ID', { day: '2-digit' })
-            : new Date(order.created_at).toLocaleString('id-ID', { month: 'long' })
-          );
+          ? new Date(order.created_at).toLocaleString('id-ID', {
+              hour: '2-digit',
+              hour12: false,
+            })
+          : isSameMonth
+          ? new Date(order.created_at).toLocaleString('id-ID', {
+              day: '2-digit',
+            })
+          : new Date(order.created_at).toLocaleString('id-ID', {
+              month: 'long',
+            });
 
         if (summary[period]) {
-
           summary[period].totalOrder++;
           summary[period].totalOrderGrandTotal += Number(order.grand_total);
 
@@ -331,10 +413,12 @@ export class ReportsService {
           }
 
           const workEndDate = new Date(order.created_at);
-          const warrantyExpirationDate = new Date(workEndDate.getTime() + H_PLUS_7_DAYS);
+          const warrantyExpirationDate = new Date(
+            workEndDate.getTime() + H_PLUS_7_DAYS,
+          );
 
           if (order.status.category === 'WORKEND') {
-            if(order.complaints){
+            if (order.complaints) {
               summary[period].totalUsedWarranty++;
             }
 
@@ -349,14 +433,24 @@ export class ReportsService {
 
       // Update summary with complaints, reschedules, and refunds data
       [complaints, reschedules, refunds].forEach((entityList, index) => {
-        const entityNames = ['totalComplaint', 'totalReschedule', 'totalRefund'];
+        const entityNames = [
+          'totalComplaint',
+          'totalReschedule',
+          'totalRefund',
+        ];
         entityList.forEach((entity) => {
           const period = isSameDay
-            ? new Date(entity.created_at).toLocaleString('id-ID', { hour: '2-digit', hour12: false })
-            : (isSameMonth
-              ? new Date(entity.created_at).toLocaleString('id-ID', { day: '2-digit' })
-              : new Date(entity.created_at).toLocaleString('id-ID', { month: 'long' })
-            );
+            ? new Date(entity.created_at).toLocaleString('id-ID', {
+                hour: '2-digit',
+                hour12: false,
+              })
+            : isSameMonth
+            ? new Date(entity.created_at).toLocaleString('id-ID', {
+                day: '2-digit',
+              })
+            : new Date(entity.created_at).toLocaleString('id-ID', {
+                month: 'long',
+              });
 
           if (summary[period]) {
             summary[period][entityNames[index]]++;
@@ -365,7 +459,7 @@ export class ReportsService {
       });
 
       // Ensure all periods are accounted for, even if empty
-      periods.forEach(period => {
+      periods.forEach((period) => {
         if (!summary[period]) {
           summary[period] = { ...summaryTemplate };
         }
@@ -396,10 +490,10 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      console.log("Fetched orders:", orders);
-      console.log("Fetched complaints:", complaints);
-      console.log("Fetched reschedules:", reschedules);
-      console.log("Fetched refunds:", refunds);
+      console.log('Fetched orders:', orders);
+      console.log('Fetched complaints:', complaints);
+      console.log('Fetched reschedules:', reschedules);
+      console.log('Fetched refunds:', refunds);
       // console.log("Generated summary:", summary);
       // console.log("Generated report data:", reportData);
 

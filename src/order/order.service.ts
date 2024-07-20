@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,19 +9,20 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, users } from '@prisma/client';
 import { PAYMENT_TYPE } from './enum/payment_type.enum';
 import { QueryParamsDto } from '../common/dto/query-params.dto';
-import { StatusService } from 'src/status/status.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as pug from 'pug';
-import * as pdf from 'html-pdf';
+import { createReadStream, existsSync, mkdirSync } from 'fs';
 import { MailType } from 'src/mails/enum/mail_type.enum';
+import { basename, join } from 'path';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private pdfService: PdfService,
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -253,7 +253,7 @@ export class OrderService {
                   OR: [
                     { receipt_number: { contains: search } },
                     {
-                      id: !isNaN(+search) ? +search : undefined 
+                      id: !isNaN(+search) ? +search : undefined,
                     },
                     // TODO: FIXME
                     // { request_survey: { equals: new Date(search) } },
@@ -273,29 +273,29 @@ export class OrderService {
                     {
                       vendor: {
                         company_name: {
-                          contains: search
-                        }
-                      }
+                          contains: search,
+                        },
+                      },
                     },
                     {
                       members: {
                         phone_number: {
-                          contains: search
-                        }
-                      }
+                          contains: search,
+                        },
+                      },
                     },
                     {
                       members: {
                         whatsapp_number: {
-                          contains: search
-                        }
-                      }
-                    }
+                          contains: search,
+                        },
+                      },
+                    },
                   ],
                 },
               ]
             : []),
-            
+
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(work_order_status
@@ -1000,17 +1000,17 @@ export class OrderService {
       });
       console.log('Order Detail', orderDetail);
 
-
       let grand_total = 0;
       let grand_total_comission = 0;
-      if(![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
-        updateOrderDto.payment_type,
-      )) {
+      if (
+        ![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
+          updateOrderDto.payment_type,
+        )
+      ) {
         grand_total +=
           Number(order.grand_total) +
           (updateOrderDto.additional_fee
-            ? Number(updateOrderDto.additional_fee) -
-              +order.additional_fee
+            ? Number(updateOrderDto.additional_fee) - +order.additional_fee
             : 0);
       }
 
@@ -1059,7 +1059,7 @@ export class OrderService {
                       +order.additional_fee
                     : 0);
                 grand_total_comission += comission;
-              } 
+              }
 
               return {
                 where: { id: item?.id ?? 0, order_id: id },
@@ -1296,14 +1296,12 @@ export class OrderService {
         },
       });
 
-      
-
       const orders = await this.dbService.orders.deleteMany({
         where: {
           status: {
             id: status.id,
-          } 
-        }
+          },
+        },
       });
 
       // return orders;
@@ -2059,13 +2057,13 @@ export class OrderService {
 
       const createExcelFilePath = (baseName: string) => {
         const folderPath = './storage/excel/order';
-        if (!fs.existsSync(folderPath)) {
-          fs.mkdirSync(folderPath, { recursive: true });
+        if (!existsSync(folderPath)) {
+          mkdirSync(folderPath, { recursive: true });
         }
         const now = Date.now();
 
         const excelFileName = `${baseName}-${now}.xlsx`;
-        return path.join(folderPath, excelFileName);
+        return join(folderPath, excelFileName);
       };
 
       const writeWorkbookAndSendResponse = async (
@@ -2081,10 +2079,10 @@ export class OrderService {
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename=${path.basename(excelFilePath)}`,
+          `attachment; filename=${basename(excelFilePath)}`,
         );
 
-        const fileStream = fs.createReadStream(excelFilePath);
+        const fileStream = createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
 
@@ -2631,13 +2629,13 @@ export class OrderService {
 
       const createExcelFilePath = (baseName: string) => {
         const folderPath = './storage/excel/order';
-        if (!fs.existsSync(folderPath)) {
-          fs.mkdirSync(folderPath, { recursive: true });
+        if (!existsSync(folderPath)) {
+          mkdirSync(folderPath, { recursive: true });
         }
         const now = Date.now();
 
         const excelFileName = `${baseName}-${now}.xlsx`;
-        return path.join(folderPath, excelFileName);
+        return join(folderPath, excelFileName);
       };
 
       const writeWorkbookAndSendResponse = async (
@@ -2653,10 +2651,10 @@ export class OrderService {
         );
         res.setHeader(
           'Content-Disposition',
-          `attachment; filename=${path.basename(excelFilePath)}`,
+          `attachment; filename=${basename(excelFilePath)}`,
         );
 
-        const fileStream = fs.createReadStream(excelFilePath);
+        const fileStream = createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
 
@@ -2674,7 +2672,7 @@ export class OrderService {
     }
   }
 
-  async quotationPdf( order_id: number, res: Response) {
+  async quotationPdf(order_id: number, res: Response) {
     const quotation = await this.dbService.quotation.findFirst({
       where: {
         order_id: order_id,
@@ -2769,24 +2767,12 @@ export class OrderService {
       order: quotation.order,
       message,
     };
-    console.log(data.quotation.id, "QUOTATION");
-    // console.log(JSON.stringify(data, null, 2));
+    console.log(data.quotation.id, 'QUOTATION');
 
-
-    const html = pug.renderFile(path.join('templates', 'quotation.pug'), {data});
-
-  
-    // Create PDF from the HTML
-    pdf.create(html).toBuffer((err, buffer) => {
-      if (err) {
-        console.log(err)
-        return res.status(500).send('Error generating PDF')
-      };
-
-      // Set headers to download the PDF
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename=template.pdf');
-      res.send(buffer);
-    });
+    const buffer = await this.pdfService.generate('quotation', data);
+    // Set headers to download the PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
+    res.send(buffer);
   }
 }

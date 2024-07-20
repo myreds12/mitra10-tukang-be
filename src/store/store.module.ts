@@ -15,6 +15,6 @@ import { BullModule } from '@nestjs/bull';
     }),
   ],
   controllers: [StoreController],
-  providers: [StoreService, OrderService, StatusService],
+  providers: [StoreService],
 })
 export class StoreModule {}

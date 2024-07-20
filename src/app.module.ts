@@ -45,11 +45,14 @@ import { BullModule } from '@nestjs/bull';
 import { MailsModule } from './mails/mails.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { IncentiveModule } from './incentive/incentive.module';
+import { PdfService } from './common/service/pdf.service';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    CommonModule,
     StoreModule,
     RolesModule,
     PositionsModule,

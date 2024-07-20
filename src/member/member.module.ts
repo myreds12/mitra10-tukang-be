@@ -16,6 +16,6 @@ import { MailsModule } from 'src/mails/mails.module';
     }),
   ],
   controllers: [MemberController],
-  providers: [MemberService, OrderService, StatusService],
+  providers: [MemberService],
 })
 export class MemberModule {}

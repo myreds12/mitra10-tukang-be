@@ -36,8 +36,6 @@ import { BullModule } from '@nestjs/bull';
     JwtStrategy,
     JwtService,
     PrismaService,
-    OrderService,
-    StatusService,
   ],
   exports: [AuthService],
 })
