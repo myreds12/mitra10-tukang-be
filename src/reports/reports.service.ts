@@ -141,6 +141,7 @@ export class ReportsService {
           'DONE',
         ],
         totalCancel: ['CANCEL'],
+        totalCancelRefund: ['CANCELREFUND'],
         totalProgressOrder: [
           'BOOKED',
           'BOOK',
@@ -238,6 +239,7 @@ export class ReportsService {
         totalResurvey: 0,
         totalOrderDone: 0,
         totalCancel: 0,
+        totalCancelRefund: 0,
         totalProgressOrder: 0,
         totalComplaint: 0,
         totalReschedule: 0,

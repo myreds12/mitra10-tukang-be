@@ -1290,21 +1290,53 @@ export class OrderService {
     try {
       const status = await this.dbService.status.findFirst({
         where: {
-          category: {
-            contains: 'PICKLIST',
-          },
+          category: 'PICKLIST'
         },
       });
-
-      const orders = await this.dbService.orders.deleteMany({
+  
+      if (!status) {
+        throw new Error('Status not found');
+      }
+  
+      const orderIds = await this.dbService.orders.findMany({
         where: {
-          status: {
-            id: status.id,
-          },
+          project_status_id: status.id
         },
+        select: {
+          id: true
+        }
       });
-
-      // return orders;
+  
+      const orderIdsArray = orderIds.map(order => order.id);
+  
+      // Use Prisma transaction to delete related entries first and then the orders
+      const deleteOrdersTransaction = await this.dbService.$transaction([
+        this.dbService.order_files.deleteMany({
+          where: {
+            order_id: { in: orderIdsArray }
+          }
+        }),
+        this.dbService.order_histories.deleteMany({
+          where: {
+            order_id: { in: orderIdsArray }
+          }
+        }),
+        this.dbService.m_order_details.deleteMany({
+          where: {
+            order_id: { in: orderIdsArray }
+          }
+        }),
+        this.dbService.orders.deleteMany({
+          where: {
+            id: { in: orderIdsArray }
+          }
+        })
+      ]);
+  
+      console.log(deleteOrdersTransaction);
+  
+      
+      return { deletedOrdersCount: deleteOrdersTransaction[3].count };
     } catch (error) {
       console.error(error);
       throw error;

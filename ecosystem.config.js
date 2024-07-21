@@ -1,16 +1,32 @@
 module.exports = {
-    apps: [
-      {
-        name: "instalasi-api",
-        script: "dist/src/main.js",
-        instances: 1,
-        autorestart: true,
-        watch: ['dist/src'],
-        // max_memory_restart: "2G",
-        // env: {
-        //   PORT: 3039
-        // }
-      }
-    ]
-  };
-  
+  apps: [
+    {
+      name: 'tukang-backend',
+      script: 'npm',
+      args: 'run start:dev',
+      watch: true,
+      ignore_watch: ['node_modules', 'dist'],
+      env: {
+        NODE_ENV: 'development',
+      },
+    },
+    // {
+    //   script: './service-worker/',
+    //   watch: ['./service-worker'],
+    // },
+  ],
+
+  deploy: {
+    production: {
+      user: 'SSH_USERNAME',
+      host: 'SSH_HOSTMACHINE',
+      ref: 'origin/master',
+      repo: 'GIT_REPOSITORY',
+      path: 'DESTINATION_PATH',
+      'pre-deploy-local': '',
+      'post-deploy':
+        'npm install && pm2 reload ecosystem.config.js --env production',
+      'pre-setup': '',
+    },
+  },
+};
