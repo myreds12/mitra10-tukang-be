@@ -35,9 +35,9 @@ export class RescheduleService {
 
     const [status] = await this.dbService.status.findMany({
       where: {
-       category: {
-        contains: 'RESCHEDULE'
-       }
+        category: {
+          contains: 'RESCHEDULE',
+        },
       },
     });
 
@@ -205,6 +205,7 @@ export class RescheduleService {
           include: {
             members: true,
             store: true,
+            sales: true,
             vendor: true,
             work_orders: true,
             status: true,
@@ -267,6 +268,7 @@ export class RescheduleService {
         order: {
           include: {
             members: true,
+            sales: true,
             store: true,
             vendor: true,
             work_orders: true,
@@ -337,13 +339,10 @@ export class RescheduleService {
     const status = await this.dbService.status.findFirst({
       where: {
         id: {
-          in: [
-            rescheduleDto.reschedule_status.status_id,
-          ],
+          in: [rescheduleDto.reschedule_status.status_id],
         },
       },
     });
-
 
     if (!order) {
       throw new Error('Order not found');
@@ -399,13 +398,15 @@ export class RescheduleService {
         id,
       },
       data: {
-       ...(status.category.toLowerCase().includes('rescheduleapprovedbyho') ? {
-        order: {
-          update: {
-            request_survey: rescheduleDto.reschedule_date,
-          }
-        },
-       } : undefined), 
+        ...(status.category.toLowerCase().includes('rescheduleapprovedbyho')
+          ? {
+              order: {
+                update: {
+                  request_survey: rescheduleDto.reschedule_date,
+                },
+              },
+            }
+          : undefined),
         status: {
           connect: {
             id: rescheduleDto.status_id,
@@ -515,10 +516,7 @@ export class RescheduleService {
             minute: '2-digit',
           })}`;
 
-        const formattedCurrency = (amount) =>
-          amount
-            ? Number(amount)
-            : '0';
+        const formattedCurrency = (amount) => (amount ? Number(amount) : '0');
 
         const row = worksheet.addRow({
           id: refund.id,
@@ -526,9 +524,7 @@ export class RescheduleService {
           member_name: refund.order.members.full_name,
           member_number: refund.order.members.member_number,
           store_name: refund.order.store.store_name,
-          reschedule_date: refund.reschedule_date
-            ? refund.reschedule_date
-            : '',
+          reschedule_date: refund.reschedule_date ? refund.reschedule_date : '',
           order_status: refund.order.status.description,
           created_at: formattedDateTime(refund.created_at),
         });

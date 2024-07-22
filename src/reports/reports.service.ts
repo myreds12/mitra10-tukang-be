@@ -118,7 +118,7 @@ export class ReportsService {
         totalNewOrder: ['PICKLIST', 'BOOKED', 'BOOK'],
         totalWaitingSurvey: ['SURVEYREQ'],
         totalSurveyStart: ['SURVEYSTART'],
-        totalSurveyEnd: ['SURVEYEND'],
+        totalSurveyDone: ['SURVEYDONE'],
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
         totalUnpaidReceipt: ['UNPAIDRECEIPT'],
         totalUnpaidQuotation: ['UNPAIDQUOTATION'],
@@ -126,7 +126,7 @@ export class ReportsService {
         totalWaitingQuotationCustomer: ['QUOTEOUT'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
         totalWaitingWork: ['WORKREQ'],
-        totalWIP: ['WORKSTART'],
+        totalWorkStart: ['WORKSTART'],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalOrderComplaint: ['WARRANTYCLAIM'],
         totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
@@ -138,6 +138,7 @@ export class ReportsService {
           'INVOICEDRAFT',
           'INVOICE',
           'INVOICESEND',
+          'WARRANTYCLAIM',
           'DONE',
         ],
         totalCancel: ['CANCEL'],
@@ -153,7 +154,7 @@ export class ReportsService {
           'UNPAIDRECEIPT',
           'WORKREQ',
           'WORKSTART',
-          'WORKEND',
+          // 'WORKEND',
           'QUOTEIN',
           'QUOTEOUT',
           'UNPAID',
@@ -224,7 +225,7 @@ export class ReportsService {
         totalNewOrder: 0,
         totalWaitingSurvey: 0,
         totalSurveyStart: 0,
-        totalSurveyEnd: 0,
+        totalSurveyDone : 0,
         orderSurvey: 0,
         totalUnpaidReceipt: 0,
         totalUnpaidQuotation: 0,
@@ -232,7 +233,7 @@ export class ReportsService {
         totalWaitingQuotationVendor: 0,
         totalWaitingQuotationCustomer: 0,
         totalWaitingWork: 0,
-        totalWIP: 0,
+        totalWorkStart: 0,
         orderWork: 0,
         totalOrderComplaint: 0,
         totalRework: 0,
@@ -343,6 +344,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
+            ...(store_id
+              ? {
+                  orders: {
+                    store_id:{in: store_id},
+                  },
+                }
+              : undefined),
             deleted_at: null,
           },
         }),
@@ -356,6 +364,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
+              ...(store_id
+                ? {
+                    order: {
+                      store_id:{in: store_id},
+                    },
+                  }
+                : undefined),
             deleted_at: null,
           },
         }),
@@ -369,6 +384,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
+              ...(store_id
+                ? {
+                    orders: {
+                      store_id:{in: store_id},
+                    },
+                  }
+                : undefined),
             deleted_at: null,
           },
         }),

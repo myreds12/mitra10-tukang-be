@@ -135,8 +135,32 @@ export class CsiService {
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} csi`;
+  async remove(id: number, user_id: number) {
+    try {
+      const csiAnswers = await this.dbService.csi_answers.updateMany({
+        where: {
+          csi_template_id: id,
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id,
+        },
+      });
+      const csi = await this.dbService.csi_template.update({
+        where: {
+          id,
+        },
+        data: {
+          deleted_at: new Date(),
+          deleted_by: user_id,
+        },
+      });
+
+      return csi;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   async fetchGFormAnswers(id: string) {

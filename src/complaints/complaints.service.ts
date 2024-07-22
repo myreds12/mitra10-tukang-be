@@ -145,10 +145,74 @@ export class ComplaintsService {
 
       const where: Prisma.complaintsWhereInput = {
         AND: [
-          status ? { status: { id: { in: status } } } : null,
+          status ? { status: { id: { in: status } } } : undefined,
           search
-            ? { complaint_channels: { name: { contains: search } } }
-            : null,
+            ? {
+                OR: [
+                  !isNaN(Number(search))
+                    ? {
+                        id: {
+                          equals: Number(search),
+                        },
+                      }
+                    : undefined,
+                  !isNaN(Number(search))
+                    ? {
+                        order_id: Number(search),
+                      }
+                    : undefined,
+                  !isNaN(Date.parse(search))
+                    ? {
+                        orders: {
+                          created_at: {
+                            gte: new Date(search),
+                          },
+                        },
+                      }
+                    : undefined,
+                  !isNaN(Date.parse(search))
+                    ? {
+                        complaint_date: {
+                          gte: new Date(search),
+                        },
+                      }
+                    : undefined,
+                  {
+                    complaint_channels: {
+                      name: { contains: search },
+                    },
+                  },
+
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                ],
+              }
+            : undefined,
           store_id
             ? {
                 orders: {
@@ -182,19 +246,20 @@ export class ComplaintsService {
             : undefined,
           date_from && date_to
             ? {
-                complaint_date: {
+                created_at: {
                   gte: new Date(date_from),
                   lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
               }
-            : null,
+            : undefined,
         ].filter((condition) => Boolean(condition)),
+        deleted_at: null,
       };
 
       const complaint = await this.dbService.complaints.findMany({
         take: take <= 0 ? undefined : take,
         skip,
-        where,
+        where: {},
         orderBy: {
           created_at: order_by,
         },
@@ -496,9 +561,9 @@ export class ComplaintsService {
             },
           }
         : undefined;
-        
-        const surveyStatusCategories = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND'];
-        const workStatusCategories = ['WORKREQ', 'WORKSTART', 'WORKEND'];
+
+      const surveyStatusCategories = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND'];
+      const workStatusCategories = ['WORKREQ', 'WORKSTART', 'WORKEND'];
       const orders = await this.dbService.orders.findFirst({
         where: {
           id: updateComplaintDto?.order_id ?? complaints.order_id,
@@ -510,39 +575,38 @@ export class ComplaintsService {
               status: {
                 category: {
                   in: [...surveyStatusCategories, ...workStatusCategories],
-                }
+                },
               },
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
-              status: true
+              status: true,
             },
             orderBy: {
-              created_at: 'desc'
+              created_at: 'desc',
             },
-            take: 10
-          }
+            take: 10,
+          },
         },
       });
       console.log(orders);
-      
+
       let statusOrderUpdate;
 
       const complaintApprovedByHoStatus = status.find((x) =>
         x.category.toLocaleLowerCase().includes('complaintapprovedbyho'),
       )?.id;
-     
 
       if (
         complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
-        surveyStatusCategories.includes(orders.order_history[0].status.category) 
+        surveyStatusCategories.includes(orders.order_history[0].status.category)
       ) {
         statusOrderUpdate = status.find((x) =>
           x.category.toLowerCase().includes('resurveyreq'),
         ).id;
       } else if (
         complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
-        workStatusCategories.includes(orders.order_history[0].status.category) 
+        workStatusCategories.includes(orders.order_history[0].status.category)
       ) {
         statusOrderUpdate = status.find((x) =>
           x.category.toLowerCase().includes('reworkreq'),
@@ -603,7 +667,7 @@ export class ComplaintsService {
       // console.log('update', complaintsUpdate);
 
       console.log('complaintData', complaintData);
-      if(statusOrderUpdate){
+      if (statusOrderUpdate) {
         await this.orderService.setStatus(orders.id, statusOrderUpdate, user);
       }
 
@@ -614,13 +678,15 @@ export class ComplaintsService {
           },
           data: {
             ...complaintData,
-            ...(updateComplaintDto.complaint_status ? {
-              status: {
-                connect: {
-                  id: updateComplaintDto?.complaint_status,
-                },
-              },
-            } : undefined)
+            ...(updateComplaintDto.complaint_status
+              ? {
+                  status: {
+                    connect: {
+                      id: updateComplaintDto?.complaint_status,
+                    },
+                  },
+                }
+              : undefined),
           },
         }),
       ]);

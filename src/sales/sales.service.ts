@@ -186,47 +186,47 @@ export class SalesService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [ 
-                  {
-                    id: !isNaN(+search) ? +search : undefined 
-                  },
-                  { full_name: { contains: search } },
-                  { sales_brand: { contains: search } },
-                  { account_name: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { account_number: { contains: search } },
-                  { nik: { contains: search } },
-                  { bank_branch: { contains: search } },
-                  {
-                    sales_categories: {
-                      some: {
-                        categories: { category_name: { contains: search } },
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { full_name: { contains: search } },
+                    { sales_brand: { contains: search } },
+                    { account_name: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { account_number: { contains: search } },
+                    { nik: { contains: search } },
+                    { bank_branch: { contains: search } },
+                    {
+                      sales_categories: {
+                        some: {
+                          categories: { category_name: { contains: search } },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                store_id: {
-                  in: store_id,
+                {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -250,11 +250,11 @@ export class SalesService {
         orderBy: {
           ...(Boolean(top_best)
             ? {
-              order_total: 'desc',
-            }
+                order_total: 'desc',
+              }
             : {
-              created_at: order_by,
-            }),
+                created_at: order_by,
+              }),
         },
         include: {
           bank: true,
@@ -342,29 +342,6 @@ export class SalesService {
         },
       });
 
-      let usersConnectOrCreate:
-        | Prisma.usersCreateNestedOneWithoutSalesInput
-        | undefined;
-
-      if (updateSalesDto?.password) {
-        usersConnectOrCreate = {
-          connectOrCreate: {
-            where: {
-              id: sales?.user_id ?? 0,
-            },
-            create: {
-              username: updateSalesDto?.username
-                ? updateSalesDto.username
-                : undefined,
-              password: await hash(updateSalesDto?.password, 12),
-              role_id: SALES_ROLES.id,
-            },
-          },
-        };
-      }
-
-      console.log(usersConnectOrCreate);
-
       const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
         updateSalesDto.sales_categories
           ? updateSalesDto.sales_categories.map(
@@ -398,22 +375,60 @@ export class SalesService {
         : sales?.users?.username;
       const salesPassword = updateSalesDto.password
         ? await hash(updateSalesDto.password, 12)
-        : sales?.users?.password;
-      const salesData: Prisma.salesUpdateInput = {
-        // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
-        users: {
-          update: {
+        : sales?.users?.password ? sales.users.password : await hash('password', 12);
+        let usersConnectOrCreate:
+        | Prisma.usersCreateNestedOneWithoutSalesInput
+        | undefined;
+
+      if (updateSalesDto?.password) {
+        usersConnectOrCreate = {
+          connectOrCreate: {
             where: {
-              id: sales?.user_id,
+              id: sales?.user_id ?? 0,
             },
-            data: {
-              username: updateSalesDto?.username ?? salesUsername,
+            create: {
+              username: updateSalesDto?.username
+                ? updateSalesDto.username
+                : salesUsername,
               password: salesPassword,
-              updated_at: new Date(),
-              updated_by: user_id,
+              created_by: user_id,
+              created_at: new Date(),
+              role_id: SALES_ROLES.id,
             },
           },
-        },
+        };
+      }
+      const salesData: Prisma.salesUpdateInput = {
+        // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
+        ...(sales.users
+          ? {
+              users: {
+                update: {
+                  where: {
+                    id: sales?.user_id,
+                  },
+                  data: {
+                    username: updateSalesDto?.username ?? salesUsername,
+                    password: salesPassword,
+                    updated_at: new Date(),
+                    updated_by: user_id,
+                  },
+                },
+              },
+            }
+          : {
+            users: {
+              create: {
+                username: updateSalesDto?.username
+                ? updateSalesDto.username
+                : salesUsername,
+              password: salesPassword,
+              created_by: user_id,
+              created_at: new Date(),
+              role_id: SALES_ROLES.id,
+              }
+            }
+            }),
         ...(updateSalesDto.bank_id
           ? {
               bank: {
@@ -446,34 +461,35 @@ export class SalesService {
         updated_by: user_id,
       };
 
-      const updatedSales =
-        await this.dbService.$transaction([
-          this.dbService.sales.update({
-            where: {
-              id,
-            },
-            data: salesData,
-            include: {
-              users: true,
-            },
-          }),
-          ...(updateSalesDto.sales_categories ? [
-            this.dbService.sales_categories.updateMany({
-              where: {
-                sales_id: id,
-                id: {
-                  notIn: updateSalesDto.sales_categories.map(
-                    ({ category_id }) => category_id,
-                  ),
+      const updatedSales = await this.dbService.$transaction([
+        this.dbService.sales.update({
+          where: {
+            id,
+          },
+          data: salesData,
+          include: {
+            users: true,
+          },
+        }),
+        ...(updateSalesDto.sales_categories
+          ? [
+              this.dbService.sales_categories.updateMany({
+                where: {
+                  sales_id: id,
+                  id: {
+                    notIn: updateSalesDto.sales_categories.map(
+                      ({ category_id }) => category_id,
+                    ),
+                  },
                 },
-              },
-              data: {
-                deleted_at: new Date(),
-                deleted_by: user_id,
-              },
-            })
-          ] : [])
-        ]);
+                data: {
+                  deleted_at: new Date(),
+                  deleted_by: user_id,
+                },
+              }),
+            ]
+          : []),
+      ]);
 
       this.emailQueue.add(
         'send-credential-mail',
@@ -656,26 +672,26 @@ export class SalesService {
         AND: [
           ...(status
             ? [
-              {
-                status: {
-                  in: status
-                }
-              }
-            ]
+                {
+                  status: {
+                    in: status,
+                  },
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                sales: {
-                  store_id: {
-                    in: store_id,
-                  }
-                }
-              },
-            ]
+                {
+                  sales: {
+                    store_id: {
+                      in: store_id,
+                    },
+                  },
+                },
+              ]
             : []),
-            ...(date_from && date_to
-              ? [
+          ...(date_from && date_to
+            ? [
                 {
                   created_at: {
                     gte: new Date(date_from),
@@ -683,7 +699,7 @@ export class SalesService {
                   },
                 },
               ]
-              : []),
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -915,7 +931,7 @@ export class SalesService {
         top_best,
         store_id,
       } = queryParams;
-      const skip = page * take - take;
+      // const skip = page * take - take;
       const where: Prisma.salesWhereInput = {
         AND: [
           ...(search
@@ -956,36 +972,89 @@ export class SalesService {
             : []),
         ].filter(Boolean),
         deleted_at: null,
-      }; 
+      };
 
-      const data = await this.dbService.sales.findMany({
+      const count = await this.dbService.sales.count({
         where,
-        skip,
-        orderBy: {
-          ...(Boolean(top_best)
-            ? {
-                order_total: 'desc',
-              }
-            : {
-                created_at: order_by,
-              }),
-        },
-        include: {
-          bank: true,
-          store: true,
-          sales_brands: {
-            include: {
-              brands: true,
-            },
-          },
-          sales_categories: {
-            include: {
-              categories: true,
-            },
-          },
-          users: true,
-        },
       });
+
+      let dataExcel = [];
+      const takeData = 900;
+      let skipData = 0;
+      const countTake = Math.floor(count / takeData);
+      console.log(countTake, 'COUNT TAKE');
+
+      for (let i = 0; i < countTake; i++) {
+        skipData = i * takeData;
+        console.log(skipData);
+
+        const data = await this.dbService.sales.findMany({
+          where,
+          skip: skipData,
+          take: takeData,
+          orderBy: {
+            ...(Boolean(top_best)
+              ? {
+                  order_total: 'desc',
+                }
+              : {
+                  created_at: order_by,
+                }),
+          },
+          include: {
+            bank: true,
+            store: true,
+            sales_brands: {
+              include: {
+                brands: true,
+              },
+            },
+            sales_categories: {
+              include: {
+                categories: true,
+              },
+            },
+            users: true,
+          },
+        });
+        dataExcel = [...dataExcel, ...data];
+      }
+
+      if (count != dataExcel.length) {
+        const data = await this.dbService.sales.findMany({
+          where,
+          skip: skipData,
+          take: count - dataExcel.length,
+          orderBy: {
+            ...(Boolean(top_best)
+              ? {
+                  order_total: 'desc',
+                }
+              : {
+                  created_at: order_by,
+                }),
+          },
+          include: {
+            bank: true,
+            store: true,
+            sales_brands: {
+              include: {
+                brands: true,
+              },
+            },
+            sales_categories: {
+              include: {
+                categories: true,
+              },
+            },
+            users: true,
+          },
+        });
+        dataExcel = [...dataExcel, ...data];
+      }
+
+      console.log(dataExcel.length, 'TAKE DATA'); // Log the total number of records fetched
+      console.log(count, 'COUNT');
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Profile Sales ', {
@@ -1039,7 +1108,7 @@ export class SalesService {
         };
       });
 
-      data.forEach((sales) => {
+      dataExcel.forEach((sales) => {
         const salesCategories = sales.sales_categories
           ? sales.sales_categories
               .map((category) => category.categories.category_name)
@@ -1118,7 +1187,7 @@ export class SalesService {
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
 
-      return generateExcelFile(data, res);
+      return generateExcelFile(dataExcel, res);
     } catch (error) {
       console.error(error);
       throw error;

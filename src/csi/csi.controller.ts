@@ -10,12 +10,14 @@ import {
   Query,
   HttpCode,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import { CsiService } from './csi.service';
 import { CreateCsiDto } from './dto/create-csi.dto';
 import { UpdateCsiDto } from './dto/update-csi.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @UseGuards(JwtAuthGuard)
 @Controller('csi')
@@ -67,7 +69,8 @@ export class CsiController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.csiService.remove(+id);
+  async remove(@Param('id') id: string, @Req() request: RequestWithUser) {
+    const user_id = request.user.id;
+    return await this.csiService.remove(+id, user_id);
   }
 }

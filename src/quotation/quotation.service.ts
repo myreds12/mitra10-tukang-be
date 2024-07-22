@@ -231,6 +231,7 @@ export class QuotationService {
         order_by,
         vendor_id,
         promotion,
+        is_paid
       } = queryParamsDto;
       const skip = page * take - take;
       const where: Prisma.quotationWhereInput = {
@@ -264,6 +265,13 @@ export class QuotationService {
                 },
               }
             : undefined,
+          Boolean(is_paid) ? {
+            
+              receipt_quotation: {
+                not: null,
+              }
+            
+          } :  undefined,
           ...(Boolean(promotion)
             ? [
                 {

@@ -401,7 +401,7 @@ export class MailsService {
     const quotations = await this.dbService.quotation.findMany({
       where: {
         quotation_status: status_id,
-        readiness: 2,
+        readiness: 4,
         deleted_at: null,
         deleted_by: null,
       },

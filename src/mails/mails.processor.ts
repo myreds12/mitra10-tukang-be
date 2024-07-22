@@ -380,6 +380,7 @@ export class EmailProcessor {
         throw new NotFoundException('quotation_id is null!');
       }
 
+
       const quotation = await this.dbService.quotation.findFirst({
         where: {
           id: module_id,
@@ -516,7 +517,7 @@ export class EmailProcessor {
             id: module_id,
           },
           data: {
-            readiness: 4,
+            readiness: 2,
           },
         });
       }

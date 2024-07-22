@@ -708,7 +708,11 @@ export class OrderService {
               deleted_at: null,
             },
           },
-          complaints: true,
+          complaints: {
+            include: {
+              complaint_channels: true,
+            },
+          },
           quotation: {
             where: {
               deleted_at: null,
@@ -1290,52 +1294,51 @@ export class OrderService {
     try {
       const status = await this.dbService.status.findFirst({
         where: {
-          category: 'PICKLIST'
+          category: 'PICKLIST',
         },
       });
-  
+
       if (!status) {
         throw new Error('Status not found');
       }
-  
+
       const orderIds = await this.dbService.orders.findMany({
         where: {
-          project_status_id: status.id
+          project_status_id: status.id,
         },
         select: {
-          id: true
-        }
+          id: true,
+        },
       });
-  
-      const orderIdsArray = orderIds.map(order => order.id);
-  
+
+      const orderIdsArray = orderIds.map((order) => order.id);
+
       // Use Prisma transaction to delete related entries first and then the orders
       const deleteOrdersTransaction = await this.dbService.$transaction([
         this.dbService.order_files.deleteMany({
           where: {
-            order_id: { in: orderIdsArray }
-          }
+            order_id: { in: orderIdsArray },
+          },
         }),
         this.dbService.order_histories.deleteMany({
           where: {
-            order_id: { in: orderIdsArray }
-          }
+            order_id: { in: orderIdsArray },
+          },
         }),
         this.dbService.m_order_details.deleteMany({
           where: {
-            order_id: { in: orderIdsArray }
-          }
+            order_id: { in: orderIdsArray },
+          },
         }),
         this.dbService.orders.deleteMany({
           where: {
-            id: { in: orderIdsArray }
-          }
-        })
+            id: { in: orderIdsArray },
+          },
+        }),
       ]);
-  
+
       console.log(deleteOrdersTransaction);
-  
-      
+
       return { deletedOrdersCount: deleteOrdersTransaction[3].count };
     } catch (error) {
       console.error(error);
@@ -2206,29 +2209,62 @@ export class OrderService {
                 {
                   OR: [
                     {
-                      work_orders: {
-                        AND: [
-                          { survey_date: { gte: new Date(date_from) } },
-                          {
+                      AND: [
+                        {
+                          work_orders: null,
+                        },
+                        {
+                          request_survey: {
+                            gte: new Date(date_from),
+                          },
+                        },
+                        {
+                          request_survey: {
+                            lte: new Date(`${date_to}T23:59:59.000Z`),
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          work_orders: {
+                            survey_date: {
+                              gte: new Date(date_from),
+                            },
+                          },
+                        },
+                        {
+                          work_orders: {
                             survey_date: {
                               lte: new Date(`${date_to}T23:59:59.000Z`),
                             },
                           },
-                          { work_start_date: null },
-                        ],
-                      },
+                        },
+                        {
+                          work_orders: {
+                            work_start_date: null,
+                          },
+                        },
+                      ],
                     },
                     {
-                      work_orders: {
-                        AND: [
-                          { work_start_date: { gte: new Date(date_from) } },
-                          {
+                      AND: [
+                        {
+                          work_orders: {
+                            work_start_date: {
+                              gte: new Date(date_from),
+                            },
+                          },
+                        },
+                        {
+                          work_orders: {
                             work_end_date: {
                               lte: new Date(`${date_to}T23:59:59.000Z`),
                             },
                           },
-                        ],
-                      },
+                        },
+                      ],
                     },
                   ],
                 },
@@ -2245,6 +2281,11 @@ export class OrderService {
           {
             status: {
               status_urgency: 'desc',
+            },
+          },
+          {
+            vendor: {
+              company_name: 'asc',
             },
           },
         ],

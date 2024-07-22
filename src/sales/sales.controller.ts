@@ -44,11 +44,11 @@ export class SalesController {
   @UseGuards()
   async salesExportExcel(@Query() query: QueryParamsDto, @Res() res: Response) {
     console.log(query.store_id);
-    if (!query.store_id?.length) {
-      throw new BadRequestException(
-        'Anda harus memilih Store terlebih dahulu.',
-      );
-    }
+    // if (!query.store_id?.length) {
+    //   throw new BadRequestException(
+    //     'Anda harus memilih Store terlebih dahulu.',
+    //   );
+    // }
 
     return await this.salesService.salesExportExcel(res, query);
     }

@@ -93,6 +93,11 @@ export class QueryParamsDto {
   @Type(() => Number)
   @IsIn([0,1])
   promotion?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0,1])
+  is_paid?: number;
   
   @IsOptional()
   @Type(() => Number)

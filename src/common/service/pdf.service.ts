@@ -11,16 +11,10 @@ export class PdfService {
         data,
       });
       console.log(html);
-      console.log(
+      console.log('sss','asdadssadad',
         join(process.cwd(), 'node_modules', `phantomjs-prebuilt/bin/phantomjs`),
       );
-      create(html, {
-        phantomPath: join(
-          process.cwd(),
-          'node_modules',
-          `phantomjs-prebuilt/bin/phantomjs`,
-        ),
-      }).toBuffer((err, buffer) => {
+      create(html).toBuffer((err, buffer) => {
         if (err) {
           reject(err);
         } else {
