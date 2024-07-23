@@ -14,6 +14,8 @@ import {
   UploadedFiles,
   UseInterceptors,
   Req,
+  ParseIntPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { QuotationService } from './quotation.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
@@ -26,11 +28,38 @@ import {
 } from '@nestjs/platform-express';
 import { Response as IExpressResponse } from 'express';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { HttpStatusCode } from 'axios';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @UseGuards(JwtAuthGuard)
 @Controller('quotation')
 export class QuotationController {
-  constructor(private readonly quotationService: QuotationService) {}
+  constructor(private readonly quotationService: QuotationService, @InjectQueue('email') private emailQueue: Queue) {}
+
+  @Get('/send-mail/:id')
+  @UseGuards(JwtAuthGuard)
+  // @HttpStatusCode(HttpStatus.OK)
+  async testMail(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const data = await this.quotationService.findOne(id);
+      console.log(data);
+      
+      if (!data) new NotFoundException('Order not found');
+
+      // this.logger.verbose(
+      //   'Sending Email',
+      //   this.emailQueue.client.status,
+      //   order,
+      // );
+
+      await this.emailQueue.add('send-quotation-mail', {
+        module_id: data.id, template_id: 3
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
 
   @Get('/export-excel')
   @UseGuards()

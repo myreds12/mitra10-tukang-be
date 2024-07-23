@@ -283,6 +283,7 @@ export class MailsService {
       for (let index = 0; index < mail_messages.length; index++) {
         const template = mail_messages[index];
         if (template.trigger_id) {
+          
           switch (template.email_type) {
             case MailType.ORDER:
               await this.handleOrderTriggers(template.id, template.trigger_id);
@@ -315,6 +316,13 @@ export class MailsService {
 
             case MailType.CSI:
               await this.handleCsiTriggers(template.id, template.trigger_id);
+              break;
+
+            case MailType.QUOTATION_PAYMENT:
+              await this.handleQuotationPaymentTriggers(
+                template.id,
+                template.trigger_id,
+              );
               break;
 
             default:
@@ -474,6 +482,84 @@ export class MailsService {
     }
   }
 
+  async handleQuotationPaymentTriggers(template_id: number, status_id: number) {
+    const quotations = await this.dbService.quotation.findMany({
+      where: {
+        quotation_status: status_id,
+        receipt_quotation: {
+          not: null,
+        },
+        readiness: 2,
+        deleted_at: null,
+        deleted_by: null,
+      },
+    });
+
+    if (quotations.length) {
+      const jobsToRemove = await this.emailQueue.getJobs([
+        'active',
+        'waiting',
+        'delayed',
+        'completed',
+        'failed',
+      ]);
+      const jobsToRemovePrefix = 'send-quotation-payment-mail';
+
+      // Remove existing jobs with the specified prefix
+      for (const job of jobsToRemove) {
+        const jobId = job.id.toString(); // Convert job ID to string
+        if (jobId.startsWith(jobsToRemovePrefix)) {
+          await job.remove();
+          // console.log(`Removed job with ID: ${job.id}`);
+        }
+      }
+
+      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+      let delay: number = 2000;
+
+      for (let index = 0; index < quotations.length; index++) {
+        const quotation = quotations[index];
+        // console.log('Quotation ID:', quotation.id);
+        const countSendedEmail = await this.countMailLogs(
+          quotation.id,
+          template_id,
+        );
+        // console.log(countSendedEmail, 'COUNT SEND EMAIL');
+
+        const jobId = `send-quotation-payment-mail-${quotation.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+        // console.log('Job Exist:', jobExist, 'for Job ID:', jobId);
+
+        if (countSendedEmail === 0 && !jobExist) {
+          this.logger.log(
+            `Sending email for quotation ${quotation.id} - ${template_id}`,
+          );
+          const jobData = {
+            module_id: quotation.id,
+            template_id: template_id,
+          };
+          jobs.push({
+            name: 'send-quotation-payment-mail',
+            data: jobData,
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      }
+
+      if (jobs.length > 0) {
+        this.logger.verbose(
+          `Jobs triggered [${jobs.length}] => ${JSON.stringify(jobs)}`,
+        );
+        await this.emailQueue.addBulk(jobs);
+      }
+    } else {
+      this.logger.verbose(`Quotation not found for status id ${status_id}`);
+    }
+  }
 
   async handleComplaintTriggers(template_id: number, status_id: number) {
     const complaints = await this.dbService.complaints.findMany({
@@ -655,16 +741,18 @@ export class MailsService {
       },
     });
 
+    
+
     const csi = await this.dbService.csi_template.findFirst({
       where: {
         active: true,
         deleted_at: null,
-      }
-    })
+      },
+    });
 
     if (orders.length) {
       this.logger.log(
-        `Refund found for status id ${status_id} [${orders.length}]`,
+        `CSI found for status id ${status_id} [${orders.length}]`,
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
@@ -679,7 +767,7 @@ export class MailsService {
             status: 1,
           },
         });
-        const jobId = `send-csi-mail-${csi.id}-${template_id}`;
+        const jobId = `send-csi-mail-${order.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
 
         if (!countSendedEmail && !jobExist) {

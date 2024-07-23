@@ -1,4 +1,4 @@
 export enum WorkOrderMaterialType {
-  JASA = 1,
-  MATERIAL = 2,
+  MATERIAL = 1,
+  JASA = 2,
 }

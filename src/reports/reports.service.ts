@@ -17,11 +17,56 @@ export class ReportsService {
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
-      const { sales_id, store_id, page, take, date_from, date_to, status } =
-        query;
+      const {
+        sales_id,
+        store_id,
+        page,
+        take,
+        date_from,
+        date_to,
+        status,
+        search,
+      } = query;
       const skip = page * take - take;
       const where: Prisma.sales_incentiveWhereInput = {
         AND: [
+          ...(search
+            ? [
+                {
+                  quotation: {
+                    order_id: !isNaN(+search) ? +search : undefined,
+                  },
+                },
+                {
+                  quotation: {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                },
+                {
+                  sales: {
+                    full_name: {
+                      contains: search,
+                    },
+                  },
+                },
+                {
+                  nominal: !isNaN(+search) ? +search : undefined,
+                },
+                {
+                  quotation: {
+                    quotation_grand_total: !isNaN(+search)
+                      ? +search
+                      : undefined,
+                  },
+                },
+              ]
+            : []),
           ...(store_id
             ? [
                 {
@@ -167,6 +212,10 @@ export class ReportsService {
           'REWORKSTART',
           'REWORKEND',
         ],
+        totalResurveyComplaintDone: ['COMPLAINTRESURVEYDONE'],
+        totalReworkComplaint: ['COMPLAINTREWORK'],
+        totalReworkComplaintDone: ['COMPLAINTREWORKDONE'],
+        totalResurveyComplaint: ['COMPLAINTRESURVEY'],
         totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
         totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
         totalComplaint: ['COMPLAINT'],
@@ -174,7 +223,7 @@ export class ReportsService {
         totalRefund: ['REFUND'],
         totalWaitingResolve: ['INVESTIGATED'],
         totalActiveWarranty: ['ACTIVEWARRANTY'],
-        totalUsedWrranty: ['USEDWARRANTY'],
+        totalUsedWarranty: ['USEDWARRANTY'],
         totalExpiredWarranty: ['EXPIREDWARRANTY'],
       };
 
@@ -225,7 +274,7 @@ export class ReportsService {
         totalNewOrder: 0,
         totalWaitingSurvey: 0,
         totalSurveyStart: 0,
-        totalSurveyDone : 0,
+        totalSurveyDone: 0,
         orderSurvey: 0,
         totalUnpaidReceipt: 0,
         totalUnpaidQuotation: 0,
@@ -242,6 +291,12 @@ export class ReportsService {
         totalCancel: 0,
         totalCancelRefund: 0,
         totalProgressOrder: 0,
+        totalResurveyComplaint: 0,
+        totalResurveyComplaintDone: 0,
+        totalReworkComplaint: 0,
+        totalReworkComplaintDone: 0,
+        totalComplaintApprovedByHo: 0,
+        totalComplaintRejectedByHo: 0,
         totalComplaint: 0,
         totalReschedule: 0,
         totalRefund: 0,
@@ -322,7 +377,16 @@ export class ReportsService {
         },
         include: {
           quotation: true,
-          complaints: true,
+          work_orders: {
+            include: {
+              status: true
+            }
+          },
+          complaints: {
+            include: {
+              status: true,
+            },
+          },
           status: {
             select: {
               id: true,
@@ -347,7 +411,7 @@ export class ReportsService {
             ...(store_id
               ? {
                   orders: {
-                    store_id:{in: store_id},
+                    store_id: { in: store_id },
                   },
                 }
               : undefined),
@@ -364,13 +428,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
-              ...(store_id
-                ? {
-                    order: {
-                      store_id:{in: store_id},
-                    },
-                  }
-                : undefined),
+            ...(store_id
+              ? {
+                  order: {
+                    store_id: { in: store_id },
+                  },
+                }
+              : undefined),
             deleted_at: null,
           },
         }),
@@ -384,13 +448,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
-              ...(store_id
-                ? {
-                    orders: {
-                      store_id:{in: store_id},
-                    },
-                  }
-                : undefined),
+            ...(store_id
+              ? {
+                  orders: {
+                    store_id: { in: store_id },
+                  },
+                }
+              : undefined),
             deleted_at: null,
           },
         }),
@@ -426,6 +490,31 @@ export class ReportsService {
 
           if (order.receipt_number === null) {
             summary[period].totalUnpaidReceipt++;
+          }
+
+          if(order?.work_orders?.status?.category === 'RESURVEY') {
+            summary[period].totalResurveyComplaint++;
+          }
+          if(order?.work_orders?.status?.category === 'RESURVEYDONE') {
+            summary[period].totalResurveyComplaintDone++;
+          }
+          if(order?.work_orders?.status?.category === 'REWORK') {
+            summary[period].totalReworkComplaintDone++;
+          }
+          if(order?.work_orders?.status?.category === 'REWORKEND') {
+            summary[period].totalReworkComplaint++;
+          }
+
+          if (
+            order?.complaints[0]?.status?.category === 'COMPLAINTAPPROVEDBYHO'
+          ) {
+            summary[period].totalComplaintApprovedByHo++;
+          }
+
+          if (
+            order?.complaints[0]?.status?.category === 'COMPLAINTREJECTEDBYHO'
+          ) {
+            summary[period].totalComplaintRejectedByHo++;
           }
 
           if (

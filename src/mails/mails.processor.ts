@@ -426,6 +426,7 @@ export class EmailProcessor {
             },
           },
           status: true,
+          promotion: true,
           store: true,
         },
       });
@@ -518,6 +519,170 @@ export class EmailProcessor {
           },
           data: {
             readiness: 2,
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.error(error);
+    }
+  }
+
+  @Process('send-quotation-payment-mail')
+  async sendQuotationPaymentMail(job: Job<QuotationMailInterface>) {
+    try {
+      const { module_id, template_id } = job.data;
+      console.log('Job data received:', job.data); // Log the entire job data
+      console.log('QUOTATION ID:', module_id);
+      console.log('TEMPLATE ID:', template_id);
+
+      if (!module_id) {
+        console.error('quotation_id is null!');
+        throw new NotFoundException('quotation_id is null!');
+      }
+
+
+      const quotation = await this.dbService.quotation.findFirst({
+        where: {
+          id: module_id,
+          receipt_quotation: {
+            not: null
+          },
+          readiness: 2,
+          deleted_at: null,
+          order: {
+            deleted_at: null,
+          },
+        },
+        include: {
+          quotation_files: true,
+          quotation_details: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              category: true,
+            },
+          },
+          order: {
+            include: {
+              m_order_details: true,
+              members: true,
+              vendor: true,
+              work_orders: {
+                include: {
+                  work_order_evidences: true,
+                  work_order_status: {
+                    orderBy: {
+                      id: 'desc',
+                    },
+                    include: {
+                      work_order_items: {
+                        orderBy: {
+                          id: 'desc',
+                        },
+                      },
+                    },
+                  },
+                  work_order_tukang: true,
+                  status: true,
+                },
+              },
+            },
+          },
+          status: true,
+          promotion: true,
+          store: true,
+        },
+      });
+
+      if (!quotation) {
+        console.error('Quotation not found!');
+        throw new NotFoundException('quotation not found!');
+      }
+
+      const message = await this.getMessage(MailType.QUOTATION_PAYMENT, template_id);
+      if (!message) {
+        console.error('Message not found!');
+        throw new NotFoundException('message not found!');
+      }
+
+      const data = {
+        quotation,
+        order: quotation.order,
+        message,
+      };
+      const { bcc, cc } = message;
+
+      const storeMail = quotation.store.email;
+      const adminHo = '';
+
+      let defaultTo = quotation.order.members.email;
+      if (quotation.order_id) {
+        const checkOrder = await this.dbService.orders.findFirst({
+          where: {
+            id: quotation.order_id,
+          },
+          select: {
+            members: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        });
+
+        if (checkOrder) {
+          defaultTo = checkOrder.members.email;
+        }
+      }
+
+      let defaultBcc = bcc
+        ? bcc
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
+        : [];
+      const uniqueBcc = [...new Set(defaultBcc)];
+
+      if (quotation.order.members.email) {
+        const mailOptions = {
+          to: defaultTo,
+          from: 'noreply@mitra10.com',
+          subject: message.title,
+          template: 'quotation',
+          bcc,
+          context: { data },
+        };
+
+        if (uniqueBcc.length > 0) {
+          mailOptions.bcc = uniqueBcc.join(',');
+        } else {
+          mailOptions.bcc = '';
+        }
+
+        await this.mailerService.sendMail(mailOptions);
+        this.maillogs(
+          quotation.order_id,
+          message.id,
+          {
+            to: quotation.order.members.email,
+            cc: '',
+            bcc: mailOptions.bcc,
+          },
+          1,
+          data,
+        );
+
+        await this.dbService.quotation.update({
+          where: {
+            id: module_id,
+          },
+          data: {
+            readiness: 3,
           },
         });
       }

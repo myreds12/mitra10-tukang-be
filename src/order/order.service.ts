@@ -2148,9 +2148,8 @@ export class OrderService {
         sales_id,
         payment_type,
         store_id,
-        vendor_id,
-        work_order_status,
         vendor,
+        work_order_status,
       } = queryParams;
 
       const skip = page * take - take;
@@ -2162,8 +2161,6 @@ export class OrderService {
                 {
                   OR: [
                     { receipt_number: { contains: search } },
-                    // TODO: FIXME
-                    // { request_survey: { equals: new Date(search) } },
                     { members: { full_name: { contains: search } } },
                     {
                       store: {
@@ -2273,22 +2270,11 @@ export class OrderService {
         ].filter(Boolean),
         deleted_at: null,
       };
+
       const orders = await this.dbService.orders.findMany({
         skip,
         take: take > 0 ? take : undefined,
         where,
-        orderBy: [
-          {
-            status: {
-              status_urgency: 'desc',
-            },
-          },
-          {
-            vendor: {
-              company_name: 'asc',
-            },
-          },
-        ],
         include: {
           members: {
             where: {
@@ -2486,7 +2472,17 @@ export class OrderService {
           order_files: true,
         },
       });
-      console.log(orders);
+
+      // Additional sorting by vendor company name
+      orders.sort((a, b) => {
+        // const urgencyComparison =
+        //   b.status.status_urgency - a.status.status_urgency;
+        // if (urgencyComparison !== 0) return urgencyComparison;
+
+        const nameA = a.vendor ? a.vendor.company_name.toLowerCase() : '';
+        const nameB = b.vendor ? b.vendor.company_name.toLowerCase() : '';
+        return nameA.localeCompare(nameB);
+      });
 
       const count = await this.dbService.orders.count({
         where,

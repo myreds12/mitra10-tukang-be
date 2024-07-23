@@ -155,28 +155,85 @@ html(lang="en")
           .title
             h3 #{data.message.greetings}
             h3 Detail Pemesanan
-          .table-responsive
+             .table-responsive
             table.table-detail-pemesanan
               thead
                 tr
-                  th Item Dari Customer
-                  th Item Type
-                  th Nama
-                  th Quantity
-                  th Harga Akhir
+                  th.text-center(style='width: 355px') Jenis Jasa
+                  th.text-center(style='width: 100px') QTY
+                  th.text-center(style='width: 250px') Satuan
+                  th.text-center(style='width: 250px') Final Price
               tbody
-                each item, index in data.quotation.quotation_details
+                each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
                   tr(key=`${index} - quotation details`)               
-                    td= item.is_customer === true ? 'IYA' : 'TIDAK'
-                    td= item.item_type === 2 ? 'Material' : 'Jasa'
                     td= item.name ? item.name : '-'
                     td= item.quantity ? (item.quantity ) : '-'
+                    td= item.unit ? item.unit : '-'
                     - var formattedFinalPrice = 'Rp' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                     td= formattedFinalPrice
-                tr
-                  td(colspan=4) Grand Total
-                  - var formattedTotal = 'Rp' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                  td(colspan=2)= formattedTotal
+            
+            .table-responsive
+              table.table-detail-pemesanan
+                thead
+                  tr
+                    th.text-center(style='width: 355px') Material Yang Dibutuhkan
+                    th.text-center(style='width: 100px') QTY
+                    th.text-center(style='width: 250px') Satuan
+                    th.text-center(style='width: 250px') Final Price
+                tbody
+                  each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
+                    tr(key=`${index} - quotation details`)               
+                      td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                      td= item.quantity ? (item.quantity ) : '-'
+                      td= item.unit ? item.unit : '-'
+                      - var formattedFinalPrice = 'Rp' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                      td= formattedFinalPrice
+                      
+                  - var reducedTotal = 0
+                  - data.quotation.quotation_details.forEach(detail => {
+                  -   var reducedPrice = detail.final_price 
+                  -   reducedTotal += reducedPrice
+                  - })
+                  - var formattedReducedTotal = 'Rp' + reducedTotal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                  tr
+                    td(colspan=3) Total 
+                    td(colspan=2)= formattedReducedTotal
+                  tr
+                    td(colspan=3) Promosi 
+                    - var formattedTotal = 'Rp' + (data.quotation.promotion ? data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '')
+                    td(colspan=2)= formattedTotal
+                  tr
+                    td(colspan=3) Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''
+                    td(colspan=2)= formattedTotal
+                  tr
+                    td(colspan=3) Grand Total
+                    - var formattedTotal = 'Rp' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    td(colspan=2)= formattedTotal
+
+          //- .table-responsive
+          //-   table.table-detail-pemesanan
+          //-     thead
+          //-       tr
+          //-         th Item Dari Customer
+          //-         th Item Type
+          //-         th Nama
+          //-         th Quantity
+          //-         th Harga Akhir
+          //-     tbody
+          //-       each item, index in data.quotation.quotation_details
+          //-         tr(key=`${index} - quotation details`)               
+          //-           td= item.is_customer === true ? 'IYA' : 'TIDAK'
+          //-           td= item.item_type === 1 ? 'Material' : 'Jasa'
+          //-           td= item.name ? item.name : '-'
+          //-           td= item.quantity ? (item.quantity ) : '-'
+          //-           - var formattedFinalPrice = 'Rp' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+          //-           td= formattedFinalPrice
+          //-       tr
+          //-         td(colspan=4) Grand Total
+          //-         - var formattedTotal = 'Rp' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+          //-         td(colspan=2)= formattedTotal
+
 
           .title
             h3 Detail Pemasangan

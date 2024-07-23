@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { IncentiveType } from 'src/incentive/dto/incentive-type.enum';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SalesService {
@@ -627,22 +628,23 @@ export class SalesService {
 
       // Mendefinisikan kolom-kolom header
       worksheet.columns = [
+        { header: 'Order Id', key: 'order_id', width: 20 },
+        { header: 'Tanggal Order', key: 'order_create', width: 40 },
+        { header: 'Nama Customer', key: 'member_name', width: 40 },
+        {
+          header: 'Quotation Grand Total',
+          key: 'quotation_grand_total',
+          width: 35,
+        },
+        { header: 'Status Order', key: 'order_status', width: 40 },
         { header: 'Sales Id', key: 'sales_id', width: 20 },
         { header: 'Nama Sales', key: 'sales_name', width: 20 },
         { header: 'Bank', key: 'bank_name', width: 30 },
         { header: 'Nama Akun Bank', key: 'account_name', width: 30 },
         { header: 'Nomor Akun Bank', key: 'account_number', width: 30 },
         { header: 'Nama Toko', key: 'store_name', width: 30 },
-        { header: 'Order Id', key: 'order_id', width: 20 },
-        { header: 'Nama Customer', key: 'member_name', width: 40 },
-        { header: 'Status Order', key: 'status_order', width: 25 },
         { header: 'Incentive Id', key: 'incentive_id', width: 20 },
         { header: 'Incentive Nominal', key: 'incentive_nominal', width: 35 },
-        {
-          header: 'Quotation Grand Total',
-          key: 'quotation_grand_total',
-          width: 35,
-        },
         {
           header: 'Insentif Yang Harus Dibayarkan',
           key: 'received_incentive',
@@ -732,6 +734,7 @@ export class SalesService {
               quotation_grand_total: true,
               order: {
                 select: {
+                  created_at: true,
                   members: {
                     select: {
                       full_name: true,
@@ -752,24 +755,34 @@ export class SalesService {
       });
 
       salesIncentives.forEach((incentive, index) => {
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
         worksheet.addRow({
+          order_id: incentive?.quotation?.order_id ?? '',
+          order_create: formattedDateTime(incentive.quotation.order.created_at),
+          member_name: incentive?.quotation?.order?.members?.full_name ?? '',
+          quotation_grand_total: Number(
+            incentive.quotation.quotation_grand_total,
+          ),
+          order_status: incentive?.quotation?.order?.status?.description ?? '',
           sales_id: incentive.sales_id ?? '',
           sales_name: incentive?.sales?.full_name ?? '',
           bank_name: incentive?.sales?.bank?.bank_name ?? '',
           account_name: incentive.sales?.account_name ?? '',
           account_number: incentive?.sales?.account_number ?? '',
           store_name: incentive?.sales?.store?.store_name ?? '',
-          order_id: incentive?.quotation?.order_id ?? '',
-          member_name: incentive?.quotation?.order?.members?.full_name ?? '',
-          status_order: incentive?.quotation?.order?.status?.description ?? '',
           incentive_id: incentive?.incentive_id ?? '',
           incentive_nominal:
             incentive.incentive.type === IncentiveType.NOMINAL
               ? Number(incentive.incentive.incentive)
               : `${incentive.incentive.incentive}%`,
-          quotation_grand_total: Number(
-            incentive.quotation.quotation_grand_total,
-          ),
           received_incentive: Number(incentive.nominal),
           status: IncentiveStatus[incentive.status],
           notes: incentive?.notes ?? '',
@@ -834,11 +847,12 @@ export class SalesService {
         rowNumber <= worksheet.actualRowCount;
         rowNumber++
       ) {
-        const sales_id = worksheet.getCell(`A${rowNumber}`).value as number;
-        const order_id = worksheet.getCell(`C${rowNumber}`).value as number;
-        const incentive_id = worksheet.getCell(`E${rowNumber}`).value as number;
-        const notes = worksheet.getCell(`J${rowNumber}`).value;
-
+        const sales_id = worksheet.getCell(`F${rowNumber}`).value as number;
+        const order_id = worksheet.getCell(`A${rowNumber}`).value as number;
+        const incentive_id = worksheet.getCell(`L${rowNumber}`).value as number;
+        const notes = worksheet.getCell(`P${rowNumber}`).value;
+        console.log(salesOrderPairs, 'SALES ORDER PAIRS');
+        
         if (sales_id && order_id && incentive_id) {
           salesOrderPairs.push({
             sales_id,
@@ -848,6 +862,8 @@ export class SalesService {
           });
         }
       }
+
+      
       await Promise.all(
         salesOrderPairs.map(async (pair) => {
           const order = await this.dbService.orders.findFirst({
@@ -1188,6 +1204,32 @@ export class SalesService {
       };
 
       return generateExcelFile(dataExcel, res);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async deleteOrder() {
+    try {
+
+     const salesIncentive = await this.dbService.sales_incentive.updateMany({
+      where: {
+        quotation: {
+          order: {
+            status: {
+              category: 'WORKEND'
+            }
+          }
+        }
+      },
+      data: {
+        status: 2
+      }
+     });
+
+     return salesIncentive;
     } catch (error) {
       console.error(error);
       throw error;

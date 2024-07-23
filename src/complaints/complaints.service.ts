@@ -161,28 +161,11 @@ export class ComplaintsService {
                         order_id: Number(search),
                       }
                     : undefined,
-                  !isNaN(Date.parse(search))
-                    ? {
-                        orders: {
-                          created_at: {
-                            gte: new Date(search),
-                          },
-                        },
-                      }
-                    : undefined,
-                  !isNaN(Date.parse(search))
-                    ? {
-                        complaint_date: {
-                          gte: new Date(search),
-                        },
-                      }
-                    : undefined,
                   {
                     complaint_channels: {
                       name: { contains: search },
                     },
                   },
-
                   {
                     orders: {
                       members: {
@@ -210,6 +193,13 @@ export class ComplaintsService {
                       },
                     },
                   },
+                  {
+                    orders: {
+                      store: {
+                        store_name: search
+                      }
+                    }
+                  }
                 ],
               }
             : undefined,
@@ -281,6 +271,19 @@ export class ComplaintsService {
               status: true,
               vendor: true,
               m_order_details: true,
+              work_orders: {
+                include: {
+                  status: true,
+                  work_order_status: {
+                    orderBy: {
+                      created_at: 'desc'
+                    },
+                    include: {
+                      status: true
+                    }
+                  }
+                }
+              }
             },
           },
         },
@@ -609,7 +612,7 @@ export class ComplaintsService {
         workStatusCategories.includes(orders.order_history[0].status.category)
       ) {
         statusOrderUpdate = status.find((x) =>
-          x.category.toLowerCase().includes('reworkreq'),
+          x.category.toLowerCase().includes('resurveyreq'),
         ).id;
       }
 
@@ -668,7 +671,25 @@ export class ComplaintsService {
 
       console.log('complaintData', complaintData);
       if (statusOrderUpdate) {
-        await this.orderService.setStatus(orders.id, statusOrderUpdate, user);
+        try{
+          await this.dbService.work_orders.update({
+            where: {
+              order_id: updateComplaintDto.order_id,
+            },
+            data: {
+              status_id: statusOrderUpdate,
+              work_order_status: {
+                create: {
+                  status_id: statusOrderUpdate,
+                  created_at: new Date(),
+                }
+              }
+            }
+          })
+        }catch(error){
+          throw new BadRequestException('No Work Orders To Update')
+        }
+        
       }
 
       const [complaint] = await this.dbService.$transaction([
