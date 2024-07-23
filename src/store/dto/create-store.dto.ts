@@ -17,32 +17,32 @@ export class CreateStoreDto {
   @IsInt()
   area_id: number;
 
-  @IsString()
-  @IsNotEmpty()
+  // @IsString()
+  @IsOptional()
   zip_code: string;
 
   @IsOptional()
-  @IsString()
+  // @IsString()
   additional_address: string;
 
-  @IsString()
-  @IsNotEmpty()
+  // @IsString()
+  @IsOptional()
   phone_number_1: string;
 
-  @IsString()
+  // @IsString()
   @IsOptional()
   phone_number_2: string;
 
-  @IsString()
-  @IsNotEmpty()
+  // @IsString()
+  @IsOptional()
   bank_account: string;
 
-  @IsString()
-  @IsNotEmpty()
+  // @IsString()
+  @IsOptional()
   bank_name: string;
 
-  @IsString()
-  @IsNotEmpty()
+  // @IsString()
+  @IsOptional()
   bank_number: string;
 
   @IsString()

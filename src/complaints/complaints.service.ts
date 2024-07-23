@@ -252,14 +252,14 @@ export class ComplaintsService {
                 },
               }
             : undefined,
-        ].filter((condition) => Boolean(condition)),
-        deleted_at: null,
+          ].filter((condition) => Boolean(condition)),
+          deleted_at: null,
       };
 
       const complaint = await this.dbService.complaints.findMany({
         take: take <= 0 ? undefined : take,
         skip,
-        where: {},
+        where,
         orderBy: {
           created_at: order_by,
         },
