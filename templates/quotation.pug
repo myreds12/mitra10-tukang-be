@@ -191,16 +191,18 @@ html(lang="en")
                       
                   - var reducedTotal = 0
                   - data.quotation.quotation_details.forEach(detail => {
-                  -   var reducedPrice = detail.final_price 
+                  -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
                   -   reducedTotal += reducedPrice
                   - })
-                  - var formattedReducedTotal = 'Rp' + reducedTotal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                  // Pastikan angka diformat dengan benar
+                  - var formattedReducedTotal = 'Rp' + reducedTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+
                   tr
                     td(colspan=3) Total 
                     td(colspan=2)= formattedReducedTotal
-                  tr
+                  tr  
                     td(colspan=3) Promosi 
-                    - var formattedTotal = 'Rp' + (data.quotation.promotion ? data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '')
+                    - var formattedTotal = 'Rp' + (data.quotation.promotion ? data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '0')
                     td(colspan=2)= formattedTotal
                   tr
                     td(colspan=3) Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})

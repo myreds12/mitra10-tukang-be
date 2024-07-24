@@ -116,8 +116,56 @@ export class RefundService {
             ? [
                 {
                   OR: [
+                    !isNaN(Number(search))
+                    ? {
+                        id: {
+                          equals: Number(search),
+                        },
+                      }
+                    : undefined,
+                    !isNaN(Number(search))
+                    ? {
+                        order_id: {
+                          equals: Number(search),
+                        },
+                      }
+                    : undefined,
                     { voucher: { contains: search } },
                     { reason: { contains: search } },
+                    {
+                      orders: {
+                        members: {
+                          whatsapp_number: {
+                            contains: search,
+                          },
+                        },
+                      },
+                    },
+                    {
+                      orders: {
+                        members: {
+                          phone_number: {
+                            contains: search,
+                          },
+                        },
+                      },
+                    },
+                    {
+                      orders: {
+                        members: {
+                          full_name: {
+                            contains: search,
+                          },
+                        },
+                      },
+                    },
+                    {
+                      orders: {
+                        store: {
+                          store_name: search
+                        }
+                      }
+                    }
                   ],
                 },
               ]

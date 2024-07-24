@@ -37,6 +37,31 @@ html(lang="en")
       align-items: center;
     }
 
+    .button {
+      display: inline-block;
+      font-size: 1.25rem; /* fs-4 equivalent */
+      font-weight: bold; /* fw-bold */
+      margin-bottom: 1.25rem; /* mb-5 equivalent */
+      text-align: center; /* text-center */
+      padding: 10px 20px;
+      background-color: #007bff; /* Bootstrap primary color */
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+
+    .button:hover {
+      background-color: #0056b3; /* Darker shade of primary color */
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 2rem; /* Add some space above the button */
+    }
+
     @media screen and (max-width: 400px) {
       #preview-email .header-logo {
         display: flex;
@@ -66,18 +91,18 @@ html(lang="en")
           .content-header.row
             .col-md-6.col-sm-12
               .header-logo
-                img.h-30px.logo.mb-3.pe-1(src=('https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png'), alt='Logo Mitra10' style="width: 100px; heigth: 50px;")
+                img.h-30px.logo.mb-3.pe-1(src='https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png' alt='Logo Mitra10' style='width: 100px; height: 50px;')
                 h1.ps-1.fs-5.fw-bold.text-white Instalasi & Service Mitra 10
         .card-body
           h3.fs-4.fw-semi-bold.mb-1 #{data.message.welcome_header}, #{data.order.members.full_name}
           h3.fs-5.fw-normal.mb-5
             | Terima kasih telah berbelanja di Mitra10. Kami sangat menghargai kepercayaan yang Anda berikan kepada kami. Untuk membantu kami meningkatkan kualitas layanan, kami mohon kesediaan Anda untuk meluangkan waktu beberapa menit untuk mengisi survei kepuasan pelanggan.
-          a.fs-4.fw-bold.mb-5.text-center(href=data.csi.survey_link target="_blank")
-            | #{data.csi.survey_link}
+          .button-container
+            a.button(href=data.csi.survey_link target='_blank') Link CSI
           .footer-card.mt-5
             h1.fs-4.fw-semibold Hormat Kami, Mitra10
             h3.fs-4.fw-normal #{data.message.footer}
 
-    script(src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous")
-    script(src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIEX16tBdNveZPnhYH4bwe5Xz0xq3Q8rU2dKAfMXz1Fq2E4PYF9Gj5M9" crossorigin="anonymous")
-    script(src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.min.js" integrity="sha384-b0vP5GcaBBq9HGGz9Z1S1a7D4kRxQ8f3wx5TZlssq7mwz4nd5l8CQVwo+uU5fs0" crossorigin="anonymous")
+    script(src='https://code.jquery.com/jquery-3.5.1.slim.min.js' integrity='sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj' crossorigin='anonymous')
+    script(src='https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js' integrity='sha384-ZMP7rVo3mIEX16tBdNveZPnhYH4bwe5Xz0xq3Q8rU2dKAfMXz1Fq2E4PYF9Gj5M9' crossorigin='anonymous')
+    script(src='https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.min.js' integrity='sha384-b0vP5GcaBBq9HGGz9Z1S1a7D4kRxQ8f3wx5TZlssq7mwz4nd5l8CQVwo+uU5fs0' crossorigin='anonymous')
