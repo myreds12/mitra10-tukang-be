@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsEnum,
   ValidateNested,
+  IsIn,
 } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { OrderDetailDto } from './order-details.dto';
@@ -19,6 +20,11 @@ export class UpdateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => UpdatedOrderFiles)
   existing_order_files?: UpdatedOrderFiles[];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
+  is_overdistance?: number;
 
   @ApiProperty()
   @Type(() => Number)

@@ -513,14 +513,16 @@ export class EmailProcessor {
           data,
         );
 
-        await this.dbService.quotation.update({
-          where: {
-            id: module_id,
-          },
-          data: {
-            readiness: 2,
-          },
-        });
+        if(quotation.status.category === 'QUOTEOUT'){
+          await this.dbService.quotation.update({
+            where: {
+              id: module_id,
+            },
+            data: {
+              readiness: 2,
+            },
+          });
+        }
       }
     } catch (error) {
       this.logger.error(error);

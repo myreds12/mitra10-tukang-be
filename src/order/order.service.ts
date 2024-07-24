@@ -1008,14 +1008,14 @@ export class OrderService {
       let grand_total_comission = 0;
       if (
         ![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
-          updateOrderDto.payment_type,
+          updateOrderDto?.payment_type,
         )
       ) {
         grand_total +=
           Number(order.grand_total) +
-          (updateOrderDto.additional_fee
+          (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
             ? Number(updateOrderDto.additional_fee) - +order.additional_fee
-            : 0);
+            : updateOrderDto.is_overdistance === 0 ? -order.additional_fee : 0);
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1058,10 +1058,10 @@ export class OrderService {
                 total = Number(itemPrice) * item.quantity;
                 grand_total +=
                   total +
-                  (updateOrderDto.additional_fee
+                  (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
                     ? Number(updateOrderDto.additional_fee) -
                       +order.additional_fee
-                    : 0);
+                    : updateOrderDto.is_overdistance === 0 ? -order.additional_fee : 0);
                 grand_total_comission += comission;
               }
 
@@ -1110,7 +1110,10 @@ export class OrderService {
 
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
         notes: updateOrderDto?.notes ?? undefined,
-        additional_fee: updateOrderDto?.additional_fee ?? undefined,
+        is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
+        ...(updateOrderDto?.is_overdistance === 1 ? {
+          additional_fee: updateOrderDto?.additional_fee ?? undefined,
+        } : {  additional_fee: 0 } ),
         member_id: updateOrderDto?.member_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
         vendor_id: updateOrderDto?.vendor_id ?? undefined,
