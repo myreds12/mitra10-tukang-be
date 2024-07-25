@@ -357,7 +357,7 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'noreply@mitra10.com', // sender address
-        subject: 'Credential Mail', // Subject line
+        subject: 'Register Account', // Subject line
         template: 'credential-mail',
         context: { data },
       });
