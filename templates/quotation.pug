@@ -155,7 +155,7 @@ html(lang="en")
           .title
             h3 #{data.message.greetings}
             h3 Detail Pemesanan
-         .table-responsive
+            .table-responsive
             table.table-detail-pemesanan
               thead
                 tr
@@ -172,7 +172,7 @@ html(lang="en")
                     - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                     td= formattedFinalPrice
             
-            .table-responsive
+              .table-responsive
               table.table-detail-pemesanan
                 thead
                   tr
