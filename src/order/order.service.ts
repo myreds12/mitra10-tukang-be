@@ -608,7 +608,14 @@ export class OrderService {
       const count = await this.dbService.orders.count({
         where,
       });
-      const orderGrandTotal = orders.reduce((total, order) => {
+
+      const orderGrandTotalData = await this.dbService.orders.findMany({
+        where,
+        include: {
+          quotation: true
+        }
+      });
+      const orderGrandTotal = orderGrandTotalData.reduce((total, order) => {
         let grandTotal = Number(order.grand_total) || 0;
 
         if (order.payment_type === 'survey' && order.quotation) {
@@ -1970,7 +1977,7 @@ export class OrderService {
           const grandTotalSurvey = Number(order.grand_total);
           const quotationGrandTotal =
             order && order.quotation && order.quotation.length > 0
-              ? Number(order.quotation[0]?.quotation_grand_total || 0)
+              ? Math.ceil(Number(order.quotation[0]?.quotation_grand_total || 0))
               : 0;
 
           if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
@@ -2046,9 +2053,7 @@ export class OrderService {
         });
       });
 
-      // Setelah selesai iterasi, format totalGrandTotalValue menjadi format mata uang yang diinginkan
-
-      // Gunakan formattedTotalGrandTotalValue untuk membuat baris total seperti yang Anda lakukan sebelumnya di dalam worksheet
+      
       const totalRow = worksheet.addRow({
         id: 'Total',
         store_name: '',
@@ -2067,7 +2072,7 @@ export class OrderService {
         created_at: '',
         grand_total_survey: '',
         quotation_grand_total: '',
-        grand_total: Number(totalGrandTotalValue), // Gunakan total yang sudah diformat di sini
+        grand_total: Number(totalGrandTotalValue), 
       });
 
       totalRow.eachCell((cell) => {
