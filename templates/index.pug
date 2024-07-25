@@ -14,6 +14,9 @@ html(lang="en")
       #preview-email .text-end {
         text-align: end;
       }
+      #preview-email .text-right {
+        text-align: right;
+      }
       #preview-email .text-white {
         color: #ffff;
       }
@@ -77,10 +80,10 @@ html(lang="en")
         margin: 15px;
         padding: 0px;
       }
-        #preview-email table.table-detail-pemesanan {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 20px;
+      #preview-email table.table-detail-pemesanan {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
       }
       #preview-email .table-responsive {
         overflow-x: auto;
@@ -149,7 +152,7 @@ html(lang="en")
               .header-title
                 h4.bold Tanggal Order :
                   span.normal #{data.order.request_survey ? new Date(data.order.request_survey).toLocaleDateString('en-US') : '-'}
-                h4.bold  Order ID :
+                h4.bold Order ID :
                   span.normal #{data.order.id}
         .card-body
           .title
@@ -162,22 +165,24 @@ html(lang="en")
               span.semibold #{data.order.receipt_number}
             h4.normal Tipe Pemasangan : 
               span.semibold #{data.order.payment_type}
-          .table-responsive
+
+          .table-responsive      
             table.table-detail-pemesanan
-              tr
-                th Item Code
-                th Item Name
-                th Nama Jasa Pemasangan
-                th QTY Pemasangan
-                if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
-                  th Harga Jasa
-                  th Jumlah
-              tr
+              thead
+                tr
+                  th Item Code
+                  th Item Name
+                  th Nama Jasa Pemasangan
+                  th QTY Pemasangan
+                  if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
+                    th Harga Jasa
+                    th Jumlah
+              tbody
                 each item, index in data.order.order_details
                   tr(key=`${index} - order_detail`)
                     td= item.item_code === 'null' ? '-' : (item.item_code || '-')
                     td= item.item_name === 'null' ? '-' : (item.item_name || '-')
-                    td= data.order.payment_type === 'survey' ? item.item_notes : item.item.service_name
+                    td= data.order.payment_type === 'survey' ? item.item_notes : item.service_name
                     td= item.quantity || 0
                     if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'survey'
                       td= `Rp. ${parseInt(item.unit_price || 0).toLocaleString('id')}`
@@ -185,11 +190,64 @@ html(lang="en")
                 if data.order.payment_type !== 'gratis' && data.order.payment_type !== 'pemasangan_tanpa_survey'
                   tr
                     td(colspan=3, class='text-end fw-bolder') Biaya Survey
-                    td(class='fw-bolder')= data.order.payment_type === 'gratis' || data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${0}`
+                    td(class='fw-bolder text-right')= data.order.payment_type === 'gratis' || data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${0}`
                 if data.order.payment_type !== 'survey'
                   tr
                     td(colspan=data.order.payment_type !== 'gratis' ? 5 : 3, class='text-end fw-bolder') Grand Total
-                    td(class='fw-bolder')= data.order.payment_type === 'gratis' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${parseInt(data.order.grand_total).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${(0).toLocaleString('id')}`
+                    td(class='fw-bolder text-right')= data.order.payment_type === 'gratis' ? `Rp. ${(0).toLocaleString('id')}` : data.order.payment_type === 'pemasangan_tanpa_survey' ? `Rp. ${parseInt(data.order.grand_total).toLocaleString('id')}` : data.order.payment_type === 'survey' ? `Rp. ${(99000).toLocaleString('id')}` : `Rp. ${(0).toLocaleString('id')}`
+    
+          .table-responsive
+          if data.order.quotation[0]
+            table.table-detail-pemesanan
+              thead
+                tr
+                  th.text-center(style='width: 355px') Jenis Jasa
+                  th.text-center(style='width: 100px') QTY
+                  th.text-center(style='width: 250px') Satuan
+                  th.text-center(style='width: 250px') Final Price
+              tbody
+                each item, index in data.order.quotation[0].quotation_details.filter((x) => x.item_type === 2)
+                  tr(key=`${index} - quotation details`)               
+                    td= item.name ? item.name : '-'
+                    td= item.quantity ? (item.quantity ) : '-'
+                    td= item.unit ? item.unit : '-'
+                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    td.text-right= formattedFinalPrice
+            .table-responsive          
+            table.table-detail-pemesanan
+              thead
+                tr
+                  th.text-center(style='width: 355px') Material Yang Dibutuhkan
+                  th.text-center(style='width: 100px') QTY
+                  th.text-center(style='width: 250px') Satuan
+                  th.text-center(style='width: 250px') Final Price
+              tbody
+                each item, index in data.order.quotation[0].quotation_details.filter((x) => x.item_type === 1)
+                  tr(key=`${index} - quotation details`)               
+                    td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                    td= item.quantity ? item.quantity : '-'
+                    td= item.unit ? item.unit : '-'
+                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    td.text-right= formattedFinalPrice
+                - var reducedTotal = 0
+                - data.order.quotation[0].quotation_details.forEach(detail => {
+                -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
+                -   reducedTotal += reducedPrice
+                - })
+                - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+
+                tr
+                  td(colspan=3) Total 
+                  td.text-right(colspan=2)= formattedReducedTotal
+                tr
+                  td(colspan=3) Additional Promosi (#{data.order.quotation[0].promotion ? data.order.quotation[0].promotion.name : ''})
+                  - var formattedTotal = data.order.quotation[0].promotion && data.order.quotation[0].promotion.promotion ? 'Rp. ' + data.order.quotation[0].promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+                  td.text-right(colspan=2)= formattedTotal
+                tr
+                  td(colspan=3) Grand Total
+                  - var formattedTotal = 'Rp. ' + data.order.quotation[0].quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                  td.text-right(colspan=2)= formattedTotal
+          
           .title
             h3 Detail Pemasangan
           .detail-pemesanan

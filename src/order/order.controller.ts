@@ -138,7 +138,7 @@ export class OrderController {
       );
 
       await this.emailQueue.add('send-order-mail', {
-        order_id: order.id,
+        module_id: order.id,
       });
     } catch (error) {
       throw error;

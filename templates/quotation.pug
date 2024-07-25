@@ -155,7 +155,7 @@ html(lang="en")
           .title
             h3 #{data.message.greetings}
             h3 Detail Pemesanan
-             .table-responsive
+         .table-responsive
             table.table-detail-pemesanan
               thead
                 tr
@@ -169,7 +169,7 @@ html(lang="en")
                     td= item.name ? item.name : '-'
                     td= item.quantity ? (item.quantity ) : '-'
                     td= item.unit ? item.unit : '-'
-                    - var formattedFinalPrice = 'Rp' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                     td= formattedFinalPrice
             
             .table-responsive
@@ -186,7 +186,7 @@ html(lang="en")
                       td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
                       td= item.quantity ? (item.quantity ) : '-'
                       td= item.unit ? item.unit : '-'
-                      - var formattedFinalPrice = 'Rp' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                      - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                       td= formattedFinalPrice
                       
                   - var reducedTotal = 0
@@ -195,22 +195,18 @@ html(lang="en")
                   -   reducedTotal += reducedPrice
                   - })
                   // Pastikan angka diformat dengan benar
-                  - var formattedReducedTotal = 'Rp' + reducedTotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+                  - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
 
                   tr
                     td(colspan=3) Total 
                     td(colspan=2)= formattedReducedTotal
-                  tr  
-                    td(colspan=3) Promosi 
-                    - var formattedTotal = 'Rp' + (data.quotation.promotion ? data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '0')
-                    td(colspan=2)= formattedTotal
                   tr
                     td(colspan=3) Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''
+                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0'
                     td(colspan=2)= formattedTotal
                   tr
                     td(colspan=3) Grand Total
-                    - var formattedTotal = 'Rp' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                     td(colspan=2)= formattedTotal
 
           //- .table-responsive
@@ -229,11 +225,11 @@ html(lang="en")
           //-           td= item.item_type === 1 ? 'Material' : 'Jasa'
           //-           td= item.name ? item.name : '-'
           //-           td= item.quantity ? (item.quantity ) : '-'
-          //-           - var formattedFinalPrice = 'Rp' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+          //-           - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
           //-           td= formattedFinalPrice
           //-       tr
           //-         td(colspan=4) Grand Total
-          //-         - var formattedTotal = 'Rp' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+          //-         - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
           //-         td(colspan=2)= formattedTotal
 
 
@@ -274,5 +270,5 @@ html(lang="en")
             img.header-img(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg' border='0' alt='footer-email-instalasi-02')
   script.
     function formatRupiah(angka) {
-      return 'Rp' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      return 'Rp. ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }

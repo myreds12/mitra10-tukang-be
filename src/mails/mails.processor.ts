@@ -153,6 +153,20 @@ export class EmailProcessor {
               total: true,
             },
           },
+          quotation: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            include: {
+              promotion: true,
+              quotation_details: {
+                include: {
+                  item: true,
+                },
+              },
+            },
+          },
         },
       });
       this.logger.log('Order: ', order);
