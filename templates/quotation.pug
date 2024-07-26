@@ -156,23 +156,23 @@ html(lang="en")
             h3 #{data.message.greetings}
             h3 Detail Pemesanan
             .table-responsive
-            table.table-detail-pemesanan
-              thead
-                tr
-                  th.text-center(style='width: 355px') Jenis Jasa
-                  th.text-center(style='width: 100px') QTY
-                  th.text-center(style='width: 250px') Satuan
-                  th.text-center(style='width: 250px') Final Price
-              tbody
-                each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-                  tr(key=`${index} - quotation details`)               
-                    td= item.name ? item.name : '-'
-                    td= item.quantity ? (item.quantity ) : '-'
-                    td= item.unit ? item.unit : '-'
-                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                    td= formattedFinalPrice
+              table.table-detail-pemesanan
+                thead
+                  tr
+                    th.text-center(style='width: 355px') Jenis Jasa
+                    th.text-center(style='width: 100px') QTY
+                    th.text-center(style='width: 250px') Satuan
+                    th.text-center(style='width: 250px') Final Price
+                tbody
+                  each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
+                    tr(key=`${index} - quotation details`)               
+                      td= item.name ? item.name : '-'
+                      td= item.quantity ? (item.quantity ) : '-'
+                      td= item.unit ? item.unit : '-'
+                      - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                      td= formattedFinalPrice
             
-              .table-responsive
+            .table-responsive
               table.table-detail-pemesanan
                 thead
                   tr
