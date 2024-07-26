@@ -485,7 +485,7 @@ export class MailsService {
   }
 
   async handleQuotationPaymentTriggers(template_id: number, status_id: number) {
-    console.log("QUOTATION PAYMENT SEND EMAIL")
+    // console.log("QUOTATION PAYMENT SEND EMAIL")
     const quotations = await this.dbService.quotation.findMany({
       where: {
         quotation_status: status_id,
@@ -529,7 +529,7 @@ export class MailsService {
           quotation.order_id,
           template_id,
         );
-        console.log(countSendedEmail, 'COUNT SEND EMAIL');
+        // console.log(countSendedEmail, 'COUNT SEND EMAIL');
 
         const jobId = `send-quotation-payment-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);

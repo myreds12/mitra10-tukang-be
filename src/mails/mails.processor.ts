@@ -1295,7 +1295,7 @@ export class EmailProcessor {
       },
     });
 
-    console.log(dataMailLogs);
+    // console.log(dataMailLogs);
     
   }
 }
