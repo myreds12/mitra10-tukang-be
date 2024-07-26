@@ -536,6 +536,17 @@ export class EmailProcessor {
               readiness: 2,
             },
           });
+          this.logger.log('Quotation QUOTEOUT readiness updated to 2');
+        }else if(quotation.status.category === 'QUOTEIN'){
+          await this.dbService.quotation.update({
+            where: {
+              id: module_id,
+            },
+            data: {
+              readiness: 4,
+            },
+          });
+          this.logger.log('Quotation QUOTEIN readiness updated to 4');
         }
       }
     } catch (error) {
