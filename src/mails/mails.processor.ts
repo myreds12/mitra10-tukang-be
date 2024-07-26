@@ -485,6 +485,27 @@ export class EmailProcessor {
           defaultTo = checkOrder.members.email;
         }
       }
+      if(quotation.status.category === 'QUOTEOUT'){
+        await this.dbService.quotation.update({
+          where: {
+            id: module_id,
+          },
+          data: {
+            readiness: 2,
+          },
+        });
+        console.log('QUOTEOUT readiness 2')
+      }else if(quotation.status.category === 'QUOTEIN'){
+        await this.dbService.quotation.update({
+          where: {
+            id: module_id,
+          },
+          data: {
+            readiness: 4,
+          },
+        });
+        console.log('QUOTEIN readiness 4')
+      }
 
       let defaultBcc = bcc
         ? bcc
@@ -527,27 +548,7 @@ export class EmailProcessor {
           data,
         );
 
-        if(quotation.status.category === 'QUOTEOUT'){
-          await this.dbService.quotation.update({
-            where: {
-              id: module_id,
-            },
-            data: {
-              readiness: 2,
-            },
-          });
-          this.logger.log('Quotation QUOTEOUT readiness updated to 2');
-        }else if(quotation.status.category === 'QUOTEIN'){
-          await this.dbService.quotation.update({
-            where: {
-              id: module_id,
-            },
-            data: {
-              readiness: 4,
-            },
-          });
-          this.logger.log('Quotation QUOTEIN readiness updated to 4');
-        }
+        
       }
     } catch (error) {
       this.logger.error(error);
