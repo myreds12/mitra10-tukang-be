@@ -536,7 +536,7 @@ export class EmailProcessor {
         }
 
         await this.mailerService.sendMail(mailOptions);
-        this.maillogs(
+        await this.maillogs(
           quotation.order_id,
           message.id,
           {
@@ -1281,7 +1281,7 @@ export class EmailProcessor {
   ) {
     console.log(moduleId);
 
-    await this.dbService.mail_logs.create({
+    const dataMailLogs =  await this.dbService.mail_logs.create({
       data: {
         emailMessages: {
           connect: {
@@ -1294,5 +1294,8 @@ export class EmailProcessor {
         status,
       },
     });
+
+    console.log(dataMailLogs);
+    
   }
 }

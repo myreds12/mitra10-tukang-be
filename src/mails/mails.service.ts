@@ -443,7 +443,7 @@ export class MailsService {
         const quotation = quotations[index];
         // console.log('Quotation ID:', quotation.id);
         const countSendedEmail = await this.countMailLogs(
-          quotation.id,
+          quotation.order_id,
           template_id,
         );
         // console.log(countSendedEmail, 'COUNT SEND EMAIL');
@@ -485,6 +485,7 @@ export class MailsService {
   }
 
   async handleQuotationPaymentTriggers(template_id: number, status_id: number) {
+    console.log("QUOTATION PAYMENT SEND EMAIL")
     const quotations = await this.dbService.quotation.findMany({
       where: {
         quotation_status: status_id,
@@ -518,15 +519,17 @@ export class MailsService {
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
+      console.log(template_id, "TEMPLATE ID");
+      
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];
         // console.log('Quotation ID:', quotation.id);
         const countSendedEmail = await this.countMailLogs(
-          quotation.id,
+          quotation.order_id,
           template_id,
         );
-        // console.log(countSendedEmail, 'COUNT SEND EMAIL');
+        console.log(countSendedEmail, 'COUNT SEND EMAIL');
 
         const jobId = `send-quotation-payment-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
@@ -584,7 +587,7 @@ export class MailsService {
         const complaint = complaints[index];
         const countSendedEmail = await this.dbService.mail_logs.count({
           where: {
-            moduleId: complaint.id,
+            moduleId: complaint.order_id,
             emailMessageId: template_id,
             status: 1,
           },
