@@ -418,23 +418,23 @@ export class MailsService {
     });
 
     if (quotations.length) {
-      const jobsToRemove = await this.emailQueue.getJobs([
-        'active',
-        'waiting',
-        'delayed',
-        'completed',
-        'failed',
-      ]);
-      const jobsToRemovePrefix = 'send-quotation-mail';
+      // const jobsToRemove = await this.emailQueue.getJobs([
+      //   'active',
+      //   'waiting',
+      //   'delayed',
+      //   'completed',
+      //   'failed',
+      // ]);
+      // const jobsToRemovePrefix = 'send-quotation-mail';
 
       // Remove existing jobs with the specified prefix
-      for (const job of jobsToRemove) {
-        const jobId = job.id.toString(); // Convert job ID to string
-        if (jobId.startsWith(jobsToRemovePrefix)) {
-          await job.remove();
-          // console.log(`Removed job with ID: ${job.id}`);
-        }
-      }
+      // for (const job of jobsToRemove) {
+      //   const jobId = job.id.toString(); // Convert job ID to string
+      //   if (jobId.startsWith(jobsToRemovePrefix)) {
+      //     await job.remove();
+      //     // console.log(`Removed job with ID: ${job.id}`);
+      //   }
+      // }
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
@@ -452,7 +452,7 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
         // console.log('Job Exist:', jobExist, 'for Job ID:', jobId);
 
-        if (countSendedEmail === 0 && !jobExist) {
+        if (!countSendedEmail && !jobExist) {
           this.logger.log(
             `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
@@ -498,23 +498,23 @@ export class MailsService {
     });
 
     if (quotations.length) {
-      const jobsToRemove = await this.emailQueue.getJobs([
-        'active',
-        'waiting',
-        'delayed',
-        'completed',
-        'failed',
-      ]);
-      const jobsToRemovePrefix = 'send-quotation-payment-mail';
+      // const jobsToRemove = await this.emailQueue.getJobs([
+      //   'active',
+      //   'waiting',
+      //   'delayed',
+      //   'completed',
+      //   'failed',
+      // ]);
+      // const jobsToRemovePrefix = 'send-quotation-payment-mail';
 
-      // Remove existing jobs with the specified prefix
-      for (const job of jobsToRemove) {
-        const jobId = job.id.toString(); // Convert job ID to string
-        if (jobId.startsWith(jobsToRemovePrefix)) {
-          await job.remove();
-          // console.log(`Removed job with ID: ${job.id}`);
-        }
-      }
+      // // Remove existing jobs with the specified prefix
+      // for (const job of jobsToRemove) {
+      //   const jobId = job.id.toString(); // Convert job ID to string
+      //   if (jobId.startsWith(jobsToRemovePrefix)) {
+      //     await job.remove();
+      //     // console.log(`Removed job with ID: ${job.id}`);
+      //   }
+      // }
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
@@ -532,7 +532,7 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
         // console.log('Job Exist:', jobExist, 'for Job ID:', jobId);
 
-        if (countSendedEmail === 0 && !jobExist) {
+        if (!countSendedEmail && !jobExist) {
           this.logger.log(
             `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
