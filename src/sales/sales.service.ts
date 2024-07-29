@@ -496,7 +496,7 @@ export class SalesService {
         'send-credential-mail',
         {
           username: salesUsername,
-          password: salesPassword,
+          password: updateSalesDto?.password ?? 'password',
         },
         {
           attempts: 3,

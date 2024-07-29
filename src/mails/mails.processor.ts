@@ -354,10 +354,23 @@ export class EmailProcessor {
         users.store[0]?.email ||
         'example@example.com';
 
+      let subject = 'Register Account';
+      if (users.employee) {
+        subject = 'Register Employee Account';
+      } else if (users.pic_vendor.length > 0) {
+        subject = 'Register Vendor Account';
+      } else if (users.store.length > 0) {
+        subject = 'Register Store Account';
+      } else if (users.sales) {
+        subject = 'Register Sales Account';
+      } else if (users.tukang.length > 0) {
+        subject = 'Register Tukang Account';
+      }
+
       await this.mailerService.sendMail({
         to,
         from: 'noreply@mitra10.com', // sender address
-        subject: 'Register Account', // Subject line
+        subject, // Subject line
         template: 'credential-mail',
         context: { data },
       });
@@ -380,7 +393,6 @@ export class EmailProcessor {
       // }
     }
   }
-
   @Process('send-quotation-mail')
   async sendQuotationMail(job: Job<QuotationMailInterface>) {
     try {
