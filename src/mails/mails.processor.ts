@@ -339,7 +339,11 @@ export class EmailProcessor {
           employee: true,
           pic_vendor: true,
           store: true,
-          sales: true,
+          sales: {
+            include: {
+              store: true
+            }
+          },
           tukang: true,
         },
       });
@@ -355,6 +359,7 @@ export class EmailProcessor {
         'example@example.com';
 
       let subject = 'Register Account';
+      let bcc: string[] = ['ecommerce@mitra10.com'];
       if (users.employee) {
         subject = 'Register Employee Account';
       } else if (users.pic_vendor.length > 0) {
@@ -363,16 +368,21 @@ export class EmailProcessor {
         subject = 'Register Store Account';
       } else if (users.sales) {
         subject = 'Register Sales Account';
+        if (users.sales[0].store && users.sales[0].store.email) {
+          bcc.push(users.sales[0].store.email);
+        }
       } else if (users.tukang.length > 0) {
         subject = 'Register Tukang Account';
       }
 
+      const uniqueBcc = [...new Set(bcc)];
       await this.mailerService.sendMail({
         to,
         from: 'noreply@mitra10.com', // sender address
         subject, // Subject line
         template: 'credential-mail',
         context: { data },
+        bcc: uniqueBcc.join(','),
       });
     } catch (error) {
       this.logger.error(error);
