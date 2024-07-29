@@ -180,6 +180,20 @@ export class TukangService {
             ? [
                 {
                   OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      tukang_area: {
+                        some: {
+                          area: {
+                            area: {
+                              contains: search,
+                            }
+                          }
+                        }
+                      }
+                    },
                     { address: { contains: search } },
                     { email: { contains: search } },
                     { phone_number: { contains: search } },
@@ -193,7 +207,7 @@ export class TukangService {
                     { vendor: { company_name: { contains: search } } },
                     {
                       tukang_service: {
-                        every: {
+                        some: {
                           service_type: { service_type: { contains: search } },
                         },
                       },

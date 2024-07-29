@@ -231,7 +231,7 @@ export class QuotationService {
         order_by,
         vendor_id,
         promotion,
-        is_paid
+        is_paid,
       } = queryParamsDto;
       const skip = page * take - take;
       const where: Prisma.quotationWhereInput = {
@@ -242,7 +242,31 @@ export class QuotationService {
                 {
                   OR: [
                     {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      order_id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
                       order: { vendor: { company_name: { contains: search } } },
+                    },
+                    {
+                      quotation_details: {
+                        some: {
+                          name: {
+                            contains: search
+                          }
+                        }
+                      }
+                    },
+                    {
+                      order: {
+                        members: {
+                          full_name: {
+                            contains: search,
+                          },
+                        },
+                      },
                     },
                     { store: { store_name: { contains: search } } },
                     { quotation_number: { contains: search } },
@@ -265,13 +289,13 @@ export class QuotationService {
                 },
               }
             : undefined,
-          Boolean(is_paid) ? {
-            
-              receipt_quotation: {
-                not: null,
+          Boolean(is_paid)
+            ? {
+                receipt_quotation: {
+                  not: null,
+                },
               }
-            
-          } :  undefined,
+            : undefined,
           ...(Boolean(promotion)
             ? [
                 {
@@ -501,20 +525,23 @@ export class QuotationService {
         },
       });
 
-      const promotion = updateQuotationDto.promotion_id || quotationForUpdate.promotion_id ? await this.dbService.promotion.findFirstOrThrow({
-        where: {
-          id:
-            updateQuotationDto?.promotion_id ??
-            quotationForUpdate?.promotion?.id,
-        },
-        include: {
-          promotion_stores: {
-            include: {
-              store: true,
-            },
-          },
-        },
-      }) : undefined;
+      const promotion =
+        updateQuotationDto.promotion_id || quotationForUpdate.promotion_id
+          ? await this.dbService.promotion.findFirstOrThrow({
+              where: {
+                id:
+                  updateQuotationDto?.promotion_id ??
+                  quotationForUpdate?.promotion?.id,
+              },
+              include: {
+                promotion_stores: {
+                  include: {
+                    store: true,
+                  },
+                },
+              },
+            })
+          : undefined;
 
       const quotationfiles =
         quotation_files?.map((item) => ({
@@ -601,7 +628,6 @@ export class QuotationService {
       }
 
       console.log(promotion);
-      
 
       const [syncDetails, quotation] = await this.dbService.$transaction([
         this.dbService.quotation_details.updateMany({
@@ -629,7 +655,9 @@ export class QuotationService {
               ? {
                   promotion: {
                     connect: {
-                      id: updateQuotationDto?.promotion_id ?? quotationForUpdate.promotion_id,
+                      id:
+                        updateQuotationDto?.promotion_id ??
+                        quotationForUpdate.promotion_id,
                     },
                   },
                 }

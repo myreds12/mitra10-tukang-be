@@ -250,6 +250,29 @@ export class InvoicesService {
                   {
                     invoice_number: { contains: search },
                   },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    invoice_details: {
+                      some:{
+                        order_id: !isNaN(+search) ? +search : undefined,
+                      }
+                    }
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order: {
+                          store: {
+                            store_name: {
+                              contains: search,
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 ],
               },
             ]

@@ -415,6 +415,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
+            ...(vendor_id
+              ? {
+                  orders: {
+                    vendor_id: vendor_id,
+                  },
+                }
+              : undefined),
             deleted_at: null,
           },
         }),
@@ -435,6 +442,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
+              ...(vendor_id
+                ? {
+                    order: {
+                      vendor_id: vendor_id,
+                    },
+                  }
+                : undefined),
             deleted_at: null,
           },
         }),
@@ -455,6 +469,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
+              ...(vendor_id
+                ? {
+                    orders: {
+                      vendor_id: vendor_id,
+                    },
+                  }
+                : undefined),
             deleted_at: null,
           },
         }),
