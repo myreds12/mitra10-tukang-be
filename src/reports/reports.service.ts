@@ -1050,10 +1050,110 @@ export class ReportsService {
 
   async reportTukang(query: QueryParamsDto) {
     try {
+      const {
+        date_from,
+        vendor_id,
+        date_to,
+        page,
+        search,
+        take,
+        search_date_from,
+        search_date_to,
+        service_types,
+        area_id,
+      } = query;
+      const skip = page * take - take;
+
+      const where: Prisma.tukangWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      tukang_area: {
+                        some: {
+                          area: {
+                            area: {
+                              contains: search,
+                            }
+                          }
+                        }
+                      }
+                    },
+                    { address: { contains: search } },
+                    { email: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { full_name: { contains: search } },
+                    { ktp_number: { contains: search } },
+                    {
+                      full_name: {
+                        contains: search,
+                      },
+                    },
+                    { vendor: { company_name: { contains: search } } },
+                    {
+                      tukang_service: {
+                        some: {
+                          service_type: { service_type: { contains: search } },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          service_types
+            ? {
+                tukang_service: {
+                  some: {
+                    service_type_id: {
+                      in: service_types,
+                    },
+                  },
+                },
+              }
+            : undefined,
+          area_id
+            ? {
+                tukang_area: {
+                  some: {
+                    area_id: area_id,
+                  },
+                },
+              }
+            : undefined,
+          vendor_id
+            ? {
+                vendor_id: vendor_id,
+              }
+            : undefined,
+          search_date_from && search_date_to
+            ? {
+                join_date: {
+                  gte: new Date(`${search_date_from}T00:00:00.000Z`),
+                  lte: new Date(`${search_date_to}T23:59:59.000Z`),
+                },
+              }
+            : undefined,
+          date_from && date_to
+            ? {
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
+            : undefined,
+        ],
+        deleted_at: null,
+      };
       const tukang = await this.dbService.tukang.findMany({
-        where: {
-          deleted_at: null,
-        },
+        where,
+        skip,
+        take: take <= 0 ? undefined : take,
         include: {
           work_order_tukang: {
             where: { deleted_at: null },
