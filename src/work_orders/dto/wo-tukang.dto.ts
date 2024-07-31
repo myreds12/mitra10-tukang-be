@@ -12,6 +12,10 @@ export class WorkOrderTukang {
   type?: number;
 
   @IsOptional()
+  @ApiProperty()
+  notes?: string;
+
+  @IsOptional()
   @ApiProperty({ type: Number })
   @Type(() => Number)
   @IsNumber()

@@ -119,6 +119,11 @@ export class QueryParamsDto {
   is_invoice?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsIn([0,1])
+  is_active_warranty?: number;
+
+  @IsOptional()
   @IsNotEmpty()
   group_by?: string;
 

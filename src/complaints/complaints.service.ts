@@ -199,6 +199,15 @@ export class ComplaintsService {
                         store_name: search
                       }
                     }
+                  },
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        }
+                      }
+                    }
                   }
                 ],
               }

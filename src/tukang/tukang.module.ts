@@ -7,10 +7,11 @@ import { extname } from 'path';
 import { OrderService } from 'src/order/order.service';
 import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Module({
   controllers: [TukangController],
-  providers: [TukangService],
+  providers: [TukangService, PdfService],
   imports: [
     MulterModule.register({
       limits: {

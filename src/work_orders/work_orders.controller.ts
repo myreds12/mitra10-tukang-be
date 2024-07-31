@@ -30,6 +30,7 @@ import { StatusDetails } from './dto/work-order-status.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { WorkOrderTukang } from './dto/wo-tukang.dto';
 
 @ApiTags('Work Orders')
 @Controller('work-orders')
@@ -37,6 +38,19 @@ import { extname } from 'path';
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
+  @Post('update-notes/:id')
+  async updatTukangNotes(
+    @Param('id') id: number,
+    @Request() req: RequestWithUser,
+    @Body() dataDto: WorkOrderTukang,
+  ) {
+   
+    return await this.workOrdersService.tukangUpdateNotes(
+      id,
+      req.user,
+      dataDto,
+    );
+  }
 
   @Get('/calender')
   // @CheckPermissions([PermissionAction.READ, menuName])

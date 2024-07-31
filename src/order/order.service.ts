@@ -241,9 +241,16 @@ export class OrderService {
         vendor_id,
         work_order_status,
         is_invoice,
+        is_active_warranty,
       } = queryParams;
 
       const skip = page * take - take;
+      const now = new Date();
+
+      now.setDate(now.getDate() - 7);
+
+      console.log(now);
+      
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -255,6 +262,11 @@ export class OrderService {
                     {
                       id: !isNaN(+search) ? +search : undefined,
                     },
+                    !isNaN(Number(search))
+                      ? {
+                          order_id: Number(search),
+                        }
+                      : undefined,
                     // TODO: FIXME
                     // { request_survey: { equals: new Date(search) } },
                     { members: { full_name: { contains: search } } },
@@ -295,7 +307,6 @@ export class OrderService {
                 },
               ]
             : []),
-
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(work_order_status
@@ -354,6 +365,24 @@ export class OrderService {
                 },
               ]
             : []),
+          ...(Boolean(is_active_warranty) ? [
+            {
+              work_orders: {
+                work_order_status: {
+                  some: {
+                    status: {
+                      category: {
+                        contains: 'WORKEND',
+                      },
+                    },
+                    created_at: {
+                      gte: now,
+                    },
+                  },
+                },
+              },
+            }
+          ]: [])
           //
         ].filter(Boolean),
         deleted_at: null,
@@ -612,8 +641,8 @@ export class OrderService {
       const orderGrandTotalData = await this.dbService.orders.findMany({
         where,
         include: {
-          quotation: true
-        }
+          quotation: true,
+        },
       });
       const orderGrandTotal = orderGrandTotalData.reduce((total, order) => {
         let grandTotal = Number(order.grand_total) || 0;
@@ -1022,7 +1051,9 @@ export class OrderService {
           Number(order.grand_total) +
           (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
             ? Number(updateOrderDto.additional_fee) - +order.additional_fee
-            : updateOrderDto.is_overdistance === 0 ? -order.additional_fee : 0);
+            : updateOrderDto.is_overdistance === 0
+            ? -order.additional_fee
+            : 0);
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1065,10 +1096,13 @@ export class OrderService {
                 total = Number(itemPrice) * item.quantity;
                 grand_total +=
                   total +
-                  (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
+                  (updateOrderDto.additional_fee &&
+                  updateOrderDto.is_overdistance === 1
                     ? Number(updateOrderDto.additional_fee) -
                       +order.additional_fee
-                    : updateOrderDto.is_overdistance === 0 ? -order.additional_fee : 0);
+                    : updateOrderDto.is_overdistance === 0
+                    ? -order.additional_fee
+                    : 0);
                 grand_total_comission += comission;
               }
 
@@ -1118,9 +1152,11 @@ export class OrderService {
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
         notes: updateOrderDto?.notes ?? undefined,
         is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
-        ...(updateOrderDto?.is_overdistance === 1 ? {
-          additional_fee: updateOrderDto?.additional_fee ?? undefined,
-        } : {  additional_fee: 0 } ),
+        ...(updateOrderDto?.is_overdistance === 1
+          ? {
+              additional_fee: updateOrderDto?.additional_fee ?? undefined,
+            }
+          : { additional_fee: 0 }),
         member_id: updateOrderDto?.member_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
         vendor_id: updateOrderDto?.vendor_id ?? undefined,
@@ -1977,7 +2013,9 @@ export class OrderService {
           const grandTotalSurvey = Number(order.grand_total);
           const quotationGrandTotal =
             order && order.quotation && order.quotation.length > 0
-              ? Math.ceil(Number(order.quotation[0]?.quotation_grand_total || 0))
+              ? Math.ceil(
+                  Number(order.quotation[0]?.quotation_grand_total || 0),
+                )
               : 0;
 
           if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
@@ -2053,7 +2091,6 @@ export class OrderService {
         });
       });
 
-      
       const totalRow = worksheet.addRow({
         id: 'Total',
         store_name: '',
@@ -2072,7 +2109,7 @@ export class OrderService {
         created_at: '',
         grand_total_survey: '',
         quotation_grand_total: '',
-        grand_total: Number(totalGrandTotalValue), 
+        grand_total: Number(totalGrandTotalValue),
       });
 
       totalRow.eachCell((cell) => {

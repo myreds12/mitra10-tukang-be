@@ -1,4 +1,4 @@
-import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateTukangDto } from './dto/create-tukang.dto';
 import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -11,12 +11,14 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Injectable()
 export class TukangService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
+    private pdfService: PdfService,
   ) {}
   async create(
     createTukangDto: CreateTukangDto,
@@ -628,6 +630,218 @@ export class TukangService {
 
       const createExcelFilePath = (baseName) => {
         const folderPath = './uploads/excel/tukang';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+
+        const excelFileName = `${baseName}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook,
+        excelFilePath,
+        res,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (data, res) => {
+        const baseName = `DataTukang-${getFormattedDate()}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(data, res);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async tukangOrderPdf(tukang_id: number, res: Response) {
+    const tukang = await this.dbService.tukang.findFirst({
+      where: {
+        id: tukang_id
+      },
+      include: {
+        vendor: true,
+        work_order_tukang: {
+          include: {
+            work_orders: {
+              include: {
+                order: true
+              }
+            }
+          }
+        }
+      },
+    });
+
+    const data = {
+      // quotation,
+      // order: quotation.order,
+      // message,
+    };
+
+    const buffer = await this.pdfService.generate('quotation', data);
+    // Set headers to download the PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
+    res.send(buffer);
+  }
+
+  async tukangExportOrderExcel(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const { tukang_id, vendor_id, date_from, date_to } = queryParams;
+      const where: Prisma.work_order_tukangWhereInput = {
+        AND: [
+          vendor_id
+            ? {
+              work_orders: {
+                vendor_id: vendor_id,
+              }
+            }
+            : undefined,
+          tukang_id
+            ? {
+              tukang_id: tukang_id
+            }
+            : undefined,
+          date_from && date_to
+            ? {
+              work_orders: {
+                order: {
+                  created_at: {
+                    gte: new Date(`${date_from}T00:00:00.000Z`),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                  }
+                }
+              }
+            } 
+            : undefined,
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+      const data = await this.dbService.work_order_tukang.findMany({
+        where,
+        include: {
+          tukang: true,
+          work_orders: {
+            include: {
+              order: {
+                include: {
+                  status: true,
+                  store: true,
+                  members: true,
+                  m_order_details: true
+                }
+              }
+            }
+          }
+        }
+      })
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Order Tukang ', {
+        properties: {
+          tabColor: {
+            argb: 'FF4CAF50',
+          },
+          outlineLevelCol: 6,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Order Id', key: 'id', width: 20 },
+        { header: 'Tanggal Order', key: 'order_created', width: 35 },
+        { header: 'Nama Customer', key: 'member_name', width: 35 },
+        { header: 'Jenis Pemasangan', key: 'item_name', width: 35 },
+        { header: 'Status Order', key: 'order_status', width: 35 },
+        { header: 'Notes', key: 'notes', width: 35 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((tukang) => {
+        const formattedDateTime = (date) =>
+          `${date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${date.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+        const row = worksheet.addRow({
+          id: tukang.work_orders.order_id,
+          order_created: tukang.work_orders.order.created_at ? formattedDateTime(tukang.work_orders.order.created_at) : '',
+          member_name: tukang.work_orders.order.members.full_name ? tukang.work_orders.order.members.full_name : '',
+          item_name: tukang.work_orders.order.m_order_details ? tukang.work_orders.order.m_order_details
+          .map((item) => item?.item_name || '-')
+          .join(', ') : 'Jenis Jasa Pemasangan Belum Ditentukan',
+          order_status: tukang.work_orders.order.status.description ? tukang.work_orders.order.status.description : '',
+          notes: tukang.notes ? tukang.notes : 'Notes Belum Ditentukan',
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const createExcelFilePath = (baseName) => {
+        const folderPath = './uploads/excel/tukang-order';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }

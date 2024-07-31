@@ -11,7 +11,9 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateLoginDto } from './dto/login.dto';
@@ -24,6 +26,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -48,12 +51,14 @@ export class AuthController {
   }
 
   @Post('/update/:id')
+  @UseInterceptors(FileInterceptor('files'))
+  @UseGuards(JwtAuthGuard)
   async update(
     @Param('id', ParseIntPipe) id: number,
-
     @Body() dto: UpdateUserDto,
+    @UploadedFile() files: Express.Multer.File,
   ) {
-    return await this.authService.updateUser(id, dto);
+    return await this.authService.updateUser(id, dto, files);
   }
 
   @HttpCode(200)

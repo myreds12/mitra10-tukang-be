@@ -10,6 +10,7 @@ import { StatusDetails } from './dto/work-order-status.dto';
 import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { WorkOrderTukang } from './dto/wo-tukang.dto';
 
 @Injectable()
 export class WorkOrdersService {
@@ -67,6 +68,10 @@ export class WorkOrdersService {
         },
       };
 
+      console.log(dataDto.survey_date, "SURVEY DATE");
+      console.log(new Date(dataDto.survey_date), "SURVEY DATE PARSING");
+      
+
       const work_order_data: Prisma.work_ordersCreateArgs = {
         data: {
           request_work_time: dataDto?.request_work_time
@@ -122,7 +127,11 @@ export class WorkOrdersService {
         },
       };
 
-      await this.orderService.setStatus(order.id, dataDto.work_order_status, user);
+      await this.orderService.setStatus(
+        order.id,
+        dataDto.work_order_status,
+        user,
+      );
 
       const [work_order] = await this.dbService.$transaction([
         this.dbService.work_orders.create(work_order_data),
@@ -154,28 +163,59 @@ export class WorkOrdersService {
       const where: Prisma.work_ordersWhereInput = {
         AND: [
           search
-          ? {
-              OR: [
-                ...(isNaN(Date.parse(search))
-                  ? []
-                  : [
-                      { request_work_time: { equals: new Date(search) } },
-                      { survey_date: { equals: new Date(search) } },
-                      { work_start_date: { equals: new Date(search) } },
-                      { work_end_date: { equals: new Date(search) } },
-                    ]),
-                {
-                  order: {
-                    members: {
-                      full_name: {
-                        contains: search,
+            ? {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    order: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-              ],
-            }
-          : undefined,
+                  {
+                    order: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    order: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    order: {
+                      store: {
+                        store_name: {
+                          contains: search
+                        }
+                      }
+                    }
+                  }
+                ],
+              }
+            : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
@@ -241,7 +281,7 @@ export class WorkOrdersService {
           },
           request_tukang: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               tukang_to_request_tukang: true,
@@ -250,7 +290,7 @@ export class WorkOrdersService {
           },
           work_order_tukang: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               tukang: true,
@@ -259,7 +299,7 @@ export class WorkOrdersService {
           vendor: true,
           work_order_status: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               status: true,
@@ -357,7 +397,7 @@ export class WorkOrdersService {
           },
           request_tukang: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               tukang_to_request_tukang: true,
@@ -366,7 +406,7 @@ export class WorkOrdersService {
           },
           work_order_tukang: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               tukang: true,
@@ -375,7 +415,7 @@ export class WorkOrdersService {
           vendor: true,
           work_order_status: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             orderBy: { created_at: 'desc' },
             include: {
@@ -647,7 +687,7 @@ export class WorkOrdersService {
           vendor: true,
           work_order_status: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             orderBy: { created_at: 'desc' },
             include: {
@@ -825,6 +865,62 @@ export class WorkOrdersService {
     }
   }
 
+  async tukangUpdateNotes(id: number,
+    user: users,
+    updateData: WorkOrderTukang){
+    try {
+      const workOrder = await this.dbService.work_orders.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          request_tukang: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              work_orders: {
+                include: {
+                  work_order_tukang: {
+                    where: {
+                      deleted_at: null,
+                    },
+                    include: {
+                      tukang: true,
+                    },
+                  }
+                }
+              }
+            },
+          },
+        },
+      });
+
+      if (!workOrder) throw new BadRequestException('Work Order not exist');
+
+
+      const workOrderTukang = await this.dbService.$transaction([
+        this.dbService.work_order_tukang.updateMany({
+          where: {
+            work_order_id: id,
+            tukang_id: updateData.tukang_id,
+            deleted_at: null
+          },
+          data: {
+           notes: updateData.notes,
+           updated_by: user.id,
+            updated_at: new Date()
+          },
+        }),
+      ]);
+
+      return workOrderTukang;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+  
   async replaceTukang(
     id: number,
     updateDto: UpdateWorkOrderDto,
@@ -952,8 +1048,6 @@ export class WorkOrdersService {
     }
   }
 
-  
-
   async delete(id: number, user_id: number) {
     await this.dbService.work_orders.update({
       where: {
@@ -985,28 +1079,28 @@ export class WorkOrdersService {
       const where: Prisma.work_ordersWhereInput = {
         AND: [
           search
-          ? {
-              OR: [
-                ...(isNaN(Date.parse(search))
-                  ? []
-                  : [
-                      { request_work_time: { equals: new Date(search) } },
-                      { survey_date: { equals: new Date(search) } },
-                      { work_start_date: { equals: new Date(search) } },
-                      { work_end_date: { equals: new Date(search) } },
-                    ]),
-                {
-                  order: {
-                    members: {
-                      full_name: {
-                        contains: search,
+            ? {
+                OR: [
+                  ...(isNaN(Date.parse(search))
+                    ? []
+                    : [
+                        { request_work_time: { equals: new Date(search) } },
+                        { survey_date: { equals: new Date(search) } },
+                        { work_start_date: { equals: new Date(search) } },
+                        { work_end_date: { equals: new Date(search) } },
+                      ]),
+                  {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-              ],
-            }
-          : undefined,
+                ],
+              }
+            : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
@@ -1048,9 +1142,9 @@ export class WorkOrdersService {
         orderBy: [
           {
             status: {
-              status_urgency: 'desc'
-            }
-          }
+              status_urgency: 'desc',
+            },
+          },
         ],
         include: {
           order: {

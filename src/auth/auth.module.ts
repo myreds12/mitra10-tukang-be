@@ -9,6 +9,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { OrderService } from 'src/order/order.service';
 import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
+import { MulterModule } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @Module({
   imports: [
@@ -28,6 +31,16 @@ import { BullModule } from '@nestjs/bull';
       defaultJobOptions: {
         attempts: 3,
       },
+    }),
+    MulterModule.register({
+      storage: diskStorage({
+        destination: './uploads/profile-picture',
+        filename(req, file, callback) {
+          const uniqueSuffix = `${Date.now()}`;
+          const filename = `${uniqueSuffix}${extname(file.originalname)}`;
+          callback(null, filename);
+        },
+      }),
     }),
   ],
   controllers: [AuthController],

@@ -281,6 +281,7 @@ model users {
   username        String    @db.VarChar(255)
   password        String    @db.VarChar(255)
   forget_password DateTime? @db.DateTime()
+  profile_picture  String? @default("") @db.VarChar(255)
 
   is_active Boolean @default(true)
 
@@ -1094,10 +1095,10 @@ model work_orders {
   status_id Int
 
   request_work_time DateTime? @default(now()) @db.DateTime()
-  survey_date       DateTime? @db.Date()
+  survey_date       DateTime? @db.DateTime()
 
-  work_start_date DateTime? @db.Date()
-  work_end_date   DateTime? @db.Date()
+  work_start_date DateTime? @db.DateTime()
+  work_end_date   DateTime? @db.DateTime()
 
   created_by Int?
   updated_by Int?
@@ -1120,6 +1121,8 @@ model work_order_tukang {
   work_order_id Int
   tukang_id     Int
   type          Int @default(1) // 1 = SURVEY, 2 = PENGERJAAN
+
+   notes String @default("") @db.Text()
 
   created_by Int?
   updated_by Int?

@@ -73,7 +73,7 @@ export class AuthService {
     }
   }
 
-  async updateUser(id: number, dto: UpdateUserDto) {
+  async updateUser(id: number, dto: UpdateUserDto, files?: Express.Multer.File) {
     try {
       const user = await this.dbService.users.findFirst({
         where: {
@@ -81,6 +81,9 @@ export class AuthService {
         },
       });
 
+      console.log(files);
+      
+      
       if (!user) {
         throw new NotFoundException('User tidak ada.');
       }
@@ -107,6 +110,9 @@ export class AuthService {
                 },
               }
             : undefined),
+          ...(files ? {
+            profile_picture: files.filename
+          } : undefined)
         },
       });
 

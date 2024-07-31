@@ -264,7 +264,6 @@ export class ReportsService {
         : isSameMonth
         ? allDaysInMonth
         : allMonths;
-      console.log(periods);
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -309,8 +308,6 @@ export class ReportsService {
         acc[period] = { ...summaryTemplate };
         return acc;
       }, {});
-
-      console.log(summary, 'SUMMARY');
 
       // Build where clause for Prisma query
       const where = {
@@ -379,8 +376,13 @@ export class ReportsService {
           quotation: true,
           work_orders: {
             include: {
-              status: true
-            }
+              status: true,
+              work_order_status: {
+                include: {
+                  status: true,
+                },
+              },
+            },
           },
           complaints: {
             include: {
@@ -422,7 +424,15 @@ export class ReportsService {
                   },
                 }
               : undefined),
+            status: {
+              category: {
+                contains: 'INVESTIGATED'
+              }
+            },
             deleted_at: null,
+          },
+          include: {
+            status: true,
           },
         }),
         this.dbService.reschedule.findMany({
@@ -442,13 +452,20 @@ export class ReportsService {
                   },
                 }
               : undefined),
-              ...(vendor_id
-                ? {
-                    order: {
-                      vendor_id: vendor_id,
-                    },
-                  }
-                : undefined),
+            ...(vendor_id
+              ? {
+                  order: {
+                    vendor_id: vendor_id,
+                  },
+                }
+              : undefined),
+            order: {
+              status: {
+                category: {
+                  contains: 'RESCHEDULE',
+                },
+              },
+            },
             deleted_at: null,
           },
         }),
@@ -469,13 +486,13 @@ export class ReportsService {
                   },
                 }
               : undefined),
-              ...(vendor_id
-                ? {
-                    orders: {
-                      vendor_id: vendor_id,
-                    },
-                  }
-                : undefined),
+            ...(vendor_id
+              ? {
+                  orders: {
+                    vendor_id: vendor_id,
+                  },
+                }
+              : undefined),
             deleted_at: null,
           },
         }),
@@ -513,16 +530,16 @@ export class ReportsService {
             summary[period].totalUnpaidReceipt++;
           }
 
-          if(order?.work_orders?.status?.category === 'RESURVEY') {
+          if (order?.work_orders?.status?.category === 'RESURVEY') {
             summary[period].totalResurveyComplaint++;
           }
-          if(order?.work_orders?.status?.category === 'RESURVEYDONE') {
+          if (order?.work_orders?.status?.category === 'RESURVEYDONE') {
             summary[period].totalResurveyComplaintDone++;
           }
-          if(order?.work_orders?.status?.category === 'REWORK') {
+          if (order?.work_orders?.status?.category === 'REWORK') {
             summary[period].totalReworkComplaintDone++;
           }
-          if(order?.work_orders?.status?.category === 'REWORKEND') {
+          if (order?.work_orders?.status?.category === 'REWORKEND') {
             summary[period].totalReworkComplaint++;
           }
 
@@ -533,7 +550,9 @@ export class ReportsService {
           }
 
           if (
-            order?.complaints[0]?.status?.category === 'COMPLAINTREJECTEDBYHO'
+            order?.complaints?.find(
+              (i) => i.status.category === 'COMPLAINTREJECTEDBYHO',
+            )
           ) {
             summary[period].totalComplaintRejectedByHo++;
           }
@@ -546,7 +565,11 @@ export class ReportsService {
             summary[period].totalUnpaidQuotation++;
           }
 
-          const workEndDate = new Date(order.created_at);
+          const workEndDate = new Date(
+            order?.work_orders?.work_order_status?.find(
+              (i) => i.status.category === 'WORKEND',
+            )?.created_at,
+          );
           const warrantyExpirationDate = new Date(
             workEndDate.getTime() + H_PLUS_7_DAYS,
           );
@@ -573,6 +596,7 @@ export class ReportsService {
           'totalRefund',
         ];
         entityList.forEach((entity) => {
+
           const period = isSameDay
             ? new Date(entity.created_at).toLocaleString('id-ID', {
                 hour: '2-digit',
@@ -624,10 +648,10 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      console.log('Fetched orders:', orders);
-      console.log('Fetched complaints:', complaints);
-      console.log('Fetched reschedules:', reschedules);
-      console.log('Fetched refunds:', refunds);
+      // console.log('Fetched orders:', orders);
+      // console.log('Fetched complaints:', complaints);
+      // console.log('Fetched reschedules:', reschedules);
+      // console.log('Fetched refunds:', refunds);
       // console.log("Generated summary:", summary);
       // console.log("Generated report data:", reportData);
 
@@ -723,7 +747,6 @@ export class ReportsService {
             : null,
         ].filter((condition) => Boolean(condition)),
       };
-      console.log(where);
 
       const complaint = await this.dbService.complaints.findMany({
         take: take <= 0 ? undefined : take,
@@ -896,78 +919,41 @@ export class ReportsService {
 
   async reportWorkOrder(query: QueryParamsDto) {
     try {
-      const { status, date_from, date_to, order_by, member_id, vendor_id } =
-        query;
-      console.log(status);
-      const statuses = await this.dbService.status.findMany();
+       const {
+        page,
+        take,
+        search,
+        date_from,
+        date_to,
+        status,
+        order_by,
+        tukang_id,
+        vendor_id,
+      } = query;
 
-      const statusWorkReq = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('workreq'),
-      );
-      const statusWorkStart = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('workstart'),
-      );
-      // const statusWIP = statuses.find((i) =>
-      //   i.category.toLocaleLowerCase().includes('wip'),
-      // );
-      const statusWorkEnd = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('workend'),
-      );
-
-      const where: Prisma.work_ordersWhereInput = {
-        AND: [
-          ...(member_id
-            ? [
-                {
-                  order: {
-                    member_id: {
-                      equals: member_id,
-                    },
-                  },
-                },
-              ]
-            : []),
-          ...(vendor_id
-            ? [
-                {
-                  vendor_id: {
-                    equals: vendor_id,
-                  },
-                },
-              ]
-            : []),
-          ...(date_from && date_to
-            ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
-                },
-              ]
-            : []),
-        ].filter(Boolean),
-        deleted_at: null,
+      const statusCategories = {
+        totalWaitingSurvey: ['SURVEYREQ'],
+        totalSurveyStart: ['SURVEYSTART'],
+        totalSurveyDone: ['SURVEYDONE'],
+        orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
+        totalPaidQuotation: ['UNPAIDQUOTATION'],
+        totalWaitingWork: ['WORKREQ'],
+        totalWorkStart: ['WORKSTART'],
+        totalCancel: ['CANCEL', 'CANCELREFUND'],
+        orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
+        totalOrderDone: [
+          'WORKEND',
+        ],
       };
 
-      const workOrders = await this.dbService.work_orders.findMany({
-        where,
-        orderBy: {
-          created_at: order_by,
-        },
-        include: {
-          status: true,
-        },
-      });
-      const count = await this.dbService.work_orders.count({
-        where,
-      });
-      const totalWorkOrdersPerMonth = {};
-      const ordersMonth = {};
-      const totalCompleteOrderPerMonth = {};
-      const totalWorkStartWorkOrdersPerMonth = {};
-      // const totalWIPOrderPerMonth = {};
-      const totalWorkEndOrderPerMonth = {};
+      // Determine if it's the same day report, same month report, or monthly report
+      const isSameDay = date_from === date_to;
+      const isSameMonth =
+        new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
+        new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
+      const allHours = Array.from({ length: 24 }, (_, i) =>
+        i.toString().padStart(2, '0'),
+      );
       const allMonths = [
         'Januari',
         'Februari',
@@ -982,64 +968,288 @@ export class ReportsService {
         'November',
         'Desember',
       ];
+      const allDaysInMonth = Array.from(
+        {
+          length: new Date(
+            new Date(date_from).getFullYear(),
+            new Date(date_from).getMonth() + 1,
+            0,
+          ).getDate(),
+        },
+        (_, i) => (i + 1).toString().padStart(2, '0'),
+      );
+      const periods = isSameDay
+        ? allHours
+        : isSameMonth
+        ? allDaysInMonth
+        : allMonths;
 
-      allMonths.forEach((month) => {
-        totalWorkStartWorkOrdersPerMonth[month] = 0;
-        totalCompleteOrderPerMonth[month] = 0;
-        // totalWIPOrderPerMonth[month] = 0;
-        totalWorkEndOrderPerMonth[month] = 0;
+      // Initialize summary template and summary object
+      const summaryTemplate = {
+        totalOrder: 0,
+        totalWaitingSurvey: 0,
+        totalSurveyStart: 0,
+        totalSurveyDone: 0,
+        orderSurvey: 0,
+        totalPaidQuotation: 0,
+        totalWaitingWork: 0,
+        totalWorkStart: 0,
+        orderWork: 0,
+        totalOrderDone: 0,
+        totalCancel: 0,
+        
+      };
+
+      const summary = periods.reduce((acc, period) => {
+        acc[period] = { ...summaryTemplate };
+        return acc;
+      }, {});
+
+     
+      console.log(tukang_id);
+
+      const skip = page * take - take;
+      const where: Prisma.work_ordersWhereInput = {
+        AND: [
+          search
+            ? {
+                OR: [
+                  ...(isNaN(Date.parse(search))
+                    ? []
+                    : [
+                        { request_work_time: { equals: new Date(search) } },
+                        { survey_date: { equals: new Date(search) } },
+                        { work_start_date: { equals: new Date(search) } },
+                        { work_end_date: { equals: new Date(search) } },
+                      ]),
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                ],
+              }
+            : undefined,
+          status ? { status: { id: { in: status } } } : undefined,
+          vendor_id
+            ? {
+                vendor_id: vendor_id,
+              }
+            : undefined,
+          tukang_id
+            ? {
+                work_order_tukang: {
+                  some: {
+                    tukang_id: tukang_id,
+                  },
+                },
+              }
+            : undefined,
+          date_from && date_to
+            ? {
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
+            : undefined,
+        ].filter(Boolean),
+        deleted_at: null,
+        order: {
+          deleted_at: null,
+        },
+      };
+
+      const total = await this.dbService.work_orders.count({
+        where,
       });
 
-      workOrders.forEach((order) => {
-        const month = new Date(order.created_at).toLocaleString('id-ID', {
-          month: 'long',
-        });
+      const work_orders = await this.dbService.work_orders.findMany({
+        skip,
+        where,
+        orderBy: {
+          created_at: 'desc',
+        },
+        include: {
+          status: true,
+          order: {
+            include: {
+              status: true,
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
+                include: {
+                  item: true,
+                },
+              },
+              store: true,
+              sales: true,
+              members: true,
+              quotation: {
+                include: {
+                  quotation_details: true,
+                },
+              },
+            },
+          },
+          request_tukang: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              tukang_to_request_tukang: true,
+              tukang_to_replace_tukang: true,
+            },
+          },
+          work_order_tukang: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              tukang: true,
+            },
+          },
+          vendor: true,
+          work_order_status: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              status: true,
+              work_order_items: {
+                include: {
+                  item: true,
+                  quotation_details: true,
+                },
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+          },
+          work_order_evidences: true,
+        },
+      });
 
-        if (!totalWorkOrdersPerMonth[month]) {
-          totalWorkOrdersPerMonth[month] = 0;
-        }
+      // Fetch complaints, reschedules, and refunds data
 
-        totalWorkOrdersPerMonth[month]++;
-        ordersMonth[month] = ordersMonth[month] || [];
-        ordersMonth[month].push(order);
+      // Process data into summary
 
-        if (order.status.category === statusWorkReq.category) {
-          totalCompleteOrderPerMonth[month]++;
-        }
-        if (order.status.category === statusWorkStart.category) {
-          totalWorkStartWorkOrdersPerMonth[month]++;
-        }
-        // if (order.status.category === statusWIP.category) {
-        //   totalWIPOrderPerMonth[month]++;
-        // }
-        if (order.status.category === statusWorkEnd.category) {
-          totalWorkEndOrderPerMonth[month]++;
+
+      work_orders.forEach((order) => {
+        const period = isSameDay
+          ? new Date(order.created_at).toLocaleString('id-ID', {
+              hour: '2-digit',
+              hour12: false,
+            })
+          : isSameMonth
+          ? new Date(order.created_at).toLocaleString('id-ID', {
+              day: '2-digit',
+            })
+          : new Date(order.created_at).toLocaleString('id-ID', {
+              month: 'long',
+            });
+
+        if (summary[period]) {
+          summary[period].totalOrder++;
+
+          Object.entries(statusCategories).forEach(([key, statuses]) => {
+            if (statuses.includes(order.status.category)) {
+              summary[period][key]++;
+            }
+          });
+
+          if (
+            (order.order.payment_type === 'survey' ||
+              order.order.payment_type === 'pemasangan_tanpa_survey') &&
+            order?.order.quotation[0]?.receipt_quotation != null
+          ) {
+            summary[period].totalPaidQuotation++;
+          }
         }
       });
-      const grandTotalSurveyOrderPerMonth = {};
-      allMonths.forEach((month) => {
-        grandTotalSurveyOrderPerMonth[month] = ordersMonth[month]
-          ? ordersMonth[month].filter((order) =>
-              order.status.category.includes('survey'),
-            ).length
-          : 0;
+
+      // Update summary with complaints, reschedules, and refunds data
+
+      // Ensure all periods are accounted for, even if empty
+      periods.forEach((period) => {
+        if (!summary[period]) {
+          summary[period] = { ...summaryTemplate };
+        }
       });
 
-      const monthlyWorkOrders = allMonths.map((month) => ({
-        month,
-        totalOrder: totalWorkOrdersPerMonth[month] || 0,
-        totalCompleteOrder: totalCompleteOrderPerMonth[month] || 0,
-        totalUnpaidOrder: totalWorkStartWorkOrdersPerMonth[month] || 0,
-        totalWorkEndOrder: totalWorkEndOrderPerMonth[month] || 0,
-        totalSurveyOrder: grandTotalSurveyOrderPerMonth[month] || 0,
-        workOrdersMonth: ordersMonth[month] || [],
+      // Prepare report data
+      const reportData = periods.map((period) => ({
+        period,
+        ...summary[period],
       }));
 
+      // Aggregate counts and totals
+      const count = await this.dbService.work_orders.count({ where });
+     
+
+      const quoteInGrandTotal = await this.dbService.quotation
+        .aggregate({
+          where: {
+            order_id: { in: work_orders.map((item) => item.order_id) },
+            status: { category: { contains: 'QUOTEIN' } },
+          },
+          _sum: { quotation_grand_total: true },
+        })
+        .then((data) => data._sum.quotation_grand_total);
+
+      // console.log('Fetched orders:', orders);
+      // console.log('Fetched complaints:', complaints);
+      // console.log('Fetched reschedules:', reschedules);
+      // console.log('Fetched refunds:', refunds);
+      // console.log("Generated summary:", summary);
+      // console.log("Generated report data:", reportData);
+
+      // Return final report
       return {
-        data: workOrders,
+        data: reportData,
         meta: {
           total: count,
-          monthlyWorkOrders,
+          quoteInGrandTotal,
         },
       };
     } catch (error) {
@@ -1079,10 +1289,10 @@ export class ReportsService {
                           area: {
                             area: {
                               contains: search,
-                            }
-                          }
-                        }
-                      }
+                            },
+                          },
+                        },
+                      },
                     },
                     { address: { contains: search } },
                     { email: { contains: search } },

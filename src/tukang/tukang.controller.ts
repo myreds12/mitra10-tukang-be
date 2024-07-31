@@ -31,9 +31,18 @@ export class TukangController {
   constructor(private readonly tukangService: TukangService) {}
 
 
+  @Get('/export-excel-order')
+  @UseGuards(JwtAuthGuard)
+  async tukangOrderExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: Response) {
+      const data = await this.tukangService.tukangExportOrderExcel(res, query);
+      return data;
+  }
+
   @Get('/export-excel')
-  @UseGuards()
-  async memberExportExcel(
+  @UseGuards(JwtAuthGuard)
+  async tukangExportExcel(
     @Query() query: QueryParamsDto,
     @Res() res: Response) {
       const data = await this.tukangService.tukangExportExcel(res, query);
