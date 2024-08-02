@@ -250,7 +250,6 @@ export class OrderService {
       now.setDate(now.getDate() - 7);
 
       console.log(now);
-      
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -365,24 +364,26 @@ export class OrderService {
                 },
               ]
             : []),
-          ...(Boolean(is_active_warranty) ? [
-            {
-              work_orders: {
-                work_order_status: {
-                  some: {
-                    status: {
-                      category: {
-                        contains: 'WORKEND',
+          ...(Boolean(is_active_warranty)
+            ? [
+                {
+                  work_orders: {
+                    work_order_status: {
+                      some: {
+                        status: {
+                          category: {
+                            contains: 'WORKEND',
+                          },
+                        },
+                        created_at: {
+                          gte: now,
+                        },
                       },
-                    },
-                    created_at: {
-                      gte: now,
                     },
                   },
                 },
-              },
-            }
-          ]: [])
+              ]
+            : []),
           //
         ].filter(Boolean),
         deleted_at: null,
@@ -1052,8 +1053,10 @@ export class OrderService {
           (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
             ? Number(updateOrderDto.additional_fee) - +order.additional_fee
             : updateOrderDto.is_overdistance === 0
-            ? -order.additional_fee
+            ? +order.additional_fee
             : 0);
+      }else{
+        grand_total += updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1 ? Number(updateOrderDto.additional_fee) : 0;
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1098,10 +1101,10 @@ export class OrderService {
                   total +
                   (updateOrderDto.additional_fee &&
                   updateOrderDto.is_overdistance === 1
-                    ? Number(updateOrderDto.additional_fee) -
-                      +order.additional_fee
+                    ? (Number(updateOrderDto.additional_fee) -
+                      +order.additional_fee) 
                     : updateOrderDto.is_overdistance === 0
-                    ? -order.additional_fee
+                    ? +order.additional_fee
                     : 0);
                 grand_total_comission += comission;
               }
@@ -1698,215 +1701,446 @@ export class OrderService {
         deleted_at: null,
       };
 
-      const data = await this.dbService.orders.findMany({
+      const count = await this.dbService.orders.count({
         where,
-        orderBy: {
-          created_at: order_by,
-        },
-        include: {
-          members: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              area_id: true,
-              area: true,
-              join_location: true,
-              member_number: true,
-              full_name: true,
-              email: true,
-              phone_number: true,
-              whatsapp_number: true,
-              address_1: true,
-              address_2: true,
-              zip_code: true,
-              rating: true,
-              join_date: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
+      });
+
+      let dataExcel = [];
+      const takeData = 900;
+      let skipData = 0;
+      const countTake = Math.floor(count / takeData);
+      console.log(countTake, 'COUNT TAKE');
+
+      for (let i = 0; i < countTake; i++) {
+        skipData = i * takeData;
+        const data = await this.dbService.orders.findMany({
+          where,
+          skip: skipData,
+          take: takeData,
+          orderBy: {
+            created_at: order_by,
           },
-          invoice_details: {
-            where: {
-              deleted_at: null,
-            },
-            select: {
-              invoices: {
-                select: {
-                  id: true,
-                  status: true,
-                  total_amount: true,
-                  invoice_logs: true,
-                  description: true,
-                  vendor: true,
-                },
+          include: {
+            members: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                area_id: true,
+                area: true,
+                join_location: true,
+                member_number: true,
+                full_name: true,
+                email: true,
+                phone_number: true,
+                whatsapp_number: true,
+                address_1: true,
+                address_2: true,
+                zip_code: true,
+                rating: true,
+                join_date: true,
+                created_at: true,
+                updated_at: true,
+                created_by: true,
+                updated_by: true,
               },
             },
-          },
-          sales: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              store_id: true,
-              user_id: true,
-              full_name: true,
-              nik: true,
-              bank_id: true,
-              bank_branch: true,
-              account_name: true,
-              is_active: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          store: {
-            select: {
-              id: true,
-              store_name: true,
-              address: true,
-              area_id: true,
-              area: true,
-              zip_code: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          status: {
-            select: {
-              id: true,
-              category: true,
-              description: true,
-            },
-          },
-          complaints: true,
-          vendor: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              company_name: true,
-              address: true,
-              phone_number: true,
-              is_active: true,
-              work_orders: {
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
+            invoice_details: {
+              where: {
+                deleted_at: null,
               },
-            },
-          },
-          order_history: {
-            select: {
-              order_id: true,
-              created_at: true,
-              status: {
-                select: {
-                  id: true,
-                  category: true,
-                  description: true,
-                },
-              },
-            },
-          },
-          m_order_details: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              order_id: true,
-              item_code: true,
-              item_name: true,
-              item_notes: true,
-              item_id: true,
-              item: {
-                select: {
-                  id: true,
-                  item_name: true,
-                  category: true,
-                  default_price: true,
-                  service_name: true,
-                },
-              },
-              sales: true,
-              unit_price: true,
-              quantity: true,
-              total: true,
-              comission: true,
-              created_by: true,
-              created_at: true,
-            },
-          },
-          quotation: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            include: {
-              promotion: true,
-              quotation_details: {
-                include: {
-                  item: true,
-                },
-              },
-              quotation_files: true,
-            },
-          },
-          work_orders: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              request_tukang: {
-                include: {
-                  tukang_to_request_tukang: true,
-                  tukang_to_replace_tukang: true,
-                },
-              },
-              vendor: true,
-              work_order_evidences: true,
-              work_order_tukang: {
-                include: {
-                  tukang: true,
-                },
-              },
-              work_order_status: {
-                include: {
-                  status: true,
-                  work_order_items: {
-                    include: {
-                      item: true,
-                    },
-                    where: {
-                      deleted_at: null,
-                      deleted_by: null,
-                    },
+              select: {
+                invoices: {
+                  select: {
+                    id: true,
+                    status: true,
+                    total_amount: true,
+                    invoice_logs: true,
+                    description: true,
+                    vendor: true,
                   },
                 },
-                orderBy: {
-                  created_at: 'desc',
+              },
+            },
+            sales: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                store_id: true,
+                user_id: true,
+                full_name: true,
+                nik: true,
+                bank_id: true,
+                bank_branch: true,
+                account_name: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                created_by: true,
+                updated_by: true,
+              },
+            },
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                address: true,
+                area_id: true,
+                area: true,
+                zip_code: true,
+                created_at: true,
+                updated_at: true,
+                created_by: true,
+                updated_by: true,
+              },
+            },
+            status: {
+              select: {
+                id: true,
+                category: true,
+                description: true,
+              },
+            },
+            complaints: true,
+            vendor: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                company_name: true,
+                address: true,
+                phone_number: true,
+                is_active: true,
+                work_orders: {
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
+                  },
                 },
               },
             },
+            order_history: {
+              select: {
+                order_id: true,
+                created_at: true,
+                status: {
+                  select: {
+                    id: true,
+                    category: true,
+                    description: true,
+                  },
+                },
+              },
+            },
+            m_order_details: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                order_id: true,
+                item_code: true,
+                item_name: true,
+                item_notes: true,
+                item_id: true,
+                item: {
+                  select: {
+                    id: true,
+                    item_name: true,
+                    category: true,
+                    default_price: true,
+                    service_name: true,
+                  },
+                },
+                sales: true,
+                unit_price: true,
+                quantity: true,
+                total: true,
+                comission: true,
+                created_by: true,
+                created_at: true,
+              },
+            },
+            quotation: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              include: {
+                promotion: true,
+                quotation_details: {
+                  include: {
+                    item: true,
+                  },
+                },
+                quotation_files: true,
+              },
+            },
+            work_orders: {
+              where: {
+                deleted_at: null,
+              },
+              include: {
+                request_tukang: {
+                  include: {
+                    tukang_to_request_tukang: true,
+                    tukang_to_replace_tukang: true,
+                  },
+                },
+                vendor: true,
+                work_order_evidences: true,
+                work_order_tukang: {
+                  include: {
+                    tukang: true,
+                  },
+                },
+                work_order_status: {
+                  include: {
+                    status: true,
+                    work_order_items: {
+                      include: {
+                        item: true,
+                      },
+                      where: {
+                        deleted_at: null,
+                        deleted_by: null,
+                      },
+                    },
+                  },
+                  orderBy: {
+                    created_at: 'desc',
+                  },
+                },
+              },
+            },
+            order_files: true,
           },
-          order_files: true,
-        },
-      });
+        });
+        dataExcel = [...dataExcel, ...data];
+      }
+
+      if (count != dataExcel.length) {
+        const data = await this.dbService.orders.findMany({
+          where,
+          skip: skipData,
+          take: takeData,
+          orderBy: {
+            created_at: order_by,
+          },
+          include: {
+            members: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                area_id: true,
+                area: true,
+                join_location: true,
+                member_number: true,
+                full_name: true,
+                email: true,
+                phone_number: true,
+                whatsapp_number: true,
+                address_1: true,
+                address_2: true,
+                zip_code: true,
+                rating: true,
+                join_date: true,
+                created_at: true,
+                updated_at: true,
+                created_by: true,
+                updated_by: true,
+              },
+            },
+            invoice_details: {
+              where: {
+                deleted_at: null,
+              },
+              select: {
+                invoices: {
+                  select: {
+                    id: true,
+                    status: true,
+                    total_amount: true,
+                    invoice_logs: true,
+                    description: true,
+                    vendor: true,
+                  },
+                },
+              },
+            },
+            sales: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                store_id: true,
+                user_id: true,
+                full_name: true,
+                nik: true,
+                bank_id: true,
+                bank_branch: true,
+                account_name: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                created_by: true,
+                updated_by: true,
+              },
+            },
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                address: true,
+                area_id: true,
+                area: true,
+                zip_code: true,
+                created_at: true,
+                updated_at: true,
+                created_by: true,
+                updated_by: true,
+              },
+            },
+            status: {
+              select: {
+                id: true,
+                category: true,
+                description: true,
+              },
+            },
+            complaints: true,
+            vendor: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                company_name: true,
+                address: true,
+                phone_number: true,
+                is_active: true,
+                work_orders: {
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
+                  },
+                },
+              },
+            },
+            order_history: {
+              select: {
+                order_id: true,
+                created_at: true,
+                status: {
+                  select: {
+                    id: true,
+                    category: true,
+                    description: true,
+                  },
+                },
+              },
+            },
+            m_order_details: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              select: {
+                id: true,
+                order_id: true,
+                item_code: true,
+                item_name: true,
+                item_notes: true,
+                item_id: true,
+                item: {
+                  select: {
+                    id: true,
+                    item_name: true,
+                    category: true,
+                    default_price: true,
+                    service_name: true,
+                  },
+                },
+                sales: true,
+                unit_price: true,
+                quantity: true,
+                total: true,
+                comission: true,
+                created_by: true,
+                created_at: true,
+              },
+            },
+            quotation: {
+              where: {
+                deleted_at: null,
+                deleted_by: null,
+              },
+              include: {
+                promotion: true,
+                quotation_details: {
+                  include: {
+                    item: true,
+                  },
+                },
+                quotation_files: true,
+              },
+            },
+            work_orders: {
+              where: {
+                deleted_at: null,
+              },
+              include: {
+                request_tukang: {
+                  include: {
+                    tukang_to_request_tukang: true,
+                    tukang_to_replace_tukang: true,
+                  },
+                },
+                vendor: true,
+                work_order_evidences: true,
+                work_order_tukang: {
+                  include: {
+                    tukang: true,
+                  },
+                },
+                work_order_status: {
+                  include: {
+                    status: true,
+                    work_order_items: {
+                      include: {
+                        item: true,
+                      },
+                      where: {
+                        deleted_at: null,
+                        deleted_by: null,
+                      },
+                    },
+                  },
+                  orderBy: {
+                    created_at: 'desc',
+                  },
+                },
+              },
+            },
+            order_files: true,
+          },
+        });
+        dataExcel = [...dataExcel, ...data];
+      }
 
       // Log data to verify it is fetched correctly
       // console.log('Fetched Data:', data);
@@ -1976,7 +2210,7 @@ export class OrderService {
       });
       let totalGrandTotalValue = 0;
 
-      data.forEach((order) => {
+      dataExcel.forEach((order) => {
         const itemName = order.m_order_details
           ? order.m_order_details
               .map((item) => item?.item_name || '-')
