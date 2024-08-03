@@ -73,8 +73,17 @@ export class VendorService {
           };
         });
 
+      const formattedUsername =
+        createVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
+
+      if (formattedUsername.length > 12) {
+        throw new BadRequestException(
+          'Username tidak boleh lebih dari 12 karakter.',
+        );
+      }
+
       const username = createVendorDto.default_username
-        ? createVendorDto.default_username
+        ? formattedUsername
         : `${createVendorDto.email_address}`;
       const users = await this.dbService.users.create({
         data: {
@@ -192,7 +201,7 @@ export class VendorService {
         date_to,
         store_id,
         vendor_with_max_order,
-        top_best
+        top_best,
       } = query;
       // ...(Boolean(top_best)
       //       ? {
@@ -256,10 +265,10 @@ export class VendorService {
             include: {
               tukang_area: {
                 include: {
-                  area: true
-                }
-              }
-            }
+                  area: true,
+                },
+              },
+            },
           },
           pic_vendor: {
             include: {
@@ -329,7 +338,7 @@ export class VendorService {
           },
         },
       });
-      if(Boolean(top_best)){
+      if (Boolean(top_best)) {
         vendor = vendor.sort((a, b) => b.orders.length - a.orders.length);
       }
       if (take > 0) {
@@ -380,10 +389,10 @@ export class VendorService {
             include: {
               tukang_area: {
                 include: {
-                  area: true
-                }
-              }
-            }
+                  area: true,
+                },
+              },
+            },
           },
           vendor_area: {
             include: {
@@ -539,6 +548,12 @@ export class VendorService {
 
       console.log(updateVendorDto);
 
+      const formattedUsername =  updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
+
+      if(formattedUsername.length > 12){
+        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      }
+
       const vendorData: Prisma.vendorUpdateInput = {
         type: updateVendorDto?.vendor_type,
         pkp_nominal: updateVendorDto?.pkp_nominal,
@@ -596,7 +611,7 @@ export class VendorService {
               pic_name: updateVendorDto?.pic_name ?? undefined,
               users: {
                 update: {
-                  username: updateVendorDto.default_username ?? undefined,
+                  username: updateVendorDto.default_username ? formattedUsername : vendors.pic_vendor[0].users.username,
                   password: updateVendorDto.password
                     ? await hashSync(updateVendorDto.password, 12)
                     : undefined,

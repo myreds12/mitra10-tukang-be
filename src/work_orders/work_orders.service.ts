@@ -157,8 +157,7 @@ export class WorkOrdersService {
         tukang_id,
         vendor_id,
       } = queryParamsDto;
-      console.log(tukang_id);
-
+  
       const skip = page * take - take;
       const where: Prisma.work_ordersWhereInput = {
         AND: [
@@ -208,11 +207,11 @@ export class WorkOrdersService {
                     order: {
                       store: {
                         store_name: {
-                          contains: search
-                        }
-                      }
-                    }
-                  }
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
                 ],
               }
             : undefined,
@@ -245,11 +244,11 @@ export class WorkOrdersService {
           deleted_at: null,
         },
       };
-
+  
       const total = await this.dbService.work_orders.count({
         where,
       });
-
+  
       const work_orders = await this.dbService.work_orders.findMany({
         skip,
         take: take <= 0 ? undefined : take,
@@ -321,6 +320,7 @@ export class WorkOrdersService {
           work_order_evidences: true,
         },
       });
+  
       const userIds = [
         ...new Set(
           work_orders
@@ -328,16 +328,17 @@ export class WorkOrdersService {
               item.created_by,
               item.updated_by,
               item.deleted_by,
+              ...item.work_order_status.map((status) => status.created_by),
             ])
             .filter(Boolean),
         ),
       ];
-
+  
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       });
-
+  
       const userMap = users.reduce(
         (acc, user) => ({
           ...acc,
@@ -345,14 +346,20 @@ export class WorkOrdersService {
         }),
         {},
       );
-
+  
       const workOrdersWithUser = work_orders.map((item) => ({
         ...item,
         created_by: item.created_by ? userMap[item.created_by] || null : null,
         updated_by: item.updated_by ? userMap[item.updated_by] || null : null,
         deleted_by: item.deleted_by ? userMap[item.deleted_by] || null : null,
+        work_order_status: item.work_order_status.map((status) => ({
+          ...status,
+          created_by: status.created_by
+            ? userMap[status.created_by] || null
+            : null,
+        })),
       }));
-
+  
       return {
         data: workOrdersWithUser,
         meta: { skip, page, take, total },
@@ -362,6 +369,8 @@ export class WorkOrdersService {
       throw error;
     }
   }
+
+  
 
   async findOne(id: number) {
     try {
@@ -391,6 +400,11 @@ export class WorkOrdersService {
               quotation: {
                 include: {
                   quotation_details: true,
+                },
+              },
+              order_history: {
+                include: {
+                  status: true,
                 },
               },
             },
@@ -436,34 +450,46 @@ export class WorkOrdersService {
           work_order_evidences: true,
         },
       });
+  
       if (!work_orders) throw Error('Work Order Not Found!');
+  
+      // Get user IDs from work order and order history
       const userIds = [
         work_orders.created_by,
         work_orders.updated_by,
         work_orders.deleted_by,
+        ...work_orders.order.order_history.map((history) => history.created_by),
       ].filter(Boolean);
-
+  
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       });
-
+  
       const userMap = Object.fromEntries(users.map((user) => [user.id, user]));
-
-      // Attach user data to the work_orderss
+  
+      // Attach user data to the work_orders and order history
       const workOrdersWithUser = {
         ...work_orders,
         created_by: userMap[work_orders.created_by] || null,
         updated_by: userMap[work_orders.updated_by] || null,
         deleted_by: userMap[work_orders.deleted_by] || null,
+        order: {
+          ...work_orders.order,
+          order_history: work_orders.order.order_history.map((history) => ({
+            ...history,
+            created_by: userMap[history.created_by] || null,
+          })),
+        },
       };
-
-      return work_orders;
+  
+      return workOrdersWithUser;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
+  
 
   async update(
     id: number,

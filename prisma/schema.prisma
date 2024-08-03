@@ -281,7 +281,7 @@ model users {
   username        String    @db.VarChar(255)
   password        String    @db.VarChar(255)
   forget_password DateTime? @db.DateTime()
-  profile_picture  String? @default("") @db.VarChar(255)
+  profile_picture String?   @default("") @db.VarChar(255)
 
   is_active Boolean @default(true)
 
@@ -886,9 +886,10 @@ model quotation {
   order_id     Int  @db.Int
   promotion_id Int?
 
-  quotation_status Int
-  readiness        Int @default(1) @db.TinyInt()
-  emailSended      Int @default(0)
+  quotation_status  Int
+  readiness         Int @default(1) @db.TinyInt()
+  emailSended       Int @default(0)
+  quotation_special Int @default(0)
 
   description           String   @db.Text()
   quotation_number      String
@@ -914,6 +915,7 @@ model quotation {
   quotation_files   quotation_files[]
   quotation_details quotation_details[]
   sales_incentive   sales_incentive[]
+  quotation_receipt quotation_receipt[]
 }
 
 model quotation_details {
@@ -923,16 +925,18 @@ model quotation_details {
   work_order_items_id Int? @db.Int
   category_id         Int? @db.Int
 
-  item_type   Int      @db.Int
-  name        String?  @db.Text()
-  price       Decimal  @default(0) @db.Decimal(32, 2)
-  margin      Decimal? @default(0) @db.Decimal(32, 2)
-  margin_type Int?     @default(1) @map("marginType") // 1 = Percentage, 2 = Nominal
-  final_price Decimal? @default(0) @db.Decimal(32, 2)
-  quantity    Int      @default(0)
-  description String?  @default("") @db.Text()
-  unit        String?  @default("") @db.Text()
-  is_customer Boolean  @default(false)
+  item_type               Int      @db.Int
+  work_step               Int?     @db.Int
+  name                    String?  @db.Text()
+  price                   Decimal  @default(0) @db.Decimal(32, 2)
+  margin                  Decimal? @default(0) @db.Decimal(32, 2)
+  margin_type             Int?     @default(1) @map("marginType") // 1 = Percentage, 2 = Nominal
+  final_price             Decimal? @default(0) @db.Decimal(32, 2)
+  quotation_special_price Decimal? @default(0) @db.Decimal(32, 2)
+  quantity                Int      @default(0)
+  description             String?  @default("") @db.Text()
+  unit                    String?  @default("") @db.Text()
+  is_customer             Boolean  @default(false)
 
   created_by Int?
   updated_by Int?
@@ -954,6 +958,24 @@ model quotation_files {
   quotation_id Int
   path         String @db.Text()
   type         Int    @default(1) @db.Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  quotation quotation @relation(fields: [quotation_id], references: [id])
+}
+
+model quotation_receipt {
+  id             Int  @id @default(autoincrement())
+  quotation_id   Int
+  quotation_step Int? @default(1)
+
+  receipt_quotation String? @db.NVarChar(50)
 
   created_by Int?
   updated_by Int?
@@ -1122,7 +1144,7 @@ model work_order_tukang {
   tukang_id     Int
   type          Int @default(1) // 1 = SURVEY, 2 = PENGERJAAN
 
-   notes String @default("") @db.Text()
+  notes String @default("") @db.Text()
 
   created_by Int?
   updated_by Int?
@@ -1254,6 +1276,7 @@ model invoices {
 
   total_amount            Decimal?  @db.Decimal(32, 2)
   pkp_nominal             Decimal?  @db.Decimal(32, 2)
+  pph_nominal             Decimal?  @db.Decimal(32, 2)
   invoice_number          String
   invoice_to_finance_date DateTime? @db.DateTime()
   description             String?   @db.VarChar(400)
@@ -1393,6 +1416,7 @@ model refund {
   refund_status Int
 
   notes           String    @db.Text()
+  paid_status     Int?      @default(0) // 0 = UNPAID, 1 = PAID
   reason          String    @db.Text()
   approval_number String?   @db.VarChar(100)
   voucher         String?   @db.VarChar(100)

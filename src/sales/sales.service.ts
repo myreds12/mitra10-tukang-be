@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus, HttpException } from '@nestjs/common';
+import { Injectable, HttpStatus, HttpException, BadRequestException } from '@nestjs/common';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -88,6 +88,12 @@ export class SalesService {
         12,
       );
 
+      const formattedUsername =  createSalesDto?.username.replace(/ /g, '_') ?? null;
+
+      if(formattedUsername.length > 12){
+        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      }
+
       const sales_data: Prisma.salesCreateInput = {
         full_name: createSalesDto.full_name,
         bank_branch: createSalesDto?.bank_branch,
@@ -120,7 +126,7 @@ export class SalesService {
           connectOrCreate: {
             where: {
               username:
-                createSalesDto?.username ??
+              formattedUsername ??
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
@@ -130,7 +136,7 @@ export class SalesService {
             },
             create: {
               username:
-                createSalesDto?.username ??
+               formattedUsername ??
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
@@ -1226,6 +1232,95 @@ export class SalesService {
       },
       data: {
         status: 2
+      }
+     });
+
+     return salesIncentive;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+
+  @Cron(CronExpression.EVERY_2ND_MONTH)
+  async salesUserManagement() {
+    try {
+
+      const twoMonthsAgo = new Date();
+      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+     const salesIncentive = await this.dbService.sales.updateMany({
+      where: {
+          orders: {
+            some: {
+              created_at: {
+                lt: twoMonthsAgo
+              }
+            }
+          }        
+      },
+      data: {
+        is_active: false,
+      }
+     });
+
+     const users = await this.dbService.users.updateMany({
+      where: {
+          sales: {
+            some: {
+              created_at: {
+                lt: twoMonthsAgo
+              }
+            }
+          }        
+      },
+      data: {
+        is_active: false,
+      }
+     });
+
+     return salesIncentive;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  @Cron(CronExpression.EVERY_6_MONTHS)
+  async managementSalesSixMonth() {
+    try {
+
+      const sixMonthAgo = new Date();
+      sixMonthAgo.setMonth(sixMonthAgo.getMonth() - 6);
+     const salesIncentive = await this.dbService.sales.updateMany({
+      where: {
+          orders: {
+            some: {
+              created_at: {
+                lt: sixMonthAgo
+              }
+            }
+          }        
+      },
+      data: {
+        is_active: false,
+        deleted_at: new Date()
+      }
+     });
+
+     const users = await this.dbService.users.updateMany({
+      where: {
+          sales: {
+            some: {
+              created_at: {
+                lt: sixMonthAgo
+              }
+            }
+          }        
+      },
+      data: {
+        is_active: false,
+        deleted_at: new Date()
       }
      });
 

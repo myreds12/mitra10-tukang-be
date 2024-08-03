@@ -161,7 +161,7 @@ export class ReportsService {
       const statusCategories = {
         totalPicklist: ['PICKLIST'],
         totalNewOrder: ['PICKLIST', 'BOOKED', 'BOOK'],
-        totalWaitingSurvey: ['SURVEYREQ'],
+        totalWaitingSurvey: ['SURVEYREQ', 'TUKANGSURVEY'],
         totalSurveyStart: ['SURVEYSTART'],
         totalSurveyDone: ['SURVEYDONE'],
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
@@ -170,7 +170,7 @@ export class ReportsService {
         totalWaitingQuotationVendor: ['QUOTEIN'],
         totalWaitingQuotationCustomer: ['QUOTEOUT'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
-        totalWaitingWork: ['WORKREQ'],
+        totalWaitingWork: ['WORKREQ', 'TUKANGWORK'],
         totalWorkStart: ['WORKSTART'],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalOrderComplaint: ['WARRANTYCLAIM'],
@@ -932,12 +932,12 @@ export class ReportsService {
       } = query;
 
       const statusCategories = {
-        totalWaitingSurvey: ['SURVEYREQ'],
+        totalWaitingSurvey: ['SURVEYREQ', 'TUKANGSURVEY'],
         totalSurveyStart: ['SURVEYSTART'],
         totalSurveyDone: ['SURVEYDONE'],
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
         totalPaidQuotation: ['UNPAIDQUOTATION'],
-        totalWaitingWork: ['WORKREQ'],
+        totalWaitingWork: ['WORKREQ', 'TUKANGWORK'],
         totalWorkStart: ['WORKSTART'],
         totalCancel: ['CANCEL', 'CANCELREFUND'],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],

@@ -74,10 +74,16 @@ export class TukangService {
         12,
       );
 
+      const formattedUsername =  createTukangDto?.username.replace(/ /g, '_') ?? undefined;
+
+      if(formattedUsername.length > 12){
+        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      }
+
       const userData = await this.dbService.users.create({
         data: {
           username:
-            createTukangDto.username ??
+          formattedUsername ??
             `${createTukangDto.full_name.toLowerCase().replace(/ /g, '_')}`,
           password: saltedPassword,
           role_id: roles.id,
@@ -691,12 +697,10 @@ export class TukangService {
     });
 
     const data = {
-      // quotation,
-      // order: quotation.order,
-      // message,
+      tukang
     };
 
-    const buffer = await this.pdfService.generate('quotation', data);
+    const buffer = await this.pdfService.generate('tukang-pdf', data);
     // Set headers to download the PDF
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');

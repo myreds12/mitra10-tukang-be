@@ -242,6 +242,7 @@ export class OrderService {
         work_order_status,
         is_invoice,
         is_active_warranty,
+        tukang_id
       } = queryParams;
 
       const skip = page * take - take;
@@ -337,6 +338,15 @@ export class OrderService {
                 },
               ]
             : []),
+          ...(tukang_id ? [ {
+            work_orders: {
+              work_order_tukang: {
+                some: {
+                  tukang_id: tukang_id
+                }
+              }
+            }
+          }] : []),
           // ...(Boolean(is_invoice) ? {
           //     invoice_details: {
           //       none: {
@@ -811,6 +821,7 @@ export class OrderService {
               order_id: true,
               payload: true,
               created_at: true,
+              created_by: true,
               status: {
                 select: {
                   id: true,
@@ -843,6 +854,12 @@ export class OrderService {
         created_by: userMap[order.created_by] || null,
         updated_by: userMap[order.updated_by] || null,
         deleted_by: userMap[order.deleted_by] || null,
+        order_history: order.order_history.map((item) => ({
+          ...item,
+          created_by: item.created_by
+          ? userMap[item.created_by] || null
+          : null,
+        })),
       };
 
       const logs = await this.dbService.mail_logs.findMany({

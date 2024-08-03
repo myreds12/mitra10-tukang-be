@@ -40,10 +40,16 @@ export class AuthService {
         );
       }
 
+      const formattedUsername = dto.username.replace(/ /g, '_');
+
+      if(formattedUsername.length > 12){
+        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      }
+
       const [createUser] = await this.dbService.$transaction([
         this.dbService.users.create({
           data: {
-            username: dto.username,
+            username: formattedUsername,
             password: await hashSync(dto.password, 12),
             role_id: dto.role_id,
             //FIXME: CHECK THIS CODE
@@ -154,6 +160,7 @@ export class AuthService {
           username: {
             equals: dto.username,
           },
+          
         },
         include: {
           tukang: true,
@@ -198,6 +205,8 @@ export class AuthService {
               bank_id: true,
               phone_number: true,
               sales_brand: true,
+              is_active: true,
+              deleted_at: true,
               store: {
                 select: {
                   id: true,
@@ -243,6 +252,13 @@ export class AuthService {
         if (isSalesDataIncomplete || !salesData.store?.id) {
 
           throw new HttpException('Data sales tidak lengkap, mohon untuk menghubungi admin toko', HttpStatus.FORBIDDEN);
+        }
+        if(salesData.is_active === false){
+          throw new HttpException('Akun anda tidak aktif, mohon hubungi admin toko', HttpStatus.FORBIDDEN);
+        }
+
+        if(salesData.deleted_at){
+          throw new HttpException('Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko', HttpStatus.FORBIDDEN);
         }
       }
 
