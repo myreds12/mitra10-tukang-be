@@ -677,29 +677,65 @@ export class TukangService {
     }
   }
 
-  async tukangOrderPdf(tukang_id: number, res: Response) {
-    const tukang = await this.dbService.tukang.findFirst({
-      where: {
-        id: tukang_id
-      },
-      include: {
-        vendor: true,
-        work_order_tukang: {
-          include: {
-            work_orders: {
-              include: {
-                order: true
+  async tukangOrderPdf(res: Response, queryParams: QueryParamsDto) {
+    const { tukang_id, vendor_id, date_from, date_to, order_by } = queryParams;
+      const where: Prisma.work_order_tukangWhereInput = {
+        AND: [
+          vendor_id
+            ? {
+              work_orders: {
+                vendor_id: vendor_id,
+              }
+            }
+            : undefined,
+          tukang_id
+            ? {
+              tukang_id: tukang_id
+            }
+            : undefined,
+          date_from && date_to
+            ? {
+              work_orders: {
+                order: {
+                  created_at: {
+                    gte: new Date(`${date_from}T00:00:00.000Z`),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                  }
+                }
+              }
+            } 
+            : undefined,
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+      const tukang = await this.dbService.work_order_tukang.findMany({
+        where,
+        orderBy: {
+          created_at: order_by
+        },
+        include: {
+          tukang: true,
+          work_orders: {
+            include: {
+              order: {
+                include: {
+                  status: true,
+                  store: true,
+                  members: true,
+                  m_order_details: true
+                }
               }
             }
           }
         }
-      },
-    });
+      });
 
     const data = {
       tukang
     };
 
+    console.log(data.tukang);
+    
     const buffer = await this.pdfService.generate('tukang-pdf', data);
     // Set headers to download the PDF
     res.setHeader('Content-Type', 'application/pdf');
@@ -756,7 +792,7 @@ export class TukangService {
             }
           }
         }
-      })
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Order Tukang ', {

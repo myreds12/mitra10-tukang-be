@@ -26,10 +26,17 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 
 @ApiTags('Tukang')
 @Controller('tukang')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 export class TukangController {
   constructor(private readonly tukangService: TukangService) {}
 
+  @Get('/export-pdf-order')
+  async tukangOrderExportPdf(
+    @Query() query: QueryParamsDto,
+    @Res() res: Response) {
+      const data = await this.tukangService.tukangOrderPdf(res, query);
+      return data;
+  }
 
   @Get('/export-excel-order')
   @UseGuards(JwtAuthGuard)
@@ -39,6 +46,7 @@ export class TukangController {
       const data = await this.tukangService.tukangExportOrderExcel(res, query);
       return data;
   }
+
 
   @Get('/export-excel')
   @UseGuards(JwtAuthGuard)
