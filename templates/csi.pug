@@ -72,7 +72,7 @@ html(lang="en")
         width: fit-content;
         height: 90px;
       }
-      
+
       @media screen and (max-width: 576px) {
         #preview-email .header .logo {
           margin-bottom: 20px;
@@ -106,16 +106,12 @@ html(lang="en")
                 | Order ID :
                 span.fw-normal #{data.order.id}
           .content
-            h3.fw-normal Hi, #{data.order.members.full_name}
+            h3.fw-normal #{data.message.welcome_header}, #{data.order.members.full_name}
             h3.fw-bold Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
-
-            //- Conditional wording
-            if data.order.status.category === 'SURVEYSTART'
-              h3.fw-bold Silahkan klik disini untuk memulai survei
 
             .button-csi
               a.button-csi(href=data.csi.survey_link target="_blank")
-                img.link-csi(src="https://i.ibb.co.com/hFqq26n/link-csi.png", alt="Mitra10")
+                img.link-csi(src="https://i.ibb.co.com/qxBpmkK/gambar-button-csi.png" alt="Mitra10")
             h3.fw-bold Hormat Kami, Mitra10
             h3.fw-normal
               | #{data.message.footer}

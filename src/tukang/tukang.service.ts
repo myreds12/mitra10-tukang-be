@@ -266,7 +266,7 @@ export class TukangService {
               }
             : undefined,
         ],
-        deleted_at: null,
+        // deleted_at: null,
       };
 
       const tukang = await this.dbService.tukang.findMany({
@@ -418,6 +418,9 @@ export class TukangService {
         phone_number: updateTukangDto?.phone_number,
         bod: updateTukangDto?.bod ? new Date(updateTukangDto.bod) : undefined,
         is_active: Boolean(updateTukangDto.is_active),
+        ...(updateTukangDto.is_delete ? {
+          deleted_at: new Date()
+        } : undefined),
         ...(tukangServiceTypesUpsert
           ? {
               tukang_service: {

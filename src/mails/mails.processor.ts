@@ -763,6 +763,7 @@ export class EmailProcessor {
         },
         include: {
           members: true,
+          status: true
         },
       });
 

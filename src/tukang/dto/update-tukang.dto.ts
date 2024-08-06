@@ -46,5 +46,10 @@ export class UpdateTukangDto {
   @Type(() => Number)
   @IsNumber()
   @IsIn([0, 1])
+  is_delete: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsIn([0, 1])
   is_active: number;
 }
