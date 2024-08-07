@@ -26,7 +26,7 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 
 @ApiTags('Tukang')
 @Controller('tukang')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class TukangController {
   constructor(private readonly tukangService: TukangService) {}
 
@@ -85,6 +85,8 @@ export class TukangController {
     @UploadedFiles() files: TukangFiles,
   ) {
     const user = req.user;
+    console.log(user);
+    
     return await this.tukangService.create(createTukangDto, user, files);
   }
 

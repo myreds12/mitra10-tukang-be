@@ -139,7 +139,7 @@ html(lang="en")
       .card
         .card-header
           .header-img-wrapper
-            img.header-img(src='https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg' alt='header-email-instalasi-01' border='0')
+            img.header-img(src='https://i.ibb.co.com/fMKmCPX/Whats-App-Image-2024-08-07-at-11-27-26-c5a2069a.jpg' alt='header-email-instalasi-01' border='0')
           .content-header
             .header-information
               .header-logo
@@ -153,6 +153,7 @@ html(lang="en")
                   span.normal #{data.quotation.order.id}
         .card-body
           .title
+            h3 #{data.message.welcome_header}, ${data.quotation.order.members.full_name}
             h3 #{data.message.greetings}
             h3 Detail Pemesanan
             .table-responsive
@@ -171,7 +172,7 @@ html(lang="en")
                       td= item.unit ? item.unit : '-'
                       - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                       td= formattedFinalPrice
-            
+
             .table-responsive
               table.table-detail-pemesanan
                 thead
@@ -188,7 +189,7 @@ html(lang="en")
                       td= item.unit ? item.unit : '-'
                       - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                       td= formattedFinalPrice
-                      
+
                   - var reducedTotal = 0
                   - data.quotation.quotation_details.forEach(detail => {
                   -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
@@ -202,7 +203,7 @@ html(lang="en")
                     td(colspan=2)= formattedReducedTotal
                   tr
                     td(colspan=3) Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0'
+                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
                     td(colspan=2)= formattedTotal
                   tr
                     td(colspan=3) Grand Total
@@ -236,14 +237,14 @@ html(lang="en")
           .title
             h3 Detail Pemasangan
           .detail-pemesanan
-              h4.normal Nama Customer:
-                span.semibold #{data.quotation.order.members.full_name}
-              h4.normal Alamat :
-                span.semibold #{data.quotation.order.project_address}
-              h4.normal Telp :
-                span.semibold #{data.quotation.order.project_number}
+            h4.normal Nama Customer:
+              span.semibold #{data.quotation.order.members.full_name}
+            h4.normal Alamat :
+              span.semibold #{data.quotation.order.project_address}
+            h4.normal Telp :
+              span.semibold #{data.quotation.order.project_number}
           .title
-              h4.bold Syarat & Ketentuan
+            h4.bold Syarat & Ketentuan
           .detial-syarat
             ol
               each item in data.message.terms_detail

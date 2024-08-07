@@ -3,4 +3,5 @@ export enum IncentiveStatus {
   WAITING_FOR_PAYMENT = 2,
   PAID = 3,
   DECLINED = 4,
+  LOST_INCENTIVE = 5
 }

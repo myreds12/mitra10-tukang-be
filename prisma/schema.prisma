@@ -1354,7 +1354,8 @@ model reschedule {
   order_id  Int
   status_id Int
 
-  reschedule_date DateTime @db.Date()
+  reschedule_date DateTime @db.DateTime()
+  confirm_date    DateTime? @db.DateTime()
 
   created_by Int?
   updated_by Int?

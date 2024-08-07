@@ -684,6 +684,8 @@ export class WorkOrdersService {
     },
   ): Promise<work_orders> {
     try {
+      console.log(user);
+      
       console.log('PAYLOAD', updateData);
 
       const { id: user_id } = user;
@@ -869,6 +871,8 @@ export class WorkOrdersService {
           data: {
             status_id: NEW_STATUS.id,
             work_order_evidences: { createMany: { data: evidences } },
+            updated_at: new Date(),
+            updated_by: user.id,
             work_order_status: {
               upsert: workOrderStatusUpsert,
             },

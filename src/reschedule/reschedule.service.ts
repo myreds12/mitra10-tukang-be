@@ -85,6 +85,9 @@ export class RescheduleService {
           },
         },
         reschedule_date: new Date(rescheduleDto.reschedule_date),
+        confirm_date: rescheduleDto.confirm_date
+          ? new Date(rescheduleDto.confirm_date)
+          : undefined,
         created_by: user_id,
         reschedule_status: {
           create: {
@@ -219,6 +222,7 @@ export class RescheduleService {
                 order_id: true,
                 item_code: true,
                 item_name: true,
+                item_notes: true,
                 item_id: true,
                 item: {
                   select: {
@@ -268,8 +272,8 @@ export class RescheduleService {
         order: {
           include: {
             members: true,
-            sales: true,
             store: true,
+            sales: true,
             vendor: true,
             work_orders: true,
             status: true,
@@ -283,6 +287,7 @@ export class RescheduleService {
                 order_id: true,
                 item_code: true,
                 item_name: true,
+                item_notes: true,
                 item_id: true,
                 item: {
                   select: {
@@ -413,7 +418,11 @@ export class RescheduleService {
           },
         },
         reschedule_date: new Date(rescheduleDto.reschedule_date),
-        created_by: user_id,
+        confirm_date: rescheduleDto.confirm_date
+          ? new Date(rescheduleDto.confirm_date)
+          : undefined,
+        updated_by: user_id,
+        updated_at: new Date(),
         reschedule_status: {
           upsert: {
             ...rescheduleStatus,

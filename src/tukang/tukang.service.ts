@@ -276,6 +276,29 @@ export class TukangService {
         include: {
           users: true,
           vendor: true,
+          work_order_tukang: {
+            where: {
+              deleted_at: null
+            },
+            orderBy: {
+              created_at: 'desc'
+            },
+            include: {
+              work_orders: {
+                include: {
+                  work_order_status: {
+                    include: {
+                      status: true
+                    },
+                    orderBy: {
+                      created_at: 'desc'
+                    }
+                  },
+                  order: true
+                }
+              }
+            }
+          },
           tukang_area: {
             include: {
               area: true,
@@ -313,6 +336,29 @@ export class TukangService {
         include: {
           users: true,
           vendor: true,
+          work_order_tukang: {
+            where: {
+              deleted_at: null
+            },
+            orderBy: {
+              created_at: 'desc'
+            },
+            include: {
+              work_orders: {
+                include: {
+                  work_order_status: {
+                    include: {
+                      status: true
+                    },
+                    orderBy: {
+                      created_at: 'desc'
+                    }
+                  },
+                  order: true
+                }
+              }
+            }
+          },
           tukang_area: {
             include: {
               area: true,
@@ -418,9 +464,21 @@ export class TukangService {
         phone_number: updateTukangDto?.phone_number,
         bod: updateTukangDto?.bod ? new Date(updateTukangDto.bod) : undefined,
         is_active: Boolean(updateTukangDto.is_active),
-        ...(updateTukangDto.is_delete ? {
-          deleted_at: new Date()
-        } : undefined),
+        ...(updateTukangDto.is_delete === 1 ? {
+          deleted_at: new Date(),
+          users: {
+            update: {
+              deleted_at: new Date()
+            }
+          }
+        } : {
+          deleted_at: null,
+          users: {
+            update: {
+              deleted_at: null
+            }
+          }
+        }),
         ...(tukangServiceTypesUpsert
           ? {
               tukang_service: {

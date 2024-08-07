@@ -242,15 +242,14 @@ export class OrderService {
         work_order_status,
         is_invoice,
         is_active_warranty,
-        tukang_id
+        tukang_id,
+        is_expired_warranty,
+        is_used_warranty,
       } = queryParams;
 
       const skip = page * take - take;
       const now = new Date();
-
-      now.setDate(now.getDate() - 7);
-
-      console.log(now);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -262,13 +261,6 @@ export class OrderService {
                     {
                       id: !isNaN(+search) ? +search : undefined,
                     },
-                    !isNaN(Number(search))
-                      ? {
-                          order_id: Number(search),
-                        }
-                      : undefined,
-                    // TODO: FIXME
-                    // { request_survey: { equals: new Date(search) } },
                     { members: { full_name: { contains: search } } },
                     {
                       store: {
@@ -338,22 +330,19 @@ export class OrderService {
                 },
               ]
             : []),
-          ...(tukang_id ? [ {
-            work_orders: {
-              work_order_tukang: {
-                some: {
-                  tukang_id: tukang_id
-                }
-              }
-            }
-          }] : []),
-          // ...(Boolean(is_invoice) ? {
-          //     invoice_details: {
-          //       none: {
-          //         deleted_at: null
-          //       }
-          //     }
-          //   } : {}),
+          ...(tukang_id
+            ? [
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(Boolean(is_invoice)
             ? [
                 {
@@ -362,15 +351,6 @@ export class OrderService {
                       deleted_at: null,
                     },
                   },
-                  // order_history: {
-                  //   some: {
-                  //     status: {
-                  //       category: {
-                  //         in: ['SURVEYDONE', 'WORKEND', 'DONE'],
-                  //       },
-                  //     },
-                  //   },
-                  // },
                 },
               ]
             : []),
@@ -381,12 +361,10 @@ export class OrderService {
                     work_order_status: {
                       some: {
                         status: {
-                          category: {
-                            contains: 'WORKEND',
-                          },
+                          category: 'WORKEND',
                         },
                         created_at: {
-                          gte: now,
+                          gte: sevenDaysAgo,
                         },
                       },
                     },
@@ -394,7 +372,38 @@ export class OrderService {
                 },
               ]
             : []),
-          //
+          ...(Boolean(is_expired_warranty)
+            ? [
+                {
+                  OR: [
+                    {
+                      work_orders: {
+                        work_order_status: {
+                          some: {
+                            status: {
+                              category: 'WORKEND',
+                            },
+                            created_at: {
+                              lt: sevenDaysAgo,
+                            },
+                          },
+                        },
+                      },
+                    },
+                    {
+                      complaints: {
+                        some: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(Boolean(is_used_warranty)
+            ? [{ complaints: { some: { deleted_at: null } } }]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -402,7 +411,7 @@ export class OrderService {
       const orders = await this.dbService.orders.findMany({
         skip,
         take: take > 0 ? take : undefined,
-        where,
+        where: where,
         orderBy: {
           created_at: order_by,
         },
@@ -614,6 +623,7 @@ export class OrderService {
           order_files: true,
         },
       });
+
       const userIds = [
         ...new Set(
           orders
@@ -684,7 +694,6 @@ export class OrderService {
       };
     } catch (error) {
       console.error(error);
-
       throw error;
     }
   }
@@ -835,15 +844,22 @@ export class OrderService {
         },
       });
 
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
       const userIds = [
         order.created_by,
         order.updated_by,
         order.deleted_by,
+        ...order.order_history
+          .map((item) => item.created_by)
+          .filter((id) => id),
       ].filter(Boolean);
 
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, username: true },
+        select: { id: true, username: true, roles: true },
       });
 
       const userMap = Object.fromEntries(users.map((user) => [user.id, user]));
@@ -856,9 +872,7 @@ export class OrderService {
         deleted_by: userMap[order.deleted_by] || null,
         order_history: order.order_history.map((item) => ({
           ...item,
-          created_by: item.created_by
-          ? userMap[item.created_by] || null
-          : null,
+          created_by: item.created_by ? userMap[item.created_by] || null : null,
         })),
       };
 
@@ -1072,8 +1086,11 @@ export class OrderService {
             : updateOrderDto.is_overdistance === 0
             ? +order.additional_fee
             : 0);
-      }else{
-        grand_total += updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1 ? Number(updateOrderDto.additional_fee) : 0;
+      } else {
+        grand_total +=
+          updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
+            ? Number(updateOrderDto.additional_fee)
+            : 0;
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1118,8 +1135,8 @@ export class OrderService {
                   total +
                   (updateOrderDto.additional_fee &&
                   updateOrderDto.is_overdistance === 1
-                    ? (Number(updateOrderDto.additional_fee) -
-                      +order.additional_fee) 
+                    ? Number(updateOrderDto.additional_fee) -
+                      +order.additional_fee
                     : updateOrderDto.is_overdistance === 0
                     ? +order.additional_fee
                     : 0);
@@ -1440,6 +1457,8 @@ export class OrderService {
           data: orderData,
         }),
       ]);
+      console.log('MASUKK');
+
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
 
       return orders;

@@ -81,32 +81,32 @@ export class QueryParamsDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
   top_best?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
   claim_voucher?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
   promotion?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
   is_paid?: number;
-  
-  @IsOptional()
-  @Type(() => Number)
-  @IsIn([0,1])
-  sent_csi?: number;  
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
+  sent_csi?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
   penalty_vendor?: number;
 
   @IsOptional()
@@ -115,12 +115,12 @@ export class QueryParamsDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
   is_invoice?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([0,1])
+  @IsIn([0, 1])
   is_active_warranty?: number;
 
   @IsOptional()
@@ -189,7 +189,6 @@ export class QueryParamsDto {
   })
   vendor_with_max_order?: boolean = false;
 
-
   @IsOptional()
   @IsNotEmpty()
   store_name?: string;
@@ -223,4 +222,19 @@ export class QueryParamsDto {
   @Type(() => Number)
   @IsIn([0, 1])
   is_free?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  // @IsIn([0, 1])
+  is_promotion?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  // @IsIn([0, 1])
+  is_expired_warranty?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  // @IsIn([0, 1])
+  is_used_warranty?: number;
 }

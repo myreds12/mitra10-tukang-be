@@ -262,6 +262,10 @@ export class AuthService {
         }
       }
 
+      if(user.deleted_at){
+        throw new HttpException('Akun anda sudah dihapus, mohon untuk menghubungi kepada admin yang bersangkutan', HttpStatus.FORBIDDEN);
+      }
+
       return await this.generateJwt(
         user,
         JwtConfig.user_secret,

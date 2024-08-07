@@ -196,19 +196,19 @@ export class ComplaintsService {
                   {
                     orders: {
                       store: {
-                        store_name: search
-                      }
-                    }
+                        store_name: search,
+                      },
+                    },
                   },
                   {
                     orders: {
                       sales: {
                         full_name: {
                           contains: search,
-                        }
-                      }
-                    }
-                  }
+                        },
+                      },
+                    },
+                  },
                 ],
               }
             : undefined,
@@ -251,8 +251,8 @@ export class ComplaintsService {
                 },
               }
             : undefined,
-          ].filter((condition) => Boolean(condition)),
-          deleted_at: null,
+        ].filter((condition) => Boolean(condition)),
+        deleted_at: null,
       };
 
       const complaint = await this.dbService.complaints.findMany({
@@ -285,14 +285,14 @@ export class ComplaintsService {
                   status: true,
                   work_order_status: {
                     orderBy: {
-                      created_at: 'desc'
+                      created_at: 'desc',
                     },
                     include: {
-                      status: true
-                    }
-                  }
-                }
-              }
+                      status: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -679,27 +679,6 @@ export class ComplaintsService {
       // console.log('update', complaintsUpdate);
 
       console.log('complaintData', complaintData);
-      if (statusOrderUpdate) {
-        try{
-          await this.dbService.work_orders.update({
-            where: {
-              order_id: updateComplaintDto.order_id,
-            },
-            data: {
-              status_id: statusOrderUpdate,
-              work_order_status: {
-                create: {
-                  status_id: statusOrderUpdate,
-                  created_at: new Date(),
-                }
-              }
-            }
-          })
-        }catch(error){
-          throw new BadRequestException('No Work Orders To Update')
-        }
-        
-      }
 
       const [complaint] = await this.dbService.$transaction([
         this.dbService.complaints.update({
@@ -720,6 +699,32 @@ export class ComplaintsService {
           },
         }),
       ]);
+
+      if (statusOrderUpdate) {
+        try {
+          await this.dbService.work_orders.update({
+            where: {
+              order_id: updateComplaintDto.order_id,
+            },
+            data: {
+              status_id: statusOrderUpdate,
+              work_order_status: {
+                create: {
+                  status_id: statusOrderUpdate,
+                  created_at: new Date(),
+                },
+              },
+            },
+          });
+          await this.orderService.setStatus(
+            complaint.order_id,
+            complaint.complaint_status,
+            user,
+          );
+        } catch (error) {
+          throw new BadRequestException('No Work Orders To Update');
+        }
+      }
 
       return complaint;
     } catch (error) {
