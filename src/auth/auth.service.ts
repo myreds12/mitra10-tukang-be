@@ -17,6 +17,7 @@ import { PermissionAction } from 'src/casl/enum/permission-action.enum';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { isFQDN } from 'class-validator';
 // import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()
@@ -135,16 +136,23 @@ export class AuthService {
         where: {
           id,
         },
+        include: {
+          roles: true
+        }
       });
 
-      if (!user) {
+      if (!user || user.deleted_at) {
         throw new NotFoundException('User tidak ada.');
       }
 
-      const deleteUser = await this.dbService.users.delete({
+
+      const deleteUser = await this.dbService.users.update({
         where: {
           id,
         },
+        data: {
+          deleted_at: new Date(),
+        }
       });
       return deleteUser;
     } catch (error) {
