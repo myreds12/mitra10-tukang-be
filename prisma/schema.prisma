@@ -1115,6 +1115,7 @@ model work_orders {
   order_id  Int @unique
   vendor_id Int
   status_id Int
+  session   Int? @db.Int
 
   request_work_time DateTime? @default(now()) @db.DateTime()
   survey_date       DateTime? @db.DateTime()
@@ -1354,7 +1355,7 @@ model reschedule {
   order_id  Int
   status_id Int
 
-  reschedule_date DateTime @db.DateTime()
+  reschedule_date DateTime  @db.DateTime()
   confirm_date    DateTime? @db.DateTime()
 
   created_by Int?

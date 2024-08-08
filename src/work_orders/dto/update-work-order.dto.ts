@@ -14,6 +14,7 @@ import { WorkOrderTukang } from './wo-tukang.dto';
 import { StatusDetails } from './work-order-status.dto';
 import { UpdatedWorkOrderEvidences } from './update.work-order-evidences.dto';
 import { ReplaceTukangDto } from './replace-tukang.dto';
+import { Session } from '../enum/session.enum';
 
 export class UpdateWorkOrderDto {
   @ApiProperty()
@@ -31,6 +32,11 @@ export class UpdateWorkOrderDto {
   @Type(() => WorkOrderTukang)
   @ValidateNested({ each: true })
   work_order_tukang?: WorkOrderTukang[];
+
+  @ApiProperty()
+  @IsOptional()
+  @IsEnum(Session)
+  session?: Session;
 
   @IsOptional()
   @Type(() => StatusDetails)

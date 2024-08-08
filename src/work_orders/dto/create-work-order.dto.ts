@@ -1,12 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   ValidateNested,
 } from 'class-validator';
 import { WorkOrderTukang } from './wo-tukang.dto';
+import { Session } from '../enum/session.enum';
 
 export class CreateWorkOrderDto {
   @ApiProperty({ type: Number })
@@ -29,6 +31,11 @@ export class CreateWorkOrderDto {
   @IsNotEmpty()
   @ValidateNested({ each: true })
   work_order_tukang: WorkOrderTukang[];
+
+  @ApiProperty()
+  @IsOptional()
+  @IsEnum(Session)
+  session?: Session;
 
   request_work_time: string;
   survey_date: string;

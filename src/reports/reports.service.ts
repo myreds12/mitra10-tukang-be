@@ -218,9 +218,9 @@ export class ReportsService {
         totalResurveyComplaint: ['COMPLAINTRESURVEY'],
         totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
         totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
-        totalComplaint: ['COMPLAINT'],
+        totalComplaint: ['INVESTIGATED'],
         totalReschedule: ['RESCHEDULE'],
-        totalRefund: ['REFUND'],
+        totalRefund: ['CANCELREFUND'],
         totalWaitingResolve: ['INVESTIGATED'],
         totalActiveWarranty: ['ACTIVEWARRANTY'],
         totalUsedWarranty: ['USEDWARRANTY'],
@@ -560,8 +560,8 @@ export class ReportsService {
           if (
             (order.payment_type === 'survey' ||
               order.payment_type === 'pemasangan_tanpa_survey') &&
-            order?.quotation[0]?.receipt_quotation === null
-          ) {
+              order?.quotation[0]?.receipt_quotation === null
+            ) {
             summary[period].totalUnpaidQuotation++;
           }
 
@@ -588,33 +588,6 @@ export class ReportsService {
         }
       });
 
-      // Update summary with complaints, reschedules, and refunds data
-      [complaints, reschedules, refunds].forEach((entityList, index) => {
-        const entityNames = [
-          'totalComplaint',
-          'totalReschedule',
-          'totalRefund',
-        ];
-        entityList.forEach((entity) => {
-
-          const period = isSameDay
-            ? new Date(entity.created_at).toLocaleString('id-ID', {
-                hour: '2-digit',
-                hour12: false,
-              })
-            : isSameMonth
-            ? new Date(entity.created_at).toLocaleString('id-ID', {
-                day: '2-digit',
-              })
-            : new Date(entity.created_at).toLocaleString('id-ID', {
-                month: 'long',
-              });
-
-          if (summary[period]) {
-            summary[period][entityNames[index]]++;
-          }
-        });
-      });
 
       // Ensure all periods are accounted for, even if empty
       periods.forEach((period) => {

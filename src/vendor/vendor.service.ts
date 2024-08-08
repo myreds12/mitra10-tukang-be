@@ -260,6 +260,9 @@ export class VendorService {
             where: {
               deleted_at: null,
             },
+            orderBy: {
+              created_at: 'desc',
+            }
           },
           tukang: {
             include: {
@@ -379,6 +382,9 @@ export class VendorService {
             where: {
               deleted_at: null,
             },
+            orderBy: {
+              created_at: 'desc',
+            }
           },
           pic_vendor: {
             include: {

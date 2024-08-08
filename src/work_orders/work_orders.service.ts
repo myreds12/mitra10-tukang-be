@@ -86,6 +86,7 @@ export class WorkOrdersService {
           work_end_date: dataDto.work_end_date
             ? new Date(dataDto.work_end_date)
             : undefined,
+          session: dataDto.session,
           status: {
             connect: {
               id: dataDto.work_order_status,
