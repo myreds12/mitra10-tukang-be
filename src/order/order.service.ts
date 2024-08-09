@@ -501,7 +501,15 @@ export class OrderService {
               description: true,
             },
           },
-          complaints: true,
+          complaints: {
+            include: {
+              complaint_histories: {
+                include: {
+                  complaint_evidence: true
+                }
+              }
+            }
+          },
           vendor: {
             where: {
               deleted_at: null,
@@ -767,7 +775,12 @@ export class OrderService {
           complaints: {
             include: {
               complaint_channels: true,
-            },
+              complaint_histories: {
+                include: {
+                  complaint_evidence: true
+                }
+              }
+            }
           },
           quotation: {
             where: {
@@ -1637,7 +1650,7 @@ export class OrderService {
         },
       });
 
-      if (!order) throw new NotFoundException('Order not found !');
+      if (!order) throw new NotFoundException('Order not found!');
 
       const redirect_url = `${
         process.env.FE_URL

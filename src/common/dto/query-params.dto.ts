@@ -145,8 +145,9 @@ export class QueryParamsDto {
 
   @IsOptional()
   @IsNotEmpty()
-  @Type(() => Number)
-  area_id?: number = 0;
+  @Transform((value) => value.value.split(',').map(Number))
+  @Type(() => String)
+  area_id?: number[];
 
   @IsOptional()
   @IsNotEmpty()

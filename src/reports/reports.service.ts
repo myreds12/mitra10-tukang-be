@@ -160,7 +160,7 @@ export class ReportsService {
 
       const statusCategories = {
         totalPicklist: ['PICKLIST'],
-        totalNewOrder: ['PICKLIST', 'BOOKED', 'BOOK'],
+        totalNewOrder: ['BOOKED', 'BOOK'],
         totalWaitingSurvey: ['SURVEYREQ', 'TUKANGSURVEY'],
         totalSurveyStart: ['SURVEYSTART'],
         totalSurveyDone: ['SURVEYDONE'],
@@ -517,7 +517,11 @@ export class ReportsService {
             });
 
         if (summary[period]) {
-          summary[period].totalOrder++;
+          if (
+            !['CANCEL', 'CANCELREFUND'].includes(order.status.category)
+          ) {
+            summary[period].totalOrder++;
+          }
           summary[period].totalOrderGrandTotal += Number(order.grand_total);
 
           Object.entries(statusCategories).forEach(([key, statuses]) => {
@@ -1304,7 +1308,9 @@ export class ReportsService {
             ? {
                 tukang_area: {
                   some: {
-                    area_id: area_id,
+                    area_id: {
+                      in: area_id
+                    },
                   },
                 },
               }

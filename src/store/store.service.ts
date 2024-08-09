@@ -103,7 +103,11 @@ export class StoreService {
         ...(area_id
           ? [
               {
-                OR: [{ area_id: { equals: area_id } }],
+                OR: [{
+                  area_id: {
+                    in: area_id
+                  }
+                }],
               },
             ]
           : []),

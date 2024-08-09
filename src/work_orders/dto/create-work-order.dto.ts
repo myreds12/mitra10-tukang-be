@@ -32,9 +32,10 @@ export class CreateWorkOrderDto {
   @ValidateNested({ each: true })
   work_order_tukang: WorkOrderTukang[];
 
-  @ApiProperty()
   @IsOptional()
-  @IsEnum(Session)
+  @ApiProperty({ type: Number })
+  @Type(() => Number)
+  // @IsEnum(Session)
   session?: Session;
 
   request_work_time: string;

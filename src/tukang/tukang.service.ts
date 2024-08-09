@@ -239,7 +239,9 @@ export class TukangService {
             ? {
                 tukang_area: {
                   some: {
-                    area_id: area_id,
+                    area_id: {
+                      in: area_id
+                    }
                   },
                 },
               }
@@ -286,6 +288,7 @@ export class TukangService {
             include: {
               work_orders: {
                 include: {
+                  status: true,
                   work_order_status: {
                     include: {
                       status: true
@@ -313,12 +316,33 @@ export class TukangService {
           tukang_document: true,
         },
       });
+
+      const tukangWithSlotOrder = tukang.map((tukangItem) => {
+        const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+          const orderDate = new Date(item.work_orders.work_order_status[0].created_at).toISOString().split('T')[0];
+          const currentDate = new Date().toISOString().split('T')[0];
+          // console.log("ORDER DATE:" ,orderDate, "CURRENT DATE: ",currentDate);
+          
+      
+          return (
+            item.work_orders.status.category !== 'SURVEYDONE' &&
+            item.work_orders.status.category !== 'WORKEND' &&
+            orderDate === currentDate
+          );
+        });
+      
+        return {
+          ...tukangItem,
+          slot_order: dailySlots.length,
+        };
+      });
+
       const countTotal = await this.dbService.tukang.count({
         where,
       });
 
       return {
-        data: tukang,
+        data: tukangWithSlotOrder,
         meta: { skip, take, page, countTotal: countTotal },
       };
     } catch (error) {

@@ -74,7 +74,7 @@ export class VendorService {
         });
 
       const formattedUsername =
-        createVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
+        createVendorDto?.default_username.replace(/ /g, '_') ?? createVendorDto.pic_name.replace(/ /g, '_');
 
       if (formattedUsername.length > 12) {
         throw new BadRequestException(
@@ -211,7 +211,7 @@ export class VendorService {
       //           created_at: order_by,
       //         }),
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
+      // now.setHours(0, 0, 0, 0);
       const formattedDate = now.toISOString();
 
       console.log('vendor_with_max_order', vendor_with_max_order);
@@ -260,15 +260,17 @@ export class VendorService {
             where: {
               deleted_at: null,
             },
-            orderBy: {
-              created_at: 'desc',
-            }
           },
           tukang: {
             include: {
-              tukang_area: {
+              work_order_tukang: {
                 include: {
-                  area: true,
+                  work_orders: {
+                    include: {
+                      status: true,
+                      work_order_status: true,
+                    },
+                  },
                 },
               },
             },
@@ -349,14 +351,48 @@ export class VendorService {
       }
       console.log(new Date(), new Date('2024-05-03'), new Date().toISOString());
       if (vendor_with_max_order) {
-        vendor = vendor.filter(
-          ({ id, work_orders, max_order, company_name, tukang }) => {
-            console.log(`[${id}] ${company_name} - ${work_orders.length}`);
-            console.log(work_orders);
-            return tukang.length > work_orders.length;
-          },
-        );
+        vendor = vendor.filter((v) => {
+          return v.tukang.some((t) => {
+            const dailySlots = t.work_order_tukang.filter((item) => {
+              const orderDate = new Date(item.work_orders.created_at)
+                .toISOString()
+                .split('T')[0];
+              const currentDate = new Date().toISOString().split('T')[0];
+              return (
+                item.work_orders.status.category !== 'SURVEYDONE' &&
+                item.work_orders.status.category !== 'WORKEND' &&
+                orderDate === currentDate
+              );
+            });
+
+            return dailySlots.length <= v.max_order;
+          });
+        });
       }
+      vendor = vendor.map((vendor) => {
+        return {
+          ...vendor,
+          tukang: vendor.tukang.map((tukangItem) => {
+            const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+              const orderDate = new Date(item.work_orders.work_order_status[0].created_at)
+                .toISOString()
+                .split('T')[0];
+                
+              return (
+                item.work_orders.status.category !== 'SURVEYDONE' &&
+                item.work_orders.status.category !== 'WORKEND' &&
+                orderDate === formattedDate.split('T')[0]
+              );
+            });
+            
+  
+            return {
+              ...tukangItem,
+              slot_order: dailySlots.length,
+            };
+          }),
+        };
+      });
 
       const total = await this.dbService.vendor.count({ where });
 
@@ -384,7 +420,7 @@ export class VendorService {
             },
             orderBy: {
               created_at: 'desc',
-            }
+            },
           },
           pic_vendor: {
             include: {
@@ -396,6 +432,27 @@ export class VendorService {
               tukang_area: {
                 include: {
                   area: true,
+                },
+              },
+              work_order_tukang: {
+                where: {
+                  deleted_at: null,
+                },
+                include: {
+                  work_orders: {
+                    include: {
+                      status: true,
+                      work_order_status: {
+                        include: {
+                          status: true,
+                        },
+                        orderBy: {
+                          created_at: 'desc',
+                        },
+                      },
+                      order: true,
+                    },
+                  },
                 },
               },
             },
@@ -435,6 +492,30 @@ export class VendorService {
           },
         },
       });
+
+      if (vendor && vendor.tukang) {
+        const now = new Date().toISOString().split('T')[0];
+
+        vendor.tukang = vendor.tukang.map((tukangItem) => {
+          const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+            const orderDate = new Date(
+              item.work_orders.work_order_status[0].created_at,
+            )
+              .toISOString()
+              .split('T')[0];
+            return (
+              item.work_orders.status.category !== 'SURVEYDONE' &&
+              item.work_orders.status.category !== 'WORKEND' &&
+              orderDate === now
+            );
+          });
+
+          return {
+            ...tukangItem,
+            slot_order: dailySlots.length,
+          };
+        });
+      }
 
       return vendor;
     } catch (error) {
@@ -554,10 +635,13 @@ export class VendorService {
 
       console.log(updateVendorDto);
 
-      const formattedUsername =  updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
+      const formattedUsername =
+        updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
 
-      if(formattedUsername.length > 12){
-        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      if (formattedUsername.length > 12) {
+        throw new BadRequestException(
+          'Username tidak boleh lebih dari 12 karakter.',
+        );
       }
 
       const vendorData: Prisma.vendorUpdateInput = {
@@ -617,7 +701,9 @@ export class VendorService {
               pic_name: updateVendorDto?.pic_name ?? undefined,
               users: {
                 update: {
-                  username: updateVendorDto.default_username ? formattedUsername : vendors.pic_vendor[0].users.username,
+                  username: updateVendorDto.default_username
+                    ? formattedUsername
+                    : vendors.pic_vendor[0].users.username,
                   password: updateVendorDto.password
                     ? await hashSync(updateVendorDto.password, 12)
                     : undefined,

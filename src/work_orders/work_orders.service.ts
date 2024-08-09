@@ -586,6 +586,7 @@ export class WorkOrdersService {
           ...(dataDto.vendor_id
             ? { vendor: { connect: { id: dataDto.vendor_id } } }
             : undefined),
+            session: dataDto.session,
           request_work_time: dataDto?.request_work_time
             ? new Date(dataDto.request_work_time)
             : undefined,
