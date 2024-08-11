@@ -326,6 +326,7 @@ export class VendorService {
           work_orders: {
             where: {
               // survey_date: new Date(),
+              deleted_at: null,
               OR: [
                 {
                   survey_date: formattedDate,
@@ -349,18 +350,18 @@ export class VendorService {
       if (take > 0) {
         vendor = vendor.slice(0, take);
       }
-      console.log(new Date(), new Date('2024-05-03'), new Date().toISOString());
+      // console.log(new Date(0).toISOString().split('T')[0]);
       if (vendor_with_max_order) {
         vendor = vendor.filter((v) => {
           return v.tukang.some((t) => {
             const dailySlots = t.work_order_tukang.filter((item) => {
-              const orderDate = new Date(item.work_orders.created_at)
+              const orderDate = new Date(item.work_orders?.created_at ?? 0)
                 .toISOString()
                 .split('T')[0];
               const currentDate = new Date().toISOString().split('T')[0];
               return (
-                item.work_orders.status.category !== 'SURVEYDONE' &&
-                item.work_orders.status.category !== 'WORKEND' &&
+                item.work_orders?.status?.category !== 'SURVEYDONE' &&
+                item.work_orders?.status?.category !== 'WORKEND' &&
                 orderDate === currentDate
               );
             });
@@ -374,13 +375,13 @@ export class VendorService {
           ...vendor,
           tukang: vendor.tukang.map((tukangItem) => {
             const dailySlots = tukangItem.work_order_tukang.filter((item) => {
-              const orderDate = new Date(item.work_orders.work_order_status[0].created_at)
+              const orderDate = new Date(item?.work_orders?.work_order_status[0]?.created_at ?? 0)
                 .toISOString()
                 .split('T')[0];
                 
               return (
-                item.work_orders.status.category !== 'SURVEYDONE' &&
-                item.work_orders.status.category !== 'WORKEND' &&
+                item.work_orders?.status?.category !== 'SURVEYDONE' &&
+                item.work_orders?.status?.category !== 'WORKEND' &&
                 orderDate === formattedDate.split('T')[0]
               );
             });
