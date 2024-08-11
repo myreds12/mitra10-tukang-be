@@ -74,7 +74,7 @@ export class VendorService {
         });
 
       const formattedUsername =
-        createVendorDto?.default_username.replace(/ /g, '_') ?? createVendorDto.pic_name.replace(/ /g, '_');
+        createVendorDto?.default_username?.replace(/ /g, '_') ?? createVendorDto?.pic_name?.replace(/ /g, '_');
 
       if (formattedUsername.length > 12) {
         throw new BadRequestException(
@@ -203,20 +203,13 @@ export class VendorService {
         vendor_with_max_order,
         top_best,
       } = query;
-      // ...(Boolean(top_best)
-      //       ? {
-      //           order_total: 'desc',
-      //         }
-      //       : {
-      //           created_at: order_by,
-      //         }),
+  
       const now = new Date();
-      // now.setHours(0, 0, 0, 0);
-      const formattedDate = now.toISOString();
-
+      const formattedDate = now.toISOString().split('T')[0];
+  
       console.log('vendor_with_max_order', vendor_with_max_order);
       const skip = page * take - take;
-
+  
       const where: Prisma.vendorWhereInput = {
         AND: [
           ...(search
@@ -250,7 +243,7 @@ export class VendorService {
         ].filter(Boolean),
         deleted_at: null,
       };
-
+  
       let vendor = await this.dbService.vendor.findMany({
         where,
         skip,
@@ -325,7 +318,6 @@ export class VendorService {
           },
           work_orders: {
             where: {
-              // survey_date: new Date(),
               deleted_at: null,
               OR: [
                 {
@@ -344,13 +336,15 @@ export class VendorService {
           },
         },
       });
+  
       if (Boolean(top_best)) {
         vendor = vendor.sort((a, b) => b.orders.length - a.orders.length);
       }
+  
       if (take > 0) {
         vendor = vendor.slice(0, take);
       }
-      // console.log(new Date(0).toISOString().split('T')[0]);
+  
       if (vendor_with_max_order) {
         vendor = vendor.filter((v) => {
           return v.tukang.some((t) => {
@@ -365,27 +359,28 @@ export class VendorService {
                 orderDate === currentDate
               );
             });
-
+  
             return dailySlots.length <= v.max_order;
           });
         });
       }
+  
+      console.log('BELUM ERROR')
       vendor = vendor.map((vendor) => {
         return {
           ...vendor,
           tukang: vendor.tukang.map((tukangItem) => {
             const dailySlots = tukangItem.work_order_tukang.filter((item) => {
-              const orderDate = new Date(item?.work_orders?.work_order_status[0]?.created_at ?? 0)
+              const orderDate = new Date(item.work_orders?.created_at ?? 0)
                 .toISOString()
                 .split('T')[0];
-                
+  
               return (
                 item.work_orders?.status?.category !== 'SURVEYDONE' &&
                 item.work_orders?.status?.category !== 'WORKEND' &&
-                orderDate === formattedDate.split('T')[0]
+                orderDate === formattedDate
               );
             });
-            
   
             return {
               ...tukangItem,
@@ -394,9 +389,9 @@ export class VendorService {
           }),
         };
       });
-
+  
       const total = await this.dbService.vendor.count({ where });
-
+  
       return {
         data: vendor,
         meta: { total, takeTotal: vendor.length, page, take },
