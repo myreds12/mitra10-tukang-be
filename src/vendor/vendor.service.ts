@@ -256,7 +256,16 @@ export class VendorService {
           },
           tukang: {
             include: {
-              work_order_tukang: true,
+              work_order_tukang: {
+                include: {
+                  work_orders: {
+                    include: {
+                      status: true,
+                      work_order_status: true,
+                    },
+                  },
+                },
+              },
             },
           },
           pic_vendor: {
@@ -336,50 +345,50 @@ export class VendorService {
         vendor = vendor.slice(0, take);
       }
   
-      // if (vendor_with_max_order) {
-      //   vendor = vendor.filter((v) => {
-      //     return v.tukang.some((t) => {
-      //       const dailySlots = t.work_order_tukang.filter((item) => {
-      //         const orderDate = new Date(item.work_orders?.created_at ?? 0)
-      //           .toISOString()
-      //           .split('T')[0];
-      //         const currentDate = new Date().toISOString().split('T')[0];
-      //         return (
-      //           item.work_orders?.status?.category !== 'SURVEYDONE' &&
-      //           item.work_orders?.status?.category !== 'WORKEND' &&
-      //           orderDate === currentDate
-      //         );
-      //       });
+      if (vendor_with_max_order) {
+        vendor = vendor.filter((v) => {
+          return v.tukang.some((t) => {
+            const dailySlots = t.work_order_tukang.filter((item) => {
+              const orderDate = new Date(item.work_orders?.created_at ?? 0)
+                .toISOString()
+                .split('T')[0];
+              const currentDate = new Date().toISOString().split('T')[0];
+              return (
+                item.work_orders?.status?.category !== 'SURVEYDONE' &&
+                item.work_orders?.status?.category !== 'WORKEND' &&
+                orderDate === currentDate
+              );
+            });
   
-      //       return dailySlots.length <= v.max_order;
-      //     });
-      //   });
-      // }
+            return dailySlots.length <= v.max_order;
+          });
+        });
+      }
   
       console.log('BELUM ERROR')
-      // vendor = vendor.map((vendor) => {
-      //   return {
-      //     ...vendor,
-      //     tukang: vendor.tukang.map((tukangItem) => {
-      //       const dailySlots = tukangItem.work_order_tukang.filter((item) => {
-      //         const orderDate = new Date(item.work_orders?.created_at ?? 0)
-      //           .toISOString()
-      //           .split('T')[0];
+      vendor = vendor.map((vendor) => {
+        return {
+          ...vendor,
+          tukang: vendor.tukang.map((tukangItem) => {
+            const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+              const orderDate = new Date(item.work_orders?.created_at ?? 0)
+                .toISOString()
+                .split('T')[0];
   
-      //         return (
-      //           item.work_orders?.status?.category !== 'SURVEYDONE' &&
-      //           item.work_orders?.status?.category !== 'WORKEND' &&
-      //           orderDate === formattedDate
-      //         );
-      //       });
+              return (
+                item.work_orders?.status?.category !== 'SURVEYDONE' &&
+                item.work_orders?.status?.category !== 'WORKEND' &&
+                orderDate === formattedDate
+              );
+            });
   
-      //       return {
-      //         ...tukangItem,
-      //         slot_order: dailySlots.length,
-      //       };
-      //     }),
-      //   };
-      // });
+            return {
+              ...tukangItem,
+              slot_order: dailySlots.length,
+            };
+          }),
+        };
+      });
   
       const total = await this.dbService.vendor.count({ where });
   
