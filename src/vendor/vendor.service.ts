@@ -205,7 +205,7 @@ export class VendorService {
       } = query;
   
       const now = new Date();
-      const formattedDate = now.toISOString().split('T')[0];
+      const formattedDate = now.toISOString();
   
       console.log('vendor_with_max_order', vendor_with_max_order);
       const skip = page * take - take;
