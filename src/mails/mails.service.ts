@@ -148,8 +148,16 @@ export class MailsService {
         id,
       },
       include: {
-        terms_detail: true,
-        information_detail: true,
+        terms_detail: {
+          where: {
+            deleted_at: null
+          }
+        },
+        information_detail:  {
+          where: {
+            deleted_at: null
+          }
+        },
         csi_template: true,
         trigger: true,
       },
