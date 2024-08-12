@@ -103,6 +103,7 @@ export class MailsService {
             ]
           : []),
       ],
+      deleted_at: null
     };
     const skip = page * take - take;
     const emailMessage = await this.dbService.email_messages.findMany({
@@ -113,8 +114,16 @@ export class MailsService {
         created_at: order_by,
       },
       include: {
-        terms_detail: true,
-        information_detail: true,
+        terms_detail: {
+          where: {
+            deleted_at: null
+          }
+        },
+        information_detail:  {
+          where: {
+            deleted_at: null
+          }
+        },
         csi_template: true,
         trigger: true,
       },
