@@ -77,15 +77,8 @@ export class RefundService {
         data,
       });
 
-      const statusOrderUpdate = await this.dbService.status.findFirst({
-        where: {
-          category: {
-            contains: 'CANCELREFUND',
-          },
-        },
-      });
 
-      await this.orderService.setStatus(order.id, statusOrderUpdate.id, user);
+      await this.orderService.setStatus(order.id, createRefundDto.refund_status, user);
 
       return refund;
     } catch (error) {
@@ -567,6 +560,7 @@ export class RefundService {
         { header: 'Nama Customer', key: 'member_name', width: 40 },
         { header: 'Nomor Member', key: 'member_number', width: 40 },
         { header: 'Nama Toko', key: 'store_name', width: 40 },
+        { header: 'Status Pembayaran', key: 'paid_status', width: 40 },
         { header: 'Catatan', key: 'notes', width: 40 },
         { header: 'Alasan', key: 'reason', width: 40 },
         { header: 'Nomor Persetujuan', key: 'approval_number', width: 25 },
@@ -612,6 +606,7 @@ export class RefundService {
           member_name: refund.orders.members.full_name,
           member_number: refund.orders.members.member_number,
           store_name: refund.orders.store.store_name,
+          paid_status: refund.paid_status === 0 || null ? 'Belum Dibayar' : 'Dibayar',
           notes: refund.notes,
           reason: refund.reason,
           approval_number: refund.approval_number

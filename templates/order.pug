@@ -77,7 +77,7 @@ html(lang="en")
                   h1.fs-6.fw-bold.mb-2.text-white Order ID :
                    span.fw-normal.text-white=  data.id
 
-                  //-  a(href=`uploads/pdf/order/order_${data.id}.pdf`, download=`order_${data.id}.pdf`) Unduh PDF
+                  //-  a(href=`uploads/pdf/order/order_#{data.id}.pdf`, download=`order_#{data.id}.pdf`) Unduh PDF
           .col-md-12.col-sm-12
           .card-body
             h3.fs-6.fw-normal.mb-1 Hi, #{data.members.full_name}
@@ -151,8 +151,8 @@ html(lang="en")
 
             .store-information.mb-5
               h3.fs-6.fw-semibold Silahkan kirim bukti bayar anda melalui :
-              h3.fs-6.fw-normal= `Telp : ${data.store.phone_number_1 ? data.store.phone_number_1 : data.store.phone_number_2}`
-              h3.fs-6.fw-normal= `Email : ${data.store.email ? data.store.email : 'Email belum tersedia'}`
+              h3.fs-6.fw-normal= `Telp : #{data.store.phone_number_1 ? data.store.phone_number_1 : data.store.phone_number_2}`
+              h3.fs-6.fw-normal= `Email : #{data.store.email ? data.store.email : 'Email belum tersedia'}`
 
             .footer-card
               h1.fs-6.fw-semibold Hormat Kami, Mitra10

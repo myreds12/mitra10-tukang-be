@@ -55,6 +55,9 @@ export class EmailProcessor {
         footer: true,
         is_active: true,
         terms_detail: {
+          where: {
+            deleted_at: null
+          },
           select: {
             id: true,
             email_messages_id: true,
@@ -62,6 +65,9 @@ export class EmailProcessor {
           },
         },
         information_detail: {
+          where: {
+            deleted_at: null
+          },
           select: {
             id: true,
             email_messages_id: true,

@@ -441,6 +441,14 @@ export class OrderService {
               updated_by: true,
             },
           },
+          reschedule: {
+            where: {
+              deleted_at: null
+            },
+            include: {
+              reschedule_evidences: true,
+            }
+          },
           invoice_details: {
             where: {
               deleted_at: null,
@@ -852,7 +860,31 @@ export class OrderService {
               },
             },
           },
-          invoice_details: true,
+          reschedule: {
+            where: {
+              deleted_at: null
+            },
+            include: {
+              reschedule_evidences: true,
+            }
+          },
+          invoice_details: {
+            where: {
+              deleted_at: null,
+            },
+            select: {
+              invoices: {
+                select: {
+                  id: true,
+                  status: true,
+                  total_amount: true,
+                  invoice_logs: true,
+                  description: true,
+                  vendor: true,
+                },
+              },
+            },
+          },
         },
       });
 
