@@ -206,6 +206,22 @@ export class MailsService {
             })
           : undefined;
 
+          const deletedInformationId = updateEmailMessageDto.information_detail
+          ? updateEmailMessageDto.information_detail
+              .filter((x) => Boolean(x?.id))
+              .map((item) => {
+                return item.id;
+              })
+          : undefined;
+          
+          const deletedTermsDetailsId = updateEmailMessageDto.terms_detail
+          ? updateEmailMessageDto.terms_detail
+              .filter((x) => Boolean(x?.id))
+              .map((item) => {
+                return item.id;
+              })
+          : undefined;
+
       const data: Prisma.email_messagesUpdateInput = {
         email_type: updateEmailMessageDto.email_type,
         greetings: updateEmailMessageDto.greetings,
@@ -256,12 +272,13 @@ export class MailsService {
           },
           data,
         }),
-        ...(updateEmailMessageDto.terms_detail ? [
+        ...(deletedTermsDetailsId && deletedTermsDetailsId.length ? [
           this.dbService.terms_detail.updateMany({
             where: {
               id: {
-                notIn: updateEmailMessageDto.terms_detail.map((i) => i.id)
-              }
+                notIn: deletedTermsDetailsId
+              },
+              email_messages_id: id
             },
             data: {
               deleted_at: new Date(),
@@ -269,12 +286,13 @@ export class MailsService {
             }
           })
         ] : []),
-        ...(updateEmailMessageDto.information_detail ? [
+        ...(deletedInformationId && deletedInformationId.length ? [
           this.dbService.information_detail.updateMany({
             where: {
               id: {
-                notIn: updateEmailMessageDto.information_detail.map((i) => i.id)
-              }
+                notIn: deletedInformationId
+              },
+              email_messages_id: id
             },
             data: {
               deleted_at: new Date(),
