@@ -103,7 +103,7 @@ export class MailsService {
             ]
           : []),
       ],
-      deleted_at: null
+      deleted_at: null,
     };
     const skip = page * take - take;
     const emailMessage = await this.dbService.email_messages.findMany({
@@ -116,13 +116,13 @@ export class MailsService {
       include: {
         terms_detail: {
           where: {
-            deleted_at: null
-          }
+            deleted_at: null,
+          },
         },
-        information_detail:  {
+        information_detail: {
           where: {
-            deleted_at: null
-          }
+            deleted_at: null,
+          },
         },
         csi_template: true,
         trigger: true,
@@ -150,13 +150,13 @@ export class MailsService {
       include: {
         terms_detail: {
           where: {
-            deleted_at: null
-          }
+            deleted_at: null,
+          },
         },
-        information_detail:  {
+        information_detail: {
           where: {
-            deleted_at: null
-          }
+            deleted_at: null,
+          },
         },
         csi_template: true,
         trigger: true,
@@ -206,21 +206,21 @@ export class MailsService {
             })
           : undefined;
 
-          const deletedInformationId = updateEmailMessageDto.information_detail
-          ? updateEmailMessageDto.information_detail
-              .filter((x) => Boolean(x?.id))
-              .map((item) => {
-                return item.id;
-              })
-          : undefined;
-          
-          const deletedTermsDetailsId = updateEmailMessageDto.terms_detail
-          ? updateEmailMessageDto.terms_detail
-              .filter((x) => Boolean(x?.id))
-              .map((item) => {
-                return item.id;
-              })
-          : undefined;
+      const deletedInformationId = updateEmailMessageDto.information_detail
+        ? updateEmailMessageDto.information_detail
+            .filter((x) => Boolean(x?.id))
+            .map((item) => {
+              return item.id;
+            })
+        : undefined;
+
+      const deletedTermsDetailsId = updateEmailMessageDto.terms_detail
+        ? updateEmailMessageDto.terms_detail
+            .filter((x) => Boolean(x?.id))
+            .map((item) => {
+              return item.id;
+            })
+        : undefined;
 
       const data: Prisma.email_messagesUpdateInput = {
         email_type: updateEmailMessageDto.email_type,
@@ -265,41 +265,46 @@ export class MailsService {
           : undefined,
       };
 
-      const [emailMessage] = await this.dbService.$transaction([
+      const [syncTerms, syncInformation ,emailMessage] = await this.dbService.$transaction([
+        this.dbService.terms_detail.updateMany({
+          where: {
+            ...(deletedTermsDetailsId && deletedTermsDetailsId.length
+              ? {
+                  id: {
+                    notIn: deletedTermsDetailsId,
+                  },
+                }
+              : undefined),
+            email_messages_id: id,
+          },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+          },
+        }),
+        this.dbService.information_detail.updateMany({
+          where: {
+            ...(deletedInformationId && deletedInformationId.length
+              ? {
+                  id: {
+                    notIn: deletedInformationId,
+                  },
+                }
+              : undefined),
+            email_messages_id: id,
+          },
+          data: {
+            deleted_at: new Date(),
+
+            deleted_by: user_id,
+          },
+        }),
         this.dbService.email_messages.update({
           where: {
             id,
           },
           data,
         }),
-        ...(deletedTermsDetailsId && deletedTermsDetailsId.length ? [
-          this.dbService.terms_detail.updateMany({
-            where: {
-              id: {
-                notIn: deletedTermsDetailsId
-              },
-              email_messages_id: id
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id
-            }
-          })
-        ] : []),
-        ...(deletedInformationId && deletedInformationId.length ? [
-          this.dbService.information_detail.updateMany({
-            where: {
-              id: {
-                notIn: deletedInformationId
-              },
-              email_messages_id: id
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id
-            }
-          })
-        ] : [])
       ]);
 
       return emailMessage;
@@ -344,7 +349,6 @@ export class MailsService {
       for (let index = 0; index < mail_messages.length; index++) {
         const template = mail_messages[index];
         if (template.trigger_id) {
-          
           switch (template.email_type) {
             case MailType.ORDER:
               await this.handleOrderTriggers(template.id, template.trigger_id);
@@ -471,7 +475,7 @@ export class MailsService {
       where: {
         quotation_status: status_id,
         readiness: {
-          in: [1, 4]
+          in: [1, 4],
         },
         deleted_at: null,
         deleted_by: null,
@@ -580,8 +584,7 @@ export class MailsService {
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
-      console.log(template_id, "TEMPLATE ID");
-      
+      console.log(template_id, 'TEMPLATE ID');
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];
@@ -806,8 +809,6 @@ export class MailsService {
         deleted_by: null,
       },
     });
-
-    
 
     const csi = await this.dbService.csi_template.findFirst({
       where: {
