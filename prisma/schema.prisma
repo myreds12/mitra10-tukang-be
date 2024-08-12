@@ -1111,8 +1111,8 @@ model remedial_evidences {
 }
 
 model work_orders {
-  id        Int @id @default(autoincrement())
-  order_id  Int @unique
+  id        Int  @id @default(autoincrement())
+  order_id  Int  @unique
   vendor_id Int
   status_id Int
   session   Int? @db.Int
@@ -1278,6 +1278,8 @@ model invoices {
   total_amount            Decimal?  @db.Decimal(32, 2)
   pkp_nominal             Decimal?  @db.Decimal(32, 2)
   pph_nominal             Decimal?  @db.Decimal(32, 2)
+  penalty_nominal         Decimal?  @db.Decimal(32, 2)
+  ppn_nominal             Decimal?  @db.Decimal(32, 2)
   invoice_number          String
   invoice_to_finance_date DateTime? @db.DateTime()
   description             String?   @db.VarChar(400)

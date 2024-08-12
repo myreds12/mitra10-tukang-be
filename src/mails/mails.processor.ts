@@ -211,19 +211,20 @@ export class EmailProcessor {
       const uniqueBcc = [...new Set(defaultBcc)];
 
       const mailOptions = {
-        cc: data.order.members.email,
-        from: 'noreply@mitra10.com',
+        to: order.members.email,
+        // cc: data.order.members.email,
+        from: 'postmaster@sandbox4fbcfa5aaee54915b939c1af5c94b953.mailgun.org',
         subject: message.title,
         template: 'index',
-        bcc,
+        bcc: '',
         context: { data },
       };
 
-      if (uniqueBcc.length > 0) {
-        mailOptions.bcc = uniqueBcc.join(',');
-      } else {
-        mailOptions.bcc = '';
-      }
+      // if (uniqueBcc.length > 0) {
+      //   mailOptions.bcc = uniqueBcc.join(',');
+      // } else {
+      //   mailOptions.bcc = '';
+      // }
 
       if (order.members.email) {
         await this.mailerService.sendMail(mailOptions);
@@ -290,7 +291,6 @@ export class EmailProcessor {
           users.pic_vendor[0]?.email_address ??
           users.tukang[0]?.email ??
           'example@example.com';
-      console.log(to);
       const data = {
         users,
         message,
@@ -407,9 +407,7 @@ export class EmailProcessor {
   async sendQuotationMail(job: Job<QuotationMailInterface>) {
     try {
       const { module_id, template_id } = job.data;
-      console.log('Job data received:', job.data); // Log the entire job data
-      console.log('QUOTATION ID:', module_id);
-      console.log('TEMPLATE ID:', template_id);
+     
 
       if (!module_id) {
         console.error('quotation_id is null!');
@@ -516,7 +514,7 @@ export class EmailProcessor {
             readiness: 2,
           },
         });
-        console.log('QUOTEOUT readiness 2')
+        ('QUOTEOUT readiness 2')
       }else if(quotation.status.category === 'QUOTEIN'){
         await this.dbService.quotation.update({
           where: {
@@ -526,7 +524,6 @@ export class EmailProcessor {
             readiness: 4,
           },
         });
-        console.log('QUOTEIN readiness 4')
       }
 
       let defaultBcc = bcc
@@ -581,9 +578,7 @@ export class EmailProcessor {
   async sendQuotationPaymentMail(job: Job<QuotationMailInterface>) {
     try {
       const { module_id, template_id } = job.data;
-      console.log('Job data received:', job.data); // Log the entire job data
-      console.log('QUOTATION ID:', module_id);
-      console.log('TEMPLATE ID:', template_id);
+
 
       if (!module_id) {
         console.error('quotation_id is null!');
@@ -744,10 +739,8 @@ export class EmailProcessor {
   @Process('send-csi-mail')
   async sendcsimail(job: Job<CsiMailInterface>) {
     try {
-      console.log('[sendcsimail] Start');
 
       const { module_id, order_id, template_id } = job.data;
-      console.log(module_id, job);
 
       const csi = await this.dbService.csi_template.findFirst({
         where: {
@@ -755,7 +748,6 @@ export class EmailProcessor {
           deleted_at: null,
         },
       });
-      console.log(csi);
 
       const order = await this.dbService.orders.findFirst({
         where: {
@@ -767,7 +759,6 @@ export class EmailProcessor {
         },
       });
 
-      console.log(order);
 
       if (!csi) throw new NotFoundException('csi not found!');
       if (!order) throw new NotFoundException('order not found!');
@@ -813,7 +804,6 @@ export class EmailProcessor {
           template: 'csi',
           context: { data },
         });
-        console.log('SUCCESS');
       }
       await this.maillogs(
         order_id,
@@ -834,7 +824,6 @@ export class EmailProcessor {
   @Process('send-replace-tukang-from-vendor')
   async sendReplaceTukangFromVendor(job: Job<ReplaceTukangFromVendor>) {
     try {
-      console.log('[sendReplaceTukangFromVendor] Start');
       const { module_id: id, template_id } = job.data;
 
       const tukang = await this.dbService.tukang.findFirst({
@@ -845,14 +834,12 @@ export class EmailProcessor {
           vendor: true,
         },
       });
-      console.log('[sendReplaceTukangFromVendor] tukang:', tukang);
       if (!tukang) throw new NotFoundException('Tukang not found!');
 
       const message = await this.getMessage(
         MailType.REPLACE_TUKANG_FROM_VENDOR,
         template_id,
       );
-      console.log('[sendReplaceTukangFromVendor] message:', message);
 
       if (!message) throw new NotFoundException('message not found!');
 
@@ -885,7 +872,6 @@ export class EmailProcessor {
           template: 'replace-tukang-from-vendor',
           context: { data },
         });
-        console.log('SUCCESS');
       }
       await this.maillogs(
         id,
@@ -898,9 +884,7 @@ export class EmailProcessor {
         1,
         data,
       );
-      console.log('[sendReplaceTukangFromVendor] End');
     } catch (error) {
-      console.error('[sendReplaceTukangFromVendor] Error:', error);
       this.logger.error(error);
     }
   }
@@ -908,9 +892,7 @@ export class EmailProcessor {
   @Process('send-replace-tukang-from-tukang')
   async sendReplaceTukangFromTukang(job: Job<ReplaceTukangFromVendor>) {
     try {
-      console.log('[sendReplaceTukangFromTukang] Start');
       const { module_id: id, template_id } = job.data;
-      console.log(id);
 
       const users = await this.dbService.users.findFirst({
         where: {
@@ -924,14 +906,12 @@ export class EmailProcessor {
           },
         },
       });
-      console.log('[sendReplaceTukangFromTukang] users:', users);
       if (!users) throw new NotFoundException('Vendor not found!');
 
       const message = await this.getMessage(
         MailType.REPLACE_TUKANG_FROM_TUKANG,
         template_id,
       );
-      console.log('[sendReplaceTukangFromTukang] message:', message);
 
       if (!message) throw new NotFoundException('message not found!');
 
@@ -940,7 +920,6 @@ export class EmailProcessor {
         message,
       };
 
-      console.log(users.tukang[0].vendor.company_name);
 
       const { bcc, cc } = message;
 
@@ -966,7 +945,6 @@ export class EmailProcessor {
           template: 'replace-tukang-from-tukang',
           context: { data },
         });
-        console.log('[sendReplaceTukangFromTukang] Mail sent');
       }
       await this.maillogs(
         id,
@@ -979,7 +957,6 @@ export class EmailProcessor {
         1,
         data,
       );
-      console.log('[sendReplaceTukangFromTukang] End');
     } catch (error) {
       console.error('[sendReplaceTukangFromTukang] Error:', error);
       this.logger.error(error);
@@ -1302,7 +1279,6 @@ export class EmailProcessor {
     status: number,
     data: any = null,
   ) {
-    console.log(moduleId);
 
     const dataMailLogs =  await this.dbService.mail_logs.create({
       data: {

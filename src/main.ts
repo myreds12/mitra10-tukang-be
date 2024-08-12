@@ -26,7 +26,11 @@ async function bootstrap() {
     prefix: '/public/',
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
-  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter(), new PrismaValidationFilter());
+  app.useGlobalFilters(
+    new HttpExceptionFilter(),
+    new PrismaExceptionFilter(),
+    new PrismaValidationFilter(),
+  );
   app.useGlobalInterceptors(new TransformInterceptor());
 
   app.setBaseViewsDir(join('templates'));

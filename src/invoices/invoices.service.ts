@@ -30,7 +30,6 @@ export class InvoicesService {
     invoice_evidences?: Array<Express.Multer.File>,
   ) {
     try {
-      console.log('createInvoiceDto:', createInvoiceDto);
       const { id: user_id } = user;
 
       // Prepare evidences if available
@@ -40,7 +39,6 @@ export class InvoicesService {
           created_by: user_id,
         }))
         : [];
-      console.log('evidences:', evidences);
 
       const vendor = await this.dbService.vendor.findFirst({
         where: {
@@ -97,15 +95,26 @@ export class InvoicesService {
           },
         },
       });
-      console.log('orders:', orders);
+
+      const refund = await this.dbService.refund.findMany({
+        where: {
+          orders: {
+            vendor_id: vendor.id,
+          },
+          paid_status: 0
+        },
+      });
+
+      const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
+
       
 
-      let totalGrandTotal = 0;
+      let totalGrandTotal = penaltyNominal != 0 ? penaltyNominal : 0;
       let invoiceDetails = [];
 
       const formatDateToMonthYear = (dateString) => {
         const date = new Date(dateString);
-        const month = String(date.getMonth() + 1).padStart(2, '0'); // Menambahkan 1 karena getMonth() dimulai dari 0
+        const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
         return `${month}${year}`;
       };
@@ -113,37 +122,33 @@ export class InvoicesService {
         createInvoiceDto.invoice_details?.forEach((detail) => {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
-              const totalMargin = Number(vendor.nominal_survey);
+              const totalMargin = vendor.nominal_survey ? Number(vendor.nominal_survey) : 75000;
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
-                invoice_number: formatDateToMonthYear(order.created_at),
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
                 type: detail.type,
               });
-              console.log("COUNT 1");
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin = Number(order?.quotation[0]?.quotation_grand_total) - (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_grand_total));
+              const totalMargin = Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_grand_total));
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
-                invoice_number: formatDateToMonthYear(order.created_at),
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
                 type: detail.type,
               });
-              console.log("COUNT 2");
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
               const totalMargin =
-                vendor.margin_type === 1
-                  ? +order.grand_total - (((+vendor.margin_nominal) / 100) * +order.grand_total)
-                  : vendor.margin_type === 2
-                    ? +order.grand_total - +vendor.margin_nominal
-                    : 0;
+              order.m_order_details
+              .filter((i) => i.item.type === 2)
+              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
-                invoice_number: formatDateToMonthYear(order.created_at),
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
                 type: detail.type,
               });
               totalGrandTotal += totalMargin || 0;
@@ -154,7 +159,7 @@ export class InvoicesService {
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
-                invoice_number: formatDateToMonthYear(order.created_at),
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
                 type: detail.type,
               });
               totalGrandTotal += totalMargin || 0;
@@ -163,22 +168,16 @@ export class InvoicesService {
         });
       });
 
-      console.log('totalGrandTotal:', totalGrandTotal);
-      console.log(vendor.type === 1)
-      console.log(totalGrandTotal * (Number(vendor.pkp_nominal) / 100))
+
 
       const pkpNominal = vendor.type === 1
-        ? (totalGrandTotal * (+vendor.pkp_nominal / 100))
+        ? (totalGrandTotal * (+createInvoiceDto.pkp_nominal / 100))
         : 0;
 
-      const totalAmount = vendor.type === 1
-        ? totalGrandTotal + (totalGrandTotal * (+vendor.pkp_nominal / 100))
-        : totalGrandTotal;
-      console.log('totalAmount:', totalAmount);
+      const totalAmount = totalGrandTotal + (totalGrandTotal * (+createInvoiceDto.pkp_nominal / 100)) + (totalGrandTotal * (+createInvoiceDto.pph_nominal / 100)) + (totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100))
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
-      console.log('invoiceDetails:', invoiceDetails);
 
       const data = {
         vendor: {
@@ -187,6 +186,9 @@ export class InvoicesService {
           },
         },
         pkp_nominal: pkpNominal,
+        pph_nominal: createInvoiceDto.pph_nominal,
+        ppn_nominal: createInvoiceDto.ppn_nominal,
+        penalty_nominal : penaltyNominal,
         status: createInvoiceDto.status,
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
@@ -213,6 +215,17 @@ export class InvoicesService {
           where: { id: { in: providedOrder } },
           data: { project_status_id: 20 },
         }),
+        this.dbService.refund.updateMany({
+          where: {
+            orders: {
+              vendor_id: vendor.id,
+            },
+            paid_status: 0
+          },
+          data: {
+            paid_status: 1
+          }
+        })
       ]);
 
       await this.invoiceLogs(invoices.id, invoices);
@@ -433,8 +446,7 @@ export class InvoicesService {
     invoice_evidences?: Array<Express.Multer.File>,
   ) {
     try {
-      console.log('updateInvoiceDto:', updateInvoiceDto);
-      console.log('invoice_evidences:', invoice_evidences);
+      
       const { id: user_id } = user;
 
       const invoice = await this.dbService.invoices.findFirstOrThrow({
@@ -448,7 +460,7 @@ export class InvoicesService {
         },
       });
 
-      console.log('invoice:', invoice);
+     
 
       if (!invoice) {
         this.logger.error('Invoice id not found');
@@ -461,7 +473,6 @@ export class InvoicesService {
           created_by: user_id,
         })) || [];
 
-      console.log('evidences:', evidences);
 
       const providedOrderIds =
         updateInvoiceDto?.invoice_details?.map(({ order_id }) =>
@@ -472,7 +483,6 @@ export class InvoicesService {
       //   throw new Error('No Order Id Provided');
       // }
 
-      console.log('providedOrderIds:', providedOrderIds);
 
       const orders = await this.dbService.orders.findMany({
         where: { id: { in: providedOrderIds } },
@@ -490,7 +500,6 @@ export class InvoicesService {
         },
       });
 
-      console.log('orders:', orders);
 
       let totalAmount = 0;
       const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details?.map((item) => {
@@ -518,7 +527,6 @@ export class InvoicesService {
               .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
             totalAmount += total;
           }
-          console.log(total, "TOTAL");
 
         }
 
@@ -539,9 +547,8 @@ export class InvoicesService {
         };
       }) : undefined;
 
-      console.log('invoiceDetails:', invoiceDetails);
       if (invoice.vendor.type === 1 && updateInvoiceDto.invoice_details) {
-        totalAmount += totalAmount * (Number(invoice.vendor.pkp_nominal) / 100)
+        totalAmount += totalAmount + Number(invoice.pkp_nominal)
       }
 
       const invoiceData = {
@@ -558,7 +565,6 @@ export class InvoicesService {
         updated_by: user_id,
       };
 
-      console.log('invoiceData:', invoiceData);
 
       const detailsIds = updateInvoiceDto.invoice_details
         ? updateInvoiceDto.invoice_details
@@ -566,7 +572,6 @@ export class InvoicesService {
           .map((item) => item?.id)
         : undefined;
 
-      console.log('detailsIds:', detailsIds);
 
       const [syncFiles, syncDetails, updatedInvoice] =
         await this.dbService.$transaction([
@@ -964,7 +969,6 @@ export class InvoicesService {
         const row = sheet.getRow(i);
         const invoiceId = row.getCell(1).value as number;
         const note = row.getCell(11).value;
-        console.log(note);
 
         if (invoiceId != null) {
           if (typeof note === 'string') {

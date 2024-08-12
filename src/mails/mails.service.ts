@@ -239,6 +239,32 @@ export class MailsService {
           },
           data,
         }),
+        ...(updateEmailMessageDto.terms_detail ? [
+          this.dbService.terms_detail.updateMany({
+            where: {
+              id: {
+                notIn: updateEmailMessageDto.terms_detail.map((i) => i.id)
+              }
+            },
+            data: {
+              deleted_at: new Date(),
+              deleted_by: user_id
+            }
+          })
+        ] : []),
+        ...(updateEmailMessageDto.information_detail ? [
+          this.dbService.information_detail.updateMany({
+            where: {
+              id: {
+                notIn: updateEmailMessageDto.information_detail.map((i) => i.id)
+              }
+            },
+            data: {
+              deleted_at: new Date(),
+              deleted_by: user_id
+            }
+          })
+        ] : [])
       ]);
 
       return emailMessage;

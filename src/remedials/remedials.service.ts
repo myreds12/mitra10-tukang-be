@@ -31,7 +31,6 @@ export class RemedialsService {
           created_by: user_id,
         })) ?? undefined;
 
-      console.log(evidences, remedial_evidences);
 
       const remedial_data: Prisma.remedialsCreateInput = {
         complaints: {

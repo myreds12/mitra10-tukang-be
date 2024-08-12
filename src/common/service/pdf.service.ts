@@ -10,10 +10,7 @@ export class PdfService {
       const html = renderFile(join('templates', `${templatePath}.pug`), {
         data,
       });
-      console.log(html);
-      console.log('sss','asdadssadad',
-        join(process.cwd(), 'node_modules', `phantomjs-prebuilt/bin/phantomjs`),
-      );
+
       create(html).toBuffer((err, buffer) => {
         if (err) {
           reject(err);

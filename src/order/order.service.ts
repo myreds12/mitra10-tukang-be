@@ -215,7 +215,6 @@ export class OrderService {
         createOrderDto,
       );
 
-      console.log(order);
 
       return order;
     } catch (error) {
@@ -970,7 +969,6 @@ export class OrderService {
             .map((x) => x.id)
         : undefined;
 
-      console.log('Provide Details', orderdetailsIds);
 
       const orderDetail = await this.dbService.m_order_details.findMany({
         where: {
@@ -1083,7 +1081,6 @@ export class OrderService {
           sales_categories: true,
         },
       });
-      console.log('Order Detail', orderDetail);
 
       let grand_total = 0;
       let grand_total_comission = 0;
@@ -1112,8 +1109,6 @@ export class OrderService {
               let total = 0;
               const currentItem = items?.find(({ id }) => id === item?.item_id);
 
-              console.log('Details Item', items);
-              console.log('Current Item', currentItem);
 
               const itemPrice =
                 currentItem?.prices.filter(
@@ -1197,7 +1192,6 @@ export class OrderService {
             })
           : undefined;
 
-      console.log(grand_total);
 
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
         notes: updateOrderDto?.notes ?? undefined,
@@ -1433,7 +1427,6 @@ export class OrderService {
         }),
       ]);
 
-      console.log(deleteOrdersTransaction);
 
       return { deletedOrdersCount: deleteOrdersTransaction[3].count };
     } catch (error) {
@@ -1470,7 +1463,6 @@ export class OrderService {
           data: orderData,
         }),
       ]);
-      console.log('MASUKK');
 
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
 
@@ -1758,7 +1750,6 @@ export class OrderService {
       const takeData = 900;
       let skipData = 0;
       const countTake = Math.floor(count / takeData);
-      console.log(countTake, 'COUNT TAKE');
 
       for (let i = 0; i < countTake; i++) {
         skipData = i * takeData;
@@ -3164,7 +3155,6 @@ export class OrderService {
       order: quotation.order,
       message,
     };
-    console.log(data.quotation.id, 'QUOTATION');
 
     const buffer = await this.pdfService.generate('quotation', data);
     // Set headers to download the PDF

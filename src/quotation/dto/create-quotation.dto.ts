@@ -23,6 +23,10 @@ export class CreateQuotationDto {
   @Type(() => Number)
   promotion_id?: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  quotation_special?: number;
+
   @Type(() => Number)
   store_id: number;
 

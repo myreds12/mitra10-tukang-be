@@ -88,7 +88,6 @@ export class AuthService {
         },
       });
 
-      console.log(files);
       
       
       if (!user) {
@@ -230,7 +229,6 @@ export class AuthService {
           },
         },
       });
-      console.log(user, dto.username);
 
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);

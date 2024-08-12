@@ -99,8 +99,11 @@ import { CommonModule } from './common/common.module';
           host: configService.get<string>('MAIL_HOST'),
           port: configService.get<number>('MAIL_PORT'),
           auth: {
+            type: 'OAUTH2',
+            serviceClient: configService.get<string>('SPREADSHEETS.AUTH_URI'),
             user: configService.get<string>('MAIL_USERNAME'),
-            pass: configService.get<string>('MAIL_PASSWORD'),
+            privateKey: configService.get<string>('SPREADSHEETS.PRIVATE_KEY'),
+            // pass: configService.get<string>('MAIL_PASSWORD'),
           },
         },
         defaults: {

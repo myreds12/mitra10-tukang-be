@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsNotEmpty, ValidateNested } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
 import { InvoiceDetails } from './invoice-details.dto';
 import { InvoiceStatus } from './invoice-status.enum';
 
@@ -20,6 +20,18 @@ export class CreateInvoiceDto {
   @IsNotEmpty()
   @Type(() => Number)
   vendor_id: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  pph_nominal?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  ppn_nominal?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  pkp_nominal?: number;
 
   @ApiProperty()
   @Type(() => Number)

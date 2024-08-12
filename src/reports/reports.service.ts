@@ -168,7 +168,7 @@ export class ReportsService {
         totalUnpaidReceipt: ['UNPAIDRECEIPT'],
         totalUnpaidQuotation: ['UNPAIDQUOTATION'],
         totalWaitingQuotationVendor: ['QUOTEIN'],
-        totalWaitingQuotationCustomer: ['QUOTEOUT'],
+        totalWaitingQuotationCustomer: ['QUOTEOUT', 'QUOTATIONPAID'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
         totalWaitingWork: ['WORKREQ', 'TUKANGWORK'],
         totalWorkStart: ['WORKSTART'],
@@ -426,8 +426,8 @@ export class ReportsService {
               : undefined),
             status: {
               category: {
-                contains: 'INVESTIGATED'
-              }
+                contains: 'INVESTIGATED',
+              },
             },
             deleted_at: null,
           },
@@ -505,7 +505,11 @@ export class ReportsService {
       orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
               hour: '2-digit',
+              minute: '2-digit',
               hour12: false,
             })
           : isSameMonth
@@ -517,9 +521,7 @@ export class ReportsService {
             });
 
         if (summary[period]) {
-          if (
-            !['CANCEL', 'CANCELREFUND'].includes(order.status.category)
-          ) {
+          if (!['CANCEL', 'CANCELREFUND'].includes(order.status.category)) {
             summary[period].totalOrder++;
           }
           summary[period].totalOrderGrandTotal += Number(order.grand_total);
@@ -564,8 +566,8 @@ export class ReportsService {
           if (
             (order.payment_type === 'survey' ||
               order.payment_type === 'pemasangan_tanpa_survey') &&
-              order?.quotation[0]?.receipt_quotation === null
-            ) {
+            order?.quotation[0]?.receipt_quotation === null
+          ) {
             summary[period].totalUnpaidQuotation++;
           }
 
@@ -578,7 +580,9 @@ export class ReportsService {
             workEndDate.getTime() + H_PLUS_7_DAYS,
           );
 
-          if (order.status.category === 'WORKEND') {
+          const orderDoneStatuses = statusCategories.totalOrderDone;
+
+          if (orderDoneStatuses.includes(order.status.category)) {
             if (order.complaints) {
               summary[period].totalUsedWarranty++;
             }
@@ -591,7 +595,6 @@ export class ReportsService {
           }
         }
       });
-
 
       // Ensure all periods are accounted for, even if empty
       periods.forEach((period) => {
@@ -896,7 +899,7 @@ export class ReportsService {
 
   async reportWorkOrder(query: QueryParamsDto) {
     try {
-       const {
+      const {
         page,
         take,
         search,
@@ -918,9 +921,7 @@ export class ReportsService {
         totalWorkStart: ['WORKSTART'],
         totalCancel: ['CANCEL', 'CANCELREFUND'],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
-        totalOrderDone: [
-          'WORKEND',
-        ],
+        totalOrderDone: ['WORKEND'],
       };
 
       // Determine if it's the same day report, same month report, or monthly report
@@ -974,16 +975,12 @@ export class ReportsService {
         orderWork: 0,
         totalOrderDone: 0,
         totalCancel: 0,
-        
       };
 
       const summary = periods.reduce((acc, period) => {
         acc[period] = { ...summaryTemplate };
         return acc;
       }, {});
-
-     
-      console.log(tukang_id);
 
       const skip = page * take - take;
       const where: Prisma.work_ordersWhereInput = {
@@ -1151,7 +1148,6 @@ export class ReportsService {
 
       // Process data into summary
 
-
       work_orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
@@ -1202,7 +1198,6 @@ export class ReportsService {
 
       // Aggregate counts and totals
       const count = await this.dbService.work_orders.count({ where });
-     
 
       const quoteInGrandTotal = await this.dbService.quotation
         .aggregate({
@@ -1309,7 +1304,7 @@ export class ReportsService {
                 tukang_area: {
                   some: {
                     area_id: {
-                      in: area_id
+                      in: area_id,
                     },
                   },
                 },

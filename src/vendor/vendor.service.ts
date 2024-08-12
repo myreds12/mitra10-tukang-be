@@ -264,6 +264,9 @@ export class VendorService {
           tukang: {
             include: {
               work_order_tukang: {
+                orderBy: {
+                  created_at: 'desc'
+                },
                 include: {
                   work_orders: {
                     include: {

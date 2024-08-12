@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsIn, IsOptional, ValidateNested } from 'class-validator';
 import QuotationDetails from './quotation-details';
 import { ApiProperty } from '@nestjs/swagger';
+import QuotationReceipt from './quotation-receipt.dto';
 
 export class UpdateQuotationDto {
   description?: string;
@@ -31,6 +32,15 @@ export class UpdateQuotationDto {
   @IsOptional()
   @Type(() => Number)
   promotion_id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  quotation_special?: number;
+
+  
+  @Type(() => QuotationReceipt)
+  @ValidateNested({ each: true })
+  receipts_quotation?:QuotationReceipt[]
 
   @Type(() => QuotationDetails)
   @ValidateNested({ each: true })

@@ -94,7 +94,6 @@ export class InvoicesController {
 
   @Get()
   async findAll(@Query() query: QueryParamsDto) {
-    console.log('invoice findAll')
     return await this.invoicesService.findAll(query);
   }
 

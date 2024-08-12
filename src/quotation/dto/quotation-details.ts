@@ -39,11 +39,15 @@ export default class QuotationDetails {
   margin: string | number;
 
   @Transform(({ value }) => Number(value))
-  @IsEnum(MarginType)
+  // @IsEnum(MarginType)
   margin_type: MarginType;
 
   @Type(() => Number)
   quantity: number;
+
+  @Type(() => Number)
+  work_step: number;
+
 
   @IsNotEmpty()
   @Type(() => Number)

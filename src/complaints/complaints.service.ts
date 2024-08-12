@@ -29,7 +29,6 @@ export class ComplaintsService {
   ) {
     try {
       const { id: user_id } = user;
-      console.log('createComplaintDto', createComplaintDto);
 
       const evidences: Array<Prisma.complaint_evidenceCreateManyComplaint_historiesInput> =
         complaint_evidences.map((file) => ({
@@ -601,7 +600,6 @@ export class ComplaintsService {
           },
         },
       });
-      console.log(orders);
 
       let statusOrderUpdate;
 
@@ -678,7 +676,6 @@ export class ComplaintsService {
       // });
       // console.log('update', complaintsUpdate);
 
-      console.log('complaintData', complaintData);
 
       const [complaint] = await this.dbService.$transaction([
         this.dbService.complaints.update({

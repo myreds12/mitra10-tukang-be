@@ -185,7 +185,6 @@ export class QueryParamsDto {
   @IsOptional()
   @IsNotEmpty()
   @Transform((value) => {
-    console.log('DTO', value);
     return Boolean(value);
   })
   vendor_with_max_order?: boolean = false;

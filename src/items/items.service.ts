@@ -406,8 +406,6 @@ export class ItemsService {
               }
             }
 
-            console.log('priceStoreCreate => ', priceStoreCreate);
-            console.log('priceStoreUpsert => ', priceStoreUpsert);
 
             return {
               where: { item_id: id, id: price?.id ?? 0 },
@@ -464,7 +462,6 @@ export class ItemsService {
         },
       };
 
-      console.log(itemQuery);
 
       const [_1, _2, updateItem] = await this.dbService.$transaction([
         this.dbService.price_stores.updateMany({
