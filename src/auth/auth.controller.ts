@@ -41,10 +41,11 @@ export class AuthController {
   }
 
   @Get('/find-user/:id')
+  @UseGuards(JwtAuthGuard)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return await this.authService.findOne(id);
   }
-
+  
   @Delete('/delete-user/:id')
   async delete(@Param('id', ParseIntPipe) id: number) {
     return await this.authService.deleteUser(id);
