@@ -68,10 +68,10 @@ export class WorkOrdersService {
         },
       };
 
-      console.log(dataDto.survey_date, "SURVEY DATE");
+      console.log("NEW DATE: ", new Date() );
+      console.log("SURVEY DATE: ", dataDto.survey_date );
       console.log(new Date(dataDto.survey_date), "SURVEY DATE PARSING");
       
-
       const work_order_data: Prisma.work_ordersCreateArgs = {
         data: {
           request_work_time: dataDto?.request_work_time

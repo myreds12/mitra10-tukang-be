@@ -210,9 +210,10 @@ export class VendorService {
       //       : {
       //           created_at: order_by,
       //         }),
-      const now = new Date();
       // now.setHours(0, 0, 0, 0);
-      const formattedDate = now.toISOString();
+      const formattedDate = new Date().toISOString().split('T')[0];
+      console.log(formattedDate);
+      
 
       console.log('vendor_with_max_order', vendor_with_max_order);
       const skip = page * take - take;
@@ -260,10 +261,16 @@ export class VendorService {
             where: {
               deleted_at: null,
             },
+            orderBy:{
+              created_at: 'desc'
+            }
           },
           tukang: {
             include: {
               work_order_tukang: {
+                where: {
+                  deleted_at: null,
+                },
                 orderBy: {
                   created_at: 'desc'
                 },
@@ -332,16 +339,19 @@ export class VendorService {
               deleted_at: null,
               OR: [
                 {
-                  survey_date: formattedDate,
+                  survey_date: {
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                    lte: new Date(`${formattedDate}T23:59:59.000Z`),
+                  },
                 },
                 {
                   work_start_date: {
-                    gte: formattedDate,
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
                   },
                   work_end_date: {
-                    lte: formattedDate,
+                    lte: new Date(`${formattedDate}T23:59:59.000Z`),
                   },
-                },
+                }
               ],
             },
           },
@@ -358,23 +368,40 @@ export class VendorService {
         vendor = vendor.filter((v) => {
           return v.tukang.some((t) => {
             const dailySlots = t.work_order_tukang.filter((item) => {
-              const orderDate = new Date(item.work_orders?.created_at ?? 0)
-                .toISOString()
-                .split('T')[0];
+              const { work_start_date, work_end_date, survey_date, status, created_at } = item?.work_orders || {};
+      
+              let startDate: Date;
+              let endDate: Date;
+      
+              if (work_start_date && work_end_date) {
+                startDate = new Date(work_start_date);
+                endDate = new Date(work_end_date);
+              } else if (survey_date) {
+                startDate = new Date(survey_date);
+                endDate = startDate;
+              } else {
+                startDate = new Date(created_at);
+                endDate = startDate;
+              }
+      
               const currentDate = new Date().toISOString().split('T')[0];
+      
+              const isWithinRange = startDate.toISOString().split('T')[0] <= currentDate &&
+                                    endDate.toISOString().split('T')[0] >= currentDate;
               return (
-                item.work_orders?.status?.category !== 'SURVEYDONE' &&
-                item.work_orders?.status?.category !== 'WORKEND' &&
-                orderDate === currentDate
+                status?.category !== 'SURVEYDONE' &&
+                status?.category !== 'WORKEND' &&
+                isWithinRange
               );
             });
-  
+      
             return dailySlots.length <= v.max_order;
           });
         });
       }
+      
+      
   
-      console.log('BELUM ERROR')
       vendor = vendor.map((vendor) => {
         return {
           ...vendor,
