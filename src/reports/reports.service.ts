@@ -220,7 +220,7 @@ export class ReportsService {
         totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
         totalComplaint: ['INVESTIGATED'],
         totalReschedule: ['RESCHEDULE'],
-        totalRefund: ['CANCELREFUND'],
+        totalRefund: ['CANCELREFUND', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO'],
         totalWaitingResolve: ['INVESTIGATED'],
         totalActiveWarranty: ['ACTIVEWARRANTY'],
         totalUsedWarranty: ['USEDWARRANTY'],
@@ -505,12 +505,8 @@ export class ReportsService {
       orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
+            hour: '2-digit',
+            hour12: false,
             })
           : isSameMonth
           ? new Date(order.created_at).toLocaleString('id-ID', {
@@ -650,245 +646,263 @@ export class ReportsService {
     }
   }
 
-  async complaintReport(queryParamsDto: QueryParamsDto) {
+  async reportComplaint(query: QueryParamsDto) {
     try {
       const {
-        take,
-        page,
         search,
         status,
         date_from,
         date_to,
         order_by,
-        member_id,
+        sales_id,
+        payment_type,
+        store_id,
         vendor_id,
-      } = queryParamsDto;
-      const skip = page * take - take;
-
-      const statuses = await this.dbService.status.findMany();
-
-      const statusCancel = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('cancel'),
+        member_id,
+        tukang_id,
+      } = query;
+  
+      const statusCategories = {
+        totalComplaintInvestigated: ['INVESTIGATED'],
+        totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
+        totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
+        totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE'],
+        totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND'],
+        totalSolved: ['SOLVED'],
+        totalUnsolved: ['UNSOLVED'],
+      };
+  
+      const summaryTemplate = {
+        totalComplaint: 0,
+        totalComplaintInvestigated: 0,
+        totalComplaintApprovedByHo: 0,
+        totalComplaintRejectedByHo: 0,
+        totalResurvey: 0,
+        totalRework: 0,
+        totalSolved: 0,
+        totalUnsolved: 0,
+      };
+  
+      const isSameDay = date_from === date_to;
+      const isSameMonth =
+        new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
+        new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
+      const allDaysInMonth = Array.from(
+        {
+          length: new Date(
+            new Date(date_from).getFullYear(),
+            new Date(date_from).getMonth() + 1,
+            0,
+          ).getDate(),
+        },
+        (_, i) => (i + 1).toString().padStart(2, '0'),
       );
-      const statusComplaintApprovedByHo = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('complaintapprovedbyho'),
-      );
-      const statusComplaintApprovedByVendor = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('complaintapprovedbyvendor'),
-      );
-      const statusRejectByHo = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('complaintrejectedbyho'),
-      );
-      const statusRejectByVendor = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('complaintrejectedbyvendor'),
-      );
-      const statusReworkStart = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('reworkstart'),
-      );
-      const statusReworkReq = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('reworkreq'),
-      );
-      const statusReworkEnd = statuses.find((i) =>
-        i.category.toLocaleLowerCase().includes('reworkend'),
-      );
+      const periods = isSameDay
+        ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
+        : isSameMonth
+        ? allDaysInMonth
+        : Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('id-ID', { month: 'long' }));
+  
+      const summary = periods.reduce((acc, period) => {
+        acc[period] = { ...summaryTemplate };
+        return acc;
+      }, {});
+  
       const where: Prisma.complaintsWhereInput = {
         AND: [
-          status ? { status: { id: { in: status } } } : null,
+          status ? { status: { id: { in: status } } } : undefined,
           search
-            ? { complaint_channels: { name: { contains: search } } }
-            : null,
-          ...(member_id
-            ? [
-                {
-                  orders: {
-                    member_id: member_id,
+            ? {
+                OR: [
+                  !isNaN(Number(search))
+                    ? {
+                        id: {
+                          equals: Number(search),
+                        },
+                      }
+                    : undefined,
+                  !isNaN(Number(search))
+                    ? {
+                        order_id: Number(search),
+                      }
+                    : undefined,
+                  {
+                    complaint_channels: {
+                      name: { contains: search },
+                    },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      store: {
+                        store_name: search,
+                      },
+                    },
+                  },
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                ],
+              }
+            : undefined,
+          store_id
+            ? {
+                orders: {
+                  store_id: {
+                    in: store_id,
                   },
                 },
-              ]
-            : []),
-          ...(vendor_id
-            ? [
-                {
-                  orders: {
-                    vendor_id: {
-                      equals: vendor_id,
+              }
+            : undefined,
+          vendor_id
+            ? {
+                orders: {
+                  vendor_id: {
+                    equals: vendor_id,
+                  },
+                },
+              }
+            : undefined,
+          tukang_id
+            ? {
+                orders: {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              ]
-            : []),
+              }
+            : undefined,
           date_from && date_to
             ? {
-                complaint_date: {
+                created_at: {
                   gte: new Date(date_from),
                   lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
               }
-            : null,
+            : undefined,
         ].filter((condition) => Boolean(condition)),
+        deleted_at: null,
       };
-
-      const complaint = await this.dbService.complaints.findMany({
-        take: take <= 0 ? undefined : take,
-        skip,
+  
+      const complaints = await this.dbService.complaints.findMany({
         where,
         orderBy: {
           created_at: order_by,
         },
         include: {
-          complaint_channels: true,
-          complaint_histories: {
-            include: {
-              status: true,
-              complaint_evidence: true,
-            },
-          },
-          remedials: true,
           status: true,
           orders: {
             include: {
-              members: true,
-              sales: true,
-              store: true,
               status: true,
-              vendor: true,
-              m_order_details: true,
             },
           },
         },
       });
-      const complaintGrandTotal = await this.dbService.complaints
-        .findMany({
-          include: {
-            orders: true,
-          },
-        })
-        .then((data) =>
-          data.reduce((acc, curr) => acc + Number(curr.orders.grand_total), 0),
-        );
-      const totalComplaintPerMonth = {};
-      const totalComplaintGrandTotalPerMonth = {};
-      const totalCancelComplaintPerMonth = {};
-      const totalApprovedByHOComplaintPerMonth = {};
-      const totalApprovedByVendorComplaintPerMonth = {};
-      const totalRejectByVendorComplaintPerMonth = {};
-      const totalRejectByHOComplaintPerMonth = {};
-      const totalReworkStartComplaintPerMonth = {};
-      const totalReworkEndComplaintPerMonth = {};
-      const totalReworkReqComplaintPerMonth = {};
-      const complaintMonth = {};
-      const allMonths = [
-        'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember',
-      ];
-
-      allMonths.forEach((month) => {
-        totalComplaintGrandTotalPerMonth[month] = 0;
-        totalCancelComplaintPerMonth[month] = 0;
-        totalApprovedByHOComplaintPerMonth[month] = 0;
-        totalRejectByHOComplaintPerMonth[month] = 0;
-        totalRejectByVendorComplaintPerMonth[month] = 0;
-        totalReworkStartComplaintPerMonth[month] = 0;
-        totalReworkReqComplaintPerMonth[month] = 0;
-        totalReworkEndComplaintPerMonth[month] = 0;
-      });
-
-      complaint.forEach((complaint) => {
-        const month = new Date(complaint.created_at).toLocaleString('id-ID', {
-          month: 'long',
-        });
-        const grandTotalPerMonth = Number(complaint.orders.grand_total);
-        totalComplaintPerMonth[month]++;
-        totalComplaintGrandTotalPerMonth[month] += grandTotalPerMonth;
-        complaintMonth[month] = complaintMonth[month] || [];
-        complaintMonth[month].push(complaint);
-
-        if (!totalComplaintPerMonth[month]) {
-          totalComplaintPerMonth[month] = 0;
-        }
-
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusCancel.category
-        ) {
-          totalCancelComplaintPerMonth[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusComplaintApprovedByHo.category
-        ) {
-          totalApprovedByHOComplaintPerMonth[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusComplaintApprovedByVendor.category
-        ) {
-          totalApprovedByVendorComplaintPerMonth[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusRejectByHo.category
-        ) {
-          statusRejectByHo[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusRejectByVendor.category
-        ) {
-          statusRejectByVendor[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusReworkStart.category
-        ) {
-          statusReworkStart[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusReworkReq.category
-        ) {
-          statusReworkReq[month]++;
-        }
-        if (
-          complaint.status.category.toLocaleLowerCase() ===
-          statusReworkEnd.category
-        ) {
-          statusReworkEnd[month]++;
+  
+      complaints.forEach((complaint) => {
+        const period = isSameDay
+          ? new Date(complaint.created_at).toLocaleString('id-ID', {
+              hour: '2-digit',
+              hour12: false,
+            })
+          : isSameMonth
+          ? new Date(complaint.created_at).toLocaleString('id-ID', {
+              day: '2-digit',
+            })
+          : new Date(complaint.created_at).toLocaleString('id-ID', {
+              month: 'long',
+            });
+  
+        if (summary[period]) {
+          const { category } = complaint.status;
+  
+          if (statusCategories.totalComplaintInvestigated.includes(category)) {
+            summary[period].totalComplaintInvestigated++;
+          }
+  
+          if (statusCategories.totalComplaintApprovedByHo.includes(category)) {
+            summary[period].totalComplaintApprovedByHo++;
+          }
+  
+          if (statusCategories.totalComplaintRejectedByHo.includes(category)) {
+            summary[period].totalComplaintRejectedByHo++;
+          }
+  
+          if (statusCategories.totalResurvey.includes(complaint.orders.status.category)) {
+            summary[period].totalResurvey++;
+          }
+  
+          if (statusCategories.totalRework.includes(complaint.orders.status.category)) {
+            summary[period].totalRework++;
+          }
+  
+          if (category === 'SOLVED') {
+            summary[period].totalSolved++;
+          }
+  
+          if (category === 'UNSOLVED') {
+            summary[period].totalUnsolved++;
+          }
         }
       });
-
-      const monthlyComplaint = allMonths.map((month) => ({
-        month,
-        totalOrder: totalComplaintPerMonth[month] || 0,
-        totalOrderGrandTotalPerMonth:
-          totalComplaintGrandTotalPerMonth[month] || 0,
-        totalCancelComplaint: totalCancelComplaintPerMonth[month] || 0,
-        totalApprovedByHO: totalApprovedByHOComplaintPerMonth[month] || 0,
-        totalApprovedByVendor:
-          totalApprovedByVendorComplaintPerMonth[month] || 0,
-        totalRejectByHo: totalRejectByHOComplaintPerMonth[month] || 0,
-        totalRejectByVendor: totalRejectByVendorComplaintPerMonth[month] || 0,
-        totalReworkStart: totalReworkStartComplaintPerMonth[month] || 0,
-        totalReworkReq: totalReworkReqComplaintPerMonth[month] || 0,
-        totalReworkEnd: totalReworkEndComplaintPerMonth[month] || 0,
-        complaintMonth: complaintMonth[month] || [],
+  
+      // Ensure all periods are accounted for
+      periods.forEach((period) => {
+        if (!summary[period]) {
+          summary[period] = { ...summaryTemplate };
+        }
+      });
+  
+      // Prepare report data
+      const reportData = periods.map((period) => ({
+        period,
+        ...summary[period],
       }));
-
+  
+      // Aggregate counts and totals
+      const count = await this.dbService.complaints.count({ where });
+  
+      // Return final report
       return {
-        data: complaint,
+        data: reportData,
         meta: {
-          complaintGrandTotal,
-          monthlyComplaint,
+          total: count,
         },
       };
     } catch (error) {
@@ -896,6 +910,7 @@ export class ReportsService {
       throw error;
     }
   }
+  
 
   async reportWorkOrder(query: QueryParamsDto) {
     try {
@@ -919,7 +934,7 @@ export class ReportsService {
         totalPaidQuotation: ['UNPAIDQUOTATION'],
         totalWaitingWork: ['WORKREQ', 'TUKANGWORK'],
         totalWorkStart: ['WORKSTART'],
-        totalCancel: ['CANCEL', 'CANCELREFUND'],
+        totalCancel: ['CANCEL', 'CANCELREFUND', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO'],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalOrderDone: ['WORKEND'],
       };

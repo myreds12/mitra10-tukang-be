@@ -12,7 +12,12 @@ export class CreatePromotionDto {
     @ApiProperty()
     @Type(() => Number)
     @IsNotEmpty()
-    min_order: number  
+    min_order: number
+
+    @ApiProperty()
+    @Type(() => Number)
+    @IsNotEmpty()
+    max_order: number  
     
     @ApiProperty()
     @Type(() => Number)

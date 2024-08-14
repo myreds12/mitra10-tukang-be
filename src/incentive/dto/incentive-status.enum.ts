@@ -1,6 +1,6 @@
 export enum IncentiveStatus {
-  DRAFT = 1,
-  WAITING_FOR_PAYMENT = 2,
+  POTENTIAL_INCENTIVE = 1,
+  PENGAJUAN_INSENTIF = 2,
   PAID = 3,
   DECLINED = 4,
   LOST_INCENTIVE = 5

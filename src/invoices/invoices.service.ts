@@ -101,7 +101,10 @@ export class InvoicesService {
           orders: {
             vendor_id: vendor.id,
           },
-          paid_status: 0
+          paid_status: 0,
+          approval_number: {
+            not: null
+          }
         },
       });
 
@@ -211,10 +214,6 @@ export class InvoicesService {
 
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
-        this.dbService.orders.updateMany({
-          where: { id: { in: providedOrder } },
-          data: { project_status_id: 20 },
-        }),
         this.dbService.refund.updateMany({
           where: {
             orders: {

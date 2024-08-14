@@ -77,8 +77,11 @@ export class RefundService {
         data,
       });
 
-
-      await this.orderService.setStatus(order.id, createRefundDto.refund_status, user);
+      await this.orderService.setStatus(
+        order.id,
+        createRefundDto.refund_status,
+        user,
+      );
 
       return refund;
     } catch (error) {
@@ -110,19 +113,19 @@ export class RefundService {
                 {
                   OR: [
                     !isNaN(Number(search))
-                    ? {
-                        id: {
-                          equals: Number(search),
-                        },
-                      }
-                    : undefined,
+                      ? {
+                          id: {
+                            equals: Number(search),
+                          },
+                        }
+                      : undefined,
                     !isNaN(Number(search))
-                    ? {
-                        order_id: {
-                          equals: Number(search),
-                        },
-                      }
-                    : undefined,
+                      ? {
+                          order_id: {
+                            equals: Number(search),
+                          },
+                        }
+                      : undefined,
                     { voucher: { contains: search } },
                     { reason: { contains: search } },
                     {
@@ -155,10 +158,10 @@ export class RefundService {
                     {
                       orders: {
                         store: {
-                          store_name: search
-                        }
-                      }
-                    }
+                          store_name: search,
+                        },
+                      },
+                    },
                   ],
                 },
               ]
@@ -435,7 +438,6 @@ export class RefundService {
         vendor_id,
         penalty_vendor,
       } = queryParams;
-      const skip = page * take - take;
       const where: Prisma.refundWhereInput = {
         AND: [
           ...(search
@@ -483,58 +485,125 @@ export class RefundService {
         deleted_at: null,
       };
 
-      const data = await this.dbService.refund.findMany({
-        skip,
+      const count = await this.dbService.refund.count({
         where,
-        orderBy: {
-          created_at: order_by,
-        },
-        include: {
-          orders: {
-            include: {
-              members: true,
-              store: true,
-              vendor: true,
-              work_orders: true,
-              status: true,
-              m_order_details: {
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-                select: {
-                  id: true,
-                  order_id: true,
-                  item_code: true,
-                  item_name: true,
-                  item_id: true,
-                  item: {
-                    select: {
-                      id: true,
-                      item_name: true,
-                      category: true,
-                      default_price: true,
-                      service_name: true,
-                    },
+      });
+
+      let dataExcel = [];
+      const takeData = 900;
+      let skipData = 0;
+      const countTake = Math.floor(count / takeData);
+
+      for (let i = 0; i < countTake; i++) {
+        skipData = i * takeData;
+        const data = await this.dbService.refund.findMany({
+          skip: skipData,
+          where,
+          orderBy: {
+            created_at: order_by,
+          },
+          include: {
+            orders: {
+              include: {
+                members: true,
+                store: true,
+                vendor: true,
+                work_orders: true,
+                status: true,
+                m_order_details: {
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
                   },
-                  sales: true,
-                  unit_price: true,
-                  quantity: true,
-                  total: true,
-                  comission: true,
-                  created_by: true,
-                  updated_by: true,
-                  created_at: true,
-                  updated_at: true,
+                  select: {
+                    id: true,
+                    order_id: true,
+                    item_code: true,
+                    item_name: true,
+                    item_id: true,
+                    item: {
+                      select: {
+                        id: true,
+                        item_name: true,
+                        category: true,
+                        default_price: true,
+                        service_name: true,
+                      },
+                    },
+                    sales: true,
+                    unit_price: true,
+                    quantity: true,
+                    total: true,
+                    comission: true,
+                    created_by: true,
+                    updated_by: true,
+                    created_at: true,
+                    updated_at: true,
+                  },
                 },
               },
             },
+            refund_evidences: true,
+            status: true,
           },
-          refund_evidences: true,
-          status: true,
-        },
-      });
+        });
+        dataExcel = [...dataExcel, ...data];
+      }
 
+      if (count != dataExcel.length) {
+        const data = await this.dbService.refund.findMany({
+          skip: skipData,
+          where,
+          orderBy: {
+            created_at: order_by,
+          },
+          include: {
+            orders: {
+              include: {
+                members: true,
+                store: true,
+                vendor: true,
+                work_orders: true,
+                status: true,
+                m_order_details: {
+                  where: {
+                    deleted_at: null,
+                    deleted_by: null,
+                  },
+                  select: {
+                    id: true,
+                    order_id: true,
+                    item_code: true,
+                    item_name: true,
+                    item_id: true,
+                    item: {
+                      select: {
+                        id: true,
+                        item_name: true,
+                        category: true,
+                        default_price: true,
+                        service_name: true,
+                      },
+                    },
+                    sales: true,
+                    unit_price: true,
+                    quantity: true,
+                    total: true,
+                    comission: true,
+                    created_by: true,
+                    updated_by: true,
+                    created_at: true,
+                    updated_at: true,
+                  },
+                },
+              },
+            },
+            refund_evidences: true,
+            status: true,
+          },
+        });
+        dataExcel = [...dataExcel, ...data];
+      }
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Refund', {
         properties: {
@@ -557,18 +626,20 @@ export class RefundService {
       worksheet.columns = [
         { header: 'Refund ID', key: 'id', width: 15 },
         { header: 'Order ID', key: 'order_id', width: 15 },
+        { header: 'Tanggal Persetujuan', key: 'date_approve', width: 25 },
+        { header: 'Tanggal Pengajuan', key: 'date_of_filing', width: 25 },
+        { header: 'Refund Dibuat', key: 'created_at', width: 25 },
         { header: 'Nama Customer', key: 'member_name', width: 40 },
-        { header: 'Nomor Member', key: 'member_number', width: 40 },
         { header: 'Nama Toko', key: 'store_name', width: 40 },
+        { header: 'Nama Vendor', key: 'vendor_name', width: 40 },
+        { header: 'Nama Pemasanngan', key: 'item_name', width: 50 },
+        { header: 'Status Order', key: 'status_order', width: 40 },
         { header: 'Status Pembayaran', key: 'paid_status', width: 40 },
         { header: 'Catatan', key: 'notes', width: 40 },
         { header: 'Alasan', key: 'reason', width: 40 },
         { header: 'Nomor Persetujuan', key: 'approval_number', width: 25 },
         { header: 'Voucher', key: 'voucher', width: 25 },
         { header: 'Nominal Penalti', key: 'penalty_nominal', width: 20 },
-        { header: 'Tanggal Persetujuan', key: 'date_approve', width: 25 },
-        { header: 'Tanggal Pengajuan', key: 'date_of_filing', width: 25 },
-        { header: 'Refund Dibuat', key: 'created_at', width: 25 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -587,7 +658,7 @@ export class RefundService {
         };
       });
 
-      data.forEach((refund) => {
+      dataExcel.forEach((refund) => {
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -603,10 +674,18 @@ export class RefundService {
         const row = worksheet.addRow({
           id: refund.id,
           order_id: refund.order_id,
+          date_approve: refund.date_approve
+            ? formattedDateTime(refund.date_approve)
+            : 'N/a',
+          date_of_filing: formattedDateTime(refund.date_of_filing),
+          created_at: formattedDateTime(refund.created_at),
           member_name: refund.orders.members.full_name,
-          member_number: refund.orders.members.member_number,
           store_name: refund.orders.store.store_name,
-          paid_status: refund.paid_status === 0 || null ? 'Belum Dibayar' : 'Dibayar',
+          vendor_name: refund.orders?.vendor?.vendor_name ?? '-',
+          item_name: refund?.orders?.m_order_details ? refund.orders.m_order_details.map((item) => item.item_name).join(', ') : '-',
+          status_order: refund.orders.members.member_number,
+          paid_status:
+            refund.paid_status === 0 || null ? 'Belum Dibayar' : 'Dibayar',
           notes: refund.notes,
           reason: refund.reason,
           approval_number: refund.approval_number
@@ -614,11 +693,6 @@ export class RefundService {
             : 'N/a',
           voucher: refund.voucher ? refund.voucher : 'N/a',
           penalty_nominal: formattedCurrency(refund.penalty_nominal),
-          date_approve: refund.date_approve
-            ? formattedDateTime(refund.date_approve)
-            : 'N/a',
-          date_of_filing: formattedDateTime(refund.date_of_filing),
-          created_at: formattedDateTime(refund.created_at),
         });
 
         row.eachCell((cell) => {
@@ -633,12 +707,12 @@ export class RefundService {
       });
 
       const totalGrandTotal = Boolean(penalty_vendor)
-        ? data.reduce((total, refund) => {
+        ? dataExcel.reduce((total, refund) => {
             return (
               total + (refund.orders ? Number(refund.orders.grand_total) : 0)
             );
           }, 0)
-        : data.reduce((total, refund) => {
+        : dataExcel.reduce((total, refund) => {
             return (
               total +
               (refund.penalty_nominal ? Number(refund.penalty_nominal) : 0)
@@ -650,7 +724,7 @@ export class RefundService {
         id: '',
         order_id: '',
         member_name: '',
-        member_number: '',
+        status_order: '',
         store_name: '',
         notes: '',
         reason: '',
@@ -664,7 +738,7 @@ export class RefundService {
       totalRow.getCell('A').value = Boolean(penalty_vendor)
         ? 'Total Penalty'
         : 'Total Pengembalian';
-      totalRow.getCell('M').value = formattedTotalGrandTotal;
+      totalRow.getCell('N').value = formattedTotalGrandTotal;
 
       totalRow.eachCell((cell) => {
         cell.font = { bold: true };
@@ -679,7 +753,7 @@ export class RefundService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:L${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:M${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();

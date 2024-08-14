@@ -43,6 +43,11 @@ export class CreateIncentiveDto {
 
   @IsNotEmpty()
   @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  max_order: number;
+
+  @IsNotEmpty()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Validate(IncentiveValidator)
   incentive: number;
 

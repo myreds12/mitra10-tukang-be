@@ -25,6 +25,7 @@ export class PromotionService {
       const data: Prisma.promotionCreateInput = {
         name: createPromotionDto.name,
         min_order: createPromotionDto.min_order,
+        max_order: createPromotionDto.max_order,
         promotion: createPromotionDto.promotion,
         promotion_type: createPromotionDto.promotion_type,
         periodic_start: new Date(createPromotionDto.start_date),
@@ -200,6 +201,7 @@ export class PromotionService {
       const data: Prisma.promotionUpdateInput = {
         name: updatePromotionDto.name,
         min_order: updatePromotionDto.min_order,
+        max_order: updatePromotionDto.max_order,
         promotion: updatePromotionDto.promotion,
         promotion_type: updatePromotionDto.promotion_type,
         periodic_start: updatePromotionDto.start_date

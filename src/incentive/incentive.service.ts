@@ -41,6 +41,7 @@ export class IncentiveService {
       const data = await this.dbService.setting_incentive.create({
         data: {
           name: createIncentiveDto.name,
+          max_order: createIncentiveDto.max_order,
           min_order: createIncentiveDto.min_order,
           incentive: createIncentiveDto.incentive,
           type: createIncentiveDto.type,
@@ -112,6 +113,7 @@ export class IncentiveService {
           name: true,
           type: true,
           min_order: true,
+          max_order: true,
           incentive: true,
           stores: {
             select: {
@@ -216,6 +218,7 @@ export class IncentiveService {
           },
           data: {
             name: updateIncentiveDto.name,
+            max_order: updateIncentiveDto.max_order,
             min_order: updateIncentiveDto.min_order,
             incentive: updateIncentiveDto.incentive,
             type: updateIncentiveDto.type,

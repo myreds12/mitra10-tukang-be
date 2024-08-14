@@ -90,6 +90,8 @@ model items {
   default_price   Decimal @default(0) @db.Decimal(32, 2)
   category_id     Int
 
+  is_active Boolean @default(true)
+
   created_at DateTime? @default(now()) @db.DateTime()
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
@@ -110,6 +112,7 @@ model promotion {
   id             Int     @id @default(autoincrement())
   name           String? @db.VarChar(255)
   min_order      Decimal @default(0) @db.Decimal(32, 2)
+  max_order      Decimal @default(0) @db.Decimal(32, 2)
   promotion      Decimal @default(0) @db.Decimal(32, 2)
   promotion_type Int?    @default(1) // 1 = Percentage, 2 = Nominal
 
@@ -818,6 +821,8 @@ model prices {
   price          Decimal   @db.Decimal(32, 2)
   min_order      Int
 
+  is_active Boolean @default(true)
+
   created_by Int?
   updated_by Int?
   deleted_by Int?
@@ -891,14 +896,14 @@ model quotation {
   emailSended       Int @default(0)
   quotation_special Int @default(0)
 
-  description           String   @db.Text()
+  description           String    @db.Text()
   quotation_number      String
-  quotation_date        DateTime @db.Date()
-  quotation_validity    DateTime @db.Date()
-  quotation_disc        Decimal  @default(0) @db.Decimal(32, 2)
-  quotation_promotion   Decimal  @default(0) @db.Decimal(32, 2)
-  quotation_grand_total Decimal  @db.Decimal(32, 2)
-  receipt_quotation     String?  @db.NVarChar(30)
+  quotation_date        DateTime  @db.Date()
+  quotation_validity    DateTime? @db.Date()
+  quotation_disc        Decimal   @default(0) @db.Decimal(32, 2)
+  quotation_promotion   Decimal   @default(0) @db.Decimal(32, 2)
+  quotation_grand_total Decimal   @db.Decimal(32, 2)
+  receipt_quotation     String?   @db.NVarChar(30)
 
   created_by Int?
   updated_by Int?
@@ -1591,6 +1596,7 @@ model setting_incentive {
 
   name      String  @default("") @db.VarChar(255)
   min_order Decimal @default(0) @map("minOrder") @db.Decimal(32, 2)
+  max_order Decimal @default(0) @map("maxOrder") @db.Decimal(32, 2)
   incentive Decimal @default(0) @db.Decimal(32, 2)
   type      Int?    @default(1) // 1 = Percentage, 2 = Nominal
 

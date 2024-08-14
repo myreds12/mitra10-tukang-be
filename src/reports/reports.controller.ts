@@ -51,7 +51,7 @@ export class ReportsController {
 
   @Get('/complaints')
   async complaintReport(@Query() queryParamsDto: QueryParamsDto) {
-    return await this.reportsService.complaintReport(queryParamsDto);
+    return await this.reportsService.reportComplaint(queryParamsDto);
   }
 
   @Get('/sales-comission')

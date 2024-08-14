@@ -102,6 +102,16 @@ export class QueryParamsDto {
   @IsOptional()
   @Type(() => Number)
   @IsIn([0, 1])
+  is_receipt?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
+  is_receipt_quotation?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
   sent_csi?: number;
 
   @IsOptional()

@@ -23,10 +23,14 @@ export class UpdateItemDto {
 
   @Type(() => Number)
   default_price?: number;
-
+  
   @Transform(({ value }) => Number(value))
   // @IsEnum(ITEM_TYPE)
   item_type?: ITEM_TYPE;
+  
+  @IsOptional()
+  @Type(() => Number)
+  is_active?: number;
 
   @Type(() => Number)
   invoice_nominal?: number;
@@ -48,6 +52,10 @@ export class Prices {
   @IsOptional()
   @IsNumber()
   id?: number | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  is_active?: number;
 
   @Type(() => PriceStore)
   @IsNotEmpty()

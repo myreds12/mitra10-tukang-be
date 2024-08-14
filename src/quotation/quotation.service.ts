@@ -188,7 +188,6 @@ export class QuotationService {
         description: createQuotationDto.description,
         quotation_number: createQuotationDto.quotation_number,
         quotation_date: new Date(createQuotationDto.quotation_date),
-        quotation_validity: new Date(createQuotationDto.quotation_validity),
         quotation_disc: createQuotationDto?.quotation_disc,
         quotation_promotion: createQuotationDto?.quotation_promotion,
         quotation_special: createQuotationDto.quotation_special,
@@ -564,7 +563,7 @@ export class QuotationService {
           type: 2,
           created_by: user_id,
         })) ?? [];
-
+ 
       const evidence = [...quotationfiles, ...receiptfile];
 
       const quotationReceipts: Prisma.quotation_receiptUpsertWithWhereUniqueWithoutQuotationInput[] =
@@ -1190,9 +1189,10 @@ export class QuotationService {
       worksheet.columns = [
         { header: 'Quotation Id', key: 'id', width: 25 },
         { header: 'Order Id', key: 'order_id', width: 25 },
-        { header: 'Nama Toko', key: 'store_name', width: 30 },
         { header: 'Quotation Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Nama Toko', key: 'store_name', width: 30 },
         { header: 'Nama Customer', key: 'member_name', width: 40 },
+        { header: 'Status Quotation', key: 'status_quotation', width: 30 },
         { header: 'Status Payment', key: 'status_payment', width: 30 },
         { header: 'Nama Vendor', key: 'company_name', width: 30 },
         { header: 'Jenis Jasa', key: 'item_name', width: 50 },
@@ -1333,15 +1333,16 @@ export class QuotationService {
         const row = worksheet.addRow({
           id: quotation.id,
           order_id: quotation.order ? quotation.order.id : '-',
+          created_at: formattedDateTime(quotation.created_at),
           store_name: quotation.order.store
             ? quotation.order.store.store_name
             : 'N/a',
-          created_at: formattedDateTime(quotation.created_at),
           member_name: quotation.order.members
             ? quotation.order.members.full_name
             : '-',
+          status_quotation: quotation.status.description,
           status_payment: statusPayment,
-          company_name: quotation.order
+          company_name: quotation?.order?.vendor
             ? quotation.order.vendor.company_name
             : 'N/a',
           item_name: itemName,
@@ -1485,7 +1486,10 @@ export class QuotationService {
           },
         },
         min_order: {
-          gte: grandTotal,
+          gte: grandTotal, 
+        },
+        max_order: {
+          lte: grandTotal, // grandTotal harus lebih kecil dari atau sama dengan max_order
         },
       },
     });
@@ -1526,7 +1530,7 @@ export class QuotationService {
           },
         },
         nominal: comission,
-        status: IncentiveStatus.DRAFT,
+        status: IncentiveStatus.POTENTIAL_INCENTIVE,
       },
     });
 

@@ -152,9 +152,10 @@ export class MemberService {
           0,
         ),
       }));
-
+      
       const dataMember = member.map((item) => ({
         ...item,
+        total_order: item.order.length,
         total_summary:
           memberOrderSummary.find((summary) => summary.memberId === item.id)
             ?.totalOrder || 0,

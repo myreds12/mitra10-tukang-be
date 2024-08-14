@@ -909,7 +909,7 @@ export class SalesService {
             where: {
               sales_id: sales.id,
               incentive_id: setting_incentive.id,
-              status: IncentiveStatus.WAITING_FOR_PAYMENT,
+              status: IncentiveStatus.PENGAJUAN_INSENTIF,
             },
           });
 

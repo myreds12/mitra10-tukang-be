@@ -171,6 +171,7 @@ export class ItemsService {
                       deleted_at: {
                         not: null,
                       },
+                      is_active: true
                     },
                   },
                 },
@@ -262,6 +263,7 @@ export class ItemsService {
               price: true,
               min_order: true,
               created_at: true,
+              deleted_at: true,
             },
           },
         },
@@ -406,7 +408,6 @@ export class ItemsService {
               }
             }
 
-
             return {
               where: { item_id: id, id: price?.id ?? 0 },
               update: {
@@ -417,6 +418,7 @@ export class ItemsService {
                   ? new Date(price.periodic_end)
                   : undefined,
                 min_order: price?.min_order,
+                is_active: price?.is_active ? Boolean(price.is_active) : undefined,
                 price: price.price,
                 price_stores: {
                   upsert: priceStoreUpsert,
@@ -425,6 +427,7 @@ export class ItemsService {
                 updated_at: new Date(),
               },
               create: {
+                is_active: price?.is_active ? Boolean(price.is_active) : undefined,
                 periodic_start: price?.periodic_start
                   ? new Date(price.periodic_start)
                   : undefined,
@@ -459,9 +462,13 @@ export class ItemsService {
           category_id: UpdateDataDto?.category_id,
           default_price: UpdateDataDto?.default_price,
           prices: { upsert: priceUpsert },
+          ...(UpdateDataDto?.is_active
+            ? {
+                is_active: Boolean(UpdateDataDto?.is_active),
+              }
+            : undefined),
         },
       };
-
 
       const [_1, _2, updateItem] = await this.dbService.$transaction([
         this.dbService.price_stores.updateMany({
@@ -506,27 +513,16 @@ export class ItemsService {
 
   async remove(id: number, user_id: number) {
     try {
-      const prices = await this.dbService.prices.updateMany({
-        where: {
-          item_id: id,
-        },
-        data: {
-          deleted_at: new Date(),
-          deleted_by: user_id,
-        },
-      });
       const items = await this.dbService.items.update({
         where: {
           id,
         },
         data: {
-          deleted_at: new Date(),
-          deleted_by: user_id,
+          is_active: false,
         },
       });
 
       return {
-        prices,
         items,
       };
     } catch (error) {
