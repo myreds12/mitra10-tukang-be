@@ -219,7 +219,7 @@ export class EmailProcessor {
       const mailOptions = {
         to: order.members.email,
         // cc: data.order.members.email,
-        from: 'postmaster@sandbox4fbcfa5aaee54915b939c1af5c94b953.mailgun.org',
+        from: 'noreply@mitra10.com',
         subject: message.title,
         template: 'index',
         bcc: '',
@@ -247,9 +247,11 @@ export class EmailProcessor {
         1,
         data,
       );
+      console.log('Mail Sent');
     } catch (error) {
       this.logger.error(job.data);
       this.logger.error(error);
+      console.error(error)
 
       // try {
       //   if (error instanceof NotFoundException) {

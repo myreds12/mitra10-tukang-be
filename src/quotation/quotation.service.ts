@@ -705,6 +705,12 @@ export class QuotationService {
         });
       }
 
+      const quoteOutStatus = await this.dbService.status.findFirst({
+        where: {
+          category: 'QUOTEOUT'
+        }
+      })
+
       const [syncDetails, quotation] = await this.dbService.$transaction([
         this.dbService.quotation_details.updateMany({
           where: {
@@ -743,9 +749,11 @@ export class QuotationService {
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
               : undefined,
-            quotation_validity: updateQuotationDto?.quotation_validity
-              ? new Date(updateQuotationDto?.quotation_validity)
-              : undefined,
+            ...(updateQuotationDto?.quotation_status === quoteOutStatus.id ? {
+
+              quotation_validity:  new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            } : undefined)
+              ,
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
             quotation_grand_total:
