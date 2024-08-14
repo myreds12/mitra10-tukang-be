@@ -738,7 +738,7 @@ export class RefundService {
       totalRow.getCell('A').value = Boolean(penalty_vendor)
         ? 'Total Penalty'
         : 'Total Pengembalian';
-      totalRow.getCell('N').value = formattedTotalGrandTotal;
+      totalRow.getCell('P').value = formattedTotalGrandTotal;
 
       totalRow.eachCell((cell) => {
         cell.font = { bold: true };
@@ -753,7 +753,7 @@ export class RefundService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:M${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
