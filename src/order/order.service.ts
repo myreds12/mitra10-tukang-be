@@ -70,7 +70,7 @@ export class OrderService {
             in: createOrderDto.order_details.map(({ item_id }) => item_id),
           },
           deleted_at: null,
-          is_active: true
+          is_active: true,
         },
         include: {
           category: true,
@@ -414,15 +414,15 @@ export class OrderService {
             : []),
           ...(is_receipt_quotation
             ? [
-              {
-                quotation: {
-                  some: {
-                    receipt_quotation: {
-                      not: null
-                    }
-                  }
-                }
-              }
+                {
+                  quotation: {
+                    some: {
+                      receipt_quotation: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
               ]
             : []),
           ...(Boolean(is_used_warranty)
@@ -611,6 +611,7 @@ export class OrderService {
             },
             include: {
               promotion: true,
+              quotation_receipt: true,
               quotation_details: {
                 include: {
                   item: true,
@@ -824,6 +825,7 @@ export class OrderService {
             },
             include: {
               promotion: true,
+              quotation_receipt: true,
               quotation_details: {
                 where: {
                   deleted_at: null,
@@ -1061,7 +1063,7 @@ export class OrderService {
         where: {
           ...whereItems,
           deleted_at: null,
-          is_active: true
+          is_active: true,
         },
         include: {
           category: true,
@@ -2232,10 +2234,9 @@ export class OrderService {
 
       worksheet.columns = [
         { header: 'Order Id', key: 'id', width: 10 },
+        { header: 'Nama Toko', key: 'store_name', width: 25 },
         { header: 'Order Dibuat ', key: 'created_at', width: 30 },
         { header: 'Tanggal Request', key: 'request_survey', width: 35 },
-        { header: 'Tanggal Survey', key: 'survey_date', width: 40 },
-        { header: 'Tanggal Pengerjaan', key: 'work_date', width: 40 },
         { header: 'Nama Customer', key: 'full_name', width: 40 },
         { header: 'Phone Number', key: 'phone_number', width: 30 },
         { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
@@ -2245,7 +2246,8 @@ export class OrderService {
         { header: 'Nomor Receipt', key: 'receipt_number', width: 30 },
         { header: 'Receipt Quotation', key: 'receipt_quotation', width: 30 },
         { header: 'Order Status', key: 'status_order', width: 30 },
-        { header: 'Nama Toko', key: 'store_name', width: 25 },
+        { header: 'Tanggal Survey', key: 'survey_date', width: 40 },
+        { header: 'Tanggal Pengerjaan', key: 'work_date', width: 55 },
         { header: 'Nama Vendor', key: 'company_name', width: 35 },
         { header: 'Nama Sales', key: 'sales_name', width: 35 },
         { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
@@ -2276,7 +2278,8 @@ export class OrderService {
       let totalGrandTotalValue = 0;
 
       dataExcel.forEach((order) => {
-        // Iterate through m_order_details
+        let isFirstDetail = true; 
+      
         order.m_order_details.forEach((detail) => {
           const itemName = detail.item_name || 'Item belum ditentukan';
           const categoryName =
@@ -2303,7 +2306,10 @@ export class OrderService {
           const grandTotal = Number(order.grand_total);
           const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
           let grandTotalValue = formattedGrandTotal;
-
+      
+          let grandTotalSurveyValue = 0;
+          let quotationGrandTotalValue = 0;
+      
           if (order.payment_type === 'survey') {
             const grandTotalSurvey = Number(order.grand_total);
             const quotationGrandTotal =
@@ -2312,40 +2318,40 @@ export class OrderService {
                     Number(order.quotation[0]?.quotation_grand_total || 0),
                   )
                 : 0;
-
+      
             if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
-              totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;
-              grandTotalValue = grandTotalSurvey + quotationGrandTotal;
+              if (isFirstDetail) {
+                grandTotalSurveyValue = grandTotalSurvey;
+                quotationGrandTotalValue = quotationGrandTotal;
+                totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;
+                grandTotalValue = grandTotalSurvey + quotationGrandTotal;
+              } else {
+                grandTotalSurveyValue = 0;
+                quotationGrandTotalValue = 0;
+              }
             } else {
               grandTotalValue = 0;
             }
           }
-
+      
           totalGrandTotalValue +=
             !isNaN(Number()) && order.payment_type != 'survey'
               ? Number(grandTotal)
               : 0;
-
+      
           const row = worksheet.addRow({
             id: order.id,
+            store_name: order.store ? order.store.store_name : 'N/a',
             created_at: formattedDateTime(order.created_at),
             request_survey: order.request_survey
               ? formattedDateTime(order.request_survey)
               : 'N/a',
-            survey_date: order?.work_orders?.survey_date
-              ? formattedDateTime(order.work_orders.survey_date)
-              : 'Order Tidak Ada Tanggal Survey',
-            work_date:
-              order?.work_orders?.work_start_date &&
-              order?.work_orders?.work_end_date
-                ? `${formattedDateTime(
-                    order.work_orders.work_start_date,
-                  )} - ${formattedDateTime(order.work_orders.work_end_date)}`
-                : 'Order Tidak Ada Tanggal Survey',
             full_name: order.members ? order.members.full_name : 'N/a',
-            phone_number: order.members.phone_number
-              ? order.members.phone_number
-              : 'Member tidak memiliki nomor telepon',
+            phone_number:
+              order?.members?.phone_number ??
+              order?.members?.whatsapp_number ??
+              order?.members ??
+              'N/a',
             item_name: itemName,
             category_name: categoryName,
             quantity: quantity,
@@ -2367,21 +2373,24 @@ export class OrderService {
                 : 'Receipt Quotation tidak ada',
             status_order:
               order?.status?.description ?? 'Order Tidak Memiliki Status',
-            store_name: order.store ? order.store.store_name : 'N/a',
-            member_number: order.members
-              ? order.members.member_number
-              : 'Member tidak memiliki nomor member',
+            survey_date: order?.work_orders?.survey_date
+              ? formattedDateTime(order.work_orders.survey_date)
+              : 'Order Tidak Ada Tanggal Survey',
+            work_date:
+              order?.work_orders?.work_start_date &&
+              order?.work_orders?.work_end_date
+                ? `${formattedDateTime(
+                    order.work_orders.work_start_date,
+                  )} - ${formattedDateTime(order.work_orders.work_end_date)}`
+                : 'Order Tidak Ada Tanggal Survey',
             company_name: order.vendor ? order.vendor.company_name : 'N/a',
             sales_name: order.sales ? order.sales.full_name : 'N/a',
             tukang_name: tukangName,
-            grand_total_survey:
-              order.payment_type === 'survey' ? formattedGrandTotal : 0,
-            quotation_grand_total:
-              order.quotation && order.payment_type === 'survey'
-                ? Number(order?.quotation[0]?.quotation_grand_total) || 0
-                : 0,
+            grand_total_survey: grandTotalSurveyValue,
+            quotation_grand_total: quotationGrandTotalValue,
             grand_total: grandTotalValue,
           });
+      
           row.eachCell((cell) => {
             cell.alignment = { vertical: 'middle', horizontal: 'left' };
             cell.border = {
@@ -2391,15 +2400,17 @@ export class OrderService {
               right: { style: 'thin' },
             };
           });
+      
+          isFirstDetail = false;
         });
       });
+      
 
       const totalRow = worksheet.addRow({
         id: 'Total',
+        store_name: '',
         created_at: '',
         request_survey: '',
-        survey_date: '',
-        work_date: '',
         full_name: '',
         phone_number: '',
         item_name: '',
@@ -2409,7 +2420,8 @@ export class OrderService {
         receipt_number: '',
         receipt_quotation: '',
         status_order: '',
-        store_name: '',
+        survey_date: '',
+        work_date: '',
         company_name: '',
         sales_name: '',
         tukang_name: '',
@@ -2431,7 +2443,7 @@ export class OrderService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:R${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:T${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
@@ -3679,6 +3691,9 @@ export class OrderService {
         footer: true,
         is_active: true,
         terms_detail: {
+          where: {
+            deleted_at: null,
+          },
           select: {
             id: true,
             email_messages_id: true,
@@ -3686,6 +3701,9 @@ export class OrderService {
           },
         },
         information_detail: {
+          where: {
+            deleted_at: null,
+          },
           select: {
             id: true,
             email_messages_id: true,

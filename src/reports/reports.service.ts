@@ -167,7 +167,7 @@ export class ReportsService {
         orderSurvey: ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE'],
         totalUnpaidReceipt: ['UNPAIDRECEIPT'],
         totalUnpaidQuotation: ['UNPAIDQUOTATION'],
-        totalWaitingQuotationVendor: ['QUOTEIN'],
+        totalWaitingQuotationVendor: ['QUOTEIN', 'QUOTATIONDRAFT'],
         totalWaitingQuotationCustomer: ['QUOTEOUT', 'QUOTATIONPAID'],
         totalWaitingQuotation: ['QUOTEIN', 'QUOTEOUT'],
         totalWaitingWork: ['WORKREQ', 'TUKANGWORK'],

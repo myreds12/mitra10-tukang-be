@@ -87,7 +87,11 @@ export class QuotationService {
               : +item.margin;
           const final_price = prices * quantity + margin;
 
-          if (createQuotationDto.quotation_special === 1 && !item.work_step && item.type === 2) {
+          if (
+            createQuotationDto.quotation_special === 1 &&
+            !item.work_step &&
+            item.type === 2
+          ) {
             throw new BadRequestException('Mohon untuk mengisi work step!');
           }
 
@@ -334,6 +338,7 @@ export class QuotationService {
           created_at: order_by,
         },
         include: {
+          quotation_receipt: true,
           promotion: true,
           quotation_files: true,
           quotation_details: {
@@ -457,6 +462,7 @@ export class QuotationService {
         include: {
           promotion: true,
           quotation_files: true,
+          quotation_receipt: true,
           quotation_details: {
             where: {
               deleted_at: null,
@@ -563,7 +569,7 @@ export class QuotationService {
           type: 2,
           created_by: user_id,
         })) ?? [];
- 
+
       const evidence = [...quotationfiles, ...receiptfile];
 
       const quotationReceipts: Prisma.quotation_receiptUpsertWithWhereUniqueWithoutQuotationInput[] =
@@ -707,9 +713,9 @@ export class QuotationService {
 
       const quoteOutStatus = await this.dbService.status.findFirst({
         where: {
-          category: 'QUOTEOUT'
-        }
-      })
+          category: 'QUOTEOUT',
+        },
+      });
 
       const [syncDetails, quotation] = await this.dbService.$transaction([
         this.dbService.quotation_details.updateMany({
@@ -749,11 +755,13 @@ export class QuotationService {
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
               : undefined,
-            ...(updateQuotationDto?.quotation_status === quoteOutStatus.id ? {
-
-              quotation_validity:  new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-            } : undefined)
-              ,
+            ...(updateQuotationDto?.quotation_status === quoteOutStatus.id
+              ? {
+                  quotation_validity: new Date(
+                    Date.now() + 7 * 24 * 60 * 60 * 1000,
+                  ),
+                }
+              : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
             quotation_grand_total:
@@ -785,7 +793,7 @@ export class QuotationService {
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
         where: { quotation_id: id },
       });
-  
+
       if (!existingIncentive && quotation.status.category === 'QUOTEOUT') {
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
@@ -946,10 +954,7 @@ export class QuotationService {
               contains: 'QUOTEOUT',
             },
           },
-          OR: [
-            { quotation_receipt: null },
-            { receipt_quotation: null },
-          ],
+          OR: [{ quotation_receipt: null }, { receipt_quotation: null }],
           quotation_validity: {
             lte: new Date(),
           },
@@ -987,10 +992,10 @@ export class QuotationService {
             where: {
               quotation_id: id,
             },
-            data:{
-              status: 5
-            }
-          })
+            data: {
+              status: 5,
+            },
+          });
         }),
       );
 
@@ -1003,8 +1008,16 @@ export class QuotationService {
 
   async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { take, page, search, status, date_from, date_to, order_by } =
-        queryParams;
+      const {
+        take,
+        page,
+        search,
+        status,
+        date_from,
+        date_to,
+        order_by,
+        is_free,
+      } = queryParams;
       const where: Prisma.quotationWhereInput = {
         AND: [
           status ? { status: { id: { in: status } } } : null,
@@ -1018,6 +1031,21 @@ export class QuotationService {
                     { store: { store_name: { contains: search } } },
                     { quotation_number: { contains: search } },
                   ],
+                },
+              ]
+            : []),
+          ...(is_free
+            ? [
+                {
+                  order: {
+                    m_order_details: {
+                      every: {
+                        item: {
+                          type: 1,
+                        },
+                      },
+                    },
+                  },
                 },
               ]
             : []),
@@ -1197,8 +1225,8 @@ export class QuotationService {
       worksheet.columns = [
         { header: 'Quotation Id', key: 'id', width: 25 },
         { header: 'Order Id', key: 'order_id', width: 25 },
-        { header: 'Quotation Dibuat ', key: 'created_at', width: 30 },
         { header: 'Nama Toko', key: 'store_name', width: 30 },
+        { header: 'Quotation Dibuat ', key: 'created_at', width: 30 },
         { header: 'Nama Customer', key: 'member_name', width: 40 },
         { header: 'Status Quotation', key: 'status_quotation', width: 30 },
         { header: 'Status Payment', key: 'status_payment', width: 30 },
@@ -1225,6 +1253,8 @@ export class QuotationService {
         },
         { header: 'Nama Sales', key: 'sales_name', width: 35 },
         { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
+        { header: 'Nama Promosi', key: 'promotion_tier', width: 30 },
+        { header: 'Nominal Promosi', key: 'promotion_nominal', width: 30 },
         { header: 'Grand Total', key: 'grand_total', width: 25 },
       ];
 
@@ -1341,10 +1371,10 @@ export class QuotationService {
         const row = worksheet.addRow({
           id: quotation.id,
           order_id: quotation.order ? quotation.order.id : '-',
-          created_at: formattedDateTime(quotation.created_at),
           store_name: quotation.order.store
             ? quotation.order.store.store_name
             : 'N/a',
+          created_at: formattedDateTime(quotation.created_at),
           member_name: quotation.order.members
             ? quotation.order.members.full_name
             : '-',
@@ -1369,6 +1399,8 @@ export class QuotationService {
             ? quotation.order.sales.full_name
             : 'N/a',
           tukang_name: tukangName,
+          promotion_tier: quotation.promotion.name,
+          promotion_nominal: quotation?.promotion?.promotion_type === 1 ? `${quotation.promotion.promotion}%` : quotation?.promotion?.promotion,
           grand_total: formattedGrandTotal,
         });
 
@@ -1391,6 +1423,12 @@ export class QuotationService {
       const totalRow = worksheet.addRow({
         id: 'Total',
         order_id: '',
+        store_name: '',
+        created_at: '',
+        member_name: '',
+        status_quotation: '',
+        status_payment: '',
+        company_name: '',
         item_name: '',
         item_quantity: '',
         item_unit: '',
@@ -1399,12 +1437,10 @@ export class QuotationService {
         work_order_items_unit: '',
         quotation_date: '',
         quotation_validity: '',
-        store_name: '',
-        company_name: '',
         sales_name: '',
         tukang_name: '',
-        status_payment: '',
-        created_at: '',
+        promotion_tier: '',
+        promotion_nominal: '',
         grand_total: formattedTotalGrandTotal,
       });
 
@@ -1421,7 +1457,7 @@ export class QuotationService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:T${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
@@ -1482,7 +1518,6 @@ export class QuotationService {
     salesId: number,
     quotation: quotation,
   ) {
-
     const { id: quotation_id, order_id } = quotation;
 
     const filteredIncentive = await this.dbService.setting_incentive.findMany({
@@ -1494,7 +1529,7 @@ export class QuotationService {
           },
         },
         min_order: {
-          gte: grandTotal, 
+          gte: grandTotal,
         },
         max_order: {
           lte: grandTotal, // grandTotal harus lebih kecil dari atau sama dengan max_order

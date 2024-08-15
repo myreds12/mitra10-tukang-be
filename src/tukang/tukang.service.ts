@@ -414,6 +414,15 @@ export class TukangService {
     try {
       console.log(updateTukangDto);
       const { id: user_id } = user;
+      const tukang = await this.dbService.tukang.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          users: true
+        }
+      });
+
 
       const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
         ? Object.entries(files).map((file) => {
@@ -572,6 +581,26 @@ export class TukangService {
             ]
           : []),
       ]);
+      const formattedUsername =  updateTukangDto?.username ? updateTukangDto?.username.replace(/ /g, '_') : tukang.users.username;
+      const saltedPassword = updateTukangDto.password ? hashSync(
+        updateTukangDto?.password,
+        12,
+      ) : tukang.users.password;
+      if(formattedUsername.length > 12){
+        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      }
+
+      const userData = await this.dbService.users.update({
+        where: {
+          id: tukang.user_id
+        },
+        data: {
+          username:
+          formattedUsername ??
+            `${updateTukangDto?.full_name?.toLowerCase().replace(/ /g, '_')}`,
+          password: saltedPassword,
+        },
+      });
 
       return data[0];
     } catch (error) {

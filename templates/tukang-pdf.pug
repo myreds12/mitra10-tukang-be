@@ -94,6 +94,30 @@ html(lang="en")
         height: 90px;
       }
 
+      #preview-email table.table {
+        width: 100%;
+        table-layout: fixed; /* Memperbesar kolom */
+        border : 1px solid black !important; 
+      }
+
+      #preview-email table.table td {
+        font-size: 14px; /* Memperkecil ukuran teks */
+        padding: 10px; /* Menambahkan padding pada kolom */
+        border : 1px solid black !important; 
+      }
+
+      #preview-email table.table th {
+        font-size: 14px; /* Memperkecil ukuran teks */
+        padding: 10px; /* Menambahkan padding pada kolom */
+        border : 1px solid black !important;
+      }
+
+      #preview-email table.table tr {
+        font-size: 14px; /* Memperkecil ukuran teks */
+        padding: 10px; /* Menambahkan padding pada kolom */
+        border : 1px solid black !important;
+      }
+
       @media screen and (max-width: 576px) {
         #preview-email .header .logo {
           margin-bottom: 20px;
@@ -133,11 +157,11 @@ html(lang="en")
                     tr
                       td #{workOrder.work_orders.order.id}
                       td #{new Date(workOrder.work_orders.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      td #{workOrder.work_orders.order.store.name}
+                      td #{workOrder.work_orders.order.store.store_name}
                       td #{workOrder.work_orders.order.members.full_name}
-                      td #{workOrder.work_orders.order.m_order_details.service_name}
-                      td #{workOrder.work_orders.order.status.name}
-                      td #{workOrder.work_orders.order.notes}
+                      td #{workOrder.work_orders.order.m_order_details.map((item) => item.item_name).join(', ')}
+                      td #{workOrder.work_orders.order.status.description}
+                      td #{workOrder.notes}
 
     script(
       src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"

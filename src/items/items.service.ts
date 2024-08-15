@@ -163,20 +163,19 @@ export class ItemsService {
                 },
               ]
             : []),
-          ...(is_promotion === 1
-            ? [
-                {
-                  prices: {
-                    some: {
-                      deleted_at: {
-                        not: null,
+            ...(is_promotion === 1
+              ? [
+                  {
+                    prices: {
+                      some: {
+                        deleted_at: null,
+                        deleted_by: null,
+                        is_active: true,
                       },
-                      is_active: true
                     },
                   },
-                },
-              ]
-            : []),
+                ]
+              : []),
           ...(item_type ? [{ type: { equals: item_type } }] : []),
           ...(is_free === 1
             ? [
@@ -307,6 +306,7 @@ export class ItemsService {
               item_id: true,
               periodic_start: true,
               periodic_end: true,
+              is_active: true,
               price_stores: {
                 where: {
                   deleted_at: null,
@@ -348,6 +348,7 @@ export class ItemsService {
               id: true,
               item_id: true,
               price_stores: true,
+              is_active: true,
             },
           },
         },
@@ -407,6 +408,8 @@ export class ItemsService {
                 priceStoreCreate.push({ store_id: value.store_id });
               }
             }
+            console.log(Boolean(price.is_active));
+            
 
             return {
               where: { item_id: id, id: price?.id ?? 0 },
@@ -418,7 +421,7 @@ export class ItemsService {
                   ? new Date(price.periodic_end)
                   : undefined,
                 min_order: price?.min_order,
-                is_active: price?.is_active ? Boolean(price.is_active) : undefined,
+                is_active: Boolean(price.is_active),
                 price: price.price,
                 price_stores: {
                   upsert: priceStoreUpsert,
