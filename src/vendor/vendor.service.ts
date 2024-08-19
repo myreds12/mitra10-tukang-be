@@ -76,9 +76,9 @@ export class VendorService {
       const formattedUsername =
         createVendorDto?.default_username.replace(/ /g, '_') ?? createVendorDto.pic_name.replace(/ /g, '_');
 
-      if (formattedUsername.length > 12) {
+      if (formattedUsername.length > 20) {
         throw new BadRequestException(
-          'Username tidak boleh lebih dari 12 karakter.',
+          'Username tidak boleh lebih dari 20 karakter.',
         );
       }
 
@@ -670,9 +670,9 @@ export class VendorService {
       const formattedUsername =
         updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
 
-      if (formattedUsername.length > 12) {
+      if (formattedUsername.length > 20) {
         throw new BadRequestException(
-          'Username tidak boleh lebih dari 12 karakter.',
+          'Username tidak boleh lebih dari 20 karakter.',
         );
       }
 

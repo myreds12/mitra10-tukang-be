@@ -43,8 +43,8 @@ export class AuthService {
 
       const formattedUsername = dto.username.replace(/ /g, '_');
 
-      if(formattedUsername.length > 12){
-        throw new BadRequestException('Username tidak boleh lebih dari 12 karakter.');
+      if(formattedUsername.length > 20){
+        throw new BadRequestException('Username tidak boleh lebih dari 20 karakter.');
       }
 
       const [createUser] = await this.dbService.$transaction([

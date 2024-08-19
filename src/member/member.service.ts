@@ -445,7 +445,7 @@ export class MemberService {
 
       worksheet.columns = [
         { header: 'Member Id', key: 'id', width: 20 },
-        { header: 'Lokasi Bergabung', key: 'store_name', width: 35 },
+        { header: 'Nama Toko', key: 'store_name', width: 35 },
         { header: 'Nama Member', key: 'full_name', width: 35 },
         { header: 'Email Member', key: 'email', width: 35 },
         { header: 'Phone Number', key: 'phone_number', width: 35 },
@@ -1098,7 +1098,8 @@ export class MemberService {
       { header: 'Order Id', key: 'id', width: 10 },
       { header: 'Nama Toko', key: 'store_name', width: 25 },
       { header: 'Order Dibuat ', key: 'created_at', width: 30 },
-      { header: 'Tanggal Request', key: 'request_survey', width: 35 },
+      { header: 'Tanggal Request Survey', key: 'request_survey', width: 35 },
+      { header: 'Tanggal Request Pengerjaan', key: 'request_work', width: 35 },
       { header: 'Nama Customer', key: 'full_name', width: 40 },
       { header: 'Phone Number', key: 'phone_number', width: 30 },
       { header: 'Payment Type', key: 'payment_type', width: 30 },
@@ -1107,8 +1108,8 @@ export class MemberService {
       { header: 'Tanggal Survey', key: 'survey_date', width: 40 },
       { header: 'Tanggal Pengerjaan', key: 'work_date', width: 55 },
       { header: 'Nama Vendor', key: 'company_name', width: 35 },
-      { header: 'Nama Sales', key: 'sales_name', width: 35 },
       { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
+      { header: 'Nama Sales', key: 'sales_name', width: 35 },
       { header: 'Grand Total', key: 'grand_total', width: 25 },
     ];
 
@@ -1183,7 +1184,8 @@ export class MemberService {
         created_at: formattedDateTime(order.created_at),
         request_survey: order.request_survey
           ? formattedDateTime(order.request_survey)
-          : 'N/a',
+          : 'Tanggal Belum Ditentukan',
+      request_work: order.request_work ? formattedDateTime(order.request_work) : 'Tanggal Belum Ditentukan',
         full_name: order.members ? order.members.full_name : 'N/a',
         phone_number:
           order?.members?.phone_number ??
@@ -1213,9 +1215,9 @@ export class MemberService {
                 order.work_orders.work_start_date,
               )} - ${formattedDateTime(order.work_orders.work_end_date)}`
             : 'Order Tidak Ada Tanggal Survey',
-        company_name: order.vendor ? order.vendor.company_name : 'N/a',
-        sales_name: order.sales ? order.sales.full_name : 'N/a',
+        company_name: order.vendor ? order.vendor.company_name : '-',
         tukang_name: tukangName,
+        sales_name: order.sales ? order.sales.full_name : 'N/a',
         grand_total: grandTotalValue,
       });
 
@@ -1235,22 +1237,17 @@ export class MemberService {
       store_name: '',
       created_at: '',
       request_survey: '',
+      request_work: '',
       full_name: '',
       phone_number: '',
-      item_name: '',
-      category_name: '',
-      quantity: '',
       payment_type: '',
       receipt_number: '',
-      receipt_quotation: '',
       status_order: '',
       survey_date: '',
       work_date: '',
       company_name: '',
-      sales_name: '',
       tukang_name: '',
-      grand_total_survey: '',
-      quotation_grand_total: '',
+      sales_name: '',
       grand_total: Number(totalGrandTotalValue),
     });
 
@@ -1267,7 +1264,7 @@ export class MemberService {
 
     totalRow.height = 30;
 
-    worksheet.mergeCells(`A${totalRow.number}:T${totalRow.number}`);
+    worksheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
 
     const getFormattedDate = () => {
       const now = new Date();
