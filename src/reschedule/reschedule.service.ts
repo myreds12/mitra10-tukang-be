@@ -198,6 +198,15 @@ export class RescheduleService {
             },
           }),
       include: {
+        reschedule_tukang: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          include: {
+            tukang: true,
+          },
+        },
         status: true,
         reschedule_status: {
           include: {
@@ -263,6 +272,15 @@ export class RescheduleService {
         id,
       },
       include: {
+        reschedule_tukang: {
+          where: {
+            deleted_at: null,
+            deleted_by: null,
+          },
+          include: {
+            tukang: true,
+          },
+        },
         status: true,
         reschedule_status: {
           include: {
