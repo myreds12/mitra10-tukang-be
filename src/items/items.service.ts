@@ -129,7 +129,7 @@ export class ItemsService {
         item_type,
         is_promotion,
       } = queryParamsDto;
-      const category_id = +search ? Number.parseInt(search) : undefined;
+      // const category_id = +search ? Number.parseInt(search) : undefined;
       const now = new Date();
 
       const allStore = await this.dbService.store
@@ -188,13 +188,13 @@ export class ItemsService {
                 },
               ]
             : []),
-          category_id
-            ? {
-                category_id: {
-                  equals: category_id,
-                },
-              }
-            : undefined,
+          // category_id
+          //   ? {
+          //       category_id: {
+          //         equals: category_id,
+          //       },
+          //     }
+          //   : undefined,
           ...(all_store === 1
             ? [
                 {
@@ -229,6 +229,9 @@ export class ItemsService {
         ].filter(Boolean),
       };
 
+      // console.log('Generated WHERE clause:', JSON.stringify(where, null, 2));
+
+
       const itemsOptions: Prisma.itemsFindManyArgs = {
         skip,
         take: take > 0 ? take : undefined,
@@ -244,6 +247,7 @@ export class ItemsService {
               item_id: true,
               periodic_start: true,
               periodic_end: true,
+              is_active: true,
               price_stores: {
                 where: {
                   deleted_by: null,

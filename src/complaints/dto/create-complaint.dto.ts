@@ -25,6 +25,9 @@ export class CreateComplaintDto {
   @Type(() => Number)
   complaint_status: number;
 
+  @Type(() => Number)
+  work_status_update: number;
+
   @IsOptional()
   @Type(() => CreateComplaintHistoriesDto)
   complaint_histories?: CreateComplaintHistoriesDto;

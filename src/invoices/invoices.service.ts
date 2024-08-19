@@ -174,12 +174,17 @@ export class InvoicesService {
 
 
       const pkpNominal = vendor.type === 1
-        ? (totalGrandTotal * (+createInvoiceDto.pkp_nominal / 100))
+        ? (totalGrandTotal * (+vendor.pkp_nominal / 100))
         : 0;
+      const pphNominal = createInvoiceDto.pph_nominal ? totalGrandTotal * (+createInvoiceDto.pph_nominal / 100) : 0;
+      const ppnNominal = createInvoiceDto.ppn_nominal ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100) : 0;
+      
 
-      const totalAmount = totalGrandTotal + (totalGrandTotal * (+createInvoiceDto.pkp_nominal / 100)) + (totalGrandTotal * (+createInvoiceDto.pph_nominal / 100)) + (totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100))
-
+      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal)
+      console.log('TOTAL AMOUNT: ', totalAmount);
+      
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
+      const statusInvoice = totalAmount >= 5000000 ? 4 : 1;
 
 
       const data = {
@@ -189,10 +194,10 @@ export class InvoicesService {
           },
         },
         pkp_nominal: pkpNominal,
-        pph_nominal: createInvoiceDto.pph_nominal,
-        ppn_nominal: createInvoiceDto.ppn_nominal,
+        pph_nominal: pphNominal,
+        ppn_nominal: ppnNominal,
         penalty_nominal : penaltyNominal,
-        status: createInvoiceDto.status,
+        status: statusInvoice,
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
         invoice_evidence: {
@@ -445,9 +450,8 @@ export class InvoicesService {
     invoice_evidences?: Array<Express.Multer.File>,
   ) {
     try {
-      
       const { id: user_id } = user;
-
+  
       const invoice = await this.dbService.invoices.findFirstOrThrow({
         where: { id },
         include: {
@@ -458,31 +462,23 @@ export class InvoicesService {
           },
         },
       });
-
-     
-
+  
       if (!invoice) {
         this.logger.error('Invoice id not found');
         throw new NotFoundException(`Invoice not found with id ${id}`);
       }
-
+  
       const evidences =
         invoice_evidences?.map((item) => ({
           evidence_location: item.filename,
           created_by: user_id,
         })) || [];
-
-
+  
       const providedOrderIds =
         updateInvoiceDto?.invoice_details?.map(({ order_id }) =>
           Number(order_id),
         ) || undefined;
-      // if (providedOrderIds.length === 0) {
-      //   this.logger.error('No Order Id Provided');
-      //   throw new Error('No Order Id Provided');
-      // }
-
-
+  
       const orders = await this.dbService.orders.findMany({
         where: { id: { in: providedOrderIds } },
         include: {
@@ -496,39 +492,46 @@ export class InvoicesService {
               quotation_details: true,
             },
           },
+          work_orders: true,
         },
       });
-
-
-      let totalAmount = 0;
-      const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details?.map((item) => {
+  
+      const refund = await this.dbService.refund.findMany({
+        where: {
+          orders: {
+            vendor_id: invoice.vendor.id,
+          },
+          paid_status: 0,
+          approval_number: {
+            not: null
+          }
+        },
+      });
+  
+      const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
+  
+      let totalGrandTotal = penaltyNominal != 0 ? penaltyNominal : 0;
+      const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details.map((item) => {
         const order = orders.find((order) => order.id === item.order_id);
         let total = 0;
-
+  
         if (order) {
           if (order.payment_type === 'survey' && item.type === 1) {
-            total = Number(invoice.vendor.nominal_survey);
-            totalAmount += total;
+            total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000;
           } else if (order.payment_type === 'survey' && item.type === 2) {
-            total = Number(order?.quotation[0]?.quotation_grand_total) - (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_grand_total));;
-            totalAmount += total;
+            total = Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_grand_total));
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-            total =
-              invoice.vendor.margin_type === 1
-                ? +order.grand_total - (((+invoice.vendor.margin_nominal) / 100) * +order.grand_total)
-                : invoice.vendor.margin_type === 2
-                  ? +order.grand_total - +invoice.vendor.margin_nominal
-                  : 0;
-            totalAmount += total;
+            total = order.m_order_details
+              .filter((i) => i.item.type === 2)
+              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0);
           } else if (order.payment_type === 'gratis') {
             total = order.m_order_details
               .filter((i) => i.item.type === 1)
               .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
-            totalAmount += total;
           }
-
+          totalGrandTotal += total || 0;
         }
-
+  
         return {
           where: { id: item.id ?? 0 },
           create: {
@@ -545,14 +548,18 @@ export class InvoicesService {
           },
         };
       }) : undefined;
-
-      if (invoice.vendor.type === 1 && updateInvoiceDto.invoice_details) {
-        totalAmount += totalAmount + Number(invoice.pkp_nominal)
-      }
-
+  
+      const pkpNominal = invoice.vendor.type === 1
+        ? (totalGrandTotal * (+invoice.vendor.pkp_nominal / 100))
+        : 0;
+      const pphNominal = updateInvoiceDto.pph_nominal ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100) : +invoice.pph_nominal;
+      const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
+  
+      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal);
+  
       const invoiceData = {
-        total_amount: totalAmount  != 0 ? totalAmount : undefined,
-        ...(updateInvoiceDto.status === 6 ? {
+        total_amount: totalAmount != 0 ? totalAmount : undefined,
+        ...(updateInvoiceDto.status === 5 ? {
           invoice_to_finance_date: new Date()
         } : undefined),
         status: updateInvoiceDto.status,
@@ -560,18 +567,20 @@ export class InvoicesService {
         notes: updateInvoiceDto?.notes ?? undefined,
         invoice_evidence: { createMany: { data: evidences } },
         invoice_details: { upsert: invoiceDetails },
+        pkp_nominal: pkpNominal,
+        pph_nominal: pphNominal,
+        ppn_nominal: ppnNominal,
+        penalty_nominal: penaltyNominal,
         updated_at: new Date(),
         updated_by: user_id,
       };
-
-
+  
       const detailsIds = updateInvoiceDto.invoice_details
         ? updateInvoiceDto.invoice_details
           .filter((x) => Boolean(x?.id))
           .map((item) => item?.id)
         : undefined;
-
-
+  
       const [syncFiles, syncDetails, updatedInvoice] =
         await this.dbService.$transaction([
           this.dbService.invoice_evidence.updateMany({
@@ -604,7 +613,7 @@ export class InvoicesService {
             data: invoiceData,
           }),
         ]);
-
+  
       this.logger.log(`Invoice successfully updated with ID ${invoice.id}`);
       await this.invoiceLogs(invoice.id, updatedInvoice);
       return updatedInvoice;
@@ -613,6 +622,7 @@ export class InvoicesService {
       throw error;
     }
   }
+  
 
   async remove(id: number, user: users) {
     try {
@@ -996,7 +1006,7 @@ export class InvoicesService {
       const dataFromDatabase = await this.dbService.invoices.findMany({
         where: {
           status: {
-            in: [InvoiceStatus.WAITING_FOR_PAYMENT],
+            in: [InvoiceStatus.INVOICE_TO_FINANCE],
           },
           deleted_at: null,
         },

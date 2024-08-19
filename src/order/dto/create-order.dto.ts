@@ -62,6 +62,9 @@ export class CreateOrderDto {
   request_survey: string;
 
   @IsOptional()
+  request_work?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsIn([0, 1])
   is_overdistance?: number;

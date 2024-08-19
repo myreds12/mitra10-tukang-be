@@ -38,6 +38,9 @@ export class UpdateOrderDto {
   @IsOptional()
   store_id?: number;
 
+  @IsOptional()
+  request_work?: string;
+
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()

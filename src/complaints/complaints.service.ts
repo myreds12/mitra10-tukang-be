@@ -384,6 +384,7 @@ export class ComplaintsService {
           remedials: {
             include: {
               remedial_evidences: true,
+              status: true
             },
           },
           status: true,
@@ -606,6 +607,9 @@ export class ComplaintsService {
       const complaintApprovedByHoStatus = status.find((x) =>
         x.category.toLocaleLowerCase().includes('complaintapprovedbyho'),
       )?.id;
+      const complaintRejectedByHoStatus = status.find((x) =>
+        x.category.toLocaleLowerCase().includes('rejectedbyho'),
+      )?.id;
 
       if (
         complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
@@ -618,9 +622,9 @@ export class ComplaintsService {
         complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
         workStatusCategories.includes(orders.order_history[0].status.category)
       ) {
-        statusOrderUpdate = status.find((x) =>
-          x.category.toLowerCase().includes('resurveyreq'),
-        ).id;
+        statusOrderUpdate = updateComplaintDto.work_status_update;
+      }else if(complaintRejectedByHoStatus === updateComplaintDto.complaint_status) {
+        statusOrderUpdate = orders.order_history[0].status.id;
       }
 
       // console.log(
@@ -697,7 +701,7 @@ export class ComplaintsService {
         }),
       ]);
 
-      if (statusOrderUpdate) {
+      if (statusOrderUpdate && complaintApprovedByHoStatus === updateComplaintDto.complaint_status) {
         try {
           await this.dbService.work_orders.update({
             where: {
@@ -715,12 +719,18 @@ export class ComplaintsService {
           });
           await this.orderService.setStatus(
             complaint.order_id,
-            complaint.complaint_status,
+            statusOrderUpdate,
             user,
           );
         } catch (error) {
           throw new BadRequestException('No Work Orders To Update');
         }
+      }else if(complaintRejectedByHoStatus === updateComplaintDto.complaint_status) {
+        await this.orderService.setStatus(
+          complaint.order_id,
+          statusOrderUpdate,
+          user,
+        );
       }
 
       return complaint;

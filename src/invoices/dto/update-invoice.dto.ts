@@ -42,6 +42,18 @@ export class UpdateInvoiceDto {
   @IsOptional()
   @Type(() => Number)
   order_id?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  pph_nominal?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  ppn_nominal?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  pkp_nominal?: number;
   
   @IsOptional()
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })

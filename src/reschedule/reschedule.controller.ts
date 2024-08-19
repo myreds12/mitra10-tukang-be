@@ -32,7 +32,7 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('reschedule')
 export class RescheduleController {
-  constructor(private readonly rescheduleService: RescheduleService) {}
+  constructor(private readonly rescheduleService: RescheduleService) { }
 
   @Get('/export-excel')
   async rescheduleExportExcel(
@@ -84,12 +84,18 @@ export class RescheduleController {
     @Req() req: UserRequest,
     @UploadedFiles() reschedule_evidences: Express.Multer.File[],
   ) {
-    const user = req.user;
-    return await this.rescheduleService.update(
-      id,
-      rescheduleDto,
-      user,
-      reschedule_evidences,
-    );
+    try {
+      const user = req.user;
+      return await this.rescheduleService.update(
+        id,
+        rescheduleDto,
+        user,
+        reschedule_evidences,
+      );
+    } catch (error) {
+      console.log(error)
+      throw error
+    }
+
   }
 }

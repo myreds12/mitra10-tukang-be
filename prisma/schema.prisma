@@ -491,6 +491,7 @@ model tukang {
   tukang_area       tukang_area[]
   request_tukang    request_tukang[]    @relation("request_tukang")
   replace_tukang    request_tukang[]    @relation("replace_tukang")
+  reschedule_tukang reschedule_tukang[]
 }
 
 model tukang_area {
@@ -716,6 +717,7 @@ model orders {
   notes                 String?   @db.VarChar(2555)
   receipt_number        String?   @db.NVarChar(30)
   request_survey        DateTime? @db.DateTime()
+  request_work          DateTime? @db.DateTime()
   payment_type          String    @db.VarChar(200)
   grand_total           Decimal?  @db.Decimal(32, 2)
   grand_total_comission Decimal?  @db.Decimal(32, 2)
@@ -1378,6 +1380,23 @@ model reschedule {
 
   reschedule_status    reschedule_status[]
   reschedule_evidences reschedule_evidences[]
+  reschedule_tukang    reschedule_tukang[]
+}
+
+model reschedule_tukang {
+  id            Int @id @default(autoincrement())
+  reschedule_id Int
+  tukang_id     Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime   @default(now()) @db.DateTime()
+  updated_at DateTime?  @db.DateTime()
+  deleted_at DateTime?  @db.DateTime()
+  reschedule reschedule @relation(fields: [reschedule_id], references: [id])
+  tukang     tukang     @relation(fields: [tukang_id], references: [id])
 }
 
 model reschedule_status {

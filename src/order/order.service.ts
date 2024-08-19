@@ -163,6 +163,11 @@ export class OrderService {
         project_address: createOrderDto.project_address,
         project_number: createOrderDto.project_number,
         receipt_number: createOrderDto.receipt_number,
+        ...(createOrderDto.request_work
+          ? {
+              request_work: new Date(createOrderDto.request_work),
+            }
+          : undefined),
         grand_total: grand_total.toFixed(2),
         grand_total_comission: grand_total_comission.toFixed(2),
         is_overdistance: createOrderDto.is_overdistance,
@@ -247,6 +252,8 @@ export class OrderService {
         is_used_warranty,
         is_receipt,
         is_receipt_quotation,
+        promotion,
+        is_promotion,
       } = queryParams;
 
       const skip = page * take - take;
@@ -296,6 +303,44 @@ export class OrderService {
                           contains: search,
                         },
                       },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(is_promotion
+            ? [
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
+                            },
+                          },
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
                     },
                   ],
                 },
@@ -425,6 +470,19 @@ export class OrderService {
                 },
               ]
             : []),
+          ...(Boolean(promotion)
+            ? [
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
             : []),
@@ -435,7 +493,7 @@ export class OrderService {
       const orders = await this.dbService.orders.findMany({
         skip,
         take: take > 0 ? take : undefined,
-        where: where,
+        where,
         orderBy: {
           created_at: order_by,
         },
@@ -1274,6 +1332,9 @@ export class OrderService {
         request_survey: updateOrderDto?.request_survey
           ? new Date(updateOrderDto?.request_survey ?? undefined)
           : undefined,
+        request_work: updateOrderDto?.request_work
+          ? new Date(updateOrderDto?.request_work ?? undefined)
+          : undefined,
         order_files: {
           createMany: {
             data: files,
@@ -1736,6 +1797,7 @@ export class OrderService {
         store_id,
         vendor_id,
         work_order_status,
+        is_promotion,
       } = queryParams;
 
       const skip = page * take - take;
@@ -1795,6 +1857,44 @@ export class OrderService {
                 },
               ]
             : []),
+          ...(is_promotion
+            ? [
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
+                            },
+                          },
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -1811,7 +1911,13 @@ export class OrderService {
       for (let i = 0; i < countTake; i++) {
         skipData = i * takeData;
         const data = await this.dbService.orders.findMany({
-          where,
+          where: {
+            OR: [
+              {
+                AND: [],
+              },
+            ],
+          },
           skip: skipData,
           take: takeData,
           orderBy: {
@@ -2278,8 +2384,8 @@ export class OrderService {
       let totalGrandTotalValue = 0;
 
       dataExcel.forEach((order) => {
-        let isFirstDetail = true; 
-      
+        let isFirstDetail = true;
+
         order.m_order_details.forEach((detail) => {
           const itemName = detail.item_name || 'Item belum ditentukan';
           const categoryName =
@@ -2306,10 +2412,10 @@ export class OrderService {
           const grandTotal = Number(order.grand_total);
           const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
           let grandTotalValue = formattedGrandTotal;
-      
+
           let grandTotalSurveyValue = 0;
           let quotationGrandTotalValue = 0;
-      
+
           if (order.payment_type === 'survey') {
             const grandTotalSurvey = Number(order.grand_total);
             const quotationGrandTotal =
@@ -2318,7 +2424,7 @@ export class OrderService {
                     Number(order.quotation[0]?.quotation_grand_total || 0),
                   )
                 : 0;
-      
+
             if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
               if (isFirstDetail) {
                 grandTotalSurveyValue = grandTotalSurvey;
@@ -2333,12 +2439,12 @@ export class OrderService {
               grandTotalValue = 0;
             }
           }
-      
+
           totalGrandTotalValue +=
             !isNaN(Number()) && order.payment_type != 'survey'
               ? Number(grandTotal)
               : 0;
-      
+
           const row = worksheet.addRow({
             id: order.id,
             store_name: order.store ? order.store.store_name : 'N/a',
@@ -2390,7 +2496,7 @@ export class OrderService {
             quotation_grand_total: quotationGrandTotalValue,
             grand_total: grandTotalValue,
           });
-      
+
           row.eachCell((cell) => {
             cell.alignment = { vertical: 'middle', horizontal: 'left' };
             cell.border = {
@@ -2400,11 +2506,10 @@ export class OrderService {
               right: { style: 'thin' },
             };
           });
-      
+
           isFirstDetail = false;
         });
       });
-      
 
       const totalRow = worksheet.addRow({
         id: 'Total',

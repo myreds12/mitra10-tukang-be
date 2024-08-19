@@ -187,7 +187,7 @@ export class ReportsService {
           'DONE',
         ],
         totalCancel: ['CANCEL'],
-        totalCancelRefund: ['CANCELREFUND'],
+        totalCancelRefund: ['CANCELREFUND', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO'],
         totalProgressOrder: [
           'BOOKED',
           'BOOK',
@@ -220,7 +220,11 @@ export class ReportsService {
         totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
         totalComplaint: ['INVESTIGATED'],
         totalReschedule: ['RESCHEDULE'],
-        totalRefund: ['CANCELREFUND', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO'],
+        totalRefund: [
+          'CANCELREFUND',
+          'REFUNDAPPROVEDBYHO',
+          'REFUNDREJECTEDBYHO',
+        ],
         totalWaitingResolve: ['INVESTIGATED'],
         totalActiveWarranty: ['ACTIVEWARRANTY'],
         totalUsedWarranty: ['USEDWARRANTY'],
@@ -505,8 +509,8 @@ export class ReportsService {
       orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
+              hour: '2-digit',
+              hour12: false,
             })
           : isSameMonth
           ? new Date(order.created_at).toLocaleString('id-ID', {
@@ -517,7 +521,7 @@ export class ReportsService {
             });
 
         if (summary[period]) {
-          if (!['CANCEL', 'CANCELREFUND'].includes(order.status.category)) {
+          if (!['INVESTIGATED'].includes(order.status.category)) {
             summary[period].totalOrder++;
           }
           summary[period].totalOrderGrandTotal += Number(order.grand_total);
@@ -661,7 +665,7 @@ export class ReportsService {
         member_id,
         tukang_id,
       } = query;
-  
+
       const statusCategories = {
         totalComplaintInvestigated: ['INVESTIGATED'],
         totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
@@ -671,7 +675,7 @@ export class ReportsService {
         totalSolved: ['SOLVED'],
         totalUnsolved: ['UNSOLVED'],
       };
-  
+
       const summaryTemplate = {
         totalComplaint: 0,
         totalComplaintInvestigated: 0,
@@ -682,7 +686,7 @@ export class ReportsService {
         totalSolved: 0,
         totalUnsolved: 0,
       };
-  
+
       const isSameDay = date_from === date_to;
       const isSameMonth =
         new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
@@ -701,13 +705,15 @@ export class ReportsService {
         ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
         : isSameMonth
         ? allDaysInMonth
-        : Array.from({ length: 12 }, (_, i) => new Date(0, i).toLocaleString('id-ID', { month: 'long' }));
-  
+        : Array.from({ length: 12 }, (_, i) =>
+            new Date(0, i).toLocaleString('id-ID', { month: 'long' }),
+          );
+
       const summary = periods.reduce((acc, period) => {
         acc[period] = { ...summaryTemplate };
         return acc;
       }, {});
-  
+
       const where: Prisma.complaintsWhereInput = {
         AND: [
           status ? { status: { id: { in: status } } } : undefined,
@@ -819,7 +825,7 @@ export class ReportsService {
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
       };
-  
+
       const complaints = await this.dbService.complaints.findMany({
         where,
         orderBy: {
@@ -834,7 +840,7 @@ export class ReportsService {
           },
         },
       });
-  
+
       complaints.forEach((complaint) => {
         const period = isSameDay
           ? new Date(complaint.created_at).toLocaleString('id-ID', {
@@ -848,56 +854,64 @@ export class ReportsService {
           : new Date(complaint.created_at).toLocaleString('id-ID', {
               month: 'long',
             });
-  
+
         if (summary[period]) {
           const { category } = complaint.status;
-  
+
           if (statusCategories.totalComplaintInvestigated.includes(category)) {
             summary[period].totalComplaintInvestigated++;
           }
-  
+
           if (statusCategories.totalComplaintApprovedByHo.includes(category)) {
             summary[period].totalComplaintApprovedByHo++;
           }
-  
+
           if (statusCategories.totalComplaintRejectedByHo.includes(category)) {
             summary[period].totalComplaintRejectedByHo++;
           }
-  
-          if (statusCategories.totalResurvey.includes(complaint.orders.status.category)) {
+
+          if (
+            statusCategories.totalResurvey.includes(
+              complaint.orders.status.category,
+            )
+          ) {
             summary[period].totalResurvey++;
           }
-  
-          if (statusCategories.totalRework.includes(complaint.orders.status.category)) {
+
+          if (
+            statusCategories.totalRework.includes(
+              complaint.orders.status.category,
+            )
+          ) {
             summary[period].totalRework++;
           }
-  
+
           if (category === 'SOLVED') {
             summary[period].totalSolved++;
           }
-  
+
           if (category === 'UNSOLVED') {
             summary[period].totalUnsolved++;
           }
         }
       });
-  
+
       // Ensure all periods are accounted for
       periods.forEach((period) => {
         if (!summary[period]) {
           summary[period] = { ...summaryTemplate };
         }
       });
-  
+
       // Prepare report data
       const reportData = periods.map((period) => ({
         period,
         ...summary[period],
       }));
-  
+
       // Aggregate counts and totals
       const count = await this.dbService.complaints.count({ where });
-  
+
       // Return final report
       return {
         data: reportData,
@@ -910,7 +924,6 @@ export class ReportsService {
       throw error;
     }
   }
-  
 
   async reportWorkOrder(query: QueryParamsDto) {
     try {
@@ -934,7 +947,12 @@ export class ReportsService {
         totalPaidQuotation: ['UNPAIDQUOTATION'],
         totalWaitingWork: ['WORKREQ', 'TUKANGWORK'],
         totalWorkStart: ['WORKSTART'],
-        totalCancel: ['CANCEL', 'CANCELREFUND', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO'],
+        totalCancel: [
+          'CANCEL',
+          'CANCELREFUND',
+          'REFUNDAPPROVEDBYHO',
+          'REFUNDREJECTEDBYHO',
+        ],
         orderWork: ['WORKREQ', 'WORKSTART', 'WORKDONE'],
         totalOrderDone: ['WORKEND'],
       };

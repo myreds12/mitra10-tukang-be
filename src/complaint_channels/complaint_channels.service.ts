@@ -14,12 +14,18 @@ export class ComplaintChannelsService {
     const channels = await this.dbService.complaint_channels.findMany({
       take: take <= 0 ? undefined : take,
       skip,
-      orderBy: {
-        created_at: order_by,
-      },
     });
-
-    return channels;
+    
+    const sortedChannels = channels.sort((a, b) => {
+      if (a.name < b.name) {
+        return -1;
+      }
+      if (a.name > b.name) {
+        return 1;
+      }
+      return 0;
+    });
+    return sortedChannels;    
   }
 
   async create(dto: ComplaintChannelDto, user_id: number){

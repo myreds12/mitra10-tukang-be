@@ -28,6 +28,14 @@ import { Response } from 'express';
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
 
+  @Get('/order-export-excel')
+  async memberOrderExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: Response) {
+      const data = await this.memberService.orderMemberExportExcel(res, query);
+      return data;
+  }
+
   @Get('/export-excel')
   @UseGuards()
   async memberExportExcel(

@@ -17,7 +17,7 @@ export class RescheduleService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-  ) { }
+  ) {}
 
   async create(
     rescheduleDto: CreateRescheduleDto,
@@ -54,16 +54,16 @@ export class RescheduleService {
       throw new Error('Order is already done');
     }
     const rescheduleStatus: Prisma.reschedule_statusCreateWithoutRescheduleInput =
-    {
-      status: {
-        connect: {
-          id: status.id,
+      {
+        status: {
+          connect: {
+            id: status.id,
+          },
         },
-      },
-      description: rescheduleDto.reschedule_status.description,
-      status_by: rescheduleDto.reschedule_status.status_by,
-      created_by: user_id,
-    };
+        description: rescheduleDto.reschedule_status.description,
+        status_by: rescheduleDto.reschedule_status.status_by,
+        created_by: user_id,
+      };
 
     const rescheduleEvidences: Prisma.reschedule_evidencesCreateManyRescheduleInput[] =
       reschedule_evidences.map((evidence) => {
@@ -127,57 +127,57 @@ export class RescheduleService {
       AND: [
         ...(search
           ? [
-            {
-              reschedule_date: {
-                lte: new Date(search),
+              {
+                reschedule_date: {
+                  lte: new Date(search),
+                },
               },
-            },
-          ]
+            ]
           : []),
         ...(store_id
           ? [
-            {
-              order: {
-                store_id: {
-                  in: store_id,
+              {
+                order: {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
               },
-            },
-          ]
+            ]
           : []),
         ...(tukang_id
           ? [
-            {
-              order: {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+              {
+                order: {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
               },
-            },
-          ]
+            ]
           : []),
         ...(vendor_id
           ? [
-            {
-              order: {
-                vendor_id: vendor_id,
+              {
+                order: {
+                  vendor_id: vendor_id,
+                },
               },
-            },
-          ]
+            ]
           : []),
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -188,15 +188,15 @@ export class RescheduleService {
       take: take <= 0 ? undefined : take,
       ...(order_by
         ? {
-          orderBy: {
-            created_at: order_by,
-          },
-        }
+            orderBy: {
+              created_at: order_by,
+            },
+          }
         : {
-          orderBy: {
-            created_at: 'desc',
-          },
-        }),
+            orderBy: {
+              created_at: 'desc',
+            },
+          }),
       include: {
         status: true,
         reschedule_status: {
@@ -325,81 +325,110 @@ export class RescheduleService {
     rescheduleEvidences: Express.Multer.File[],
   ) {
     const { id: userId } = user;
-  
+
     const order = await this.dbService.orders.findFirst({
       where: { id: updateRescheduleDto.order_id },
       include: {
         status: true,
-        order_history: { include: { status: true } },
+        work_orders: {
+          where: {
+            deleted_at: null,
+          },
+        },
+        order_history: {
+          where: {
+            status: {
+              category: {
+                notIn: [
+                  'RESCHEDULE',
+                  'RESCHEDULEAPPROVEDBYVENDOR',
+                  'RESCHEDULEREJECTEDBYVENDOR',
+                  'RESCHEDULEAPPROVEDBYHO',
+                  'RESCHEDULEBYVENDOR',
+                ],
+              },
+            },
+          },
+          include: {
+            status: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+        },
       },
     });
-  
+
     if (!order) {
       throw new Error('Order not found');
     }
-  
+
     if (order.status.category === 'DONE') {
       throw new Error('Order is already done');
     }
-  
+
     const status = await this.dbService.status.findFirst({
-      where: { id: updateRescheduleDto.reschedule_status.status_id },
+      where: { id: updateRescheduleDto.status_id },
     });
-  
+
     if (!status) {
       throw new Error('Status not found');
     }
-  
-    const rescheduleHistory = order.order_history
-      .filter((history) => history.status.category.includes('RESCHEDULE'));
-    
-      console.log("RESCHEDULE HISTORY :" ,rescheduleHistory);
-      
-  
-    const previousStatus = rescheduleHistory.length > 0
-      ? order.order_history.find(
-          (history) =>
-            history.id === rescheduleHistory[0].id - 1
-        )
-      : null;
-    
-      console.log("PREVIOUS STATUS :" ,previousStatus);
-      
-  
-    const rescheduleStatus: Prisma.reschedule_statusUpsertWithWhereUniqueWithoutRescheduleInput = {
-      where: { id: updateRescheduleDto.reschedule_status.id },
-      create: {
-        status: { connect: { id: updateRescheduleDto.reschedule_status.status_id } },
-        description: updateRescheduleDto.reschedule_status.description,
-        status_by: updateRescheduleDto.reschedule_status.status_by,
-        created_by: userId,
-      },
-      update: {
-        status: { connect: { id: updateRescheduleDto.reschedule_status.status_id } },
-        description: updateRescheduleDto.reschedule_status.description,
-        status_by: updateRescheduleDto.reschedule_status.status_by,
-        updated_by: userId,
-        updated_at: new Date(),
-      },
-    };
-  
+
+    const rescheduleStatus: Prisma.reschedule_statusUpsertWithWhereUniqueWithoutRescheduleInput =
+      {
+        where: { id: updateRescheduleDto.reschedule_status.id },
+        create: {
+          status: {
+            connect: { id: updateRescheduleDto.reschedule_status.status_id },
+          },
+          description: updateRescheduleDto.reschedule_status.description,
+          status_by: updateRescheduleDto.reschedule_status.status_by,
+          created_by: userId,
+        },
+        update: {
+          status: {
+            connect: { id: updateRescheduleDto.reschedule_status.status_id },
+          },
+          description: updateRescheduleDto.reschedule_status.description,
+          status_by: updateRescheduleDto.reschedule_status.status_by,
+          updated_by: userId,
+          updated_at: new Date(),
+        },
+      };
+
     const rescheduleEvidenceData = rescheduleEvidences.map((evidence) => ({
       evidence_location: evidence.filename,
       created_by: userId,
     }));
-  
+
+    const rescheduleTukang: Prisma.reschedule_tukangUpsertWithWhereUniqueWithoutRescheduleInput[] =
+      updateRescheduleDto.reschedule_tukang.map((item) => {
+        return {
+          where: {
+            id: item?.id ?? 0,
+          },
+          create: {
+            tukang_id: item.tukang_id,
+            created_by: userId,
+          },
+          update: {
+            tukang_id: item.tukang_id,
+            updated_by: userId,
+            updated_at: new Date(),
+          },
+        };
+      });
+
     const rescheduleData: Prisma.rescheduleUpdateArgs = {
       where: { id },
       data: {
-        ...(status.category.toLowerCase().includes('rescheduleapprovedbyho') &&
-          updateRescheduleDto.confirm_date
+        ...(status.category.toLowerCase().includes('rescheduleapprovedbyho') ||
+        (status.category.toLowerCase().includes('rescheduleapprovedbyvendor') &&
+          updateRescheduleDto.confirm_date)
           ? {
-            order: {
-              update: {
-                request_survey: updateRescheduleDto.confirm_date,
-              },
-            },
-          }
+              confirm_date: new Date(updateRescheduleDto.confirm_date),
+            }
           : undefined),
         status: { connect: { id: updateRescheduleDto.status_id } },
         reschedule_date: new Date(updateRescheduleDto.reschedule_date),
@@ -409,26 +438,41 @@ export class RescheduleService {
         updated_by: userId,
         updated_at: new Date(),
         reschedule_status: { upsert: rescheduleStatus },
+        reschedule_tukang: { upsert: rescheduleTukang },
         reschedule_evidences: { createMany: { data: rescheduleEvidenceData } },
       },
     };
-  
-    const [deletedEvidences, updatedReschedule] = await this.dbService.$transaction([
-      this.dbService.reschedule_evidences.updateMany({
-        where: { reschedule_id: id },
-        data: { deleted_at: new Date(), deleted_by: userId },
-      }),
-      this.dbService.reschedule.update(rescheduleData),
-    ]);
-  
-    if (previousStatus) {
-      await this.orderService.setStatus(order.id, previousStatus.status_id, user);
-    }
-  
+
+    console.log('RESCHEDULE DATA:', rescheduleData);
+
+    const [deletedEvidences, deletedRescheduleTukang, updatedReschedule] =
+      await this.dbService.$transaction([
+        this.dbService.reschedule_evidences.updateMany({
+          where: { reschedule_id: id },
+          data: { deleted_at: new Date(), deleted_by: userId },
+        }),
+        this.dbService.reschedule_tukang.updateMany({
+          where: {
+            id: {
+              notIn: updateRescheduleDto.reschedule_tukang.map(
+                (item) => item.id,
+              ),
+            },
+            reschedule_id: id,
+          },
+          data: { deleted_at: new Date(), deleted_by: userId },
+        }),
+        this.dbService.reschedule.update(rescheduleData),
+      ]);
+
+    await this.orderService.setStatus(
+      order.id,
+      order.order_history[0].status_id,
+      user,
+    );
+
     return updatedReschedule;
   }
-  
-
 
   async getCode() {
     const reschedule = await this.dbService.reschedule.findMany({

@@ -152,6 +152,7 @@ export class IncentiveService {
           name: true,
           type: true,
           min_order: true,
+          max_order: true,
           incentive: true,
           stores: {
             select: {

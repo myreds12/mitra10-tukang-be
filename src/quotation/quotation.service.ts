@@ -250,6 +250,7 @@ export class QuotationService {
         order_by,
         vendor_id,
         promotion,
+        is_free,
         is_paid,
       } = queryParamsDto;
       const skip = page * take - take;
@@ -293,6 +294,21 @@ export class QuotationService {
                 },
               ]
             : []),
+            ...(is_free
+              ? [
+                  {
+                    order: {
+                      m_order_details: {
+                        every: {
+                          item: {
+                            type: 1,
+                          },
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
           date_from && date_to
             ? {
                 created_at: {
@@ -795,6 +811,7 @@ export class QuotationService {
       });
 
       if (!existingIncentive && quotation.status.category === 'QUOTEOUT') {
+        console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
           quotation.store_id,
@@ -946,6 +963,7 @@ export class QuotationService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
     try {
+      console.log('init checkvalidity');
       this.logger.log('init checkvalidity');
       const quotations = await this.dbService.quotation.findMany({
         where: {
@@ -954,18 +972,25 @@ export class QuotationService {
               contains: 'QUOTEOUT',
             },
           },
-          OR: [{ quotation_receipt: null }, { receipt_quotation: null }],
+          OR: [
+            { quotation_receipt: { every: { receipt_quotation: null } } },
+            { receipt_quotation: null },
+          ],
           quotation_validity: {
             lte: new Date(),
           },
         },
       });
 
+      console.log(`Found ${quotations.length} quotations`);
+
       if (!quotations.length) {
+        console.log('No quotation found');
         this.logger.log('No quotation found');
         return 0;
       }
 
+      console.log(`${quotations.length} quotation found`);
       this.logger.log(`${quotations.length} quotation found`);
 
       const NEWSTATUS = await this.dbService.status.findFirst({
@@ -976,9 +1001,12 @@ export class QuotationService {
         },
       });
 
+      console.log(`Found closed status with id: ${NEWSTATUS.id}`);
+
       await Promise.all(
         quotations.map(async (quotation) => {
           const { id } = quotation;
+          console.log(`Updating quotation ${id}`);
           await this.dbService.quotation.update({
             where: {
               id,
@@ -988,6 +1016,7 @@ export class QuotationService {
             },
           });
 
+          console.log(`Updating sales incentives for quotation ${id}`);
           await this.dbService.sales_incentive.updateMany({
             where: {
               quotation_id: id,
@@ -999,8 +1028,10 @@ export class QuotationService {
         }),
       );
 
+      console.log('Finished checkvalidity');
       return 1;
     } catch (error) {
+      console.error(error);
       this.logger.error(error);
       throw error;
     }
@@ -1017,6 +1048,7 @@ export class QuotationService {
         date_to,
         order_by,
         is_free,
+        promotion,
       } = queryParams;
       const where: Prisma.quotationWhereInput = {
         AND: [
@@ -1045,6 +1077,15 @@ export class QuotationService {
                         },
                       },
                     },
+                  },
+                },
+              ]
+            : []),
+          ...(Boolean(promotion)
+            ? [
+                {
+                  promotion_id: {
+                    not: null,
                   },
                 },
               ]
@@ -1400,7 +1441,10 @@ export class QuotationService {
             : 'N/a',
           tukang_name: tukangName,
           promotion_tier: quotation.promotion.name,
-          promotion_nominal: quotation?.promotion?.promotion_type === 1 ? `${quotation.promotion.promotion}%` : quotation?.promotion?.promotion,
+          promotion_nominal:
+            quotation?.promotion?.promotion_type === 1
+              ? `${quotation.promotion.promotion}%`
+              : quotation?.promotion?.promotion,
           grand_total: formattedGrandTotal,
         });
 
@@ -1529,10 +1573,10 @@ export class QuotationService {
           },
         },
         min_order: {
-          gte: grandTotal,
+          lte: grandTotal,
         },
         max_order: {
-          lte: grandTotal, // grandTotal harus lebih kecil dari atau sama dengan max_order
+          gte: grandTotal,
         },
       },
     });
@@ -1546,6 +1590,10 @@ export class QuotationService {
               : closest,
           )
         : null;
+    if (!closestIncentive) {
+      return null;
+    }
+
     if (!closestIncentive) return null;
 
     let comission = 0;
@@ -1572,7 +1620,7 @@ export class QuotationService {
             id: quotation_id,
           },
         },
-        nominal: comission,
+        nominal: Math.floor(comission),
         status: IncentiveStatus.POTENTIAL_INCENTIVE,
       },
     });

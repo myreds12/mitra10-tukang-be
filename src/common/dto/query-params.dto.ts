@@ -102,6 +102,11 @@ export class QueryParamsDto {
   @IsOptional()
   @Type(() => Number)
   @IsIn([0, 1])
+  is_unpaid?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
   is_receipt?: number;
 
   @IsOptional()

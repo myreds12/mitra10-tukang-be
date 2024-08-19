@@ -43,9 +43,7 @@ export class RefundService {
       const refundCount = await this.dbService.refund.count();
       const nextRefundNumber = refundCount + 1;
 
-      const approvalNumber = `REFUND-${month}${year}-${nextRefundNumber
-        .toString()
-        .padStart(2, '0')}`;
+     
 
       const data: Prisma.refundCreateInput = {
         refund_evidences: {
@@ -67,7 +65,7 @@ export class RefundService {
         date_of_filing: new Date(createRefundDto.date_of_filing),
         notes: createRefundDto.notes,
         reason: createRefundDto.reason,
-        approval_number: approvalNumber,
+        approval_number: createRefundDto?.approval_number ?? undefined,
         penalty_nominal: order.grand_total,
         voucher: createRefundDto.voucher ? createRefundDto.voucher : null,
         created_by: user_id,
