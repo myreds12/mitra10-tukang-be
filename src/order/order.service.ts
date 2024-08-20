@@ -254,6 +254,7 @@ export class OrderService {
         is_receipt_quotation,
         promotion,
         is_promotion,
+        history_status
       } = queryParams;
 
       const skip = page * take - take;
@@ -620,6 +621,13 @@ export class OrderService {
             },
           },
           order_history: {
+            ...(history_status ? {
+              where: {
+                status_id: {
+                  in: history_status,
+                },
+              }
+            } : undefined),
             select: {
               order_id: true,
               created_at: true,

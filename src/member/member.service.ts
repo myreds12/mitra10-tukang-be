@@ -89,6 +89,8 @@ export class MemberService {
         top_best,
         is_unpaid,
         is_paid,
+        order_date_from,
+        order_date_to
       } = query;
 
       const where: Prisma.membersWhereInput = {
@@ -138,15 +140,21 @@ export class MemberService {
           area: true,
           order: {
             where: {
-              // ...(date_from && date_to
-              //   ? {
-              //       created_at: {
-              //         gte: new Date(date_from),
-              //         lte: new Date(`${date_to}T23:59:59.000Z`),
-              //       },
-              //     }
-              //   : {}),
-              deleted_at: null,
+              AND: [
+                {
+                  deleted_at: null,
+                },
+                ...(order_date_from && order_date_to
+                  ? [
+                      {
+                        created_at: {
+                          gte: new Date(order_date_from),
+                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                        },
+                      },
+                    ]
+                  : []),
+              ],
             },
             include: {
               complaints: true,
@@ -170,9 +178,18 @@ export class MemberService {
         members = members.slice(0, take);
       }
 
+      let orderMemberOne = 0
+      let orderMemberMany = 0
       const dataMember = members.map((item) => {
+        console.log("ORDER MEMBER:" ,item.order);
+        
         const totalOrder = item.order.length;
 
+        if(item.order.length > 1){
+          orderMemberMany += 1
+        }else if(item.order.length === 1){
+          orderMemberOne += 1
+        }
         const totalUnpaid = item.order
           .filter((order) =>
             [
@@ -200,6 +217,8 @@ export class MemberService {
           ...item,
           total_order: totalOrder,
           total_unpaid: totalUnpaid,
+          // order_one: orderMemberOne,
+          // order_many: orderMemberMany,
           total_paid: totalPaid,
         };
       });
@@ -211,6 +230,8 @@ export class MemberService {
       return {
         data: dataMember,
         meta: {
+          totalOrderOne: orderMemberOne,
+          totalOrderMany: orderMemberMany,
           total: count,
           page,
           take,
@@ -447,6 +468,7 @@ export class MemberService {
         { header: 'Member Id', key: 'id', width: 20 },
         { header: 'Nama Toko', key: 'store_name', width: 35 },
         { header: 'Nama Member', key: 'full_name', width: 35 },
+        { header: 'Join Date', key: 'join_date', width: 35 },
         { header: 'Email Member', key: 'email', width: 35 },
         { header: 'Phone Number', key: 'phone_number', width: 35 },
         { header: 'Whatsapp Number', key: 'whatsapp_number', width: 35 },
@@ -477,6 +499,15 @@ export class MemberService {
           right: { style: 'thin' },
         };
       });
+      const formattedDateTime = (dateTime) =>
+        `${new Date(dateTime).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
 
       dataExcel.forEach((member) => {
         const row = worksheet.addRow({
@@ -485,6 +516,7 @@ export class MemberService {
             ? member.join_location_store.store_name
             : '',
           full_name: member.full_name ? member.full_name : '',
+          join_date: member.join_date ? formattedDateTime(member.join_date) : '',
           email: member.email ? member.email : '',
           phone_number: member.phone_number ? member.phone_number : '',
           whatsapp_number: member.whatsapp_number ? member.whatsapp_number : '',
@@ -1185,7 +1217,9 @@ export class MemberService {
         request_survey: order.request_survey
           ? formattedDateTime(order.request_survey)
           : 'Tanggal Belum Ditentukan',
-      request_work: order.request_work ? formattedDateTime(order.request_work) : 'Tanggal Belum Ditentukan',
+        request_work: order.request_work
+          ? formattedDateTime(order.request_work)
+          : 'Tanggal Belum Ditentukan',
         full_name: order.members ? order.members.full_name : 'N/a',
         phone_number:
           order?.members?.phone_number ??

@@ -202,6 +202,8 @@ export class VendorService {
         store_id,
         vendor_with_max_order,
         top_best,
+        order_date_from,
+        order_date_to,
       } = query;
       // ...(Boolean(top_best)
       //       ? {
@@ -259,7 +261,21 @@ export class VendorService {
         include: {
           orders: {
             where: {
-              deleted_at: null,
+              AND: [
+                {
+                  deleted_at: null,
+                },
+                ...(order_date_from && order_date_to
+                  ? [
+                      {
+                        created_at: {
+                          gte: new Date(order_date_from),
+                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                        },
+                      },
+                    ]
+                  : []),
+              ],
             },
             orderBy:{
               created_at: 'desc'
@@ -425,11 +441,22 @@ export class VendorService {
           }),
         };
       });
+      const dataVendor = vendor.map((item) => {
+        console.log("ORDER MEMBER:" ,item.orders);
+        
+        const totalOrder = item.orders.length;
+
+        
+        return {
+          ...item,
+          total_order: totalOrder,
+        };
+      });
   
       const total = await this.dbService.vendor.count({ where });
 
       return {
-        data: vendor,
+        data: dataVendor,
         meta: { total, takeTotal: vendor.length, page, take },
       };
     } catch (error) {

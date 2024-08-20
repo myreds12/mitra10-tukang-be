@@ -40,6 +40,10 @@ export class QueryParamsDto {
   vendor_id?: number = 0;
 
   @IsOptional()
+  @Type(() => Number)
+  invoice_id?: number = 0;
+
+  @IsOptional()
   @IsNotEmpty()
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
   @Type(() => Array<Number>)
@@ -50,6 +54,12 @@ export class QueryParamsDto {
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
   @Type(() => Array<Number>)
   status?: number[];
+
+  @IsOptional()
+  @IsNotEmpty()
+  @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
+  @Type(() => Array<Number>)
+  history_status?: number[];
 
   @IsOptional()
   @Type(() => Number)
@@ -70,6 +80,16 @@ export class QueryParamsDto {
   @IsNotEmpty()
   @IsDateString()
   date_to?: string;
+
+  @IsOptional()
+  @IsNotEmpty()
+  @IsDateString()
+  order_date_from?: string;
+
+  @IsOptional()
+  @IsNotEmpty()
+  @IsDateString()
+  order_date_to?: string;
 
   @IsOptional()
   @IsNotEmpty()

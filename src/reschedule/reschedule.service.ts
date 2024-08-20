@@ -420,7 +420,7 @@ export class RescheduleService {
       created_by: userId,
     }));
 
-    const rescheduleTukang: Prisma.reschedule_tukangUpsertWithWhereUniqueWithoutRescheduleInput[] =
+    const rescheduleTukang: Prisma.reschedule_tukangUpsertWithWhereUniqueWithoutRescheduleInput[] = updateRescheduleDto.reschedule_tukang ?
       updateRescheduleDto.reschedule_tukang.map((item) => {
         return {
           where: {
@@ -436,7 +436,7 @@ export class RescheduleService {
             updated_at: new Date(),
           },
         };
-      });
+      }) : [];
 
     const rescheduleData: Prisma.rescheduleUpdateArgs = {
       where: { id },
