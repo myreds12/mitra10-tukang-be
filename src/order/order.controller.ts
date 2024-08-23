@@ -28,7 +28,7 @@ import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bull';
@@ -52,6 +52,54 @@ export class OrderController {
   ) {}
   private readonly logger = new Logger(OrderController.name);
 
+  @Post('/receipt-public/:id')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'receipt_order', maxCount: 10 },
+      { name: 'quotation_receipt_customer', maxCount: 10 },
+    ]),
+  )
+  @UseGuards()
+  async updateReceiptPublic(
+    @Param('id') id: string,
+    @UploadedFiles() files: { [name: string]: Express.Multer.File[] },
+  ) {
+    try {
+      console.log(id);
+      console.log(files);
+      return await this.orderService.updateReceiptPublic(
+        +id,
+        files,
+      );
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  @Get('/export-excel-follow-up')
+  @UseGuards(JwtAuthGuard)
+  async orderExportExcelFollowUp(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.orderService.orderExportExcelFollowUp(res, query);
+  }
+
+  @Get('/export-pdf-follow-up')
+  @UseGuards(JwtAuthGuard)
+  async orderFollowUpExportPdf(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse) {
+      const data = await this.orderService.orderFollowUpPdf(res, query);
+      return data;
+  }
+
+  @Post('/follow-up')
+  @UseGuards(JwtAuthGuard)
+  async orderFollowUp(@Body() createOrderFollowUp: CreateOrderDto, @Req() req: UserRequest){
+    return await this.orderService.orderFollowUp(createOrderFollowUp, req.user);
+  }
 
   @Get('/quotation-pdf/:order_id')
   async downloadPdf(@Param('order_id', ParseIntPipe) order_id: number, @Res() res: IExpressResponse) {

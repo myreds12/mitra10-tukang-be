@@ -12,6 +12,7 @@ import { ApiBody, ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsEitherRequired } from '../../common/decorator/is-either-required.decorator';
 import { OrderDetailDto } from './order-details.dto';
+import { OrderFollowUpDto } from './order-follow-up.dto';
 
 export class CreateOrderDto {
   @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
@@ -19,7 +20,7 @@ export class CreateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  // @IsNumber()
   member_id: number;
 
   @ApiProperty()
@@ -28,12 +29,12 @@ export class CreateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  // @IsNumber()
   store_id: number;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
+  // @IsNumber()
   sales_id?: number;
 
   @ApiProperty()
@@ -43,8 +44,8 @@ export class CreateOrderDto {
   @ApiProperty()
   project_address: string;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsOptional()
+  // @IsString()
   project_number: string;
 
   @ApiProperty()
@@ -52,7 +53,7 @@ export class CreateOrderDto {
 
   @ApiProperty({ enum: PAYMENT_TYPE })
   @Transform(({ value }) => value.toLocaleLowerCase())
-  @IsEnum(PAYMENT_TYPE)
+  // @IsEnum(PAYMENT_TYPE)
   payment_type: PAYMENT_TYPE;
 
   @Type(() => OrderDetailDto)
@@ -74,4 +75,8 @@ export class CreateOrderDto {
 
   @IsOptional()
   notes?:string;
+
+  @Type(() => OrderFollowUpDto)
+  @ValidateNested({ each: true })
+  order_follow_up: OrderFollowUpDto[];
 }

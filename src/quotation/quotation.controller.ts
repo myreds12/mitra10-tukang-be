@@ -37,6 +37,21 @@ import { Queue } from 'bull';
 export class QuotationController {
   constructor(private readonly quotationService: QuotationService, @InjectQueue('email') private emailQueue: Queue) {}
 
+  @Get('/export-excel-follow-up')
+  @UseGuards(JwtAuthGuard)
+  async quotationExportExcelFollowUp(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.quotationService.quotationExportExcelFollowUp(res, query);
+  }
+
+  @Post('/follow-up')
+  @UseGuards(JwtAuthGuard)
+  async quotationFollowUp(@Body() createQuotationFollowUp: CreateQuotationDto, @Req() req: RequestWithUser){
+    return await this.quotationService.quotationFollowUp(createQuotationFollowUp, req.user);
+  }
+
   @Get('/send-mail/:id')
   @UseGuards(JwtAuthGuard)
   // @HttpStatusCode(HttpStatus.OK)

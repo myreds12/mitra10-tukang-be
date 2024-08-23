@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsOptional, ValidateNested } from 'class-validator';
 import QuotationDetails from './quotation-details';
+import { QuotationFollowUpDto } from './quotation-follow-up.dto';
 
 class QuotationFile {
   id?: number;
@@ -39,4 +40,8 @@ export class CreateQuotationDto {
   @Type(() => QuotationFile)
   @ValidateNested({ each: true })
   quotation_files_new: QuotationFile[];
+  
+  @Type(() => QuotationFollowUpDto)
+  @ValidateNested({ each: true })
+  quotation_follow_up: QuotationFollowUpDto[];
 }

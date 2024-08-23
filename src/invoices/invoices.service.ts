@@ -32,28 +32,32 @@ export class InvoicesService {
     try {
       const { id: user_id } = user;
 
+      console.log('Create Invoice DTO: ', createInvoiceDto);
+
       // Prepare evidences if available
       const evidences = invoice_evidences?.length
         ? invoice_evidences.map((item) => ({
-            evidence_location: item.filename,
-            created_by: user_id,
-          }))
+          evidence_location: item.filename,
+          created_by: user_id,
+        }))
         : [];
+
+      console.log('Evidences: ', evidences);
 
       const vendor = await this.dbService.vendor.findFirst({
         where: {
           id: createInvoiceDto.vendor_id,
         },
       });
-      console.log('vendor:', vendor);
+      console.log('Vendor: ', vendor);
 
       // Get provided order IDs
       const providedOrder = createInvoiceDto.invoice_details
         ? createInvoiceDto.invoice_details.map(({ order_id }) =>
-            Number(order_id),
-          )
+          Number(order_id),
+        )
         : [];
-      console.log('providedOrder:', providedOrder);
+      console.log('Provided Order IDs: ', providedOrder);
 
       if (providedOrder.length === 0) {
         this.logger.error('No Order Id Provided');
@@ -83,8 +87,15 @@ export class InvoicesService {
             },
           },
           quotation: {
+            where: {
+              deleted_at: null
+            },
             include: {
-              quotation_details: true,
+              quotation_details: {
+                where: {
+                  deleted_at: null
+                },
+              },
             },
           },
           work_orders: true,
@@ -96,6 +107,8 @@ export class InvoicesService {
         },
       });
 
+      console.log('Orders: ', orders);
+
       const refund = await this.dbService.refund.findMany({
         where: {
           orders: {
@@ -103,17 +116,20 @@ export class InvoicesService {
           },
           paid_status: 0,
           approval_number: {
-            not: null,
-          },
+            not: null
+          }
         },
       });
 
-      const penaltyNominal = refund?.reduce(
-        (acc, curr) => acc + Number(curr?.penalty_nominal),
-        0,
-      );
+      console.log('Refund: ', refund);
 
-      let totalGrandTotal = penaltyNominal != 0 ? penaltyNominal : 0;
+      const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
+
+      console.log('Penalty Nominal: ', penaltyNominal);
+
+
+
+      let totalGrandTotal = 0;
       let invoiceDetails = [];
 
       const formatDateToMonthYear = (dateString) => {
@@ -126,9 +142,9 @@ export class InvoicesService {
         createInvoiceDto.invoice_details?.forEach((detail) => {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
-              const totalMargin = vendor.nominal_survey
-                ? Number(vendor.nominal_survey)
-                : 75000;
+              const totalMargin = 75000;
+              // console.log("TOTAL MARGIN: ", totalMargin);
+
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -137,15 +153,7 @@ export class InvoicesService {
               });
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin =
-                Number(
-                  order?.quotation[0]?.quotation_details.reduce(
-                    (acc, curr) => acc + Number(curr.final_price),
-                    0,
-                  ),
-                ) -
-                (+vendor.margin_nominal / 100) *
-                  Number(order?.quotation[0]?.quotation_grand_total);
+              const totalMargin = Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : (((+vendor.margin_nominal) + Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)))));
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -155,12 +163,10 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-              const totalMargin = order.m_order_details
-                .filter((i) => i.item.type === 2)
-                .reduce(
-                  (acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0),
-                  0,
-                );
+              const totalMargin =
+                order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -171,10 +177,7 @@ export class InvoicesService {
             } else if (order.payment_type === 'gratis') {
               const totalMargin = order.m_order_details
                 .filter((i) => i.item.type === 1)
-                .reduce(
-                  (acc, curr) => acc + Number(curr.item.invoice_nominal),
-                  0,
-                );
+                .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -187,21 +190,23 @@ export class InvoicesService {
         });
       });
 
-      const pkpNominal =
-        vendor.type === 1 ? totalGrandTotal * (+vendor.pkp_nominal / 100) : 0;
-      const pphNominal = createInvoiceDto.pph_nominal
-        ? totalGrandTotal * (+createInvoiceDto.pph_nominal / 100)
-        : 0;
-      const ppnNominal = createInvoiceDto.ppn_nominal
-        ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100)
-        : 0;
+      console.log('Invoice Details: ', invoiceDetails);
 
-      const totalAmount =
-        totalGrandTotal + pkpNominal + pphNominal + ppnNominal;
+      const pkpNominal = vendor.type === 1
+        ? (totalGrandTotal * (+vendor.pkp_nominal / 100))
+        : 0;
+      const pphNominal = createInvoiceDto.pph_nominal ? totalGrandTotal * (+createInvoiceDto.pph_nominal / 100) : 0;
+      const ppnNominal = createInvoiceDto.ppn_nominal ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100) : 0;
+
+
+      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
       console.log('TOTAL AMOUNT: ', totalAmount);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
       const statusInvoice = totalAmount >= 5000000 ? 4 : 1;
+
+      console.log('Invoices Count: ', invoicesCount);
+      console.log('Status Invoice: ', statusInvoice);
 
       const data = {
         vendor: {
@@ -223,15 +228,17 @@ export class InvoicesService {
         },
         ...(invoiceDetails.length > 0
           ? {
-              invoice_details: {
-                createMany: {
-                  data: invoiceDetails,
-                },
+            invoice_details: {
+              createMany: {
+                data: invoiceDetails,
               },
-            }
+            },
+          }
           : {}),
         created_by: user_id,
       };
+
+      console.log('Data: ', data);
 
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
@@ -240,12 +247,12 @@ export class InvoicesService {
             orders: {
               vendor_id: vendor.id,
             },
-            paid_status: 0,
+            paid_status: 0
           },
           data: {
-            paid_status: 1,
-          },
-        }),
+            paid_status: 1
+          }
+        })
       ]);
 
       await this.invoiceLogs(invoices.id, invoices);
@@ -519,95 +526,65 @@ export class InvoicesService {
           },
           paid_status: 0,
           approval_number: {
-            not: null,
-          },
+            not: null
+          }
         },
       });
 
-      const penaltyNominal = refund?.reduce(
-        (acc, curr) => acc + Number(curr?.penalty_nominal),
-        0,
-      );
+      const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
-      let totalGrandTotal = penaltyNominal != 0 ? penaltyNominal : 0;
-      const invoiceDetails = updateInvoiceDto?.invoice_details
-        ? updateInvoiceDto?.invoice_details.map((item) => {
-            const order = orders.find((order) => order.id === item.order_id);
-            let total = 0;
+      let totalGrandTotal = 0;
+      const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details.map((item) => {
+        const order = orders.find((order) => order.id === item.order_id);
+        let total = 0;
 
-            if (order) {
-              if (order.payment_type === 'survey' && item.type === 1) {
-                total = invoice.vendor.nominal_survey
-                  ? Number(invoice.vendor.nominal_survey)
-                  : 75000;
-              } else if (order.payment_type === 'survey' && item.type === 2) {
-                total =
-                  Number(
-                    order?.quotation[0]?.quotation_details.reduce(
-                      (acc, curr) => acc + Number(curr.final_price),
-                      0,
-                    ),
-                  ) -
-                  (+invoice.vendor.margin_nominal / 100) *
-                    Number(order?.quotation[0]?.quotation_grand_total);
-              } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-                total = order.m_order_details
-                  .filter((i) => i.item.type === 2)
-                  .reduce(
-                    (acc, curr) =>
-                      acc + Number(curr?.item?.invoice_nominal || 0),
-                    0,
-                  );
-              } else if (order.payment_type === 'gratis') {
-                total = order.m_order_details
-                  .filter((i) => i.item.type === 1)
-                  .reduce(
-                    (acc, curr) => acc + Number(curr.item.invoice_nominal),
-                    0,
-                  );
-              }
-              totalGrandTotal += total || 0;
-            }
+        if (order) {
+          if (order.payment_type === 'survey' && item.type === 1) {
+            total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000;
+          } else if (order.payment_type === 'survey' && item.type === 2) {
+            total = Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)));
+          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+            total = order.m_order_details
+              .filter((i) => i.item.type === 2)
+              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0);
+          } else if (order.payment_type === 'gratis') {
+            total = order.m_order_details
+              .filter((i) => i.item.type === 1)
+              .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
+          }
+          totalGrandTotal += total || 0;
+        }
 
-            return {
-              where: { id: item.id ?? 0 },
-              create: {
-                order: { connect: { id: item.order_id } },
-                total,
-                type: item.type,
-                created_by: user_id,
-              },
-              update: {
-                order_id: item.order_id,
-                total,
-                updated_at: new Date(),
-                updated_by: user_id,
-              },
-            };
-          })
-        : undefined;
+        return {
+          where: { id: item.id ?? 0 },
+          create: {
+            order: { connect: { id: item.order_id } },
+            total,
+            type: item.type,
+            created_by: user_id,
+          },
+          update: {
+            order_id: item.order_id,
+            total,
+            updated_at: new Date(),
+            updated_by: user_id,
+          },
+        };
+      }) : undefined;
 
-      const pkpNominal =
-        invoice.vendor.type === 1
-          ? totalGrandTotal * (+invoice.vendor.pkp_nominal / 100)
-          : 0;
-      const pphNominal = updateInvoiceDto.pph_nominal
-        ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100)
-        : +invoice.pph_nominal;
-      const ppnNominal = updateInvoiceDto.ppn_nominal
-        ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100)
-        : +invoice.ppn_nominal;
+      const pkpNominal = invoice.vendor.type === 1
+        ? (totalGrandTotal * (+invoice.vendor.pkp_nominal / 100))
+        : 0;
+      const pphNominal = updateInvoiceDto.pph_nominal ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100) : +invoice.pph_nominal;
+      const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
 
-      const totalAmount =
-        totalGrandTotal + pkpNominal + pphNominal + ppnNominal;
+      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
 
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
-        ...(updateInvoiceDto.status === 5
-          ? {
-              invoice_to_finance_date: new Date(),
-            }
-          : undefined),
+        ...(updateInvoiceDto.status === 5 ? {
+          invoice_to_finance_date: new Date()
+        } : undefined),
         status: updateInvoiceDto.status,
         description: updateInvoiceDto?.description ?? undefined,
         notes: updateInvoiceDto?.notes ?? undefined,
@@ -623,8 +600,8 @@ export class InvoicesService {
 
       const detailsIds = updateInvoiceDto.invoice_details
         ? updateInvoiceDto.invoice_details
-            .filter((x) => Boolean(x?.id))
-            .map((item) => item?.id)
+          .filter((x) => Boolean(x?.id))
+          .map((item) => item?.id)
         : undefined;
 
       const [syncFiles, syncDetails, updatedInvoice] =
@@ -642,10 +619,10 @@ export class InvoicesService {
             where: {
               ...(detailsIds && detailsIds.length
                 ? {
-                    id: {
-                      notIn: detailsIds,
-                    },
-                  }
+                  id: {
+                    notIn: detailsIds,
+                  },
+                }
                 : undefined),
               invoice_id: invoice.id,
             },

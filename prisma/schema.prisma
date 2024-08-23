@@ -748,6 +748,25 @@ model orders {
   order_history   order_histories[]
   reschedule      reschedule[]
   invoice_details invoice_details[]
+  order_follow_up order_follow_up[]
+}
+
+model order_follow_up {
+  id          Int      @id @default(autoincrement())
+  order_id    Int
+  csi_survey  Boolean? @default(false)
+  csi_work    Boolean? @default(false)
+  description String?  @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  orders orders @relation(fields: [order_id], references: [id])
 }
 
 model order_histories {
@@ -915,14 +934,35 @@ model quotation {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  store             store               @relation(fields: [store_id], references: [id])
-  order             orders              @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  status            status              @relation(fields: [quotation_status], references: [id])
-  promotion         promotion?          @relation(fields: [promotion_id], references: [id])
-  quotation_files   quotation_files[]
-  quotation_details quotation_details[]
-  sales_incentive   sales_incentive[]
-  quotation_receipt quotation_receipt[]
+  store               store                 @relation(fields: [store_id], references: [id])
+  order               orders                @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status              status                @relation(fields: [quotation_status], references: [id])
+  promotion           promotion?            @relation(fields: [promotion_id], references: [id])
+  quotation_files     quotation_files[]
+  quotation_details   quotation_details[]
+  sales_incentive     sales_incentive[]
+  quotation_receipt   quotation_receipt[]
+  quotation_follow_up quotation_follow_up[]
+}
+
+model quotation_follow_up {
+  id           Int      @id @default(autoincrement())
+  quotation_id Int
+  follow_up_1  Boolean? @default(false)
+  follow_up_2  Boolean? @default(false)
+  follow_up_3  Boolean? @default(false)
+  description  String?  @db.Text()
+  is_done      Boolean  @default(false)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  quotation quotation @relation(fields: [quotation_id], references: [id])
 }
 
 model quotation_details {

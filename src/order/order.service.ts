@@ -254,7 +254,7 @@ export class OrderService {
         is_receipt_quotation,
         promotion,
         is_promotion,
-        history_status
+        history_status,
       } = queryParams;
 
       const skip = page * take - take;
@@ -499,6 +499,11 @@ export class OrderService {
           created_at: order_by,
         },
         include: {
+          order_follow_up: {
+            where: {
+              deleted_at: null
+            }
+          },
           members: {
             where: {
               deleted_at: null,
@@ -538,6 +543,9 @@ export class OrderService {
               deleted_at: null,
             },
             select: {
+              invoice_number: true,
+              total: true,
+              type: true,
               invoices: {
                 select: {
                   id: true,
@@ -621,13 +629,15 @@ export class OrderService {
             },
           },
           order_history: {
-            ...(history_status ? {
-              where: {
-                status_id: {
-                  in: history_status,
-                },
-              }
-            } : undefined),
+            ...(history_status
+              ? {
+                  where: {
+                    status_id: {
+                      in: history_status,
+                    },
+                  },
+                }
+              : undefined),
             select: {
               order_id: true,
               created_at: true,
@@ -813,6 +823,11 @@ export class OrderService {
           deleted_at: null,
         },
         include: {
+          order_follow_up: {
+            where: {
+              deleted_at: null
+            }
+          },
           members: true,
           sales: true,
           status: true,
@@ -966,6 +981,9 @@ export class OrderService {
               deleted_at: null,
             },
             select: {
+              invoice_number: true,
+              total: true,
+              type: true,
               invoices: {
                 select: {
                   id: true,
@@ -1435,7 +1453,15 @@ export class OrderService {
   }
 
   async remove(id: number) {
-    return `This action removes a #${id} order`;
+    return await this.dbService.orders.update({
+      where: {
+        id
+      },
+      data: {
+        deleted_at: new Date,
+        deleted_by: 3
+      }
+    });
   }
 
   async counter(id: number) {
@@ -1560,6 +1586,7 @@ export class OrderService {
       throw error;
     }
   }
+
   async setStatus(id: number, status_id: number, user: users) {
     try {
       const order = await this.findOne(id);
@@ -3841,5 +3868,1208 @@ export class OrderService {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);
+  }
+
+  async orderFollowUp(
+    orderFollowUpDto: CreateOrderDto,
+    user: users,
+  ) {
+    if (
+      !orderFollowUpDto.order_follow_up ||
+      !orderFollowUpDto.order_follow_up.length
+    ) {
+      throw new Error('Data follow-up tidak ditemukan.');
+    }
+
+    const { order_id } = orderFollowUpDto.order_follow_up[0];
+
+    const existingFollowUps = await this.dbService.order_follow_up.findMany({
+      where: { order_id },
+    });
+
+    const requestIds = new Set(
+      orderFollowUpDto.order_follow_up.map((item) => item.id),
+    );
+    const existingIds = new Set(existingFollowUps.map((item) => item.id));
+
+    const idsToDelete = [...existingIds].filter((id) => !requestIds.has(id));
+
+    const deleteOperations = idsToDelete.map((id) =>
+      this.dbService.order_follow_up.update({ where: { id }, data: {deleted_at: new Date, deleted_by: user.id} }),
+    );
+
+    const upsertOperations = orderFollowUpDto.order_follow_up.map(
+      (item) => {
+        if (!item.order_id) {
+          throw new NotFoundException(
+            `Quotation with ID ${item.order_id} not found!`,
+          );
+        }
+
+        return this.dbService.order_follow_up.upsert({
+          where: { id: item.id ?? 0 },
+          create: {
+            csi_survey: item.csi_work ? Boolean(item.csi_survey) : undefined,
+            csi_work: item.csi_work ? Boolean(item.csi_work) : undefined,
+            description: item.description,
+            orders: { connect: { id: item.order_id } },
+            created_by: user.id
+          },
+          update: {
+            csi_survey: item.csi_work ? Boolean(item.csi_survey) : undefined,
+            csi_work: item.csi_work ? Boolean(item.csi_work) : undefined,
+            description: item.description,
+            orders: { connect: { id: item.order_id } },
+            updated_at: new Date(),
+            updated_by: user.id
+          },
+        });
+      },
+    );
+
+    const  results = await this.dbService.$transaction([
+      ...deleteOperations,
+      ...upsertOperations,
+    ]);
+
+    return results;
+  }
+
+  async orderFollowUpPdf(res: Response, queryParams: QueryParamsDto) {
+    try {
+      const {
+        take,
+        page,
+        search,
+        status,
+        date_from,
+        date_to,
+        order_by,
+        sales_id,
+        payment_type,
+        store_id,
+        vendor_id,
+        work_order_status,
+        is_invoice,
+        is_active_warranty,
+        tukang_id,
+        is_expired_warranty,
+        is_used_warranty,
+        is_receipt,
+        is_receipt_quotation,
+        promotion,
+        is_promotion,
+      } = queryParams;
+
+      const skip = page * take - take;
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const where: Prisma.ordersWhereInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { members: { full_name: { contains: search } } },
+                  {
+                    store: {
+                      store_name: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    project_number: {
+                      contains: search,
+                    },
+                  },
+                  {
+                    vendor: {
+                      company_name: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    members: {
+                      phone_number: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(is_promotion
+            ? [
+              {
+                OR: [
+                  {
+                    AND: [
+                      {
+                        payment_type: 'gratis',
+                      },
+                      {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    AND: [
+                      {
+                        quotation: {
+                          some: {
+                            promotion_id: {
+                              not: null,
+                            },
+                          },
+                        },
+                      },
+                      {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
+          ...(status ? [{ status: { id: { in: status } } }] : []),
+          ...(work_order_status
+            ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
+            : []),
+          ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
+          store_id
+            ? {
+              store_id: {
+                in: store_id,
+              },
+            }
+            : undefined,
+          vendor_id
+            ? {
+              vendor: {
+                id: vendor_id,
+                deleted_at: null,
+              },
+            }
+            : undefined,
+          ...(date_from && date_to
+            ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+            : []),
+          ...(tukang_id
+            ? [
+              {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
+                    },
+                  },
+                },
+              },
+            ]
+            : []),
+          ...(Boolean(is_invoice)
+            ? [
+              {
+                invoice_details: {
+                  none: {
+                    deleted_at: null,
+                  },
+                },
+              },
+            ]
+            : []),
+          ...(Boolean(is_active_warranty)
+            ? [
+              {
+                work_orders: {
+                  work_order_status: {
+                    some: {
+                      status: {
+                        category: 'WORKEND',
+                      },
+                      created_at: {
+                        gte: sevenDaysAgo,
+                      },
+                    },
+                  },
+                },
+              },
+            ]
+            : []),
+          ...(Boolean(is_expired_warranty)
+            ? [
+              {
+                OR: [
+                  {
+                    work_orders: {
+                      work_order_status: {
+                        some: {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                          created_at: {
+                            lt: sevenDaysAgo,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  {
+                    complaints: {
+                      some: {
+                        deleted_at: null,
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(Boolean(is_receipt)
+            ? [
+              {
+                receipt_number: {
+                  not: null,
+                },
+              },
+            ]
+            : []),
+          ...(is_receipt_quotation
+            ? [
+              {
+                quotation: {
+                  some: {
+                    receipt_quotation: {
+                      not: null,
+                    },
+                  },
+                },
+              },
+            ]
+            : []),
+          ...(Boolean(promotion)
+            ? [
+              {
+                quotation: {
+                  some: {
+                    promotion_id: {
+                      not: null,
+                    },
+                  },
+                },
+              },
+            ]
+            : []),
+          ...(Boolean(is_used_warranty)
+            ? [{ complaints: { some: { deleted_at: null } } }]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+
+      const orders = await this.dbService.orders.findMany({
+        skip,
+        take: take > 0 ? take : undefined,
+        where,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          members: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              area_id: true,
+              area: true,
+              join_location: true,
+              member_number: true,
+              full_name: true,
+              email: true,
+              phone_number: true,
+              whatsapp_number: true,
+              address_1: true,
+              address_2: true,
+              zip_code: true,
+              rating: true,
+              join_date: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          order_follow_up: {
+            where: {
+              deleted_at: null,
+            }
+          },
+          sales: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              store_id: true,
+              user_id: true,
+              full_name: true,
+              nik: true,
+              bank_id: true,
+              bank_branch: true,
+              account_name: true,
+              is_active: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          store: {
+            select: {
+              id: true,
+              store_name: true,
+              address: true,
+              area_id: true,
+              area: true,
+              zip_code: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          status: {
+            select: {
+              id: true,
+              category: true,
+              description: true,
+            },
+          },
+
+          vendor: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              company_name: true,
+              address: true,
+              phone_number: true,
+              is_active: true,
+              work_orders: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+
+          m_order_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              order_id: true,
+              item_code: true,
+              item_name: true,
+              item_notes: true,
+              item_id: true,
+              item: {
+                select: {
+                  id: true,
+                  item_name: true,
+                  category: true,
+                  default_price: true,
+                  service_name: true,
+                },
+              },
+              sales: true,
+              unit_price: true,
+              quantity: true,
+              total: true,
+              comission: true,
+              created_by: true,
+              created_at: true,
+            },
+          },
+        },
+      });
+
+      const timestamp = new Date().toISOString().replace(/[-:.]/g, '');
+      const filename = `order-follow-up-${timestamp}.pdf`;
+  
+      const data = {
+        orders
+      };
+  
+      const buffer = await this.pdfService.generate('order-follow-up', data);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.send(buffer);
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+
+  }
+  
+  async orderExportExcelFollowUp(res: Response, queryParams: QueryParamsDto) {
+    const {
+      take,
+      page,
+      search,
+      status,
+      date_from,
+      date_to,
+      order_by,
+      sales_id,
+      payment_type,
+      store_id,
+      vendor_id,
+      work_order_status,
+      is_promotion,
+    } = queryParams;
+
+
+    const where: Prisma.ordersWhereInput = {
+      AND: [
+        ...(search
+          ? [
+            {
+              OR: [
+                { receipt_number: { contains: search } },
+                { members: { full_name: { contains: search } } },
+                {
+                  store: {
+                    store_name: {
+                      contains: search,
+                    },
+                  },
+                },
+                {
+                  project_number: {
+                    contains: search,
+                  },
+                },
+              ],
+            },
+          ]
+          : []),
+        ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
+        ...(status ? [{ status: { id: { in: status } } }] : []),
+        ...(work_order_status
+          ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
+          : []),
+        ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
+        store_id
+          ? {
+            store_id: {
+              in: store_id,
+            },
+          }
+          : undefined,
+        vendor_id
+          ? {
+            vendor: {
+              id: vendor_id,
+              deleted_at: null,
+            },
+          }
+          : undefined,
+        ...(date_from && date_to
+          ? [
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            },
+          ]
+          : []),
+        ...(is_promotion
+          ? [
+            {
+              OR: [
+                {
+                  AND: [
+                    {
+                      payment_type: 'gratis',
+                    },
+                    {
+                      status: {
+                        category: 'WORKEND',
+                      },
+                    },
+                  ],
+                },
+                {
+                  AND: [
+                    {
+                      quotation: {
+                        some: {
+                          promotion_id: {
+                            not: null,
+                          },
+                        },
+                      },
+                    },
+                    {
+                      status: {
+                        category: 'WORKEND',
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ]
+          : []),
+      ].filter(Boolean),
+      deleted_at: null,
+    };
+
+    const count = await this.dbService.orders.count({
+      where,
+    });
+
+    let dataExcel = [];
+    const takeData = 900;
+    let skipData = 0;
+    const countTake = Math.floor(count / takeData);
+
+    for (let i = 0; i < countTake; i++) {
+      skipData = i * takeData;
+      const data = await this.dbService.orders.findMany({
+        where,
+        skip: skipData,
+        take: takeData,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          order_follow_up: {
+            where: {
+              deleted_at: null
+            }
+          },
+          members: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              area_id: true,
+              area: true,
+              join_location: true,
+              member_number: true,
+              full_name: true,
+              email: true,
+              phone_number: true,
+              whatsapp_number: true,
+              address_1: true,
+              address_2: true,
+              zip_code: true,
+              rating: true,
+              join_date: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          sales: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              store_id: true,
+              user_id: true,
+              full_name: true,
+              nik: true,
+              bank_id: true,
+              bank_branch: true,
+              account_name: true,
+              is_active: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          store: {
+            select: {
+              id: true,
+              store_name: true,
+              address: true,
+              area_id: true,
+              area: true,
+              zip_code: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          status: {
+            select: {
+              id: true,
+              category: true,
+              description: true,
+            },
+          },
+
+          vendor: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              company_name: true,
+              address: true,
+              phone_number: true,
+              is_active: true,
+              work_orders: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+          m_order_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              order_id: true,
+              item_code: true,
+              item_name: true,
+              item_notes: true,
+              item_id: true,
+              item: {
+                select: {
+                  id: true,
+                  item_name: true,
+                  category: true,
+                  default_price: true,
+                  service_name: true,
+                },
+              },
+              sales: true,
+              unit_price: true,
+              quantity: true,
+              total: true,
+              comission: true,
+              created_by: true,
+              created_at: true,
+            },
+          },
+          quotation: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            include: {
+              promotion: true,
+              quotation_details: {
+                include: {
+                  item: true,
+                },
+              },
+              quotation_files: true,
+            },
+          },
+          work_orders: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              request_tukang: {
+                include: {
+                  tukang_to_request_tukang: true,
+                  tukang_to_replace_tukang: true,
+                },
+              },
+              vendor: true,
+              work_order_evidences: true,
+              work_order_tukang: {
+                include: {
+                  tukang: true,
+                },
+              },
+              work_order_status: {
+                include: {
+                  status: true,
+                  work_order_items: {
+                    include: {
+                      item: true,
+                    },
+                    where: {
+                      deleted_at: null,
+                      deleted_by: null,
+                    },
+                  },
+                },
+                orderBy: {
+                  created_at: 'desc',
+                },
+              },
+            },
+          },
+        },
+      });
+      dataExcel = [...dataExcel, ...data];
+    }
+
+    if (count != dataExcel.length) {
+      const data = await this.dbService.orders.findMany({
+        where,
+        skip: skipData,
+        take: takeData,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          order_follow_up: {
+            where: {
+              deleted_at: null
+            }
+          },
+          members: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              area_id: true,
+              area: true,
+              join_location: true,
+              member_number: true,
+              full_name: true,
+              email: true,
+              phone_number: true,
+              whatsapp_number: true,
+              address_1: true,
+              address_2: true,
+              zip_code: true,
+              rating: true,
+              join_date: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          invoice_details: {
+            where: {
+              deleted_at: null,
+            },
+            select: {
+              invoices: {
+                select: {
+                  id: true,
+                  status: true,
+                  total_amount: true,
+                  invoice_logs: true,
+                  description: true,
+                  vendor: true,
+                },
+              },
+            },
+          },
+          sales: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              store_id: true,
+              user_id: true,
+              full_name: true,
+              nik: true,
+              bank_id: true,
+              bank_branch: true,
+              account_name: true,
+              is_active: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          store: {
+            select: {
+              id: true,
+              store_name: true,
+              address: true,
+              area_id: true,
+              area: true,
+              zip_code: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          status: {
+            select: {
+              id: true,
+              category: true,
+              description: true,
+            },
+          },
+          complaints: true,
+          vendor: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              company_name: true,
+              address: true,
+              phone_number: true,
+              is_active: true,
+              work_orders: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+          order_history: {
+            select: {
+              order_id: true,
+              created_at: true,
+              status: {
+                select: {
+                  id: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
+          m_order_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              order_id: true,
+              item_code: true,
+              item_name: true,
+              item_notes: true,
+              item_id: true,
+              item: {
+                select: {
+                  id: true,
+                  item_name: true,
+                  category: true,
+                  default_price: true,
+                  service_name: true,
+                },
+              },
+              sales: true,
+              unit_price: true,
+              quantity: true,
+              total: true,
+              comission: true,
+              created_by: true,
+              created_at: true,
+            },
+          },
+          quotation: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            include: {
+              promotion: true,
+              quotation_details: {
+                include: {
+                  item: true,
+                },
+              },
+              quotation_files: true,
+            },
+          },
+          work_orders: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              request_tukang: {
+                include: {
+                  tukang_to_request_tukang: true,
+                  tukang_to_replace_tukang: true,
+                },
+              },
+              vendor: true,
+              work_order_evidences: true,
+              work_order_tukang: {
+                include: {
+                  tukang: true,
+                },
+              },
+              work_order_status: {
+                include: {
+                  status: true,
+                  work_order_items: {
+                    include: {
+                      item: true,
+                    },
+                    where: {
+                      deleted_at: null,
+                      deleted_by: null,
+                    },
+                  },
+                },
+                orderBy: {
+                  created_at: 'desc',
+                },
+              },
+            },
+          },
+          order_files: true,
+        },
+      });
+      dataExcel = [...dataExcel, ...data];
+    }
+    const workbook = new exceljs.Workbook();
+    const worksheet = workbook.addWorksheet('Data Order Follow Up', {
+      properties: {
+        tabColor: {
+          argb: 'FF00FF00',
+        },
+        outlineLevelCol: 2,
+        outlineLevelRow: 40,
+      },
+      pageSetup: {
+        margins: {
+          left: 90.7,
+          right: 0.7,
+          top: 0.75,
+          bottom: 0.75,
+          header: 0.3,
+          footer: 0.3,
+        },
+      },
+    });
+
+    // Set columns and headers
+    worksheet.columns = [
+      { header: 'Order ID', key: 'id', width: 15 },
+      { header: 'Tanggal Order', key: 'created_at', width: 20 },
+      { header: 'Nama Toko', key: 'store_name', width: 20 },
+      { header: 'Nama Customer', key: 'customer_name', width: 20 },
+      { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
+      { header: 'Status Order', key: 'status_description', width: 20 },
+      { header: 'CSI Survei', key: 'csi_survey', width: 25 },
+      { header: 'CSI Pengerjaan', key: 'csi_work', width: 25 },
+      { header: 'Catatan', key: 'notes', width: 30 },
+    ];
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '0000FF' },
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' },
+      };
+    });
+
+    dataExcel.forEach((order: any, index: number) => {
+      const rowIndex = index + 2;
+
+      worksheet.addRow({
+        id: order.id,
+        created_at: new Date(order.created_at).toLocaleDateString('id-ID', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        store_name: order.store.store_name,
+        customer_name: order.members.full_name,
+        item_name: order.m_order_details.map((item: any) => item.item_name).join(', '),
+        status_description: order.status.description,
+        csi_survey: order.order_follow_up[0]?.csi_survey === true ? 'YES' : 'NO' || '-',
+        csi_work: order.order_follow_up[0]?.csi_work === true ? 'YES' : 'NO' || '-',
+        notes: order.order_follow_up[0]?.description || '-',
+      });
+
+
+    });
+
+
+
+    const getFormattedDate = () => {
+      const now = new Date();
+      const tahun = now.getFullYear();
+      const bulan = String(now.getMonth() + 1).padStart(2, '0');
+      const tanggal = String(now.getDate()).padStart(2, '0');
+      return `${tahun}-${bulan}-${tanggal}`;
+    };
+
+    const createExcelFilePath = (baseName: string) => {
+      const folderPath = './storage/excel/order/follow-up';
+      if (!existsSync(folderPath)) {
+        mkdirSync(folderPath, { recursive: true });
+      }
+      const now = Date.now();
+
+      const excelFileName = `${baseName}-${now}.xlsx`;
+      return join(folderPath, excelFileName);
+    };
+
+    const writeWorkbookAndSendResponse = async (
+      workbook: exceljs.Workbook,
+      excelFilePath: string,
+      res: Response,
+    ) => {
+      await workbook.xlsx.writeFile(excelFilePath);
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=${basename(excelFilePath)}`,
+      );
+
+      const fileStream = createReadStream(excelFilePath);
+      fileStream.pipe(res);
+    };
+
+    const generateExcelFile = async (res) => {
+      const formattedDate = getFormattedDate();
+      const baseName = `DataOrderFollowUp-${formattedDate}`;
+      const excelFilePath = createExcelFilePath(baseName);
+
+      await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+    };
+
+    return await generateExcelFile(res);
+  }
+
+  async updateReceiptPublic(
+    id: number,
+    files: { [name: string]: Express.Multer.File[] }
+  ) {
+    try {
+      const { receipt_order, quotation_receipt_customer } = files;
+
+      const receiptQuotationFileCustomer = quotation_receipt_customer?.map((file) => ({
+        path: file.filename,
+        type: 3,
+      })) ?? [];
+
+      const receiptOrderFiles = receipt_order?.map((file) => ({
+        path: file.filename,
+        type: 'any', 
+      })) ?? [];
+
+      const order = await this.dbService.orders.findFirstOrThrow({
+        where: {
+          id,
+          deleted_at: null
+        },
+        include: {
+          quotation: {
+            where: {
+              deleted_at: null
+            }
+          }
+        }
+      });
+
+      const result = await this.dbService.$transaction([
+        ...(receiptOrderFiles ? [
+          this.dbService.orders.update({
+            where: { id },
+            data: {
+              order_files: receiptOrderFiles.length > 0 ? {
+                createMany: { data: receiptOrderFiles },
+              } : undefined,
+            },
+            include: {
+              quotation: true
+            }
+          })
+        ] : []),
+        ...(receiptQuotationFileCustomer ? [
+          this.dbService.quotation.update({
+            where: {
+              id: order?.quotation[0]?.id 
+            },
+            data: {
+              quotation_files: {
+                createMany: {
+                  data: receiptQuotationFileCustomer
+                }
+              }
+            }
+           })
+        ] : [])
+      ]);
+
+      return result;
+
+    } catch (error) {
+      console.error('Error updating receipt public:', error);
+      throw new Error('Failed to update receipt public');
+    }
   }
 }

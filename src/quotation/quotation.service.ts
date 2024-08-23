@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -15,6 +20,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
+import { QuotationFollowUpDto } from './dto/quotation-follow-up.dto';
 
 @Injectable()
 export class QuotationService {
@@ -294,21 +300,21 @@ export class QuotationService {
                 },
               ]
             : []),
-            ...(is_free
-              ? [
-                  {
-                    order: {
-                      m_order_details: {
-                        every: {
-                          item: {
-                            type: 1,
-                          },
+          ...(is_free
+            ? [
+                {
+                  order: {
+                    m_order_details: {
+                      every: {
+                        item: {
+                          type: 1,
                         },
                       },
                     },
                   },
-                ]
-              : []),
+                },
+              ]
+            : []),
           date_from && date_to
             ? {
                 created_at: {
@@ -354,6 +360,11 @@ export class QuotationService {
           created_at: order_by,
         },
         include: {
+          quotation_follow_up: {
+            where: {
+              deleted_at: null,
+            },
+          },
           quotation_receipt: true,
           promotion: true,
           quotation_files: true,
@@ -476,6 +487,11 @@ export class QuotationService {
           },
         },
         include: {
+          quotation_follow_up: {
+            where: {
+              deleted_at: null,
+            },
+          },
           promotion: true,
           quotation_files: true,
           quotation_receipt: true,
@@ -557,19 +573,19 @@ export class QuotationService {
       const { quotation_files, quotation_receipts } = files;
       const quotationForUpdate = await this.dbService.quotation.findFirst({
         where: { id },
-        include: { promotion: true },
+        include: { promotion: true, quotation_follow_up: true },
       });
 
       const promotion =
         updateQuotationDto.promotion_id || quotationForUpdate.promotion_id
           ? await this.dbService.promotion.findFirstOrThrow({
-              where: {
-                id:
-                  updateQuotationDto?.promotion_id ??
-                  quotationForUpdate?.promotion?.id,
-              },
-              include: { promotion_stores: { include: { store: true } } },
-            })
+            where: {
+              id:
+                updateQuotationDto?.promotion_id ??
+                quotationForUpdate?.promotion?.id,
+            },
+            include: { promotion_stores: { include: { store: true } } },
+          })
           : undefined;
 
       const quotationfiles =
@@ -591,16 +607,16 @@ export class QuotationService {
       const quotationReceipts: Prisma.quotation_receiptUpsertWithWhereUniqueWithoutQuotationInput[] =
         updateQuotationDto.receipts_quotation
           ? updateQuotationDto.receipts_quotation.map((item) => ({
-              where: { id: item?.id ?? 0 },
-              update: {
-                receipt_quotation: item?.receipt_quotation,
-                quotation_step: item?.quotation_step,
-              },
-              create: {
-                receipt_quotation: item?.receipt_quotation,
-                quotation_step: item?.quotation_step,
-              },
-            }))
+            where: { id: item?.id ?? 0 },
+            update: {
+              receipt_quotation: item?.receipt_quotation,
+              quotation_step: item?.quotation_step,
+            },
+            create: {
+              receipt_quotation: item?.receipt_quotation,
+              quotation_step: item?.quotation_step,
+            },
+          }))
           : [];
 
       let grandTotal = 0;
@@ -727,9 +743,11 @@ export class QuotationService {
         });
       }
 
-      const quoteOutStatus = await this.dbService.status.findFirst({
+      const quoteOutStatus = await this.dbService.status.findMany({
         where: {
-          category: 'QUOTEOUT',
+          category: {
+            in: ['QUOTEOUT', 'QUOTEPAID', 'QUOTEPAIDSTEPTHREE']
+          },
         },
       });
 
@@ -771,12 +789,12 @@ export class QuotationService {
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
               : undefined,
-            ...(updateQuotationDto?.quotation_status === quoteOutStatus.id
+            ...(updateQuotationDto?.quotation_status === quoteOutStatus.find((i) => i.category.toLocaleLowerCase().includes('quoteout')).id
               ? {
-                  quotation_validity: new Date(
-                    Date.now() + 7 * 24 * 60 * 60 * 1000,
-                  ),
-                }
+                quotation_validity: new Date(
+                  Date.now() + 8 * 24 * 60 * 60 * 1000,
+                ),
+              }
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
@@ -796,8 +814,24 @@ export class QuotationService {
             quotation_details: { upsert: updatedQuotationDetails },
             ...(quotationForUpdate.quotation_special === 1 &&
               quotationReceipts.length && {
-                quotation_receipt: { upsert: quotationReceipts },
-              }),
+              quotation_receipt: { upsert: quotationReceipts },
+            }),
+            ...(updateQuotationDto?.quotation_status === quoteOutStatus.find((i) => i.category.toLocaleLowerCase().includes('quotationpaid'||'quotationpaidstepthree')).id && quotationForUpdate.quotation_follow_up.length
+            ? {
+              quotation_follow_up: {
+                updateMany: {
+                  where: {
+                    quotation_id: id
+                  },
+                  data: {
+                    is_done: true,
+                    updated_at: new Date(),
+                    updated_by: user_id
+                  }
+                }
+              }
+            }
+            : undefined),
           },
           include: {
             status: true,
@@ -1037,6 +1071,73 @@ export class QuotationService {
     }
   }
 
+  async quotationFollowUp(
+    quotationFollowUpDto: CreateQuotationDto,
+    user: users,
+  ) {
+    if (
+      !quotationFollowUpDto.quotation_follow_up ||
+      !quotationFollowUpDto.quotation_follow_up.length
+    ) {
+      throw new Error('Data follow-up tidak ditemukan.');
+    }
+
+    const {  quotation_id } = quotationFollowUpDto.quotation_follow_up[0];
+
+    const existingFollowUps = await this.dbService.quotation_follow_up.findMany({
+      where: { quotation_id },
+    });
+
+    const requestIds = new Set(
+      quotationFollowUpDto.quotation_follow_up.map((item) => item.id),
+    );
+    const existingIds = new Set(existingFollowUps.map((item) => item.id));
+
+    const idsToDelete = [...existingIds].filter((id) => !requestIds.has(id));
+
+    const deleteOperations = idsToDelete.map((id) =>
+      this.dbService.quotation_follow_up.update({ where: { id }, data: { deleted_at: new Date, deleted_by: user.id } }),
+    );
+
+    const upsertOperations = quotationFollowUpDto.quotation_follow_up.map(
+      (item) => {
+        if (!item.quotation_id) {
+          throw new NotFoundException(
+            `Quotation with ID ${item.quotation_id} not found!`,
+          );
+        }
+
+        return this.dbService.quotation_follow_up.upsert({
+          where: { id: item.id ?? 0 },
+          create: {
+            follow_up_1: item.follow_up_1 ? Boolean(item.follow_up_1) : undefined,
+            follow_up_2: item.follow_up_2 ? Boolean(item.follow_up_2) : undefined,
+            follow_up_3: item.follow_up_3 ? Boolean(item.follow_up_3) : undefined,
+            description: item.description,
+            quotation: { connect: { id: item.quotation_id } },
+            created_by: user.id
+          },
+          update: {
+            follow_up_1: item.follow_up_1 ? Boolean(item.follow_up_1) : undefined,
+            follow_up_2: item.follow_up_2 ? Boolean(item.follow_up_2) : undefined,
+            follow_up_3: item.follow_up_3 ? Boolean(item.follow_up_3) : undefined,
+            description: item.description,
+            quotation: { connect: { id: item.quotation_id } },
+            updated_at: new Date(),
+            updated_by: user.id
+          },
+        });
+      },
+    );
+
+    const results = await this.dbService.$transaction([
+      ...deleteOperations,
+      ...upsertOperations,
+    ]);
+
+    return results;
+  }
+
   async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const {
@@ -1272,6 +1373,7 @@ export class QuotationService {
         { header: 'Status Quotation', key: 'status_quotation', width: 30 },
         { header: 'Status Payment', key: 'status_payment', width: 30 },
         { header: 'Nama Vendor', key: 'company_name', width: 30 },
+        { header: 'Tipe', key: 'item_type', width: 30 },
         { header: 'Jenis Jasa', key: 'item_name', width: 50 },
         { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
         { header: 'Unit Jasa', key: 'item_unit', width: 50 },
@@ -1316,146 +1418,97 @@ export class QuotationService {
       });
 
       dataExcel.forEach((quotation) => {
-        const itemName = quotation.quotation_details
-          ? Array.from(
-              new Set(
-                quotation.quotation_details.map((item) => item?.name || '-'),
-              ),
-            ).join(', ')
-          : '-';
+        quotation.quotation_details.forEach((detail) => {
+          const itemName = detail?.name ?? 'Item tidak ditulis';
 
-        const itemQuantity = quotation?.quotation_details?.some(
-          (item) => item.quantity && item,
-        )
-          ? Array.from(
-              new Set(
-                quotation.quotation_details.map(
-                  (item) => item?.quantity || '1',
+          const itemQuantity = detail?.quantity ?? '1';
+
+          const itemUnit = detail?.unit ?? 'Satuan tidak tersedia';
+
+          const statusPayment = quotation?.receipt_quotation
+            ? 'Dibayar'
+            : 'Belum Dibayar';
+
+          const tukangName = quotation?.order?.work_orders?.work_order_tukang
+            ? Array.from(
+                new Set(
+                  quotation.order.work_orders.work_order_tukang.map(
+                    (item) => item?.tukang?.full_name,
+                  ),
                 ),
-              ),
-            ).join(', ')
-          : 'Quantity tidak tersedia';
+              ).join(', ')
+            : 'Tukang belum ditugaskan';
 
-        const itemUnit = quotation?.quotation_details?.some(
-          (item) => item.unit && item,
-        )
-          ? Array.from(
-              new Set(
-                quotation.quotation_details.map(
-                  (item) => item?.unit || 'Satuan tidak ditulis',
-                ),
-              ),
-            ).join(', ')
-          : 'Satuan tidak tersedia';
+          const workOrderItems =
+            detail?.work_order_items?.name ?? 'Material tidak ditambahkan';
 
-        const statusPayment = quotation?.receipt_quotation
-          ? 'Dibayar'
-          : 'Belum Dibayar';
+          const workOrderItemsQuantity =
+            detail?.work_order_items?.quantity ?? 'Material tidak ditambahkan';
 
-        const tukangName = quotation?.order?.work_orders?.work_order_tukang
-          ? Array.from(
-              new Set(
-                quotation.order.work_orders.work_order_tukang.map(
-                  (item) => item?.tukang?.full_name,
-                ),
-              ),
-            ).join(', ')
-          : 'Tukang belum ditugaskan';
+          const workOrderItemsUnit =
+            detail?.work_order_items?.unit ?? 'Material tidak ditambahkan';
 
-        const workOrderItems = quotation?.quotation_details?.some(
-          (item) => item.work_order_items_id && item,
-        )
-          ? Array.from(
-              new Set(
-                quotation.quotation_details.map(
-                  (item) => item?.work_order_items?.name || '-',
-                ),
-              ),
-            ).join(', ')
-          : 'Material tidak ditambahkan';
+          const formattedDateTime = (dateTime) =>
+            `${new Date(dateTime).toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}, ${dateTime.toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`;
+          const grandTotal = Number(quotation.quotation_grand_total);
+          const formattedGrandTotal = !isNaN(grandTotal)
+            ? Number(grandTotal)
+            : 0;
+          const row = worksheet.addRow({
+            id: quotation.id,
+            order_id: quotation.order ? quotation.order.id : '-',
+            store_name: quotation.order.store
+              ? quotation.order.store.store_name
+              : 'N/a',
+            created_at: formattedDateTime(quotation.created_at),
+            member_name: quotation.order.members
+              ? quotation.order.members.full_name
+              : '-',
+            status_quotation: quotation.status.description,
+            status_payment: statusPayment,
+            company_name: quotation?.order?.vendor
+              ? quotation.order.vendor.company_name
+              : 'N/a',
+            item_name: itemName,
+            item_quantity: itemQuantity,
+            item_unit: itemUnit,
+            work_order_items: workOrderItems,
+            work_order_items_quantity: workOrderItemsQuantity,
+            work_order_items_unit: workOrderItemsUnit,
+            quotation_date: quotation.quotation_date
+              ? formattedDateTime(quotation.quotation_date)
+              : 'Tanggal quotation belum ditentukan',
+            quotation_validity: quotation.quotation_validity
+              ? formattedDateTime(quotation.quotation_validity)
+              : 'Tanggal validasi quotation belum ditentukan',
+            sales_name: quotation.order.sales
+              ? quotation.order.sales.full_name
+              : 'N/a',
+            tukang_name: tukangName,
+            promotion_tier: quotation.promotion.name,
+            promotion_nominal:
+              quotation?.promotion?.promotion_type === 1
+                ? `${quotation.promotion.promotion}%`
+                : quotation?.promotion?.promotion,
+            grand_total: formattedGrandTotal,
+          });
 
-        const workOrderItemsQuantity = quotation?.quotation_details?.some(
-          (item) => item.work_order_items_id && item,
-        )
-          ? Array.from(
-              new Set(
-                quotation.quotation_details.map(
-                  (item) => item?.work_order_items?.quantity || '-',
-                ),
-              ),
-            ).join(', ')
-          : 'Material tidak ditambahkan';
-
-        const workOrderItemsUnit = quotation?.quotation_details?.some(
-          (item) => item.work_order_items_id && item,
-        )
-          ? Array.from(
-              new Set(
-                quotation.quotation_details.map(
-                  (item) => item?.work_order_items?.unit || '-',
-                ),
-              ),
-            ).join(', ')
-          : 'Material tidak ditambahkan';
-
-        const formattedDateTime = (dateTime) =>
-          `${new Date(dateTime).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}, ${dateTime.toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`;
-        const grandTotal = Number(quotation.quotation_grand_total);
-        const formattedGrandTotal = !isNaN(grandTotal) ? Number(grandTotal) : 0;
-        const row = worksheet.addRow({
-          id: quotation.id,
-          order_id: quotation.order ? quotation.order.id : '-',
-          store_name: quotation.order.store
-            ? quotation.order.store.store_name
-            : 'N/a',
-          created_at: formattedDateTime(quotation.created_at),
-          member_name: quotation.order.members
-            ? quotation.order.members.full_name
-            : '-',
-          status_quotation: quotation.status.description,
-          status_payment: statusPayment,
-          company_name: quotation?.order?.vendor
-            ? quotation.order.vendor.company_name
-            : 'N/a',
-          item_name: itemName,
-          item_quantity: itemQuantity,
-          item_unit: itemUnit,
-          work_order_items: workOrderItems,
-          work_order_items_quantity: workOrderItemsQuantity,
-          work_order_items_unit: workOrderItemsUnit,
-          quotation_date: quotation.quotation_date
-            ? formattedDateTime(quotation.quotation_date)
-            : 'Tanggal quotation belum ditentukan',
-          quotation_validity: quotation.quotation_validity
-            ? formattedDateTime(quotation.quotation_validity)
-            : 'Tanggal validasi quotation belum ditentukan',
-          sales_name: quotation.order.sales
-            ? quotation.order.sales.full_name
-            : 'N/a',
-          tukang_name: tukangName,
-          promotion_tier: quotation.promotion.name,
-          promotion_nominal:
-            quotation?.promotion?.promotion_type === 1
-              ? `${quotation.promotion.promotion}%`
-              : quotation?.promotion?.promotion,
-          grand_total: formattedGrandTotal,
-        });
-
-        row.eachCell((cell) => {
-          cell.alignment = { vertical: 'middle', horizontal: 'left' };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' },
-          };
+          row.eachCell((cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' },
+            };
+          });
         });
       });
 
@@ -1629,5 +1682,349 @@ export class QuotationService {
       where: { id: order_id },
       data: { grand_total_comission: salesIncentive.nominal },
     });
+  }
+
+  async quotationExportExcelFollowUp(res: Response, queryParams: QueryParamsDto) {
+    const {
+      take,
+      page,
+      search,
+      status,
+      date_from,
+      date_to,
+      order_by,
+      is_free,
+      promotion,
+    } = queryParams;
+    const where: Prisma.quotationWhereInput = {
+      AND: [
+        status ? { status: { id: { in: status } } } : null,
+        ...(search
+          ? [
+            {
+              OR: [
+                {
+                  order: { vendor: { company_name: { contains: search } } },
+                },
+                { store: { store_name: { contains: search } } },
+                { quotation_number: { contains: search } },
+              ],
+            },
+          ]
+          : []),
+        ...(is_free
+          ? [
+            {
+              order: {
+                m_order_details: {
+                  every: {
+                    item: {
+                      type: 1,
+                    },
+                  },
+                },
+              },
+            },
+          ]
+          : []),
+        ...(Boolean(promotion)
+          ? [
+            {
+              promotion_id: {
+                not: null,
+              },
+            },
+          ]
+          : []),
+        date_from && date_to
+          ? {
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
+          : null,
+      ].filter((condition) => Boolean(condition)),
+      deleted_at: null,
+      order: {
+        deleted_at: null,
+      },
+      quotation_follow_up: {
+        every: {
+          is_done: false
+        }
+      }
+    };
+    const count = await this.dbService.quotation.count({
+      where,
+    });
+
+    let dataExcel = [];
+    const takeData = 900;
+    let skipData = 0;
+    const countTake = Math.floor(count / takeData);
+
+    for (let i = 0; i < countTake; i++) {
+      skipData = i * takeData;
+      const data = await this.dbService.quotation.findMany({
+        where,
+        skip: skipData,
+        take: takeData,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          quotation_follow_up: {
+            where: {
+              deleted_at: null
+            }
+          },
+          promotion: true,
+          quotation_files: true,
+          quotation_details: {
+            include: {
+              category: true,
+              work_order_items: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+            },
+          },
+          order: {
+            include: {
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+              vendor: true,
+              store: true,
+              members: true,
+              sales: true,
+              work_orders: {
+                include: {
+                  work_order_evidences: true,
+                  work_order_status: {
+                    where: {
+                      deleted_at: null,
+                    },
+                    include: {
+                      work_order_items: {
+                        orderBy: {
+                          id: 'desc',
+                        },
+                      },
+                    },
+                  },
+                  work_order_tukang: {
+                    include: {
+                      tukang: true,
+                    },
+                  },
+                  status: true,
+                },
+              },
+            },
+          },
+          status: true,
+          store: true,
+        },
+      });
+      dataExcel = [...dataExcel, ...data];
+    }
+
+    if (count != dataExcel.length) {
+      const data = await this.dbService.quotation.findMany({
+        where,
+        skip: skipData,
+        take: takeData,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          quotation_follow_up: {
+            where: {
+              deleted_at: null
+            }
+          },
+          promotion: true,
+          quotation_files: true,
+          quotation_details: {
+            include: {
+              category: true,
+              work_order_items: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+            },
+          },
+          order: {
+            include: {
+              m_order_details: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+              vendor: true,
+              store: true,
+              members: true,
+              sales: true,
+              work_orders: {
+                include: {
+                  work_order_evidences: true,
+                  work_order_status: {
+                    where: {
+                      deleted_at: null,
+                    },
+                    include: {
+                      work_order_items: {
+                        orderBy: {
+                          id: 'desc',
+                        },
+                      },
+                    },
+                  },
+                  work_order_tukang: {
+                    include: {
+                      tukang: true,
+                    },
+                  },
+                  status: true,
+                },
+              },
+            },
+          },
+          status: true,
+          store: true,
+        },
+      });
+      dataExcel = [...dataExcel, ...data];
+    }
+    const workbook = new exceljs.Workbook();
+    const worksheet = workbook.addWorksheet('Data Quotation', {
+      properties: {
+        tabColor: {
+          argb: '097969',
+        },
+        outlineLevelCol: 2,
+        outlineLevelRow: 40,
+      },
+      pageSetup: {
+        margins: {
+          left: 90.7,
+          right: 0.7,
+          top: 0.75,
+          bottom: 0.75,
+          header: 0.3,
+          footer: 0.3,
+        },
+      },
+    });
+
+    // Set columns and headers
+    worksheet.columns = [
+      { header: 'Quotation ID', key: 'id', width: 15 },
+      { header: 'Order ID', key: 'order_id', width: 15 },
+      { header: 'Nama Customer', key: 'customer_name', width: 20 },
+      { header: 'Tanggal Order', key: 'created_at', width: 20 },
+      { header: 'Nama Toko', key: 'store_name', width: 20 },
+      { header: 'Nama Vendor', key: 'vendor_name', width: 30 },
+      { header: 'Status Quotation', key: 'status_description', width: 20 },
+      { header: 'Quotation Grand Total', key: 'grand_total', width: 20 },
+      { header: 'FU1', key: 'fu1', width: 25 },
+      { header: 'FU2', key: 'fu2', width: 25 },
+      { header: 'FU3', key: 'fu3', width: 25 },
+    ];
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '0000FF' },
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' },
+      };
+    });
+
+    dataExcel.forEach((quotation: any, index: number) => {
+
+      worksheet.addRow({
+        id: quotation.id,
+        order_id: quotation.order.id,
+        customer_name: quotation.order.members.full_name,
+        created_at: new Date(quotation.created_at).toLocaleDateString('id-ID', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        store_name: quotation.store.store_name,
+        vendor_name: quotation?.order?.vendor
+        ? quotation.order.vendor.company_name
+        : 'N/a',
+        status_description: quotation.status.description,
+        grand_total: quotation.grand_total,
+        fu1: quotation.quotation_follow_up[0]?.follow_up_1 === true ? 'YES' : 'NO' || '-',
+        fu2: quotation.quotation_follow_up[0]?.follow_up_2 === true ? 'YES' : 'NO' || '-',
+        fu3: quotation.quotation_follow_up[0]?.follow_up_3 === true ? 'YES' : 'NO' || '-',
+      });
+    });
+
+
+
+    const getFormattedDate = () => {
+      const now = new Date();
+      const tahun = now.getFullYear();
+      const bulan = String(now.getMonth() + 1).padStart(2, '0');
+      const tanggal = String(now.getDate()).padStart(2, '0');
+      return `${tahun}-${bulan}-${tanggal}`;
+    };
+
+    const createExcelFilePath = (baseName: string) => {
+      const folderPath = './storage/excel/order/follow-up';
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+      }
+      const now = Date.now();
+
+      const excelFileName = `${baseName}-${now}.xlsx`;
+      return path.join(folderPath, excelFileName);
+    };
+
+    const writeWorkbookAndSendResponse = async (
+      workbook: exceljs.Workbook,
+      excelFilePath: string,
+      res: Response,
+    ) => {
+      await workbook.xlsx.writeFile(excelFilePath);
+
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=${path.basename(excelFilePath)}`,
+      );
+
+      const fileStream = fs.createReadStream(excelFilePath);
+      fileStream.pipe(res);
+    };
+
+    const generateExcelFile = async (res) => {
+      const formattedDate = getFormattedDate();
+      const baseName = `DataOrderFollowUp-${formattedDate}`;
+      const excelFilePath = createExcelFilePath(baseName);
+
+      await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+    };
+
+    return await generateExcelFile(res);
   }
 }

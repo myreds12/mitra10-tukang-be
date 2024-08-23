@@ -550,6 +550,7 @@ export class ReportsService {
           ? new Date(order.created_at).toLocaleString('id-ID', {
               hour: '2-digit',
               hour12: false,
+              timeZone: 'UTC'
             })
           : isSameMonth
           ? new Date(order.created_at).toLocaleString('id-ID', {
