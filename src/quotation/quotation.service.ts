@@ -195,7 +195,7 @@ export class QuotationService {
             id: status.id,
           },
         },
-        description: createQuotationDto.description,
+        description: createQuotationDto?.description ?? '',
         quotation_number: createQuotationDto.quotation_number,
         quotation_date: new Date(createQuotationDto.quotation_date),
         quotation_disc: createQuotationDto?.quotation_disc,
@@ -743,10 +743,16 @@ export class QuotationService {
         });
       }
 
-      const quoteOutStatus = await this.dbService.status.findMany({
+      const quoteOutStatus = await this.dbService.status.findFirst({
+        where: {
+          category: 'QUOTEOUT',
+        },
+      });
+
+      const quotePaid = await this.dbService.status.findMany({
         where: {
           category: {
-            in: ['QUOTEOUT', 'QUOTEPAID', 'QUOTEPAIDSTEPTHREE']
+            in: ['QUOTATIONPAID', 'QUOTATIONPAIDSTEPTHREE']
           },
         },
       });
@@ -789,7 +795,7 @@ export class QuotationService {
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
               : undefined,
-            ...(updateQuotationDto?.quotation_status === quoteOutStatus.find((i) => i.category.toLocaleLowerCase().includes('quoteout')).id
+            ...(updateQuotationDto?.quotation_status === quoteOutStatus.id
               ? {
                 quotation_validity: new Date(
                   Date.now() + 8 * 24 * 60 * 60 * 1000,
@@ -816,7 +822,7 @@ export class QuotationService {
               quotationReceipts.length && {
               quotation_receipt: { upsert: quotationReceipts },
             }),
-            ...(updateQuotationDto?.quotation_status === quoteOutStatus.find((i) => i.category.toLocaleLowerCase().includes('quotationpaid'||'quotationpaidstepthree')).id && quotationForUpdate.quotation_follow_up.length
+            ...(updateQuotationDto?.quotation_status === quotePaid.find((x) => x.category === 'QUOTATIONPAIDSTEPTHREE' || 'QUOTATIONPAID').id && quotationForUpdate.quotation_follow_up.length
             ? {
               quotation_follow_up: {
                 updateMany: {
