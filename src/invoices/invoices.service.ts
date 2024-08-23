@@ -199,7 +199,7 @@ export class InvoicesService {
       const ppnNominal = createInvoiceDto.ppn_nominal ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100) : 0;
 
 
-      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
+      const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
       console.log('TOTAL AMOUNT: ', totalAmount);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
@@ -578,7 +578,7 @@ export class InvoicesService {
       const pphNominal = updateInvoiceDto.pph_nominal ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100) : +invoice.pph_nominal;
       const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
 
-      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
+      const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
 
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
