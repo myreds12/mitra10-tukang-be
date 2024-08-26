@@ -533,7 +533,7 @@ export class InvoicesService {
 
       const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
-      let totalGrandTotal = 0;
+      let totalGrandTotal = updateInvoiceDto?.invoice_details ? 0 : invoice.invoice_details.reduce((acc, curr) => acc + Number(curr.total), 0);
       const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details.map((item) => {
         const order = orders.find((order) => order.id === item.order_id);
         let total = 0;
@@ -575,10 +575,11 @@ export class InvoicesService {
       const pkpNominal = invoice.vendor.type === 1
         ? (totalGrandTotal * (+invoice.vendor.pkp_nominal / 100))
         : 0;
+      
       const pphNominal = updateInvoiceDto.pph_nominal ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100) : +invoice.pph_nominal;
       const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
 
-      const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : 0);
+      const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
 
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
