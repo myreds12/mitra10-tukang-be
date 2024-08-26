@@ -17,7 +17,7 @@ export class MemberService {
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
       const email_check = await this.dbService.members.findFirst({
-        where: { email: createMemberDto.email, join_location: createMemberDto.join_location },
+        where: { email: createMemberDto.email, join_location: createMemberDto.join_location, deleted_at: null },
       });;
 
       // const phone_wa_check = await this.dbService.members.findFirst({
