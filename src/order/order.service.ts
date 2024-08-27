@@ -502,6 +502,9 @@ export class OrderService {
           order_follow_up: {
             where: {
               deleted_at: null
+            },
+            orderBy: {
+              created_at: 'desc'
             }
           },
           members: {
@@ -826,6 +829,9 @@ export class OrderService {
           order_follow_up: {
             where: {
               deleted_at: null
+            },
+            orderBy: {
+              created_at: 'desc'
             }
           },
           members: true,

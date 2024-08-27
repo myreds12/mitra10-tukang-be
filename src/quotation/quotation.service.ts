@@ -364,9 +364,16 @@ export class QuotationService {
             where: {
               deleted_at: null,
             },
+            orderBy: {
+              created_at: 'desc'
+            }
           },
           quotation_receipt: true,
-          promotion: true,
+          promotion: {
+            where: {
+              deleted_at: null
+            },
+          },
           quotation_files: true,
           quotation_details: {
             include: {
@@ -491,6 +498,9 @@ export class QuotationService {
             where: {
               deleted_at: null,
             },
+            orderBy: {
+              created_at: 'desc'
+            }
           },
           promotion: true,
           quotation_files: true,
