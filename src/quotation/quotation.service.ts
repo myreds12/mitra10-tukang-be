@@ -1318,6 +1318,9 @@ export class QuotationService {
             },
             order: {
               include: {
+                order_history: {
+
+                },
                 m_order_details: {
                   where: {
                     deleted_at: null,
@@ -1389,6 +1392,7 @@ export class QuotationService {
         { header: 'Status Quotation', key: 'status_quotation', width: 30 },
         { header: 'Status Payment', key: 'status_payment', width: 30 },
         { header: 'Nama Vendor', key: 'company_name', width: 30 },
+        { header: 'Request Pengerjaan', key: 'request_work', width: 30 },
         { header: 'Tipe', key: 'item_type', width: 30 },
         { header: 'Jenis Jasa', key: 'item_name', width: 50 },
         { header: 'Quantity Jasa', key: 'item_quantity', width: 50 },
@@ -1434,17 +1438,28 @@ export class QuotationService {
       });
 
       dataExcel.forEach((quotation) => {
+        let isFirstDetail = true;
         quotation.quotation_details.forEach((detail) => {
-          const itemName = detail?.name ?? 'Item tidak ditulis';
-
-          const itemQuantity = detail?.quantity ?? '1';
-
-          const itemUnit = detail?.unit ?? 'Satuan tidak tersedia';
-
+          const stepDescription =
+            detail.work_step && detail.work_step > 0
+              ? `(TAHAP ${detail.work_step})`
+              : '';
+      
+          const specialStepDescription =
+            quotation.quotation_special === 1
+              ? stepDescription
+              : '';
+      
+          const itemName = `${detail?.name ?? 'Item tidak ditulis'} ${stepDescription}`;
+      
+          const itemQuantity = `${detail?.quantity ?? '1'} ${specialStepDescription}`;
+      
+          const itemUnit = `${detail?.unit ?? 'Satuan tidak tersedia'} ${specialStepDescription}`;
+      
           const statusPayment = quotation?.receipt_quotation
             ? 'Dibayar'
             : 'Belum Dibayar';
-
+      
           const tukangName = quotation?.order?.work_orders?.work_order_tukang
             ? Array.from(
                 new Set(
@@ -1454,16 +1469,16 @@ export class QuotationService {
                 ),
               ).join(', ')
             : 'Tukang belum ditugaskan';
-
+      
           const workOrderItems =
             detail?.work_order_items?.name ?? 'Material tidak ditambahkan';
-
+      
           const workOrderItemsQuantity =
             detail?.work_order_items?.quantity ?? 'Material tidak ditambahkan';
-
+      
           const workOrderItemsUnit =
             detail?.work_order_items?.unit ?? 'Material tidak ditambahkan';
-
+      
           const formattedDateTime = (dateTime) =>
             `${new Date(dateTime).toLocaleDateString('id-ID', {
               day: 'numeric',
@@ -1473,10 +1488,12 @@ export class QuotationService {
               hour: '2-digit',
               minute: '2-digit',
             })}`;
+      
           const grandTotal = Number(quotation.quotation_grand_total);
           const formattedGrandTotal = !isNaN(grandTotal)
             ? Number(grandTotal)
             : 0;
+      
           const row = worksheet.addRow({
             id: quotation.id,
             order_id: quotation.order ? quotation.order.id : '-',
@@ -1492,6 +1509,8 @@ export class QuotationService {
             company_name: quotation?.order?.vendor
               ? quotation.order.vendor.company_name
               : 'N/a',
+            request_work: quotation.order.request_work ? formattedDateTime(quotation.order.request_work) : 'Tanggal Belum Ditentukan',
+            item_type: detail.item_type === 2 ? 'JASA' : 'MATERIAL', 
             item_name: itemName,
             item_quantity: itemQuantity,
             item_unit: itemUnit,
@@ -1508,14 +1527,14 @@ export class QuotationService {
               ? quotation.order.sales.full_name
               : 'N/a',
             tukang_name: tukangName,
-            promotion_tier: quotation.promotion.name,
+            promotion_tier: quotation.promotion ? quotation.promotion.name : '-',
             promotion_nominal:
               quotation?.promotion?.promotion_type === 1
-                ? `${quotation.promotion.promotion}%`
-                : quotation?.promotion?.promotion,
-            grand_total: formattedGrandTotal,
+                ? `${Number(quotation.promotion.promotion)}%`
+                : Number(quotation?.promotion?.promotion),
+            grand_total: isFirstDetail ? formattedGrandTotal : 0,
           });
-
+      
           row.eachCell((cell) => {
             cell.alignment = { vertical: 'middle', horizontal: 'left' };
             cell.border = {
@@ -1525,8 +1544,10 @@ export class QuotationService {
               right: { style: 'thin' },
             };
           });
+          isFirstDetail = false;
         });
       });
+      
 
       const totalGrandTotal = dataExcel.reduce(
         (total, order) => total + Number(order.quotation_grand_total),
@@ -1542,6 +1563,8 @@ export class QuotationService {
         status_quotation: '',
         status_payment: '',
         company_name: '',
+        request_work: '',
+        item_type: '',
         item_name: '',
         item_quantity: '',
         item_unit: '',
@@ -1570,7 +1593,7 @@ export class QuotationService {
 
       totalRow.height = 30;
 
-      worksheet.mergeCells(`A${totalRow.number}:T${totalRow.number}`);
+      worksheet.mergeCells(`A${totalRow.number}:V${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
