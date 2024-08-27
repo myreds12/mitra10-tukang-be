@@ -3905,19 +3905,22 @@ export class OrderService {
             `Quotation with ID ${item.order_id} not found!`,
           );
         }
+        console.log("BOOLEAN CSI SURVEY", Boolean(item.csi_survey));
+        console.log("BOOLEAN CSI WORK", Boolean(item.csi_work));
+        
 
         return this.dbService.order_follow_up.upsert({
-          where: { id: item.id ?? 0 },
+          where: { id: item.id ?? 0, deleted_at: null },
           create: {
-            csi_survey: item.csi_work ? Boolean(item.csi_survey) : undefined,
-            csi_work: item.csi_work ? Boolean(item.csi_work) : undefined,
+            csi_survey: Boolean(item.csi_survey),
+            csi_work: Boolean(item.csi_work),
             description: item.description,
             orders: { connect: { id: item.order_id } },
             created_by: user.id
           },
           update: {
-            csi_survey: item.csi_work ? Boolean(item.csi_survey) : undefined,
-            csi_work: item.csi_work ? Boolean(item.csi_work) : undefined,
+            csi_survey: Boolean(item.csi_survey),
+            csi_work:  Boolean(item.csi_work),
             description: item.description,
             orders: { connect: { id: item.order_id } },
             updated_at: new Date(),

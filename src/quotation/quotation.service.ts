@@ -1114,19 +1114,19 @@ export class QuotationService {
         }
 
         return this.dbService.quotation_follow_up.upsert({
-          where: { id: item.id ?? 0 },
+          where: { id: item.id ?? 0, deleted_at: null },
           create: {
-            follow_up_1: item.follow_up_1 ? Boolean(item.follow_up_1) : undefined,
-            follow_up_2: item.follow_up_2 ? Boolean(item.follow_up_2) : undefined,
-            follow_up_3: item.follow_up_3 ? Boolean(item.follow_up_3) : undefined,
+            follow_up_1: Boolean(item.follow_up_1),
+            follow_up_2: Boolean(item.follow_up_2),
+            follow_up_3: Boolean(item.follow_up_3),
             description: item.description,
             quotation: { connect: { id: item.quotation_id } },
             created_by: user.id
           },
           update: {
-            follow_up_1: item.follow_up_1 ? Boolean(item.follow_up_1) : undefined,
-            follow_up_2: item.follow_up_2 ? Boolean(item.follow_up_2) : undefined,
-            follow_up_3: item.follow_up_3 ? Boolean(item.follow_up_3) : undefined,
+            follow_up_1: Boolean(item.follow_up_1),
+            follow_up_2: Boolean(item.follow_up_2),
+            follow_up_3: Boolean(item.follow_up_3),
             description: item.description,
             quotation: { connect: { id: item.quotation_id } },
             updated_at: new Date(),
