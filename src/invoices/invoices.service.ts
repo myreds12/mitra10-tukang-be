@@ -19,6 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { InvoiceStatus } from './dto/invoice-status.enum';
 import { MarginType } from 'src/quotation/dto/margin-type.enum';
+import { create } from 'html-pdf';
 
 @Injectable()
 export class InvoicesService {
@@ -214,9 +215,9 @@ export class InvoicesService {
             id: vendor.id,
           },
         },
-        pkp_nominal: pkpNominal,
-        pph_nominal: pphNominal,
-        ppn_nominal: ppnNominal,
+        pkp_nominal: vendor.pkp_nominal ? vendor.pkp_nominal : 0,
+        pph_nominal: createInvoiceDto.pph_nominal ? createInvoiceDto.pph_nominal : 0,
+        ppn_nominal: createInvoiceDto.ppn_nominal ? createInvoiceDto.ppn_nominal : 0,
         penalty_nominal: penaltyNominal,
         status: statusInvoice,
         invoice_number: `${invoicesCount}`,
@@ -591,9 +592,8 @@ export class InvoicesService {
         notes: updateInvoiceDto?.notes ?? undefined,
         invoice_evidence: { createMany: { data: evidences } },
         invoice_details: { upsert: invoiceDetails },
-        pkp_nominal: pkpNominal,
-        pph_nominal: pphNominal,
-        ppn_nominal: ppnNominal,
+        pph_nominal: updateInvoiceDto.pph_nominal ?? undefined,
+        ppn_nominal: updateInvoiceDto.ppn_nominal ?? undefined,
         penalty_nominal: penaltyNominal,
         updated_at: new Date(),
         updated_by: user_id,
