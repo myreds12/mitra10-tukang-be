@@ -215,9 +215,9 @@ export class InvoicesService {
             id: vendor.id,
           },
         },
-        pkp_nominal: vendor.pkp_nominal ? vendor.pkp_nominal : 0,
-        pph_nominal: createInvoiceDto.pph_nominal ? createInvoiceDto.pph_nominal : 0,
-        ppn_nominal: createInvoiceDto.ppn_nominal ? createInvoiceDto.ppn_nominal : 0,
+        pkp_nominal: pkpNominal,
+        pph_nominal: pphNominal,
+        ppn_nominal: ppnNominal,
         penalty_nominal: penaltyNominal,
         status: statusInvoice,
         invoice_number: `${invoicesCount}`,
@@ -487,8 +487,8 @@ export class InvoicesService {
         },
       });
 
+
       if (!invoice) {
-        this.logger.error('Invoice id not found');
         throw new NotFoundException(`Invoice not found with id ${id}`);
       }
 
@@ -534,7 +534,10 @@ export class InvoicesService {
 
       const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
-      let totalGrandTotal = updateInvoiceDto?.invoice_details ? 0 : invoice.invoice_details.reduce((acc, curr) => acc + Number(curr.total), 0);
+      let totalGrandTotal = invoice.invoice_details.reduce((acc, curr) => {
+        return acc + Number(curr.total);
+      }, 0);
+
       const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details.map((item) => {
         const order = orders.find((order) => order.id === item.order_id);
         let total = 0;
@@ -576,9 +579,10 @@ export class InvoicesService {
       const pkpNominal = invoice.vendor.type === 1
         ? (totalGrandTotal * (+invoice.vendor.pkp_nominal / 100))
         : 0;
-      
+
       const pphNominal = updateInvoiceDto.pph_nominal ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100) : +invoice.pph_nominal;
       const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
+
 
       const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
 
@@ -592,8 +596,8 @@ export class InvoicesService {
         notes: updateInvoiceDto?.notes ?? undefined,
         invoice_evidence: { createMany: { data: evidences } },
         invoice_details: { upsert: invoiceDetails },
-        pph_nominal: updateInvoiceDto.pph_nominal ?? undefined,
-        ppn_nominal: updateInvoiceDto.ppn_nominal ?? undefined,
+        pph_nominal: pphNominal,
+        ppn_nominal: ppnNominal,
         penalty_nominal: penaltyNominal,
         updated_at: new Date(),
         updated_by: user_id,
@@ -605,42 +609,45 @@ export class InvoicesService {
           .map((item) => item?.id)
         : undefined;
 
-      const [syncFiles, syncDetails, updatedInvoice] =
+      const updatedInvoice =
         await this.dbService.$transaction([
-          this.dbService.invoice_evidence.updateMany({
-            where: {
-              invoice_id: invoice.id,
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            },
-          }),
-          this.dbService.invoice_details.updateMany({
-            where: {
-              ...(detailsIds && detailsIds.length
-                ? {
-                  id: {
-                    notIn: detailsIds,
-                  },
-                }
-                : undefined),
-              invoice_id: invoice.id,
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            },
-          }),
           this.dbService.invoices.update({
             where: { id: invoice.id },
             data: invoiceData,
           }),
+          ...(invoice_evidences ? [this.dbService.invoice_evidence.updateMany({
+            where: {
+              invoice_id: invoice.id,
+            },
+            data: {
+              deleted_at: new Date(),
+              deleted_by: user_id,
+            },
+          })] : []),
+          ...(updateInvoiceDto.invoice_details ? [
+            this.dbService.invoice_details.updateMany({
+              where: {
+                ...(detailsIds && detailsIds.length
+                  ? {
+                    id: {
+                      notIn: detailsIds,
+                    },
+                  }
+                  : undefined),
+                invoice_id: invoice.id,
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            }),
+          ] : []),
+
         ]);
 
-      this.logger.log(`Invoice successfully updated with ID ${invoice.id}`);
+
       await this.invoiceLogs(invoice.id, updatedInvoice);
-      return updatedInvoice;
+      return updatedInvoice[0];
     } catch (error) {
       console.error('Error updating invoice:', error);
       throw error;
