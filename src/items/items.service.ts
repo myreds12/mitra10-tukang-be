@@ -176,6 +176,24 @@ export class ItemsService {
                   },
                 ]
               : []),
+          ...(store_id ? [
+              {
+                prices: {
+                  some:{
+                    is_active: true,
+                    deleted_at: null,
+                    price_stores: {
+                      some: {
+                        deleted_at: null,
+                        store_id: {
+                          in: store_id
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+          ] : []),
           ...(item_type ? [{ type: { equals: item_type } }] : []),
           ...(is_free === 1
             ? [
