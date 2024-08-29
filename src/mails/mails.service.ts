@@ -866,6 +866,16 @@ export class MailsService {
     }
   }
 
+  async removeHistory(id: number, user_id: number) {
+    const emailMessage = await this.dbService.mail_logs.delete({
+      where: {
+        id,
+      }
+    });
+
+    return emailMessage;
+  }
+
   private async countMailLogs(moduleId: number, template_id: number) {
     return await this.dbService.mail_logs.count({
       where: {

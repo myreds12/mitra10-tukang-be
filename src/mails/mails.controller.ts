@@ -25,6 +25,14 @@ import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
 export class MailsController {
   constructor(private readonly mailsService: MailsService) {}
 
+  @Delete('/history/:id')
+  @HttpCode(200)
+  async removeHistory(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const user = req.user;
+    const data = await this.mailsService.remove(+id, user.id);
+    return data;
+  }
+  
   @Get('types')
   getAvailableTypes() {
     const enumKeys = Object.keys(MailType).filter((key) => isNaN(Number(key)));
