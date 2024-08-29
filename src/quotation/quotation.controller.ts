@@ -31,11 +31,13 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 import { HttpStatusCode } from 'axios';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { MailType } from 'src/mails/enum/mail_type.enum';
 
 @UseGuards(JwtAuthGuard)
 @Controller('quotation')
 export class QuotationController {
-  constructor(private readonly quotationService: QuotationService, @InjectQueue('email') private emailQueue: Queue) {}
+  constructor(private readonly quotationService: QuotationService, @InjectQueue('email') private emailQueue: Queue, private readonly dbService: PrismaService) {}
 
   @Get('/export-excel-follow-up')
   @UseGuards(JwtAuthGuard)
@@ -68,8 +70,14 @@ export class QuotationController {
       //   order,
       // );
 
+      const message = await this.dbService.email_messages.findFirst({
+        where: {
+          email_type: MailType.QUOTATIONS
+        }
+      })
+
       await this.emailQueue.add('send-quotation-mail', {
-        module_id: data.id, template_id: 3
+        module_id: data.id, template_id: message.id
       });
     } catch (error) {
       throw error;
