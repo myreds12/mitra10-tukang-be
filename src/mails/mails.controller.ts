@@ -29,10 +29,10 @@ export class MailsController {
   @HttpCode(200)
   async removeHistory(@Req() req: RequestWithUser, @Param('id') id: string) {
     const user = req.user;
-    const data = await this.mailsService.remove(+id, user.id);
+    const data = await this.mailsService.removeHistory(+id, user.id);
     return data;
   }
-  
+
   @Get('types')
   getAvailableTypes() {
     const enumKeys = Object.keys(MailType).filter((key) => isNaN(Number(key)));
