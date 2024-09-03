@@ -195,6 +195,7 @@ export class ReportsService {
         orderWork: [
           'WORKREQ',
           'WORKSTART',
+          'TUKANGWORK',
           'WORKREQSTEPTWO',
           'WORKREQSTEPTHREE',
           'WORKREQSTEPONE',
