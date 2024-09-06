@@ -405,9 +405,10 @@ export class SalesService {
           },
         };
       }
+        console.log('IS ACTIVE : ', Boolean(updateSalesDto.is_active));
       const salesData: Prisma.salesUpdateInput = {
         // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
-        ...(sales.users
+        ...(sales.users && updateSalesDto.username && updateSalesDto.password
           ? {
               users: {
                 update: {
@@ -423,7 +424,7 @@ export class SalesService {
                 },
               },
             }
-          : {
+          : updateSalesDto.username && updateSalesDto.password ? {
             users: {
               create: {
                 username: updateSalesDto?.username
@@ -435,7 +436,7 @@ export class SalesService {
               role_id: SALES_ROLES.id,
               }
             }
-            }),
+            } : undefined),
         ...(updateSalesDto.bank_id
           ? {
               bank: {
@@ -464,6 +465,7 @@ export class SalesService {
         sales_categories: {
           upsert: upsertSalesCategories,
         },
+        is_active: Boolean(updateSalesDto.is_active),
         updated_at: new Date(),
         updated_by: user_id,
       };

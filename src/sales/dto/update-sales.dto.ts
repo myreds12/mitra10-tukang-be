@@ -19,6 +19,13 @@ export class UpdateSalesDto {
   store_id?: number;
 
   @ApiProperty()
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  
+  is_active?: number;
+
+  @ApiProperty()
   @IsInt()
   @IsOptional()
   bank_id?: number;
