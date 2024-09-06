@@ -587,7 +587,7 @@ export class QuotationService {
       });
 
       const promotion =
-        updateQuotationDto.promotion_id || quotationForUpdate.promotion_id
+        updateQuotationDto.promotion_id || quotationForUpdate.promotion_id && updateQuotationDto.promotion_id != 0
           ? await this.dbService.promotion.findFirstOrThrow({
             where: {
               id:
@@ -785,7 +785,7 @@ export class QuotationService {
         this.dbService.quotation.update({
           where: { id },
           data: {
-            ...(promotion && {
+            ...(promotion ? {
               promotion: {
                 connect: {
                   id:
@@ -793,7 +793,11 @@ export class QuotationService {
                     quotationForUpdate.promotion_id,
                 },
               },
-            }),
+            } : updateQuotationDto.promotion_id === 0 ? {
+              promotion: {
+                disconnect: true
+              }
+            } : undefined),
             status: updateQuotationDto?.quotation_status && {
               connect: { id: updateQuotationDto.quotation_status },
             },
