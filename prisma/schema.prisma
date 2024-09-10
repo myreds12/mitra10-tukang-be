@@ -209,6 +209,24 @@ model menus {
   permissions permissions[]
 }
 
+model notifications {
+  id        Int  @id @default(autoincrement())
+  user_id   Int
+  module_id Int?
+  status    Int?
+
+  data        String?  @db.Text()
+  module_type String?  @db.Text()
+  action      String?  @db.Text()
+  is_read     Boolean @default(false)
+
+  created_at DateTime @default(now()) @db.DateTime()
+
+  created_by Int?
+
+  user users @relation(fields: [user_id], references: [id])
+}
+
 model positions {
   id            Int        @id @default(autoincrement())
   position_name String     @db.VarChar(50)
@@ -296,12 +314,13 @@ model users {
   updated_by Int?
   deleted_by Int?
 
-  roles      roles        @relation(fields: [role_id], references: [id])
-  store      store[]
-  sales      sales[]
-  employee   employee?
-  tukang     tukang[]
-  pic_vendor pic_vendor[]
+  roles             roles               @relation(fields: [role_id], references: [id])
+  store             store[]
+  sales             sales[]
+  employee          employee?
+  tukang            tukang[]
+  pic_vendor        pic_vendor[]
+  notifications     notifications[]
 }
 
 model sales {
@@ -755,6 +774,7 @@ model order_follow_up {
   id          Int      @id @default(autoincrement())
   order_id    Int
   csi_survey  Boolean? @default(false)
+  is_done     Boolean? @default(false)
   csi_work    Boolean? @default(false)
   description String?  @db.Text()
 

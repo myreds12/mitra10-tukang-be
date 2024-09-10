@@ -7,10 +7,11 @@ import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
 import { OrderService } from 'src/order/order.service';
 import { StatusService } from 'src/status/status.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [ComplaintsController],
-  providers: [ComplaintsService],
+  providers: [ComplaintsService, NotificationsService],
   imports: [
     OrderModule,
     MulterModule.register({

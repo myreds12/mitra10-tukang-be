@@ -9,12 +9,15 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { OrderService } from 'src/order/order.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class RefundService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
+    private notifService : NotificationsService
   ) {}
   async create(
     createRefundDto: CreateRefundDto,
@@ -74,6 +77,20 @@ export class RefundService {
       const refund = await this.dbService.refund.create({
         data,
       });
+
+      if(refund){
+        await this.notifService.create(
+          {
+            quotation: refund,
+            orders: order,
+          },
+          "CREATE",
+          refund.created_by,
+          moduleTypeNotification.REFUND,
+          refund.id,
+          refund.refund_status
+        );
+      }
 
       await this.orderService.setStatus(
         order.id,
@@ -399,7 +416,7 @@ export class RefundService {
           ? updateRefundDto.penalty_nominal
           : null,
         voucher: updateRefundDto.voucher ? updateRefundDto.voucher : null,
-        created_by: user_id,
+        updated_by: user_id,
       };
       const refund = await this.dbService.refund.update({
         where: {
@@ -409,7 +426,24 @@ export class RefundService {
           ...refundConn,
           ...refundData,
         },
+        include: {
+          orders: true
+        }
       });
+
+      if(refund){
+        await this.notifService.create(
+          {
+            refund: refund,
+            orders: refund.orders,
+          },
+          "UPDATE",
+          refund.updated_by,
+          moduleTypeNotification.REFUND,
+          refund.id,
+          refund.refund_status
+        );
+      }
 
       return refund;
     } catch (error) {

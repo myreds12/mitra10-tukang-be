@@ -15,12 +15,15 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { x } from 'pdfkit';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
+    private notifService : NotificationsService
   ) {}
   async create(
     createComplaintDto: CreateComplaintDto,
@@ -109,8 +112,22 @@ export class ComplaintsService {
       const [complaint] = await this.dbService.$transaction([
         this.dbService.complaints.create({
           data: complaintData,
+          include: {orders: true}
         }),
       ]);
+      if(complaint){
+        await this.notifService.create(
+          {
+            complaint: complaint,
+            orders: complaint.orders,
+          },
+          "CREATE",
+          complaint.created_by,
+          moduleTypeNotification.COMPLAINT,
+          complaint.id,
+          complaint.complaint_status
+        );
+      }
 
       await this.orderService.setStatus(
         complaint.order_id,
@@ -698,8 +715,25 @@ export class ComplaintsService {
                 }
               : undefined),
           },
+          include: {
+            orders: true
+          }
         }),
       ]);
+
+      if(complaint){
+        await this.notifService.create(
+          {
+            complaint: complaint,
+            orders: complaint.orders,
+          },
+          "UPDATE",
+          complaint.updated_by,
+          moduleTypeNotification.COMPLAINT,
+          complaint.id,
+          complaint.complaint_status
+        );
+      }
 
       if (statusOrderUpdate && complaintApprovedByHoStatus === updateComplaintDto.complaint_status) {
         try {

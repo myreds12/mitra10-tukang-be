@@ -11,12 +11,15 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { log } from 'console';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class RescheduleService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
+    private notifService: NotificationsService
   ) {}
 
   async create(
@@ -102,6 +105,20 @@ export class RescheduleService {
         },
       },
     });
+    
+    if(reschedule){
+      await this.notifService.create(
+        {
+          reschedule: reschedule,
+          orders: order,
+        },
+        "UPDATE",
+        reschedule.created_by,
+        moduleTypeNotification.RESCHEDULE,
+        reschedule.id,
+        reschedule.status_id
+      );
+    }
 
     await this.orderService.setStatus(order.id, rescheduleDto.status_id, user);
 
@@ -482,6 +499,20 @@ export class RescheduleService {
         }),
         this.dbService.reschedule.update(rescheduleData),
       ]);
+
+      if(updatedReschedule){
+        await this.notifService.create(
+          {
+            reschedule: updatedReschedule,
+            orders: order,
+          },
+          "UPDATE",
+          updatedReschedule.updated_by,
+          moduleTypeNotification.RESCHEDULE,
+          updatedReschedule.id,
+          updatedReschedule.status_id
+        );
+      }
 
     await this.orderService.setStatus(
       order.id,

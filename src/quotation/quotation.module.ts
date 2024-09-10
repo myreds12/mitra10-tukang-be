@@ -8,15 +8,17 @@ import { OrderService } from 'src/order/order.service';
 import { OrderModule } from 'src/order/order.module';
 import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [QuotationController],
-  providers: [QuotationService, StatusService],
+  providers: [QuotationService, StatusService, NotificationsService],
   imports: [
     OrderModule,
     MulterModule.register({
       storage: diskStorage({
         destination: './uploads/quotation',
+
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

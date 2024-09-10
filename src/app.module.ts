@@ -47,6 +47,7 @@ import { PromotionModule } from './promotion/promotion.module';
 import { IncentiveModule } from './incentive/incentive.module';
 import { PdfService } from './common/service/pdf.service';
 import { CommonModule } from './common/common.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -148,6 +149,7 @@ import { CommonModule } from './common/common.module';
     }),
     PromotionModule,
     IncentiveModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

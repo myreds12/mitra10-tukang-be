@@ -16,12 +16,15 @@ import { createReadStream, existsSync, mkdirSync } from 'fs';
 import { MailType } from 'src/mails/enum/mail_type.enum';
 import { basename, join } from 'path';
 import { PdfService } from 'src/common/service/pdf.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class OrderService {
   constructor(
     private readonly dbService: PrismaService,
     private pdfService: PdfService,
+    private notifService : NotificationsService
   ) {}
 
   async create(
@@ -96,13 +99,13 @@ export class OrderService {
           created_by: user_id,
         }));
 
-      const ROLE_STATUS = await this.dbService.status.findFirst({
-        where: {
-          category: {
-            equals: role_id === STORE_ROLES.id ? 'picklist' : 'book',
-          },
-        },
-      });
+      // const ROLE_STATUS = await this.dbService.status.findFirst({
+      //   where: {
+      //     category: {
+      //       equals: role_id === STORE_ROLES.id ? 'picklist' : 'book',
+      //     },
+      //   },
+      // });
 
       if (createOrderDto.payment_type === PAYMENT_TYPE.SURVEY) {
         grand_total += 99000;
@@ -214,6 +217,10 @@ export class OrderService {
           },
         }),
       ]);
+
+      if(order){
+        await this.notifService.create({orders: order}, "CREATE", order.created_by, moduleTypeNotification.ORDER, order.id, order.project_status_id)
+      }
 
       await this.addHistory(
         order.id,
@@ -1443,6 +1450,10 @@ export class OrderService {
           }),
         ]);
 
+        if(orderQuery){
+          await this.notifService.create({orders: orderQuery}, "UPDATE", orderQuery.updated_by, moduleTypeNotification.ORDER, orderQuery.id, orderQuery.project_status_id)
+        }
+
       await this.addHistory(
         orderQuery.id,
         orderQuery.project_status_id,
@@ -1622,6 +1633,9 @@ export class OrderService {
           data: orderData,
         }),
       ]);
+      if(orders){
+        await this.notifService.create({orders: orders}, "UPDATE", user.id, moduleTypeNotification.ORDER, orders.id, orders.project_status_id)
+      }
 
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
 

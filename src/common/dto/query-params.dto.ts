@@ -272,4 +272,9 @@ export class QueryParamsDto {
   @Type(() => Number)
   // @IsIn([0, 1])
   is_used_warranty?: number;
+  
+  @IsOptional()
+  @Type(() => Number)
+  // @IsIn([0, 1])
+  is_read?: number;
 }

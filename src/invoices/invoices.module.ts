@@ -4,10 +4,11 @@ import { InvoicesController } from './invoices.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [InvoicesController],
-  providers: [InvoicesService],
+  providers: [InvoicesService, NotificationsService],
   imports: [
     MulterModule.register({
       storage: diskStorage({
@@ -21,4 +22,4 @@ import { extname } from 'path';
     }),
   ],
 })
-export class InvoicesModule {}
+export class InvoicesModule { }

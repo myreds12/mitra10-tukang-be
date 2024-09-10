@@ -6,10 +6,11 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { BullModule } from '@nestjs/bull';
 import { PdfService } from 'src/common/service/pdf.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [OrderController],
-  providers: [OrderService, PdfService],
+  providers: [OrderService, PdfService, NotificationsService],
   exports: [OrderService],
   imports: [
     MulterModule.register({

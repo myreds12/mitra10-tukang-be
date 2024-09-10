@@ -5,10 +5,11 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [RefundController],
-  providers: [RefundService],
+  providers: [RefundService, NotificationsService],
   imports: [
     OrderModule,
     MulterModule.register({

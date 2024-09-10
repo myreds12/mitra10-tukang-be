@@ -21,12 +21,15 @@ import * as path from 'path';
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 import { QuotationFollowUpDto } from './dto/quotation-follow-up.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class QuotationService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
+    private notifService : NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
@@ -231,6 +234,20 @@ export class QuotationService {
       const [quotation] = await this.dbService.$transaction([
         this.dbService.quotation.create(quotation_options),
       ]);
+
+      if(quotation){
+        await this.notifService.create(
+          {
+            quotation: quotation,
+            orders: order,
+          },
+          "CREATE",
+          quotation.created_by,
+          moduleTypeNotification.QUOTATION,
+          quotation.id,
+          quotation.quotation_status
+        );
+      }
 
       await this.orderService.setStatus(
         quotation.order_id,
@@ -860,6 +877,20 @@ export class QuotationService {
         }),
       ]);
 
+      if(quotation){
+        await this.notifService.create(
+          {
+            quotation: quotation,
+            orders: quotation.order,
+          },
+          "UPDATE",
+          quotation.updated_by,
+          moduleTypeNotification.QUOTATION,
+          quotation.id,
+          quotation.quotation_status
+        );
+      }
+
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
         where: { quotation_id: id },
       });
@@ -1034,6 +1065,9 @@ export class QuotationService {
             lte: new Date(),
           },
         },
+        include: {
+          order: true
+        }
       });
 
       console.log(`Found ${quotations.length} quotations`);
@@ -1061,6 +1095,8 @@ export class QuotationService {
         quotations.map(async (quotation) => {
           const { id } = quotation;
           console.log(`Updating quotation ${id}`);
+      
+          // Update the quotation status
           await this.dbService.quotation.update({
             where: {
               id,
@@ -1070,17 +1106,68 @@ export class QuotationService {
             },
           });
 
+          await this.notifService.create(
+            {
+              quotation: quotation,
+              orders: quotation.order,
+            },
+            "UPDATE",
+            quotation.updated_by,
+            moduleTypeNotification.QUOTATION,
+            quotation.id,
+            quotation.quotation_status
+          );
+      
           console.log(`Updating sales incentives for quotation ${id}`);
-          await this.dbService.sales_incentive.updateMany({
+          
+          const salesIncentives = await this.dbService.sales_incentive.findMany({
             where: {
               quotation_id: id,
             },
-            data: {
-              status: 5,
-            },
+            include: {
+              quotation: {
+                include: {
+                  order: true
+                }
+              }
+            }
           });
-        }),
+      
+          await Promise.all(
+            salesIncentives.map(async (salesIncentive) => {
+              await this.dbService.sales_incentive.update({
+                where: {
+                  id: salesIncentive.id,
+                },
+                data: {
+                  status: 5,
+                },
+              });
+      
+              const order = await this.dbService.orders.findUnique({
+                where: {
+                  id: salesIncentive.quotation.order_id,
+                },
+              });
+      
+              await this.notifService.create(
+                {
+                  sales_incentive: salesIncentive,
+                  orders: order,
+                },
+                "UPDATE",
+                salesIncentive.updated_by,
+                moduleTypeNotification.INCENTIVE,
+                salesIncentive.id,
+                salesIncentive.status
+              );
+      
+              console.log(`Notification created for sales incentive ${salesIncentive.id}`);
+            })
+          );
+        })
       );
+      
 
       console.log('Finished checkvalidity');
       return 1;
@@ -1718,8 +1805,20 @@ export class QuotationService {
         },
         nominal: Math.floor(comission),
         status: IncentiveStatus.POTENTIAL_INCENTIVE,
+        created_by: quotation.updated_by,
       },
+      include: {
+        quotation: {
+          include: {
+            order: true
+          }
+        }
+      }
     });
+
+    if(salesIncentive){
+      await this.notifService.create({sales_incentive: salesIncentive, orders: salesIncentive.quotation.order}, "CREATE", salesIncentive.created_by, moduleTypeNotification.INCENTIVE, salesIncentive.id, salesIncentive.status);
+    }
 
     await this.dbService.orders.update({
       where: { id: order_id },

@@ -20,10 +20,12 @@ import * as path from 'path';
 import { InvoiceStatus } from './dto/invoice-status.enum';
 import { MarginType } from 'src/quotation/dto/margin-type.enum';
 import { create } from 'html-pdf';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService, private notifService: NotificationsService) {}
   private readonly logger = new Logger(InvoicesService.name);
   async create(
     createInvoiceDto: CreateInvoiceDto,
@@ -255,6 +257,9 @@ export class InvoicesService {
           }
         })
       ]);
+      if(invoices){
+        await this.notifService.create({invoices: data}, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
+      }
 
       await this.invoiceLogs(invoices.id, invoices);
       this.logger.log(`Invoice successfully create with ID: ${invoices.id}`);
@@ -644,6 +649,10 @@ export class InvoicesService {
           ] : []),
 
         ]);
+
+        if(updatedInvoice){
+          await this.notifService.create({invoices: updatedInvoice[0]}, "CREATE", updatedInvoice[0].created_by, moduleTypeNotification.INVOICE, updatedInvoice[0].id, updatedInvoice[0].status);
+        }
 
 
       await this.invoiceLogs(invoice.id, updatedInvoice);

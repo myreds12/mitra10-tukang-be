@@ -5,10 +5,11 @@ import { RescheduleController } from './reschedule.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [RescheduleController],
-  providers: [RescheduleService],
+  providers: [RescheduleService, NotificationsService],
   imports: [
     OrderModule,
     MulterModule.register({
