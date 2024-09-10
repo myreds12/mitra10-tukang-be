@@ -23,8 +23,8 @@ export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-    private notifService : NotificationsService
-  ) {}
+    private notifService: NotificationsService
+  ) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user: users,
@@ -112,10 +112,20 @@ export class ComplaintsService {
       const [complaint] = await this.dbService.$transaction([
         this.dbService.complaints.create({
           data: complaintData,
-          include: {orders: true}
+          include: {
+            orders: {
+              include: {
+                work_orders: {
+                  include: {
+                    work_order_tukang: true
+                  }
+                }
+              }
+            }
+          }
         }),
       ]);
-      if(complaint){
+      if (complaint) {
         await this.notifService.create(
           {
             complaint: complaint,
@@ -164,108 +174,108 @@ export class ComplaintsService {
           status ? { status: { id: { in: status } } } : undefined,
           search
             ? {
-                OR: [
-                  !isNaN(Number(search))
-                    ? {
-                        id: {
-                          equals: Number(search),
-                        },
-                      }
-                    : undefined,
-                  !isNaN(Number(search))
-                    ? {
-                        order_id: Number(search),
-                      }
-                    : undefined,
-                  {
-                    complaint_channels: {
-                      name: { contains: search },
+              OR: [
+                !isNaN(Number(search))
+                  ? {
+                    id: {
+                      equals: Number(search),
                     },
+                  }
+                  : undefined,
+                !isNaN(Number(search))
+                  ? {
+                    order_id: Number(search),
+                  }
+                  : undefined,
+                {
+                  complaint_channels: {
+                    name: { contains: search },
                   },
-                  {
-                    orders: {
-                      members: {
-                        whatsapp_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        phone_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      phone_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      store: {
-                        store_name: search,
+                },
+                {
+                  orders: {
+                    store: {
+                      store_name: search,
+                    },
+                  },
+                },
+                {
+                  orders: {
+                    sales: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      sales: {
-                        full_name: {
-                          contains: search,
-                        },
-                      },
-                    },
-                  },
-                ],
-              }
+                },
+              ],
+            }
             : undefined,
           store_id
             ? {
-                orders: {
-                  store_id: {
-                    in: store_id,
-                  },
+              orders: {
+                store_id: {
+                  in: store_id,
                 },
-              }
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                orders: {
-                  vendor_id: {
-                    equals: vendor_id,
-                  },
+              orders: {
+                vendor_id: {
+                  equals: vendor_id,
                 },
-              }
+              },
+            }
             : undefined,
           tukang_id
             ? {
-                orders: {
-                  work_orders: {
-                    work_order_tukang: {
-                      some: {
-                        tukang_id: tukang_id,
-                      },
+              orders: {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
                     },
                   },
                 },
-              }
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -585,10 +595,10 @@ export class ComplaintsService {
 
       const orderConn = updateComplaintDto.order_id
         ? {
-            connect: {
-              id: updateComplaintDto.order_id,
-            },
-          }
+          connect: {
+            id: updateComplaintDto.order_id,
+          },
+        }
         : undefined;
 
       const surveyStatusCategories = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYEND'];
@@ -640,7 +650,7 @@ export class ComplaintsService {
         workStatusCategories.includes(orders.order_history[0].status.category)
       ) {
         statusOrderUpdate = updateComplaintDto.work_status_update;
-      }else if(complaintRejectedByHoStatus === updateComplaintDto.complaint_status) {
+      } else if (complaintRejectedByHoStatus === updateComplaintDto.complaint_status) {
         statusOrderUpdate = orders.order_history[0].status.id;
       }
 
@@ -655,10 +665,10 @@ export class ComplaintsService {
 
       const complaint_channelsConn = updateComplaintDto.complaint_channel
         ? {
-            connect: {
-              id: updateComplaintDto.complaint_channel,
-            },
-          }
+          connect: {
+            id: updateComplaintDto.complaint_channel,
+          },
+        }
         : undefined;
 
       const complaintData: Prisma.complaintsUpdateInput = Object.fromEntries(
@@ -680,10 +690,10 @@ export class ComplaintsService {
               created_by: user_id,
               complaint_evidence: evidences.length
                 ? {
-                    createMany: {
-                      data: evidences,
-                    },
-                  }
+                  createMany: {
+                    data: evidences,
+                  },
+                }
                 : undefined,
             },
           },
@@ -707,21 +717,29 @@ export class ComplaintsService {
             ...complaintData,
             ...(updateComplaintDto.complaint_status
               ? {
-                  status: {
-                    connect: {
-                      id: updateComplaintDto?.complaint_status,
-                    },
+                status: {
+                  connect: {
+                    id: updateComplaintDto?.complaint_status,
                   },
-                }
+                },
+              }
               : undefined),
           },
           include: {
-            orders: true
+            orders: {
+              include: {
+                work_orders: {
+                  include: {
+                    work_order_tukang: true
+                  }
+                }
+              }
+            }
           }
         }),
       ]);
 
-      if(complaint){
+      if (complaint) {
         await this.notifService.create(
           {
             complaint: complaint,
@@ -759,7 +777,7 @@ export class ComplaintsService {
         } catch (error) {
           throw new BadRequestException('No Work Orders To Update');
         }
-      }else if(complaintRejectedByHoStatus === updateComplaintDto.complaint_status) {
+      } else if (complaintRejectedByHoStatus === updateComplaintDto.complaint_status) {
         await this.orderService.setStatus(
           complaint.order_id,
           statusOrderUpdate,

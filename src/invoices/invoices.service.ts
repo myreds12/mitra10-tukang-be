@@ -651,7 +651,7 @@ export class InvoicesService {
         ]);
 
         if(updatedInvoice){
-          await this.notifService.create({invoices: updatedInvoice[0]}, "CREATE", updatedInvoice[0].created_by, moduleTypeNotification.INVOICE, updatedInvoice[0].id, updatedInvoice[0].status);
+          await this.notifService.create({invoices: updatedInvoice[0]}, "UPDATE", updatedInvoice[0].created_by, moduleTypeNotification.INVOICE, updatedInvoice[0].id, updatedInvoice[0].status);
         }
 
 

@@ -16,51 +16,66 @@ export class NotificationsService {
       const relevantRoles = moduleRolesMapping[module_type];
       const json = JSON.stringify(data);
       const dataParse = JSON.parse(json);
-      let sales_id, store_id, vendor_id;
+      let sales_id, store_id, vendor_id, tukang_ids;
 
       if (module_type !== moduleTypeNotification.INVOICE) {
         ({ sales_id, store_id, vendor_id } = dataParse.orders);
+  
+        const workOrders = await this.dbService.work_orders.findMany({
+          where: { order_id: dataParse.orders.id },
+          select: {
+            work_order_tukang: {
+              select: { tukang_id: true },
+            },
+          },
+        });
+  
+        if (workOrders.length > 0) {
+          tukang_ids = workOrders.flatMap(wo => wo.work_order_tukang.map(wot => wot.tukang_id));
+        } else {
+          tukang_ids = []; 
+        }
       } else {
         ({ vendor_id } = dataParse.invoices);
       }
 
-      if (!relevantRoles || relevantRoles.length === 0) {
-        console.log(`No roles found for module type: ${module_type}`);
-        throw new Error(`No roles found for module type: ${module_type}`);
-      }
+    if (!relevantRoles || relevantRoles.length === 0) {
+      console.log(`No roles found for module type: ${module_type}`);
+      throw new Error(`No roles found for module type: ${module_type}`);
+    }
 
-      console.log("STORE: ", typeof store_id);
-      console.log("SALES: ", typeof sales_id);
-      console.log("Vendor: ", typeof vendor_id);
-      const usersWithRoles = await this.dbService.users.findMany({
-        where: {
-          roles: {
-            name: { in: relevantRoles },
-          },
-          OR: [
-            {
-              sales: {
-                some: { id: sales_id ?? undefined }
-              }
-            },
-            {
-              store: {
-                some: { id: store_id ?? undefined }
-              }
-            },
-            {
-              pic_vendor: {
-                some: {
-                  vendor_id: vendor_id ?? undefined
-                }
-              }
-            }
-          ],
+    const usersWithRoles = await this.dbService.users.findMany({
+      where: {
+        roles: {
+          name: { in: relevantRoles },
         },
-        select: { id: true },
-      });
-      console.log("usersWithRoles: ", usersWithRoles);
+        OR: [
+          {
+            sales: {
+              some: { id: sales_id ?? undefined },
+            },
+          },
+          {
+            store: {
+              some: { id: store_id ?? undefined },
+            },
+          },
+          {
+            pic_vendor: {
+              some: { vendor_id: vendor_id ?? undefined },
+            },
+          },
+          {
+            tukang: {
+              some: { id: { in: tukang_ids ?? [] } },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
 
+    console.log("usersWithRoles: ", usersWithRoles);
       const usersWithSpecialRoles = await this.dbService.users.findMany({
         where: {
           roles: {
@@ -133,6 +148,7 @@ export class NotificationsService {
 
       const skip = page * take - take;
       let notifications = await this.dbService.notifications.findMany({
+        where,
         skip,
         take: take > 0 ? take : undefined,
         orderBy: {
@@ -140,7 +156,6 @@ export class NotificationsService {
         }
       });
 
-      console.log("USER: ", user);
 
 
       const userIds = [
@@ -191,7 +206,6 @@ export class NotificationsService {
         })
       ).roles.name
 
-      console.log("ROLES: ", roles);
 
 
       const notificationWithUser = notifications
@@ -232,12 +246,15 @@ export class NotificationsService {
           return {
             ...notification,
             created_by: notification.created_by ? userMap[notification.created_by] || null : null,
-            ...(statusDescription !== null && { status_description: statusDescription }), // Tambahkan status_description hanya jika tidak null
+            ...(statusDescription !== null && { status_description: statusDescription }),
           };
         });
 
       const count = await this.dbService.notifications.count({
-        where
+        where: {
+          is_read: false,
+          user_id: user.id
+        }
       });
 
       return {

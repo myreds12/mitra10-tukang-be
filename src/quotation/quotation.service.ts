@@ -227,7 +227,15 @@ export class QuotationService {
           },
         },
         include: {
-          order: true,
+          order: {
+            include: {
+              work_orders: {
+                include: {
+                  work_order_tukang: true
+                }
+              }
+            }
+          },
         },
       };
 
@@ -872,7 +880,15 @@ export class QuotationService {
           },
           include: {
             status: true,
-            order: true,
+            order:  {
+              include: {
+                work_orders: {
+                  include: {
+                    work_order_tukang: true
+                  }
+                }
+              }
+            },
           },
         }),
       ]);
@@ -1147,6 +1163,13 @@ export class QuotationService {
               const order = await this.dbService.orders.findUnique({
                 where: {
                   id: salesIncentive.quotation.order_id,
+                },
+                  include: {
+                    work_orders: {
+                      include: {
+                        work_order_tukang: true
+                      }
+                    }
                 },
               });
       

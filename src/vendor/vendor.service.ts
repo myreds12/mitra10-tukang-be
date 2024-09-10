@@ -16,7 +16,7 @@ export class VendorService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
   async create(
     files: VendorFiles,
     createVendorDto: CreateVendorDto,
@@ -27,34 +27,34 @@ export class VendorService {
       const { id: user_id } = user;
       const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
         ? Object.entries(files).map((file) => {
-            if (file[1].length) {
-              const newFile = file[1].map((item) => ({
-                document_name: file[0],
-                path: item.filename,
-                created_by: user_id,
-              }));
+          if (file[1].length) {
+            const newFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
 
-              return newFile;
-            }
-          })
+            return newFile;
+          }
+        })
         : undefined;
 
       const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
         createVendorDto.area_id
           ? createVendorDto.area_id.map((area_id) => ({
-              area_id,
-              default_discount: createVendorDto.discount,
-              default_markup: createVendorDto.markup,
-              created_by: user_id,
-            }))
+            area_id,
+            default_discount: createVendorDto.discount,
+            default_markup: createVendorDto.markup,
+            created_by: user_id,
+          }))
           : undefined;
       const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
         createVendorDto.service_type_id
           ? createVendorDto.service_type_id.map((item) => {
-              return {
-                service_type_id: item,
-              };
-            })
+            return {
+              service_type_id: item,
+            };
+          })
           : undefined;
 
       //FIXME: CHECK THIS CODE
@@ -113,10 +113,10 @@ export class VendorService {
         npwp_number: createVendorDto.npwp_number,
         bank: createVendorDto.bank_id
           ? {
-              connect: {
-                id: createVendorDto.bank_id,
-              },
-            }
+            connect: {
+              id: createVendorDto.bank_id,
+            },
+          }
           : undefined,
         join_date: createVendorDto.join_date
           ? new Date(createVendorDto.join_date)
@@ -124,30 +124,30 @@ export class VendorService {
         created_by: user_id,
         ...(vendorFiles
           ? {
-              vendor_document: {
-                createMany: {
-                  data: vendorFiles.flat(),
-                },
+            vendor_document: {
+              createMany: {
+                data: vendorFiles.flat(),
               },
-            }
+            },
+          }
           : undefined),
         ...(vendorAreaData
           ? {
-              vendor_area: {
-                createMany: {
-                  data: vendorAreaData,
-                },
+            vendor_area: {
+              createMany: {
+                data: vendorAreaData,
               },
-            }
+            },
+          }
           : undefined),
         ...(vendorServiceData
           ? {
-              vendor_service: {
-                createMany: {
-                  data: vendorServiceData,
-                },
+            vendor_service: {
+              createMany: {
+                data: vendorServiceData,
               },
-            }
+            },
+          }
           : undefined),
         vendor_store: {
           createMany: {
@@ -215,7 +215,7 @@ export class VendorService {
       // now.setHours(0, 0, 0, 0);
       const formattedDate = new Date().toISOString().split('T')[0];
       console.log(formattedDate);
-      
+
 
       console.log('vendor_with_max_order', vendor_with_max_order);
       const skip = page * take - take;
@@ -224,31 +224,31 @@ export class VendorService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { phone_number: { contains: search } },
-                    { email_address: { contains: search } },
-                    { company_name: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  { phone_number: { contains: search } },
+                  { email_address: { contains: search } },
+                  { company_name: { contains: search } },
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  vendor_store: { some: { store_id: { in: store_id } } },
-                },
-              ]
+              {
+                vendor_store: { some: { store_id: { in: store_id } } },
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -267,17 +267,17 @@ export class VendorService {
                 },
                 ...(order_date_from && order_date_to
                   ? [
-                      {
-                        created_at: {
-                          gte: new Date(order_date_from),
-                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                        },
+                    {
+                      created_at: {
+                        gte: new Date(order_date_from),
+                        lte: new Date(`${order_date_to}T23:59:59.000Z`),
                       },
-                    ]
+                    },
+                  ]
                   : []),
               ],
             },
-            orderBy:{
+            orderBy: {
               created_at: 'desc'
             }
           },
@@ -379,16 +379,16 @@ export class VendorService {
       if (take > 0) {
         vendor = vendor.slice(0, take);
       }
-  
+
       if (vendor_with_max_order) {
         vendor = vendor.filter((v) => {
           return v.tukang.some((t) => {
             const dailySlots = t.work_order_tukang.filter((item) => {
               const { work_start_date, work_end_date, survey_date, status, created_at } = item?.work_orders || {};
-      
+
               let startDate: Date;
               let endDate: Date;
-      
+
               if (work_start_date && work_end_date) {
                 startDate = new Date(work_start_date);
                 endDate = new Date(work_end_date);
@@ -399,25 +399,25 @@ export class VendorService {
                 startDate = new Date(created_at);
                 endDate = startDate;
               }
-      
+
               const currentDate = new Date().toISOString().split('T')[0];
-      
+
               const isWithinRange = startDate.toISOString().split('T')[0] <= currentDate &&
-                                    endDate.toISOString().split('T')[0] >= currentDate;
+                endDate.toISOString().split('T')[0] >= currentDate;
               return (
                 status?.category !== 'SURVEYDONE' &&
                 status?.category !== 'WORKEND' &&
                 isWithinRange
               );
             });
-      
+
             return dailySlots.length <= v.max_order;
           });
         });
       }
-      
-      
-  
+
+
+
       vendor = vendor.map((vendor) => {
         return {
           ...vendor,
@@ -426,14 +426,14 @@ export class VendorService {
               const orderDate = new Date(item.work_orders?.created_at ?? 0)
                 .toISOString()
                 .split('T')[0];
-  
+
               return (
                 item.work_orders?.status?.category !== 'SURVEYDONE' &&
                 item.work_orders?.status?.category !== 'WORKEND' &&
                 orderDate === formattedDate
               );
             });
-  
+
             return {
               ...tukangItem,
               slot_order: dailySlots.length,
@@ -442,17 +442,17 @@ export class VendorService {
         };
       });
       const dataVendor = vendor.map((item) => {
-        console.log("ORDER MEMBER:" ,item.orders);
-        
+        console.log("ORDER MEMBER:", item.orders);
+
         const totalOrder = item.orders.length;
 
-        
+
         return {
           ...item,
           total_order: totalOrder,
         };
       });
-  
+
       const total = await this.dbService.vendor.count({ where });
 
       return {
@@ -617,79 +617,79 @@ export class VendorService {
 
       const vendorFiles: Prisma.vendor_documentCreateManyInput[] = files
         ? Object.entries(files).map((file) => {
-            if (file[1].length) {
-              const updateFile = file[1].map((item) => ({
-                document_name: file[0],
-                path: item.filename,
-                created_by: user_id,
-              }));
-              return updateFile;
-            }
-          })
+          if (file[1].length) {
+            const updateFile = file[1].map((item) => ({
+              document_name: file[0],
+              path: item.filename,
+              created_by: user_id,
+            }));
+            return updateFile;
+          }
+        })
         : undefined;
       console.log(updateVendorDto.vendor_service);
 
       const vendorServiceUpsert: Prisma.vendor_serviceUpsertWithWhereUniqueWithoutVendorInput[] =
         updateVendorDto.vendor_service
           ? updateVendorDto.vendor_service.map((item) => ({
-              where: {
-                id: item.id ?? 0,
-                vendor_id: id,
-              },
-              update: {
-                service_type_id: item?.service_type_id,
-                updated_by: user_id,
-                updated_at: new Date(),
-              },
-              create: {
-                service_type_id: item.service_type_id,
-                created_by: user_id,
-                created_at: new Date(),
-              },
-            }))
+            where: {
+              id: item.id ?? 0,
+              vendor_id: id,
+            },
+            update: {
+              service_type_id: item?.service_type_id,
+              updated_by: user_id,
+              updated_at: new Date(),
+            },
+            create: {
+              service_type_id: item.service_type_id,
+              created_by: user_id,
+              created_at: new Date(),
+            },
+          }))
           : undefined;
 
       const vendorStoreUpsert: Prisma.vendor_storeUpsertWithWhereUniqueWithoutVendorInput[] =
         updateVendorDto.vendor_store
           ? updateVendorDto.vendor_store.map((item) => ({
-              where: {
-                id: item.id ?? 0,
-              },
-              create: {
-                store_id: item.store_id,
-                created_by: user_id,
-              },
-              update: {
-                store_id: item.store_id,
-                updated_by: user_id,
-                updated_at: new Date(),
-              },
-            }))
+            where: {
+              id: item.id ?? 0,
+            },
+            create: {
+              store_id: item.store_id,
+              created_by: user_id,
+            },
+            update: {
+              store_id: item.store_id,
+              updated_by: user_id,
+              updated_at: new Date(),
+            },
+          }))
           : undefined;
 
       const vendorAreaUpsert: Prisma.vendor_areaUpsertWithWhereUniqueWithoutVendorInput[] =
         updateVendorDto.vendor_area
           ? updateVendorDto.vendor_area.map((item) => ({
-              where: {
-                id: item.id ?? 0,
-                vendor_id: id,
-              },
-              create: {
-                area_id: item.area_id,
-                default_discount: item.default_discount,
-                default_markup: item.default_markup,
-                default_unit: item.default_unit,
-                created_by: user_id,
-              },
-              update: {
-                area_id: item.area_id,
-                default_discount: item.default_discount,
-                default_markup: item.default_markup,
-                default_unit: item.default_unit,
-                updated_by: user_id,
-                updated_at: new Date(),
-              },
-            }))
+            where: {
+              id: item.id ?? 0,
+              vendor_id: id,
+            },
+            create: {
+              area_id: item.area_id,
+              default_discount: item.default_discount,
+              default_markup: item.default_markup,
+              default_unit: item.default_unit,
+              created_by: user_id,
+            },
+            update: {
+              area_id: item.area_id,
+              default_discount: item.default_discount,
+              default_markup: item.default_markup,
+              default_unit: item.default_unit,
+              updated_by: user_id,
+              updated_at: new Date(),
+            },
+          }))
           : undefined;
 
       console.log(updateVendorDto);
@@ -727,10 +727,10 @@ export class VendorService {
         updated_by: user_id,
         bank: updateVendorDto.bank_id
           ? {
-              connect: {
-                id: updateVendorDto.bank_id,
-              },
-            }
+            connect: {
+              id: updateVendorDto.bank_id,
+            },
+          }
           : undefined,
         vendor_service: {
           upsert: vendorServiceUpsert,
@@ -740,12 +740,12 @@ export class VendorService {
         },
         ...(vendorFiles
           ? {
-              vendor_document: {
-                createMany: {
-                  data: vendorFiles.flat(),
-                },
+            vendor_document: {
+              createMany: {
+                data: vendorFiles.flat(),
               },
-            }
+            },
+          }
           : undefined),
         vendor_store: {
           upsert: vendorStoreUpsert,
@@ -780,10 +780,10 @@ export class VendorService {
               vendor_id: id,
               NOT: updateVendorDto.vendor_store
                 ? updateVendorDto.vendor_store.map((item) => {
-                    return {
-                      store_id: item.store_id,
-                    };
-                  })
+                  return {
+                    store_id: item.store_id,
+                  };
+                })
                 : undefined,
             },
             data: {
@@ -796,10 +796,10 @@ export class VendorService {
               vendor_id: id,
               NOT: updateVendorDto.vendor_area
                 ? updateVendorDto.vendor_area.map((item) => {
-                    return {
-                      area_id: item.area_id,
-                    };
-                  })
+                  return {
+                    area_id: item.area_id,
+                  };
+                })
                 : undefined,
             },
             data: {
@@ -812,11 +812,11 @@ export class VendorService {
               vendor_id: id,
               NOT: updateVendorDto.vendor_service
                 ? updateVendorDto.vendor_service.map((item) => {
-                    return {
-                      service_type_id: item?.service_type_id,
-                      id: item?.id,
-                    };
-                  })
+                  return {
+                    service_type_id: item?.service_type_id,
+                    id: item?.id,
+                  };
+                })
                 : undefined,
             },
             data: {
@@ -987,13 +987,13 @@ export class VendorService {
         })}`;
         const serviceType = vendor.vendor_service
           ? vendor.vendor_service
-              .map((service) => service.service_type.service_type)
-              .join(',')
+            .map((service) => service.service_type.service_type)
+            .join(',')
           : '';
         const servingStore = vendor.vendor_store
           ? vendor.vendor_store
-              .map((service) => service.store.store_name)
-              .join(',')
+            .map((service) => service.store.store_name)
+            .join(',')
           : '';
         const servingArea = vendor.vendor_area
           ? vendor.vendor_area.map((service) => service.area.area).join(',')
@@ -1009,13 +1009,12 @@ export class VendorService {
           vendor_area: servingArea,
           username: vendor.pic_vendor
             ? vendor.pic_vendor
-                .map(
-                  (item) =>
-                    `${item.users.username || 'N/a'}(${
-                      item.users.roles.name || 'Tidak Ada Role'
-                    })`,
-                )
-                .join(', ')
+              .map(
+                (item) =>
+                  `${item.users.username || 'N/a'}(${item.users.roles.name || 'Tidak Ada Role'
+                  })`,
+              )
+              .join(', ')
             : '',
           join_date: formattedDateTime,
         });
@@ -1043,9 +1042,9 @@ export class VendorService {
       //
       const formattedGrandTotal = !isNaN(grandTotal)
         ? new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(grandTotal)
+          style: 'currency',
+          currency: 'IDR',
+        }).format(grandTotal)
         : 'Rp. 0';
       const totalRow = worksheet.addRow({
         id: 'Orders Grand Total',

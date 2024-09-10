@@ -30,6 +30,13 @@ export class RefundService {
         where: {
           id: createRefundDto.order_id,
         },
+        include: {
+          work_orders: {
+            include: {
+              work_order_tukang: true
+            }
+          }
+      },
       });
       if (!order) throw new BadRequestException('Order not found');
       const evidences:
@@ -81,7 +88,7 @@ export class RefundService {
       if(refund){
         await this.notifService.create(
           {
-            quotation: refund,
+            refund: refund,
             orders: order,
           },
           "CREATE",
@@ -427,7 +434,15 @@ export class RefundService {
           ...refundData,
         },
         include: {
-          orders: true
+          orders: {
+            include: {
+              work_orders: {
+                include: {
+                  work_order_tukang: true
+                }
+              }
+          },
+          }
         }
       });
 

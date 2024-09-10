@@ -34,6 +34,11 @@ export class RescheduleService {
       },
       include: {
         status: true,
+          work_orders: {
+            include: {
+              work_order_tukang: true
+            }
+      },
       },
     });
 
@@ -369,6 +374,9 @@ export class RescheduleService {
           where: {
             deleted_at: null,
           },
+          include: {
+            work_order_tukang: true
+          }
         },
         order_history: {
           where: {

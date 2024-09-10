@@ -25,7 +25,7 @@ export class NotificationsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  update(@Body() dto: UpdateNotificationDto[], @Req() req: UserRequest) {
-    return this.notificationsService.update(dto, req.user)
+  update(@Body() dto: UpdateNotificationDto[]) {
+    return this.notificationsService.update(dto)
   }
 }

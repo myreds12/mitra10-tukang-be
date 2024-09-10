@@ -794,7 +794,7 @@ model order_histories {
   order_id  Int
   status_id Int
 
-  payload String @db.NVarChar(1000)
+  payload String @db.Text()
 
   created_by Int?
   updated_by Int?
