@@ -18,9 +18,10 @@ export class NotificationsService {
       const dataParse = JSON.parse(json);
       let sales_id, store_id, vendor_id, tukang_ids;
 
+
       if (module_type !== moduleTypeNotification.INVOICE) {
         ({ sales_id, store_id, vendor_id } = dataParse.orders);
-  
+
         const workOrders = await this.dbService.work_orders.findMany({
           where: { order_id: dataParse.orders.id },
           select: {
@@ -29,53 +30,69 @@ export class NotificationsService {
             },
           },
         });
-  
+
+
         if (workOrders.length > 0) {
           tukang_ids = workOrders.flatMap(wo => wo.work_order_tukang.map(wot => wot.tukang_id));
         } else {
-          tukang_ids = []; 
+          tukang_ids = [];
         }
       } else {
         ({ vendor_id } = dataParse.invoices);
       }
 
-    if (!relevantRoles || relevantRoles.length === 0) {
-      console.log(`No roles found for module type: ${module_type}`);
-      throw new Error(`No roles found for module type: ${module_type}`);
-    }
+      if (!relevantRoles || relevantRoles.length === 0) {
+        console.log(`No roles found for module type: ${module_type}`);
+        throw new Error(`No roles found for module type: ${module_type}`);
+      }
+      const statusBookedPicklist = await this.dbService.status.findMany({
+        where: {
+          category: {
+            in: ['BOOKED', 'PICKLIST']
+          }
+        }
+      })
+      const bookedPicklistIds = statusBookedPicklist.map(status => status.id);
 
-    const usersWithRoles = await this.dbService.users.findMany({
-      where: {
-        roles: {
-          name: { in: relevantRoles },
+      let filteredRoles = relevantRoles;
+      
+      if (module_type === moduleTypeNotification.ORDER && bookedPicklistIds.includes(status)) {
+        filteredRoles = relevantRoles.filter(
+          role => !['Owner Vendor', 'Admin Vendor', 'Tukang'].includes(role)
+        );
+      }
+
+      const usersWithRoles = await this.dbService.users.findMany({
+        where: {
+          roles: {
+            name: { in: filteredRoles },
+          },
+          OR: [
+            {
+              sales: {
+                some: { id: sales_id ?? undefined },
+              },
+            },
+            {
+              store: {
+                some: { id: store_id ?? undefined },
+              },
+            },
+            {
+              pic_vendor: {
+                some: { vendor_id: vendor_id ?? undefined },
+              },
+            },
+            {
+              tukang: {
+                some: { id: { in: tukang_ids ?? [] } },
+              },
+            },
+          ],
         },
-        OR: [
-          {
-            sales: {
-              some: { id: sales_id ?? undefined },
-            },
-          },
-          {
-            store: {
-              some: { id: store_id ?? undefined },
-            },
-          },
-          {
-            pic_vendor: {
-              some: { vendor_id: vendor_id ?? undefined },
-            },
-          },
-          {
-            tukang: {
-              some: { id: { in: tukang_ids ?? [] } },
-            },
-          },
-        ],
-      },
-      select: { id: true },
-    });
+        select: { id: true },
+      });
 
-    console.log("usersWithRoles: ", usersWithRoles);
       const usersWithSpecialRoles = await this.dbService.users.findMany({
         where: {
           roles: {
@@ -84,7 +101,6 @@ export class NotificationsService {
         },
         select: { id: true },
       });
-      console.log("usersWithSpecialRoles: ", usersWithSpecialRoles);
 
       const allUserIds = [
         ...new Set([
@@ -92,10 +108,8 @@ export class NotificationsService {
           ...usersWithSpecialRoles.map(user => user.id),
         ]),
       ];
-      console.log("allUserIds: ", allUserIds);
 
       if (!allUserIds.length) {
-        console.log(`No users found with relevant roles for module type: ${module_type}`);
         throw new Error(`No users found with relevant roles for module type: ${module_type}`);
       }
 
@@ -235,11 +249,11 @@ export class NotificationsService {
           ) {
             statusDescription = InvoiceStatus[notification.status] || notification.status;
           } else if (
-            notification.module_type === "SALES INCENTIVE" &&
+            notification.module_type === "INCENTIVE" &&
             !(roles.includes('Owner Vendor') || roles.includes('Admin Vendor'))
           ) {
             statusDescription = IncentiveStatus[notification.status] || notification.status;
-          } else if (!["INVOICES", "SALES INCENTIVE"].includes(notification.module_type)) {
+          } else if (!["INVOICES", "INCENTIVE"].includes(notification.module_type)) {
             statusDescription = statusMap[notification.status] || null;
           }
 

@@ -15,12 +15,15 @@ import * as path from 'path';
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { IncentiveType } from 'src/incentive/dto/incentive-type.enum';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class SalesService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly authService: AuthService,
+    private notifService : NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
@@ -90,10 +93,7 @@ export class SalesService {
 
       const formattedUsername =  createSalesDto?.username.replace(/ /g, '_') ?? null;
 
-      if(formattedUsername.length > 20){
-        throw new BadRequestException('Username tidak boleh lebih dari 20 karakter.');
-      }
-
+     
       const sales_data: Prisma.salesCreateInput = {
         full_name: createSalesDto.full_name,
         bank_branch: createSalesDto?.bank_branch,
@@ -931,6 +931,17 @@ export class SalesService {
               updated_by: user.id,
             },
           });
+          await this.notifService.create(
+            {
+              sales_incentive: updateSales,
+              orders: order,
+            },
+            "UPDATE",
+            updateSales.updated_by,
+            moduleTypeNotification.INCENTIVE,
+            updateSales.id,
+            updateSales.status
+          );
           updatedCount += 1;
         }),
       );
@@ -1221,28 +1232,73 @@ export class SalesService {
   @Cron(CronExpression.EVERY_30_MINUTES)
   async deleteOrder() {
     try {
-
-     const salesIncentive = await this.dbService.sales_incentive.updateMany({
-      where: {
-        quotation: {
-          order: {
-            status: {
-              category: 'WORKEND'
-            }
+      // Update sales incentives and fetch updated records
+      const updatedSalesIncentives = await this.dbService.sales_incentive.findMany({
+        where: {
+          quotation: {
+            order: {
+              status: {
+                category: 'WORKEND',
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          updated_by: true,
+          status: true,
+          quotation: {
+            select: {
+              order: {
+                select: {
+                  id: true,
+                  sales_id: true,
+                  store_id: true,
+                  vendor_id: true,
+                  // Include other fields from `orders` if needed
+                },
+              },
+            },
+          },
+        },
+      });
+  
+      await this.dbService.sales_incentive.updateMany({
+        where: {
+          id: { in: updatedSalesIncentives.map(si => si.id) },
+        },
+        data: {
+          status: 2,
+        },
+      });
+  
+      await Promise.all(
+        updatedSalesIncentives.map(async (updateSales) => {
+          const order = updateSales.quotation.order;
+  
+          if (order) {
+            await this.notifService.create(
+              {
+                sales_incentive: updateSales,
+                orders: order,
+              },
+              "UPDATE",
+              updateSales.updated_by,
+              moduleTypeNotification.INCENTIVE,
+              updateSales.id,
+              updateSales.status
+            );
           }
-        }
-      },
-      data: {
-        status: 2
-      }
-     });
-
-     return salesIncentive;
+        })
+      );
+  
+      return { message: `${updatedSalesIncentives.length} sales incentives updated and notifications created successfully.` };
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
+  
 
 
   @Cron(CronExpression.EVERY_2ND_MONTH)

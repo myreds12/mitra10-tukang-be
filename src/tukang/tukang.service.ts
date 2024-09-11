@@ -76,9 +76,7 @@ export class TukangService {
 
       const formattedUsername =  createTukangDto?.username.replace(/ /g, '_') ?? undefined;
 
-      if(formattedUsername.length > 20){
-        throw new BadRequestException('Username tidak boleh lebih dari 20 karakter.');
-      }
+      
 
       const userData = await this.dbService.users.create({
         data: {
@@ -586,9 +584,7 @@ export class TukangService {
         updateTukangDto?.password,
         12,
       ) : tukang.users.password;
-      if(formattedUsername.length > 20){
-        throw new BadRequestException('Username tidak boleh lebih dari 20 karakter.');
-      }
+      
 
       const userData = await this.dbService.users.update({
         where: {
