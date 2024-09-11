@@ -40,6 +40,8 @@ export class NotificationsService {
       } else {
         ({ vendor_id } = dataParse.invoices);
       }
+      console.log(sales_id, store_id, vendor_id);
+      
 
       if (!relevantRoles || relevantRoles.length === 0) {
         console.log(`No roles found for module type: ${module_type}`);
@@ -55,13 +57,15 @@ export class NotificationsService {
       const bookedPicklistIds = statusBookedPicklist.map(status => status.id);
 
       let filteredRoles = relevantRoles;
+      console.log(filteredRoles);
       
       if (module_type === moduleTypeNotification.ORDER && bookedPicklistIds.includes(status)) {
         filteredRoles = relevantRoles.filter(
           role => !['Owner Vendor', 'Admin Vendor', 'Tukang'].includes(role)
         );
       }
-
+      console.log(filteredRoles);
+      
       const usersWithRoles = await this.dbService.users.findMany({
         where: {
           roles: {
@@ -266,6 +270,11 @@ export class NotificationsService {
 
       const count = await this.dbService.notifications.count({
         where: {
+          user_id: user.id
+        }
+      });
+      const unread = await this.dbService.notifications.count({
+        where: {
           is_read: false,
           user_id: user.id
         }
@@ -277,7 +286,7 @@ export class NotificationsService {
           total: count,
           page,
           take,
-          takeTotal: notificationWithUser.length,
+          unread
         },
       }
     } catch (error) {

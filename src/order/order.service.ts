@@ -33,7 +33,7 @@ export class OrderService {
     order_files: Array<Express.Multer.File>,
   ) {
     try {
-      console.log(createOrderDto);
+      // console.log(createOrderDto);
 
       const { id: user_id, role_id } = user;
       const ROLES = await this.dbService.roles.findMany();
@@ -1119,7 +1119,7 @@ export class OrderService {
           created_by: user_id,
         }));
 
-      console.log('UpdaeDto', updateOrderDto);
+      // console.log('UpdaeDto', updateOrderDto);
       const { data: order } = await this.findOne(id);
 
       if (!order) throw new NotFoundException('Order not found');

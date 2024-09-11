@@ -644,8 +644,8 @@ export class QuotationService {
           ? updateQuotationDto.receipts_quotation.map((item) => ({
             where: { id: item?.id ?? 0 },
             update: {
-              receipt_quotation: item?.receipt_quotation,
-              quotation_step: item?.quotation_step,
+              receipt_quotation: item?.receipt_quotation ?? undefined,
+              quotation_step: item?.quotation_step ?? undefined,
             },
             create: {
               receipt_quotation: item?.receipt_quotation,
