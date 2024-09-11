@@ -1139,6 +1139,9 @@ export class QuotationService {
           const salesIncentives = await this.dbService.sales_incentive.findMany({
             where: {
               quotation_id: id,
+              status: {
+                not: IncentiveStatus.LOST_INCENTIVE
+              }
             },
             include: {
               quotation: {

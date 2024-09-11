@@ -1232,9 +1232,9 @@ export class SalesService {
   @Cron(CronExpression.EVERY_30_MINUTES)
   async deleteOrder() {
     try {
-      // Update sales incentives and fetch updated records
       const updatedSalesIncentives = await this.dbService.sales_incentive.findMany({
         where: {
+          status: IncentiveStatus.POTENTIAL_INCENTIVE,
           quotation: {
             order: {
               status: {
@@ -1255,13 +1255,13 @@ export class SalesService {
                   sales_id: true,
                   store_id: true,
                   vendor_id: true,
-                  // Include other fields from `orders` if needed
                 },
               },
             },
           },
         },
       });
+  
   
       await this.dbService.sales_incentive.updateMany({
         where: {
