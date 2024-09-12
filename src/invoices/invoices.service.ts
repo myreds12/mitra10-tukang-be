@@ -1067,7 +1067,7 @@ export class InvoicesService {
       const dataFromDatabase = await this.dbService.invoices.findMany({
         where: {
           status: {
-            in: [InvoiceStatus.INVOICE_TO_FINANCE],
+            in: [InvoiceStatus.INVOICE_DIBERIKAN_KEPADA_FINANCE],
           },
           deleted_at: null,
         },
@@ -1152,7 +1152,7 @@ export class InvoicesService {
     try {
       await this.dbService.invoices.update({
         where: { id: invoiceId },
-        data: { description: note, status: InvoiceStatus.PAID },
+        data: { description: note, status: InvoiceStatus.INVOICE_SUDAH_DIBAYARKAN },
       });
     } catch (error) {
       this.logger.error(

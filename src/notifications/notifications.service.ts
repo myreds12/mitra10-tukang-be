@@ -251,12 +251,12 @@ export class NotificationsService {
             notification.module_type === "INVOICES" &&
             (roles.includes('Owner Vendor') || roles.includes('Admin Vendor') || roles.includes('Admin HO'))
           ) {
-            statusDescription = InvoiceStatus[notification.status] || notification.status;
+            statusDescription = InvoiceStatus[notification.status].replace(/_/g, ' ') || notification.status;
           } else if (
             notification.module_type === "INCENTIVE" &&
             !(roles.includes('Owner Vendor') || roles.includes('Admin Vendor'))
           ) {
-            statusDescription = IncentiveStatus[notification.status] || notification.status;
+            statusDescription = IncentiveStatus[notification.status].replace(/_/g, ' ') || notification.status;
           } else if (!["INVOICES", "INCENTIVE"].includes(notification.module_type)) {
             statusDescription = statusMap[notification.status] || null;
           }
@@ -269,9 +269,7 @@ export class NotificationsService {
         });
 
       const count = await this.dbService.notifications.count({
-        where: {
-          user_id: user.id
-        }
+        where
       });
       const unread = await this.dbService.notifications.count({
         where: {
@@ -294,26 +292,37 @@ export class NotificationsService {
     }
   }
 
-  async update(dto: UpdateNotificationDto[]) {
+  async update(dto: UpdateNotificationDto[], user: users) {
     try {
-      console.log("DTO : ", dto);
-
-      const notification = await this.dbService.notifications.updateMany({
-        where: {
-          id: {
-            in: dto.map((x) => x.id),
-          }
-        },
-        data: {
-          is_read: true
-        }
-      });
-
-      return {
-        data: notification
+      console.log("DTO: ", dto);
+  
+      const checkAll = dto.some((x) => x.check_all === 1);
+  
+      let updates;
+      if (checkAll) {
+        updates = dto.map(({ is_read }) => ({
+          where: { user_id: user.id },
+          data: { is_read: Boolean(is_read) },
+        }));
+      } else {
+        updates = dto.map(({ id, is_read }) => ({
+          where: { id },
+          data: { is_read: Boolean(is_read) },
+        }));
       }
+  
+      const updatePromises = updates.map((update) =>
+        this.dbService.notifications.updateMany(update)
+      );
+  
+      const results = await Promise.all(updatePromises);
+  
+      return {
+        data: results,
+      };
     } catch (error) {
-      throw error
+      console.error(error);
+      throw error;
     }
   }
 }

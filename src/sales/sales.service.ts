@@ -925,7 +925,7 @@ export class SalesService {
               id: incentive.id,
             },
             data: {
-              status: IncentiveStatus.PAID,
+              status: IncentiveStatus.INSENTIF_DIBAYARKAN,
               notes: pair.notes ?? '',
               updated_at: new Date(),
               updated_by: user.id,

@@ -216,7 +216,7 @@ model notifications {
   status    Int?
 
   data        String?  @db.Text()
-  module_type String?  @db.Text()
+  module_type String?  @db.VarChar(100)
   action      String?  @db.Text()
   is_read     Boolean @default(false)
 

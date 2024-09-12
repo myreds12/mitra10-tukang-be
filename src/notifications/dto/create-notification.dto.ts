@@ -4,7 +4,14 @@ import { IsOptional } from "class-validator";
 
 export class CreateNotificationDto {
     @IsOptional()
-    // @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
     @Type(() => Number)
     id?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    check_all?: number;
+    
+    @IsOptional()
+    @Type(() => Number)
+    is_read?: number
 }
