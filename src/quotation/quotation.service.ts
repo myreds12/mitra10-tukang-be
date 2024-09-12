@@ -974,9 +974,6 @@ export class QuotationService {
     const status = await this.dbService.status.findFirst({
       where: {
         id: status_id,
-        category: {
-          in: ['quotein', 'quoteout'],
-        },
       },
     });
     if (!status) throw new BadRequestException('Status Id not found!');
@@ -991,8 +988,8 @@ export class QuotationService {
     });
 
     if (!quotationFind) throw new BadRequestException('Quotation not found!');
-    if (quotationFind.status.category.toLowerCase().includes('quoteout'))
-      throw new BadRequestException('Cannot change status!');
+    // if (quotationFind.status.category.toLowerCase().includes('quoteout'))
+    //   throw new BadRequestException('Cannot change status!');
 
     const quotation = await this.dbService.quotation.update({
       where: {
