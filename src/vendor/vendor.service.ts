@@ -314,6 +314,9 @@ export class VendorService {
             },
           },
           vendor_area: {
+            where: {
+              deleted_at: null
+            },
             include: {
               area: true,
             },
@@ -321,12 +324,22 @@ export class VendorService {
           bank: true,
           vendor_document: true,
           vendor_service: {
+            where: {
+              deleted_at: null
+            },
             include: {
               service_type: true,
             },
           },
           vendor_store: {
+            where: {
+              deleted_at: null
+            },
             select: {
+              id: true,
+              vendor_id: true,
+              created_at: true,
+              deleted_at: true,
               store: {
                 select: {
                   id: true,
@@ -513,12 +526,18 @@ export class VendorService {
             },
           },
           vendor_area: {
+            where: {
+              deleted_at: null
+            },
             include: {
               area: true,
             },
           },
           vendor_document: true,
           vendor_service: {
+            where: {
+              deleted_at: null
+            },
             include: {
               service_type: true,
             },
@@ -526,7 +545,14 @@ export class VendorService {
           bank: true,
           work_orders: true,
           vendor_store: {
+            where: {
+              deleted_at: null
+            },
             select: {
+              id: true,
+              vendor_id: true,
+              created_at: true,
+              deleted_at: true,
               store: {
                 select: {
                   id: true,
@@ -770,13 +796,14 @@ export class VendorService {
           this.dbService.vendor_store.updateMany({
             where: {
               vendor_id: id,
-              NOT: updateVendorDto.vendor_store
-                ? updateVendorDto.vendor_store.map((item) => {
-                  return {
-                    store_id: item.store_id,
+              ...updateVendorDto.vendor_store ? {
+              NOT:updateVendorDto.vendor_store.map((item) => {
+                return {
+                  id: item?.id,
+                  store_id: item.store_id,
                   };
                 })
-                : undefined,
+              } : undefined
             },
             data: {
               deleted_by: user_id,
@@ -786,13 +813,22 @@ export class VendorService {
           this.dbService.vendor_area.updateMany({
             where: {
               vendor_id: id,
-              NOT: updateVendorDto.vendor_area
-                ? updateVendorDto.vendor_area.map((item) => {
+              // NOT: updateVendorDto.vendor_area
+              //   ? updateVendorDto.vendor_area.map((item) => {
+              //     return {
+              //       area_id: item.area_id,
+              //       id: item.id,
+              //     };
+              //   })
+              //   : undefined,
+              ...updateVendorDto.vendor_area ? {
+                NOT: updateVendorDto.vendor_area.map((item) => {
                   return {
+                    id: item?.id,
                     area_id: item.area_id,
                   };
                 })
-                : undefined,
+              } : undefined
             },
             data: {
               deleted_by: user_id,
@@ -802,14 +838,22 @@ export class VendorService {
           this.dbService.vendor_service.updateMany({
             where: {
               vendor_id: id,
-              NOT: updateVendorDto.vendor_service
-                ? updateVendorDto.vendor_service.map((item) => {
+              // NOT: updateVendorDto.vendor_service
+              //   ? updateVendorDto.vendor_service.map((item) => {
+              //     return {
+              //       service_type_id: item?.service_type_id,
+              //       id: item?.id,
+              //     };
+              //   })
+              //   : undefined,
+              ...updateVendorDto.vendor_service ? {
+                NOT: updateVendorDto.vendor_service.map((item) => {
                   return {
-                    service_type_id: item?.service_type_id,
                     id: item?.id,
+                    service_type_id: item?.service_type_id,
                   };
                 })
-                : undefined,
+              } : undefined
             },
             data: {
               deleted_at: new Date(),
