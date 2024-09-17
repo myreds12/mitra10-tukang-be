@@ -35,7 +35,6 @@ export class InvoicesService {
     try {
       const { id: user_id } = user;
 
-      console.log('Create Invoice DTO: ', createInvoiceDto);
 
       // Prepare evidences if available
       const evidences = invoice_evidences?.length
@@ -45,14 +44,12 @@ export class InvoicesService {
         }))
         : [];
 
-      console.log('Evidences: ', evidences);
 
       const vendor = await this.dbService.vendor.findFirst({
         where: {
           id: createInvoiceDto.vendor_id,
         },
       });
-      console.log('Vendor: ', vendor);
 
       // Get provided order IDs
       const providedOrder = createInvoiceDto.invoice_details
@@ -60,7 +57,7 @@ export class InvoicesService {
           Number(order_id),
         )
         : [];
-      console.log('Provided Order IDs: ', providedOrder);
+      // console.log('Provided Order IDs: ', providedOrder);
 
       if (providedOrder.length === 0) {
         this.logger.error('No Order Id Provided');
@@ -85,6 +82,9 @@ export class InvoicesService {
         },
         include: {
           m_order_details: {
+            where: {
+              deleted_at: null
+            },
             include: {
               item: true,
             },
@@ -110,7 +110,7 @@ export class InvoicesService {
         },
       });
 
-      console.log('Orders: ', orders);
+      // console.log('Orders: ', orders);
 
       const refund = await this.dbService.refund.findMany({
         where: {
@@ -124,11 +124,11 @@ export class InvoicesService {
         },
       });
 
-      console.log('Refund: ', refund);
+      // console.log('Refund: ', refund);
 
       const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
-      console.log('Penalty Nominal: ', penaltyNominal);
+      // console.log('Penalty Nominal: ', penaltyNominal);
 
 
 
@@ -145,7 +145,7 @@ export class InvoicesService {
         createInvoiceDto.invoice_details?.forEach((detail) => {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
-              const totalMargin = 75000;
+              const totalMargin = 75000 + Number(order.additional_fee);
               // console.log("TOTAL MARGIN: ", totalMargin);
 
               invoiceDetails.push({
@@ -169,7 +169,7 @@ export class InvoicesService {
               const totalMargin =
                 order.m_order_details
                   .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)
+                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,

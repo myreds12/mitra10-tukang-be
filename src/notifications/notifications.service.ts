@@ -40,11 +40,9 @@ export class NotificationsService {
       } else {
         ({ vendor_id } = dataParse.invoices);
       }
-      console.log(sales_id, store_id, vendor_id);
       
 
       if (!relevantRoles || relevantRoles.length === 0) {
-        console.log(`No roles found for module type: ${module_type}`);
         throw new Error(`No roles found for module type: ${module_type}`);
       }
       const statusBookedPicklist = await this.dbService.status.findMany({
@@ -57,14 +55,12 @@ export class NotificationsService {
       const bookedPicklistIds = statusBookedPicklist.map(status => status.id);
 
       let filteredRoles = relevantRoles;
-      console.log(filteredRoles);
       
       if (module_type === moduleTypeNotification.ORDER && bookedPicklistIds.includes(status)) {
         filteredRoles = relevantRoles.filter(
           role => !['Owner Vendor', 'Admin Vendor', 'Tukang'].includes(role)
         );
       }
-      console.log(filteredRoles);
       
       const usersWithRoles = await this.dbService.users.findMany({
         where: {
@@ -126,12 +122,10 @@ export class NotificationsService {
         status,
         user_id: user,
       }));
-      console.log("notificationsData: ", notificationsData);
 
       const notifications = await this.dbService.notifications.createMany({
         data: notificationsData,
       });
-      console.log("notifications: ", notifications);
 
       return {
         message: `${notifications.count} notifications created successfully.`, // contoh respon
@@ -294,7 +288,6 @@ export class NotificationsService {
 
   async update(dto: UpdateNotificationDto[], user: users) {
     try {
-      console.log("DTO: ", dto);
   
       const checkAll = dto.some((x) => x.check_all === 1);
   
