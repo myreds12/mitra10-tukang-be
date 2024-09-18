@@ -589,7 +589,7 @@ export class InvoicesService {
 
       const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
 
-      const statusInvoice = totalAmount >= 5000000 ? 4 : updateInvoiceDto.status;
+      const statusInvoice = totalAmount >= 5000000 && invoice.status === 1 ? 4 : updateInvoiceDto.status;
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
         ...(updateInvoiceDto.status === 5 ? {
