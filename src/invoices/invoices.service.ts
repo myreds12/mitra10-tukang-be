@@ -156,7 +156,7 @@ export class InvoicesService {
               });
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin = Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : (((+vendor.margin_nominal) + Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)))));
+              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+vendor.margin_nominal) )));
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -551,7 +551,7 @@ export class InvoicesService {
           if (order.payment_type === 'survey' && item.type === 1) {
             total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000;
           } else if (order.payment_type === 'survey' && item.type === 2) {
-            total = Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)));
+            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal) )));
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total = order.m_order_details
               .filter((i) => i.item.type === 2)
