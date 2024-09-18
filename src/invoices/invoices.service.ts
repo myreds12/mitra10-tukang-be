@@ -206,10 +206,8 @@ export class InvoicesService {
       console.log('TOTAL AMOUNT: ', totalAmount);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
-      const statusInvoice = totalAmount >= 5000000 ? 4 : 1;
 
       console.log('Invoices Count: ', invoicesCount);
-      console.log('Status Invoice: ', statusInvoice);
 
       const data = {
         vendor: {
@@ -221,7 +219,7 @@ export class InvoicesService {
         pph_nominal: pphNominal,
         ppn_nominal: ppnNominal,
         penalty_nominal: penaltyNominal,
-        status: statusInvoice,
+        status: createInvoiceDto.status,
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
         invoice_evidence: {
@@ -591,12 +589,13 @@ export class InvoicesService {
 
       const totalAmount = totalGrandTotal - (pkpNominal) - (pphNominal) - (ppnNominal) - (penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
 
+      const statusInvoice = totalAmount >= 5000000 ? 4 : updateInvoiceDto.status;
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
         ...(updateInvoiceDto.status === 5 ? {
           invoice_to_finance_date: new Date()
         } : undefined),
-        status: updateInvoiceDto.status,
+        status: statusInvoice,
         description: updateInvoiceDto?.description ?? undefined,
         notes: updateInvoiceDto?.notes ?? undefined,
         invoice_evidence: { createMany: { data: evidences } },
