@@ -75,6 +75,7 @@ export class AuthController {
   @HttpCode(200)
   @Post('login')
   async login(@Body() dto: CreateLoginDto) {
+    return await this.authService.login(dto);
   }
 
   @HttpCode(200)
