@@ -11,9 +11,15 @@ head
     }
     /* Container */
     #invoice {
-    max-width: 1140px;
-    margin: 50px auto;
+    max-width: 991px;
+    margin: 20px auto;
     padding: 15px;
+    }
+    .d-flex {
+      display: flex;
+    }
+    .justify-content-between {
+      justify: space-between;
     }
     .row {
     display: flex;
@@ -77,12 +83,6 @@ head
     max-width: 100%;
     }
     /* Header */
-    .vendor-information {
-    padding-right: 100px;
-    }
-    .invoice-information {
-    padding-left: 100px;
-    }
     .vendor-information h1 {
     color: #007eb4;
     font-size: 30px;
@@ -174,8 +174,7 @@ head
     page-break-after: always;
     }
     .footer {
-    margin-top: 3rem;
-    margin-bottom: 3rem;
+    margin-top: 1rem;
     page-break-before: always;
     }
     }
@@ -193,18 +192,16 @@ section#invoice
   - const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
   .invoice-wrapper
     .header.mb-3
-      .row.d-flex.flex-column.flex-md-row
-        .col-md-6.order-2.order-md-1
+      .d-flex.justify-content-between 
           .vendor-information
             h1 #{data.invoice.vendor.company_name}
             div
               | #{data.invoice.vendor.address}
-        .col-md-6.order-1.order-md-2
           .invoice-information
             h1 INVOICE
             div
               | Invoice ID: 
-              span #{data.invoice.invoice_id}
+              span #{data.invoice.id}
             div
               | Tanggal dibuat:
               - var formateCreatedAt = new Date(data.invoice.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -252,23 +249,23 @@ section#invoice
             td.text-center #{item.order.payment_type}
             td.text-center #{item.order.payment_type === 'survey' && item.type === 2 ? item.order.quotation[0].receipt_quotation || '-' : item.order.receipt_number}
             td #{item.order.payment_type === 'survey' && item.type === 2 ? `Rp. ${parseInt(item.order.quotation[0].quotation_grand_total|| 0).toLocaleString('id')}`  : `Rp. ${parseInt(item.order.grand_total|| 0).toLocaleString('id')}`}
-          tr
-            td.text-end(colspan='7') Total
-            td Rp. #{data.invoice.invoice_details.reduce((acc, curr) => acc + Number(curr.total), 0).toLocaleString('id')}
-          tr
-            td.text-end(colspan='7')
-              | PPn ( Vendor PKP )
-            td Rp. #{parseInt(data.invoice.ppn).toLocaleString('id') || '0'} 
-          tr
-            td.text-end(colspan='7') PPh
-            td Rp. #{parseInt(data.invoice.pph).toLocaleString('id') || '0'} 
-          tr
-            td.text-end(colspan='7') Penalty
-            td Rp. #{parseInt(data.invoice.penalty_nominal).toLocaleString('id') || '0'} 
-          tr
-            td.text-end(colspan='7')
-              | Grand Total
-            td Rp. #{parseInt(data.invoice.total_amount).toLocaleString('id') || '0'} 
+        tr
+          td.text-end(colspan='7') Total
+          td Rp. #{data.invoice.invoice_details.reduce((acc, curr) => acc + Number(curr.total), 0).toLocaleString('id')}
+        tr
+          td.text-end(colspan='7')
+            | PPn ( Vendor PKP )
+          td Rp. #{parseInt(data.invoice.ppn_nominal).toLocaleString('id') || '0'} 
+        tr
+          td.text-end(colspan='7') PPh
+          td Rp. #{parseInt(data.invoice.pph_nominal).toLocaleString('id') || '0'} 
+        tr
+          td.text-end(colspan='7') Penalty
+          td Rp. #{parseInt(data.invoice.penalty_nominal).toLocaleString('id') || '0'} 
+        tr
+          td.text-end(colspan='7')
+            | Grand Total
+          td Rp. #{parseInt(data.invoice.total_amount).toLocaleString('id') || '0'} 
     .footer
       .payment-information
         .payment-method

@@ -1367,6 +1367,7 @@ export class InvoicesService {
           include: {
             order: {
               include: {
+                m_order_details: true,
                 members: true,
                 store: true,
                 quotation: true
@@ -1389,7 +1390,7 @@ export class InvoicesService {
       invoice: invoices,
     };
 
-    const buffer = await this.pdfService.generate('rekonsel-pdf', data);
+    const buffer = await this.pdfService.generate('rekonsel', data);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=rekonsel.pdf');
     res.send(buffer);

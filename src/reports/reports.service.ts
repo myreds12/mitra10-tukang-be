@@ -1548,230 +1548,1116 @@ export class ReportsService {
   }
 
 
-  async generalReport(res: Response) {
+  // async generalReport(res: Response, queryParams: QueryParamsDto) {
+  //   try {
+  //     const {
+  //       take,
+  //       page,
+  //       search,
+  //       status,
+  //       date_from,
+  //       date_to,
+  //       order_by,
+  //       sales_id,
+  //       payment_type,
+  //       store_id,
+  //       vendor_id,
+  //       work_order_status,
+  //       is_promotion,
+  //     } = queryParams;
+
+  //     const skip = page * take - take;
+
+  //     const where: Prisma.ordersWhereInput = {
+  //       AND: [
+  //         ...(search
+  //           ? [
+  //               {
+  //                 OR: [
+  //                   { receipt_number: { contains: search } },
+  //                   { members: { full_name: { contains: search } } },
+  //                   {
+  //                     store: {
+  //                       store_name: {
+  //                         contains: search,
+  //                       },
+  //                     },
+  //                   },
+  //                   {
+  //                     project_number: {
+  //                       contains: search,
+  //                     },
+  //                   },
+  //                 ],
+  //               },
+  //             ]
+  //           : []),
+  //         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
+  //         ...(status ? [{ status: { id: { in: status } } }] : []),
+  //         ...(work_order_status
+  //           ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
+  //           : []),
+  //         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
+  //         store_id
+  //           ? {
+  //               store_id: {
+  //                 in: store_id,
+  //               },
+  //             }
+  //           : undefined,
+  //         vendor_id
+  //           ? {
+  //               vendor: {
+  //                 id: vendor_id,
+  //                 deleted_at: null,
+  //               },
+  //             }
+  //           : undefined,
+  //         ...(date_from && date_to
+  //           ? [
+  //               {
+  //                 created_at: {
+  //                   gte: new Date(date_from),
+  //                   lte: new Date(`${date_to}T23:59:59.000Z`),
+  //                 },
+  //               },
+  //             ]
+  //           : []),
+  //         ...(is_promotion
+  //           ? [
+  //               {
+  //                 OR: [
+  //                   {
+  //                     AND: [
+  //                       {
+  //                         payment_type: 'gratis',
+  //                       },
+  //                       {
+  //                         status: {
+  //                           category: 'WORKEND',
+  //                         },
+  //                       },
+  //                     ],
+  //                   },
+  //                   {
+  //                     AND: [
+  //                       {
+  //                         quotation: {
+  //                           some: {
+  //                             promotion_id: {
+  //                               not: null,
+  //                             },
+  //                           },
+  //                         },
+  //                       },
+  //                       {
+  //                         status: {
+  //                           category: 'WORKEND',
+  //                         },
+  //                       },
+  //                     ],
+  //                   },
+  //                 ],
+  //               },
+  //             ]
+  //           : []),
+  //       ].filter(Boolean),
+  //       deleted_at: null,
+  //     };
+
+  //     const data = await this.dbService.orders.findMany({
+  //       where,
+  //       orderBy: {
+  //         created_at: order_by,
+  //       },
+  //       include: {
+  //         members: {
+  //           where: {
+  //             deleted_at: null,
+  //             deleted_by: null,
+  //           },
+  //           select: {
+  //             id: true,
+  //             area_id: true,
+  //             area: true,
+  //             join_location: true,
+  //             member_number: true,
+  //             full_name: true,
+  //             email: true,
+  //             phone_number: true,
+  //             whatsapp_number: true,
+  //             address_1: true,
+  //             address_2: true,
+  //             zip_code: true,
+  //             rating: true,
+  //             join_date: true,
+  //             created_at: true,
+  //             updated_at: true,
+  //             created_by: true,
+  //             updated_by: true,
+  //           },
+  //         },
+  //         sales: {
+  //           where: {
+  //             deleted_at: null,
+  //             deleted_by: null,
+  //           },
+  //           select: {
+  //             id: true,
+  //             store_id: true,
+  //             user_id: true,
+  //             full_name: true,
+  //             nik: true,
+  //             bank_id: true,
+  //             bank_branch: true,
+  //             account_name: true,
+  //             is_active: true,
+  //             created_at: true,
+  //             updated_at: true,
+  //             created_by: true,
+  //             updated_by: true,
+  //           },
+  //         },
+  //         store: {
+  //           select: {
+  //             id: true,
+  //             store_name: true,
+  //             address: true,
+  //             area_id: true,
+  //             area: true,
+  //             zip_code: true,
+  //             created_at: true,
+  //             updated_at: true,
+  //             created_by: true,
+  //             updated_by: true,
+  //           },
+  //         },
+  //         status: {
+  //           select: {
+  //             id: true,
+  //             category: true,
+  //             description: true,
+  //           },
+  //         },
+
+  //         vendor: {
+  //           where: {
+  //             deleted_at: null,
+  //             deleted_by: null,
+  //           },
+  //           select: {
+  //             id: true,
+  //             company_name: true,
+  //             address: true,
+  //             phone_number: true,
+  //             is_active: true,
+  //             work_orders: {
+  //               where: {
+  //                 deleted_at: null,
+  //                 deleted_by: null,
+  //               },
+  //             },
+  //           },
+  //         },
+  //         m_order_details: {
+  //           where: {
+  //             deleted_at: null,
+  //             deleted_by: null,
+  //           },
+  //           select: {
+  //             id: true,
+  //             order_id: true,
+  //             item_code: true,
+  //             item_name: true,
+  //             item_notes: true,
+  //             item_id: true,
+  //             item: {
+  //               select: {
+  //                 id: true,
+  //                 item_name: true,
+  //                 category: true,
+  //                 default_price: true,
+  //                 service_name: true,
+  //               },
+  //             },
+  //             sales: true,
+  //             unit_price: true,
+  //             quantity: true,
+  //             total: true,
+  //             comission: true,
+  //             created_by: true,
+  //             created_at: true,
+  //           },
+  //         },
+  //         quotation: {
+  //           where: {
+  //             deleted_at: null,
+  //             deleted_by: null,
+  //           },
+  //           include: {
+  //             promotion: true,
+  //             quotation_details: {
+  //               include: {
+  //                 item: true,
+  //               },
+  //             },
+  //             quotation_files: true,
+  //           },
+  //         },
+  //         work_orders: {
+  //           where: {
+  //             deleted_at: null,
+  //           },
+  //           include: {
+  //             request_tukang: {
+  //               include: {
+  //                 tukang_to_request_tukang: true,
+  //                 tukang_to_replace_tukang: true,
+  //               },
+  //             },
+  //             vendor: true,
+  //             work_order_evidences: true,
+  //             work_order_tukang: {
+  //               include: {
+  //                 tukang: true,
+  //               },
+  //             },
+  //             work_order_status: {
+  //               include: {
+  //                 status: true,
+  //                 work_order_items: {
+  //                   include: {
+  //                     item: true,
+  //                   },
+  //                   where: {
+  //                     deleted_at: null,
+  //                     deleted_by: null,
+  //                   },
+  //                 },
+  //               },
+  //               orderBy: {
+  //                 created_at: 'desc',
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     if (!data || data.length === 0) {
+  //       console.log("No data to process");
+  //       return res.status(404).send("No data found for the given invoice.");
+  //     }
+
+  //     const workbook = new exceljs.Workbook();
+  //     const worksheet = workbook.addWorksheet('Data Invoice', {
+  //       properties: {
+  //         tabColor: { argb: '097969' },
+  //       },
+  //       pageSetup: {
+  //         margins: {
+  //           left: 0.7,
+  //           right: 0.7,
+  //           top: 0.75,
+  //           bottom: 0.75,
+  //           header: 0.3,
+  //           footer: 0.3,
+  //         },
+  //       },
+  //     });
+
+  //     console.log("Sebelum pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+  //     worksheet.mergeCells('A2:L3');
+
+  //     worksheet.getCell('A2').value = `Mitra10 E-Commerce and Digital Marketing`;
+  //     worksheet.getCell('A2').font = { size: 16, bold: true };
+  //     worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+  //     console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+  //     worksheet.columns = [
+  //       { header: 'Instalation Booking', key: 'instalation_booking', width: 10 },
+  //       { header: 'kosongkan ', key: 'kosong', width: 25 },
+  //       { header: 'Nama Customer', key: 'member_name', width: 50 },
+  //       { header: 'Nama Pemasangan', key: 'item_name', width: 50 },
+  //       { header: 'Tanggal Survey/Pengerjaan', key: 'survey_date', width: 50 },
+  //       { header: 'Total Harga', key: 'invoice_price', width: 60 },
+  //       { header: 'Transaksi Customer', key: 'customer_transaction', width: 50 },
+  //       { header: 'Harga Jasa', key: 'instalation_price', width: 50 },
+  //       { header: 'Margin PPN', key: 'margin_ppn', width: 50 },
+  //       { header: 'Selisih Non PPN', key: 'margin_non_ppn', width: 50 },
+  //       { header: 'Margin', key: 'margin', width: 30 },
+  //       { header: 'No Receipt', key: 'receipt_number', width: 50 },
+  //     ];
+
+  //     const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+  //     headerRow.eachCell((cell) => {
+  //       cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+  //       cell.fill = {
+  //         type: 'pattern',
+  //         pattern: 'solid',
+  //         fgColor: { argb: '0000FF' },
+  //       };
+  //       cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  //       cell.border = {
+  //         top: { style: 'thin' },
+  //         left: { style: 'thin' },
+  //         bottom: { style: 'thin' },
+  //         right: { style: 'thin' },
+  //       };
+  //     });
+
+  //     worksheet.getCell('A1').value = null;
+
+  //     worksheet.getRow(1).eachCell((cell) => {
+  //       cell.value = null;
+  //     });
+
+  //     // Inisialisasi total
+  //     let totals = {
+  //       customer_transaction: 0,
+  //       invoice_price: 0,
+  //       instalation_price: 0,
+  //       margin_ppn: 0,
+  //       margin_non_ppn: 0,
+  //       margin: 0,
+  //     };
+
+  //     // Proses setiap order dalam data
+  //     data.forEach((order, index) => {
+  //       const customer_transaction = order.order.payment_type !== 'survey'
+  //         ? order.order.grand_total
+  //         : (order.type === 2 && order.order.payment_type === 'survey' && order.order.quotation[0])
+  //           ? order.order.quotation[0].quotation_grand_total
+  //           : order.order.grand_total;
+
+  //       const invoice_price = order.total;
+  //       const instalation_price = Math.floor(+customer_transaction / 1.11);
+  //       const margin_ppn = instalation_price - invoice_price;
+  //       const price_difference = +customer_transaction - invoice_price;
+  //       const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+
+  //       // Tambahkan data ke dalam worksheet
+  //       worksheet.addRow({
+  //         no: index + 1,
+  //         order_id: order.order_id,
+  //         member_name: order.order.members.full_name,
+  //         item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
+  //         survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',
+  //         invoice_price: invoice_price,
+  //         customer_transaction: +customer_transaction,
+  //         instalation_price: instalation_price,
+  //         margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
+  //         margin_non_ppn: Math.ceil(price_difference / 1.11),
+  //         margin: `${Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
+  //         receipt_number: receipt_number,
+  //       });
+
+  //       // Update totals
+  //       totals.customer_transaction += +customer_transaction;
+  //       totals.invoice_price += invoice_price;
+  //       totals.instalation_price += instalation_price;
+  //       totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
+  //       totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
+  //       totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
+  //     });
+
+  //     // Tambahkan total baris
+  //     const totalsRow = worksheet.addRow({
+  //       no: 'Total',
+  //       invoice_price: totals.invoice_price,
+  //       customer_transaction: totals.customer_transaction,
+  //       instalation_price: totals.instalation_price,
+  //       margin_ppn: `${totals.margin_ppn}%`,
+  //       margin_non_ppn: totals.margin_non_ppn,
+  //       margin: `${totals.margin}%`,
+  //     });
+
+  //     worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
+  //     totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+  //     totalsRow.eachCell((cell, colNumber) => {
+  //       if (colNumber > 1) {
+  //         cell.font = { bold: true };
+  //         cell.alignment = { vertical: 'middle', horizontal: 'left' };
+  //         cell.border = {
+  //           top: { style: 'thin' },
+  //           left: { style: 'thin' },
+  //           bottom: { style: 'thin' },
+  //           right: { style: 'thin' },
+  //         };
+  //       }
+  //     });
+
+  //     // Fungsi untuk mendapatkan tanggal format saat ini
+  //     const getFormattedDate = () => {
+  //       const now = new Date();
+  //       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  //     };
+
+  //     // Fungsi untuk membuat path file Excel
+  //     const createExcelFilePath = (baseName: string) => {
+  //       const folderPath = './storage/excel/invoice/rekonsel';
+  //       if (!fs.existsSync(folderPath)) {
+  //         fs.mkdirSync(folderPath, { recursive: true });
+  //       }
+  //       const excelFileName = `${baseName}-${Date.now()}.xlsx`;
+  //       return path.join(folderPath, excelFileName);
+  //     };
+
+  //     // Fungsi untuk menulis workbook dan mengirimkan respons
+  //     const writeWorkbookAndSendResponse = async (
+  //       workbook: exceljs.Workbook,
+  //       excelFilePath: string,
+  //       res: Response,
+  //     ) => {
+  //       await workbook.xlsx.writeFile(excelFilePath);
+  //       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  //       res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+  //       const fileStream = fs.createReadStream(excelFilePath);
+  //       fileStream.pipe(res);
+  //     };
+
+  //     // Generate file Excel
+  //     const generateExcelFile = async (res) => {
+  //       const formattedDate = getFormattedDate();
+  //       const baseName = `DataInvoice-${formattedDate}`;
+  //       const excelFilePath = createExcelFilePath(baseName);
+  //       await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+  //     };
+
+  //     // Jalankan pembuatan file Excel
+  //     return generateExcelFile(res);
+  //   } catch (error) {
+  //     console.error(error);
+  //     res.status(500).send("An error occurred while generating the invoice.");
+  //   }
+  // }
+
+  async generateStaticBookingReport(res: Response) {
     try {
-      const data = await this.dbService.invoice_details.findMany({
-        where: {
-          deleted_at: null,
-          deleted_by: null,
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Installation Booking');
+
+      const data = await this.dbService.orders.findMany({
+        orderBy: {
+          created_at: 'desc',
         },
         include: {
-          invoices: {
-            include: { vendor: true },
+          refund: {
+            where: {
+              deleted_at: null
+            }
           },
-          order: {
+          order_follow_up: {
+            where: {
+              deleted_at: null,
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+          },
+          members: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              area_id: true,
+              area: true,
+              join_location: true,
+              member_number: true,
+              full_name: true,
+              email: true,
+              phone_number: true,
+              whatsapp_number: true,
+              address_1: true,
+              address_2: true,
+              zip_code: true,
+              rating: true,
+              join_date: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          reschedule: {
+            where: {
+              deleted_at: null,
+            },
             include: {
-              quotation: {
-                where: { deleted_at: null },
-                include: { quotation_receipt: true },
-              },
-              sales: true,
-              members: true,
-              m_order_details: {
-                where: { deleted_at: null },
-                include: { item: true },
+              reschedule_evidences: true,
+            },
+          },
+          invoice_details: {
+            where: {
+              deleted_at: null,
+            },
+            select: {
+              invoice_number: true,
+              total: true,
+              type: true,
+              invoices: {
+                select: {
+                  id: true,
+                  status: true,
+                  total_amount: true,
+                  invoice_logs: true,
+                  description: true,
+                  vendor: true,
+                },
               },
             },
           },
-        },
-      });
-
-      // Jika data tidak ada, kirimkan respons 404
-      if (!data || data.length === 0) {
-        console.log("No data to process");
-        return res.status(404).send("No data found for the given invoice.");
-      }
-
-      // Buat workbook dan worksheet
-      const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Invoice', {
-        properties: {
-          tabColor: { argb: '097969' },
-        },
-        pageSetup: {
-          margins: {
-            left: 0.7,
-            right: 0.7,
-            top: 0.75,
-            bottom: 0.75,
-            header: 0.3,
-            footer: 0.3,
+          sales: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              store_id: true,
+              user_id: true,
+              full_name: true,
+              nik: true,
+              bank_id: true,
+              bank_branch: true,
+              account_name: true,
+              is_active: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
           },
+          store: {
+            select: {
+              id: true,
+              store_name: true,
+              address: true,
+              area_id: true,
+              area: true,
+              zip_code: true,
+              created_at: true,
+              updated_at: true,
+              created_by: true,
+              updated_by: true,
+            },
+          },
+          status: {
+            select: {
+              id: true,
+              category: true,
+              description: true,
+            },
+          },
+          complaints: {
+            include: {
+              complaint_histories: {
+                include: {
+                  complaint_evidence: true,
+                },
+              },
+            },
+          },
+          vendor: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              company_name: true,
+              address: true,
+              phone_number: true,
+              is_active: true,
+              work_orders: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+          order_history: {
+            select: {
+              order_id: true,
+              created_at: true,
+              status: {
+                select: {
+                  id: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
+          m_order_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            select: {
+              id: true,
+              order_id: true,
+              item_code: true,
+              item_name: true,
+              item_notes: true,
+              item_id: true,
+              item: {
+                select: {
+                  id: true,
+                  item_name: true,
+                  type: true,
+                  category: true,
+                  default_price: true,
+                  service_name: true,
+                },
+              },
+              sales: true,
+              unit_price: true,
+              quantity: true,
+              total: true,
+              comission: true,
+              created_by: true,
+              created_at: true,
+            },
+          },
+          quotation: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            include: {
+              promotion: true,
+              quotation_receipt: true,
+              quotation_details: {
+                include: {
+                  item: true,
+                },
+              },
+              quotation_files: true,
+            },
+          },
+          work_orders: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              request_tukang: {
+                include: {
+                  tukang_to_request_tukang: true,
+                  tukang_to_replace_tukang: true,
+                },
+              },
+              vendor: true,
+              work_order_evidences: true,
+              work_order_tukang: {
+                include: {
+                  tukang: true,
+                },
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+              work_order_status: {
+                include: {
+                  status: true,
+                  work_order_items: {
+                    include: {
+                      item: true,
+                    },
+                    where: {
+                      deleted_at: null,
+                      deleted_by: null,
+                    },
+                  },
+                },
+                orderBy: {
+                  created_at: 'desc',
+                },
+              },
+            },
+          },
+          order_files: true,
         },
       });
 
-      // Menggabungkan sel dan membuat header
-      console.log("Sebelum pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+      const itemMap = new Map();
 
-      // Gabungkan sel terlebih dahulu
-      worksheet.mergeCells('A2:L3');
+      data.forEach(order => {
+        if (order.invoice_details.length > 0) {
+          order.m_order_details.forEach(detail => {
+            if (detail.item && detail.item.type === 1) {
+              const itemName = detail.item.item_name;
+              const quantity = detail.quantity || 0;
 
-      // Kemudian atur judulnya
-      worksheet.getCell('A2').value = `DATA REKONSEL ${data[0].invoices.vendor.company_name}`;
-      worksheet.getCell('A2').font = { size: 16, bold: true };
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-
-      // Cek nilai setelah diatur
-      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
-
-      // Definisikan kolom
-      worksheet.columns = [
-        { header: 'No', key: 'no', width: 10 },
-        { header: 'Order Id', key: 'order_id', width: 25 },
-        { header: 'Nama Customer', key: 'member_name', width: 50 },
-        { header: 'Nama Pemasangan', key: 'item_name', width: 50 },
-        { header: 'Tanggal Survey/Pengerjaan', key: 'survey_date', width: 50 },
-        { header: 'Total Harga', key: 'invoice_price', width: 60 },
-        { header: 'Transaksi Customer', key: 'customer_transaction', width: 50 },
-        { header: 'Harga Jasa', key: 'instalation_price', width: 50 },
-        { header: 'Margin PPN', key: 'margin_ppn', width: 50 },
-        { header: 'Selisih Non PPN', key: 'margin_non_ppn', width: 50 },
-        { header: 'Margin', key: 'margin', width: 30 },
-        { header: 'No Receipt', key: 'receipt_number', width: 50 },
-      ];
-
-      // Tambah header pada row 3
-      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
-      headerRow.eachCell((cell) => {
-        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: '0000FF' },
-        };
-        cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' },
-        };
-      });
-
-      worksheet.getCell('A1').value = null;
-
-      worksheet.getRow(1).eachCell((cell) => {
-        cell.value = null;
-      });
-
-      // Inisialisasi total
-      let totals = {
-        customer_transaction: 0,
-        invoice_price: 0,
-        instalation_price: 0,
-        margin_ppn: 0,
-        margin_non_ppn: 0,
-        margin: 0,
-      };
-
-      // Proses setiap order dalam data
-      data.forEach((order, index) => {
-        const customer_transaction = order.order.payment_type !== 'survey'
-          ? order.order.grand_total
-          : (order.type === 2 && order.order.payment_type === 'survey' && order.order.quotation[0])
-            ? order.order.quotation[0].quotation_grand_total
-            : order.order.grand_total;
-
-        const invoice_price = order.total;
-        const instalation_price = Math.floor(+customer_transaction / 1.11);
-        const margin_ppn = instalation_price - invoice_price;
-        const price_difference = +customer_transaction - invoice_price;
-        const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
-
-        // Tambahkan data ke dalam worksheet
-        worksheet.addRow({
-          no: index + 1,
-          order_id: order.order_id,
-          member_name: order.order.members.full_name,
-          item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
-          survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',
-          invoice_price: invoice_price,
-          customer_transaction: +customer_transaction,
-          instalation_price: instalation_price,
-          margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
-          margin_non_ppn: Math.ceil(price_difference / 1.11),
-          margin: `${Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
-          receipt_number: receipt_number,
-        });
-
-        // Update totals
-        totals.customer_transaction += +customer_transaction;
-        totals.invoice_price += invoice_price;
-        totals.instalation_price += instalation_price;
-        totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
-        totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
-        totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
-      });
-
-      // Tambahkan total baris
-      const totalsRow = worksheet.addRow({
-        no: 'Total',
-        invoice_price: totals.invoice_price,
-        customer_transaction: totals.customer_transaction,
-        instalation_price: totals.instalation_price,
-        margin_ppn: `${totals.margin_ppn}%`,
-        margin_non_ppn: totals.margin_non_ppn,
-        margin: `${totals.margin}%`,
-      });
-
-      worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
-      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
-
-      totalsRow.eachCell((cell, colNumber) => {
-        if (colNumber > 1) {
-          cell.font = { bold: true };
-          cell.alignment = { vertical: 'middle', horizontal: 'left' };
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' },
-          };
+              // Check if item is already in the map
+              if (itemMap.has(itemName)) {
+                const itemData = itemMap.get(itemName);
+                itemData.quantity += quantity; // Update quantity
+                itemData.invoiceCount += 1; // Increment invoice count
+                itemMap.set(itemName, itemData);
+              } else {
+                // Initialize item data
+                itemMap.set(itemName, { quantity: quantity, invoiceCount: 1 });
+              }
+            }
+          });
         }
       });
 
-      // Fungsi untuk mendapatkan tanggal format saat ini
-      const getFormattedDate = () => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      // Transform itemMap entries to an array of objects
+      const topItems = [...itemMap.entries()]
+        .sort((a, b) => b[1].quantity - a[1].quantity) // Sort descending by quantity
+        .slice(0, 5) // Limit to top 5 items
+        .map(([itemName, data]) => ({
+          itemName,
+          quantity: data.quantity,
+          invoiceCount: data.invoiceCount
+        })); // Convert to array of objects
+
+      console.log(topItems);
+
+
+      const bookReceived = data.filter((x) =>
+        x.status.category != 'PICKLIST'
+      ).length;
+
+      const orderDone = data.filter((x) =>
+        x.status.category === 'WORKEND' || x.status.category === 'SURVEYDONE' || x.status.category === 'WORKENDSTEPONE' || x.status.category === 'WORKENDSTEPTWO' || x.status.category === 'WORKENDSTEPTHREE'
+      ).length;
+
+      const orderPending = data.filter((x) =>
+        x.status.category === 'WORKREQ' || x.status.category === 'SURVEYREQ' || x.status.category === 'WORKREQSTEPONE' || x.status.category === 'WORKREQSTEPTWO' || x.status.category === 'WORKREQSTEPTHREE'
+      ).length;
+
+      const orderRefund = data.filter((x) =>
+        x.refund.length > 0
+      ).length;
+
+      const orderCancel = data.filter((x) =>
+        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'CANCEL'
+      ).length;
+
+      const orderSurveyStatus = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE', 'TUKANGSURVEY'];
+
+      const totalProgressOrder = [
+        'BOOKED',
+        'BOOK',
+        'PICKLIST',
+        'SURVEYREQ',
+        'SURVEYSTART',
+        'SURVEYEND',
+        'SURVEYDONE',
+        'UNPAIDRECEIPT',
+        'WORKREQ',
+        'WORKSTART',
+        'QUOTEIN',
+        'QUOTEOUT',
+        'UNPAID',
+        'PAID',
+        'INVESTIGATED',
+        'RESURVEYREQ',
+        'RESURVEYSTART',
+        'RESURVEYEND',
+        'REWORKREQ',
+        'REWORKSTART',
+        'REWORKEND',
+      ];
+
+      const orderProgress = data.filter((x) =>
+        totalProgressOrder.includes(x.status.category)
+      ).length;
+
+      const orderSurvey = data.filter((x) =>
+        orderSurveyStatus.includes(x.status.category)
+      ).length;
+
+      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null).length;
+      const quotationPaidValue = data
+        .filter((x) => x?.quotation[0]?.receipt_quotation != null)
+        .reduce((total, order) => {
+          const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
+          return total + grandTotal;
+        }, 0);
+
+      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null).length;
+      const quotationUnpaidValue = data
+        .filter((x) => x?.quotation[0]?.receipt_quotation === null)
+        .reduce((total, order) => {
+          const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
+          return total + grandTotal;
+        }, 0);
+
+      const orderWork = [
+        'WORKREQ',
+        'WORKSTART',
+        'TUKANGWORK',
+        'WORKREQSTEPTWO',
+        'WORKREQSTEPTHREE',
+        'WORKREQSTEPONE',
+        'WORKSTARTSTEPONE',
+        'WORKSTARTSTEPTWO',
+        'WORKSTARTSTEPTHREE',
+        'TUKANGWORKSTEPONE',
+        'TUKANGWORKSTEPTWO',
+        'TUKANGWORKSTEPTHREE',
+      ];
+      const orderSurveyOnGoing = data.filter((x) =>
+        orderWork.includes(x.status.category) && x.payment_type === 'survey'
+      ).length;
+      const orderSurveyNoQuotation = data.filter((x) =>
+        orderSurveyStatus.includes(x.status.category) && x.payment_type === 'survey' && x.quotation.length === 0
+      ).length;
+
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+
+      const titleCell = worksheet.getCell('A1');
+      worksheet.getRow(1).height = 40;
+      titleCell.value = `Installation Service: ${formattedDate}`;
+
+      titleCell.font = { size: 16, bold: true, color: { argb: 'FF0000FF' } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      titleCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFFF' },
+      };
+      worksheet.mergeCells('A1:D1');
+
+      worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone}`]);
+
+      const headerRow = worksheet.getRow(2);
+      headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.alignment = { horizontal: 'center' };
+
+      headerRow.getCell(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF17365D' },
+      };
+      headerRow.getCell(3).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF17365D' },
+      };
+      headerRow.getCell(5).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF17365D' },
       };
 
-      // Fungsi untuk membuat path file Excel
+      const example = [
+        [
+          `Booking Received: ${bookReceived}`,
+          '',
+          `Survey: ${orderSurvey}`,
+          '',
+          `${topItems[0]?.itemName ? topItems[0]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[0]?.invoiceCount || '0'}`
+        ],
+        [
+          {
+            richText: [
+              { text: 'Done: ', font: { color: { argb: 'FF000000' } } }, // Hitam
+              { text: `${orderDone}`, font: { color: { argb: 'FFFF0000' } } } // Merah
+            ]
+          },
+          '',
+          {
+            richText: [
+              { text: 'Survey & Implementation: ', font: { color: { argb: 'FF000000' } } }, // Hitam
+              { text: `${quotationPaid}`, font: { color: { argb: 'FFFF0000' } } } // Merah
+            ]
+          },
+          '',
+          `Quantity: ${topItems[0]?.quantity || '0'}`
+        ],
+        [
+          {
+            richText: [
+              { text: 'Pending: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${orderPending}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          {
+            richText: [
+              { text: 'Total Value: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${quotationPaidValue}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          `${topItems[1]?.itemName ? topItems[1]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[1]?.invoiceCount || '0'}`
+        ],
+        [
+          {
+            richText: [
+              { text: 'Refund: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${orderRefund}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          {
+            richText: [
+              { text: 'Survey & Quotation: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${quotationUnpaid}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          `Quantity: ${topItems[1]?.quantity || ''}`
+        ],
+        [
+          {
+            richText: [
+              { text: 'Cancel: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${orderCancel}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          {
+            richText: [
+              { text: 'Total Value: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${quotationUnpaidValue}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          `${topItems[2]?.itemName ? topItems[2]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[2]?.invoiceCount || '0'}`
+        ],
+        [
+          {
+            richText: [
+              { text: 'On Going (Req Date September): ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${orderProgress}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          {
+            richText: [
+              { text: 'Survey On Going: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${orderSurveyOnGoing}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          `Quantity: ${topItems[2]?.quantity || ''}`
+        ],
+        [
+          '',
+          '',
+          {
+            richText: [
+              { text: 'Survey No Quotation: ', font: { argb: 'FF000000' } }, // Hitam
+              { text: `${orderSurveyNoQuotation}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          `${topItems[3]?.itemName ? topItems[3]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[3]?.invoiceCount || '0'}`
+        ],
+        [
+          '',
+          '',
+          '',
+          '',
+          `Quantity: ${topItems[3]?.quantity || ''}`
+        ],
+        [
+          '',
+          '',
+          '',
+          '',
+          `${topItems[4]?.itemName ? topItems[4]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[4]?.invoiceCount || '0'}`
+        ],
+        [
+          '',
+          '',
+          '',
+          '',
+          `Quantity: ${topItems[4]?.quantity || ''}`
+        ],
+      ];
+
+
+      example.forEach(row => {
+        const newRow = worksheet.addRow(row);
+        newRow.font = { size: 12 };
+        newRow.alignment = { horizontal: 'left' };
+      });
+
+      worksheet.addRow([]);
+
+      worksheet.getColumn(1).width = 60;
+      worksheet.getColumn(2).width = 15;
+      worksheet.getColumn(3).width = 60;
+      worksheet.getColumn(4).width = 15;
+      worksheet.getColumn(5).width = 70;
+
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.border = {};
+        });
+      });
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
       const createExcelFilePath = (baseName: string) => {
-        const folderPath = './storage/excel/invoice/rekonsel';
+        const folderPath = './storage/excel/order';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }
-        const excelFileName = `${baseName}-${Date.now()}.xlsx`;
+        const now = Date.now();
+
+        const excelFileName = `${baseName}-${now}.xlsx`;
         return path.join(folderPath, excelFileName);
       };
 
-      // Fungsi untuk menulis workbook dan mengirimkan respons
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
         res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
 
-      // Generate file Excel
       const generateExcelFile = async (res) => {
         const formattedDate = getFormattedDate();
-        const baseName = `DataInvoice-${formattedDate}`;
+        const baseName = `DataOrder-${formattedDate}`;
         const excelFilePath = createExcelFilePath(baseName);
+
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
 
-      // Jalankan pembuatan file Excel
-      return generateExcelFile(res);
+      return await generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      throw error;
     }
   }
+
 }

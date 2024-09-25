@@ -13,7 +13,7 @@ head
     #invoice {
     max-width: 1140px;
     margin: 50px auto;
-    padding: 15px;
+    padding: 20px;
     }
     .row {
     display: flex;
@@ -78,10 +78,10 @@ head
     }
     /* Header */
     .vendor-information {
-    padding-right: 100px;
+    padding-right: 0px;
     }
     .invoice-information {
-    padding-left: 100px;
+    padding-left: 0px;
     }
     .vendor-information h1 {
     color: #007eb4;
@@ -95,25 +95,25 @@ head
     }
     /* Content */
     .table {
-    width: 100%;
+    width: 50%;
     border-collapse: collapse;
     margin-bottom: 1rem;
     background-color: transparent;
     }
     .table th,
     .table td {
-    padding: 0.75rem;
+    padding: 0.50rem;
     vertical-align: top;
     border: 1px solid #dee2e6;
     }
     .table th {
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 600;
     color: white;
     background-color: #555555;
     }
     .table td {
-    font-size: 12px;
+    font-size: 6px;
     }
     .text-end {
     text-align: right;
@@ -245,27 +245,20 @@ section#invoice
             th.text-center Margin
             th.text-center No Receipt
         tbody
-        -let totals = {
-            customer_transaction: 0,
-            invoice_price: 0,
-            instalation_price: 0,
-            margin_ppn: 0,
-            margin_non_ppn: 0,
-            margin: 0,
-        }
+        -let totals = { customer_transaction: 0, invoice_price: 0, instalation_price: 0, margin_ppn: 0, margin_non_ppn: 0, margin: 0 };
         each item, index in data.invoice.invoice_details
           tr(key=`${index} - quotation details`)  
-            -const customer_transaction = order.order.payment_type !== 'survey' ? order.order.grand_total : (order.type === 2 && order.order.payment_type === 'survey' && order.order.quotation[0]) ? order.order.quotation[0].quotation_grand_total : order.order.grand_total;
+            -const customer_transaction = item.order.payment_type !== 'survey' ? item.order.grand_total : (item.type === 2 && item.order.payment_type === 'survey' && item.order.quotation[0]) ? item.order.quotation[0].quotation_grand_total : item.order.grand_total;
             -const invoice_price = item.total;
             -const instalation_price = Math.floor(+customer_transaction / 1.11);
             -const margin_ppn = instalation_price - invoice_price;
             -const price_difference = +customer_transaction - invoice_price;
-            -const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+            -const receipt_number = item.order.quotation.length ? item.order.quotation[0].receipt_quotation : item.order.receipt_number;
             td #{index + 1} 
             td #{item.order_id}
             td.text-center #{item.order.members.full_name}
             td #{item.order.m_order_details.map((x) => x.item_name || '-').join(', ')}
-            - const orderCreatedAt = new Date(order.order.request_work ? order.order.request_work : order.order.request_survey || '-').toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            - const orderCreatedAt = new Date(item.order.request_work ? item.order.request_work : item.order.request_survey || '-').toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
             td.text-center #{orderCreatedAt}
             td.text-center #{invoice_price}
             td.text-center #{Number(customer_transaction)}
@@ -281,16 +274,16 @@ section#invoice
             -totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
             -totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
             -totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
-          tr
-            td(colspan="5").fw-bold Total
-            td.fw-bold Rp. #{totals.invoice_price.toLocaleString('id')}
-            td.fw-bold Rp. #{totals.customer_transaction.toLocaleString('id')}
-            td.fw-bold Rp. #{totals.instalation_price.toLocaleString('id')}
-            td.fw-bold #{`${totals.margin_ppn}%`}
-            td.fw-bold Rp. #{totals.margin_non_ppn.toLocaleString('id')}
-            td.fw-bold #{`${totals.margin}%`}
-            td.fw-bold
-            td.fw-bold
+        tr
+          td(colspan="5").fw-bold Total
+          td.fw-bold Rp. #{totals.invoice_price.toLocaleString('id')}
+          td.fw-bold Rp. #{totals.customer_transaction.toLocaleString('id')}
+          td.fw-bold Rp. #{totals.instalation_price.toLocaleString('id')}
+          td.fw-bold #{`${totals.margin_ppn}%`}
+          td.fw-bold Rp. #{totals.margin_non_ppn.toLocaleString('id')}
+          td.fw-bold #{`${totals.margin}%`}
+          td.fw-bold
+          td.fw-bold
     .footer
       .payment-information
         .payment-method

@@ -2017,13 +2017,7 @@ export class OrderService {
       for (let i = 0; i < countTake; i++) {
         skipData = i * takeData;
         const data = await this.dbService.orders.findMany({
-          where: {
-            OR: [
-              {
-                AND: [],
-              },
-            ],
-          },
+          where,
           skip: skipData,
           take: takeData,
           orderBy: {
