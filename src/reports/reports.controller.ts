@@ -35,14 +35,22 @@ export class ReportsController {
   constructor(
     private readonly reportsService: ReportsService,
     private readonly orderService: OrderService,
-  ) {}
+  ) { }
 
-  @Get('/general/export-excel')
-  async invoiceRekonselExportExcel(
-    @Res() res: IExpressResponse,
+  @Get('generate-static-report')
+  async generateStaticReport(@Res() res: IExpressResponse,
   ) {
-    return await this.reportsService.generalReport(res);
+    const outputPath = 'static_booking_report.xlsx';
+    await this.reportsService.generateStaticBookingReport(res);
+    return { message: 'Laporan statis berhasil dibuat', path: outputPath };
   }
+
+  // @Get('/general/export-excel')
+  // async invoiceRekonselExportExcel(
+  //   @Res() res: IExpressResponse,
+  // ) {
+  //   return await this.reportsService.generalReport(res);
+  // }
 
   @Get('/vendor')
   // @CheckPermissions([PermissionAction.READ, menuName])
