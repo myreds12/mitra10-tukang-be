@@ -129,30 +129,47 @@ export class AuthService {
     }
   }
 
-  async updateAllUsersForTesting() {
+  async updateAllUsersForTesting(take: number = 100) {
     try {
-      const users = await this.dbService.users.findMany();
+      let updatedUsers = [];
+      let batchNumber = 0;
   
-      if (!users || users.length === 0) {
-        throw new NotFoundException('Tidak ada user yang ditemukan.');
+      while (true) {
+        // Mengambil 100 user per batch
+        const users = await this.dbService.users.findMany({
+          skip: batchNumber * take, // Skip sejumlah batch yang sudah diambil
+          take: take,               // Ambil sejumlah take user
+        });
+  
+        // Jika tidak ada user yang diambil, hentikan loop
+        if (users.length === 0) {
+          break;
+        }
+  
+        // Update setiap user dalam batch
+        const updatedBatch = await Promise.all(
+          users.map(async (user) => {
+            const updatedUser = await this.dbService.users.update({
+              where: {
+                id: user.id,
+              },
+              data: {
+                username: `${user.username}_testing`, // Tambah _testing pada username
+                password: await hash('passworduntuktesting', 12), // Hash password baru
+              },
+            });
+            return updatedUser;
+          })
+        );
+  
+        // Tambahkan hasil batch ke array total updatedUsers
+        updatedUsers = [...updatedUsers, ...updatedBatch];
+  
+        // Tingkatkan nomor batch
+        batchNumber++;
       }
   
-      const updatedUsers = await Promise.all(
-        users.map(async (user) => {
-          const updatedUser = await this.dbService.users.update({
-            where: {
-              id: user.id,
-            },
-            data: {
-              username: `${user.username}_testing`, 
-              password: await hash('passworduntuktesting', 12), 
-            },
-          });
-          return updatedUser;
-        })
-      );
-  
-      return updatedUsers;
+      return updatedUsers; // Mengembalikan semua user yang telah diperbarui
     } catch (error) {
       console.error(error);
       throw error;

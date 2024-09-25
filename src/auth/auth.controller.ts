@@ -35,6 +35,14 @@ export class AuthController {
     @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
+  @Post('/update/training')
+  @UseGuards(JwtAuthGuard)
+  async updateUserTraining(
+    @Query('take') take: number = 100
+  ) {
+    return await this.authService.updateAllUsersForTesting(take);
+  }
+
   @Get('/get')
   async findAll(@Query() query: QueryParamsDto) {
     return await this.authService.findAll(query);
@@ -62,13 +70,7 @@ export class AuthController {
     return await this.authService.updateUser(id, dto, files);
   }
 
-  @Post('/update/training')
-  @UseInterceptors(FileInterceptor('files'))
-  @UseGuards(JwtAuthGuard)
-  async updateUserTraining(
-  ) {
-    return await this.authService.updateAllUsersForTesting();
-  }
+
 
   @HttpCode(200)
   @Post('login')
