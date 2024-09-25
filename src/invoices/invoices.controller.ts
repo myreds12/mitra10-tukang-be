@@ -38,8 +38,26 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
+  @Get('/pdf/:id')
+  async downloadPdf(@Param('id', ParseIntPipe) id: number, @Res() res: IExpressResponse) {
+    return await this.invoicesService.invoicePdf(id, res);
+  }
+
+  @Get('/rekonsel-pdf/:id')
+  async rekonselPdf(@Param('id', ParseIntPipe) id: number, @Res() res: IExpressResponse) {
+    return await this.invoicesService.rekonselPdf(id, res);
+  }
+
+  @Get('/:id/rekonsel/export-excel')
+  async invoiceRekonselExportExcel(
+    @Param('id') id: string,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.invoicesService.rekonselInvoices(+id, res);
+  }
+
   @Get('/export-excel')
-  async orderExportExcel(
+  async invoiceExportExcel(
     @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse,
   ) {

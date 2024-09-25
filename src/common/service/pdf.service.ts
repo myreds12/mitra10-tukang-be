@@ -11,6 +11,7 @@ export class PdfService {
         data,
       });
 
+
       create(html).toBuffer((err, buffer) => {
         if (err) {
           reject(err);

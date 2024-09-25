@@ -22,10 +22,13 @@ import { MarginType } from 'src/quotation/dto/margin-type.enum';
 import { create } from 'html-pdf';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly dbService: PrismaService, private notifService: NotificationsService) {}
+  constructor(private readonly dbService: PrismaService, private notifService: NotificationsService, private pdfService: PdfService,
+  ) { }
   private readonly logger = new Logger(InvoicesService.name);
   async create(
     createInvoiceDto: CreateInvoiceDto,
@@ -156,7 +159,7 @@ export class InvoicesService {
               });
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+vendor.margin_nominal) )));
+              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+vendor.margin_nominal))));
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -255,8 +258,8 @@ export class InvoicesService {
           }
         })
       ]);
-      if(invoices){
-        await this.notifService.create({invoices: data}, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
+      if (invoices) {
+        await this.notifService.create({ invoices: data }, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
       }
 
       await this.invoiceLogs(invoices.id, invoices);
@@ -289,65 +292,65 @@ export class InvoicesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      invoice_number: { contains: search },
-                    },
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    {
-                      invoice_details: {
-                        some: {
-                          order_id: !isNaN(+search) ? +search : undefined,
-                        },
+              {
+                OR: [
+                  {
+                    invoice_number: { contains: search },
+                  },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order_id: !isNaN(+search) ? +search : undefined,
                       },
                     },
-                    {
-                      invoice_details: {
-                        some: {
-                          order: {
-                            store: {
-                              store_name: {
-                                contains: search,
-                              },
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order: {
+                          store: {
+                            store_name: {
+                              contains: search,
                             },
                           },
                         },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(invoice_status
             ? [
-                {
-                  status: invoice_status,
-                },
-              ]
+              {
+                status: invoice_status,
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           monthly
             ? {
-                created_at: {
-                  gte: new Date(now.getFullYear(), 0, 1),
-                  lte: new Date(now.getFullYear(), 11, 31),
-                },
-              }
+              created_at: {
+                gte: new Date(now.getFullYear(), 0, 1),
+                lte: new Date(now.getFullYear(), 11, 31),
+              },
+            }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -549,7 +552,7 @@ export class InvoicesService {
           if (order.payment_type === 'survey' && item.type === 1) {
             total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000;
           } else if (order.payment_type === 'survey' && item.type === 2) {
-            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal) )));
+            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal))));
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total = order.m_order_details
               .filter((i) => i.item.type === 2)
@@ -649,9 +652,9 @@ export class InvoicesService {
 
         ]);
 
-        if(updatedInvoice){
-          await this.notifService.create({invoices: updatedInvoice[0]}, "UPDATE", updatedInvoice[0].created_by, moduleTypeNotification.INVOICE, updatedInvoice[0].id, updatedInvoice[0].status);
-        }
+      if (updatedInvoice) {
+        await this.notifService.create({ invoices: updatedInvoice[0] }, "UPDATE", updatedInvoice[0].created_by, moduleTypeNotification.INVOICE, updatedInvoice[0].id, updatedInvoice[0].status);
+      }
 
 
       await this.invoiceLogs(invoice.id, updatedInvoice);
@@ -681,68 +684,6 @@ export class InvoicesService {
       throw error;
     }
   }
-
-  // async setStatus(invoice: invoices, status_id: number, user: users) {
-  //   try {
-  //     const statuses = await this.dbService.status.findMany();
-  //     let newStatus = statuses.find((i) =>
-  //       i.category.toLowerCase().includes('unpaid'),
-  //     );
-
-  //     const role = await this.dbService.roles.findFirst({
-  //       where: {
-  //         id: user.role_id,
-  //       },
-  //     });
-
-  //     if (role.name.toLowerCase() === 'admin ho') {
-  //       newStatus = statuses.find((i) =>
-  //         i.category.toLowerCase().includes('pending'),
-  //       );
-
-  //       if (
-  //         invoice.status_id ===
-  //           statuses.find((x) => x.category.toLowerCase().includes('pending'))
-  //             .id &&
-  //         status_id ===
-  //           statuses.find((x) => x.category.toLowerCase().includes('paid')).id
-  //       ) {
-  //         newStatus = statuses.find((i) =>
-  //           i.category.toLowerCase().includes('paid'),
-  //         );
-  //       }
-
-  //       if (
-  //         invoice.status_id ===
-  //           statuses.find((x) => x.category.toLowerCase().includes('pending'))
-  //             .id &&
-  //         status_id ===
-  //           statuses.find((x) => x.category.toLowerCase().includes('rejected'))
-  //             .id
-  //       ) {
-  //         newStatus = statuses.find((i) =>
-  //           i.category.toLowerCase().includes('rejected'),
-  //         );
-  //       }
-  //     }
-
-  //     await this.dbService.invoices.update({
-  //       where: {
-  //         id: invoice.id,
-  //       },
-  //       data: {
-  //         status: {
-  //           connect: {
-  //             id: newStatus.id,
-  //           },
-  //         },
-  //       },
-  //     });
-  //   } catch (error) {
-  //     console.error(error);
-  //     throw error;
-  //   }
-  // }
 
   async nextCode() {
     const invoices = await this.dbService.invoices.findMany({
@@ -811,21 +752,21 @@ export class InvoicesService {
           invoice_details: {
             ...(invoice_status
               ? {
-                  some: {
-                    invoices: {
-                      status: invoice_status,
-                    },
+                some: {
+                  invoices: {
+                    status: invoice_status,
                   },
-                }
+                },
+              }
               : {}),
             ...(invoice_id
               ? {
-                  some: {
-                    invoices: {
-                      id: invoice_id,
-                    },
+                some: {
+                  invoices: {
+                    id: invoice_id,
                   },
-                }
+                },
+              }
               : {}),
           },
         },
@@ -838,10 +779,10 @@ export class InvoicesService {
               AND: [
                 ...(invoice_id
                   ? [
-                      {
-                        invoice_id: invoice_id,
-                      },
-                    ]
+                    {
+                      invoice_id: invoice_id,
+                    },
+                  ]
                   : []),
                 {
                   deleted_at: null,
@@ -939,9 +880,9 @@ export class InvoicesService {
           const grandTotal = Number(invoice.total_amount);
           const formattedGrandTotal = !isNaN(grandTotal)
             ? new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-              }).format(grandTotal)
+              style: 'currency',
+              currency: 'IDR',
+            }).format(grandTotal)
             : 'Rp. 0';
 
           const row = worksheet.addRow({
@@ -1145,6 +1086,313 @@ export class InvoicesService {
         data: JSON.stringify(data ?? {}),
       },
     });
+  }
+
+  async rekonselInvoices(id: number, res: Response) {
+    try {
+      const data = await this.dbService.invoice_details.findMany({
+        where: {
+          deleted_at: null,
+          deleted_by: null,
+          invoice_id: id,
+        },
+        include: {
+          invoices: {
+            include: { vendor: true },
+          },
+          order: {
+            include: {
+              quotation: {
+                where: { deleted_at: null },
+                include: { quotation_receipt: true },
+              },
+              sales: true,
+              members: true,
+              m_order_details: {
+                where: { deleted_at: null },
+                include: { item: true },
+              },
+            },
+          },
+        },
+      });
+
+      // Jika data tidak ada, kirimkan respons 404
+      if (!data || data.length === 0) {
+        console.log("No data to process");
+        return res.status(404).send("No data found for the given invoice.");
+      }
+
+      // Buat workbook dan worksheet
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Invoice', {
+        properties: {
+          tabColor: { argb: '097969' },
+        },
+        pageSetup: {
+          margins: {
+            left: 0.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      // Menggabungkan sel dan membuat header
+      console.log("Sebelum pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+      // Gabungkan sel terlebih dahulu
+      worksheet.mergeCells('A2:L3');
+
+      // Kemudian atur judulnya
+      worksheet.getCell('A2').value = `DATA REKONSEL ${data[0].invoices.vendor.company_name}`;
+      worksheet.getCell('A2').font = { size: 16, bold: true };
+      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Cek nilai setelah diatur
+      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+      // Definisikan kolom
+      worksheet.columns = [
+        { header: 'No', key: 'no', width: 10 },
+        { header: 'Order Id', key: 'order_id', width: 25 },
+        { header: 'Nama Customer', key: 'member_name', width: 50 },
+        { header: 'Nama Pemasangan', key: 'item_name', width: 50 },
+        { header: 'Tanggal Survey/Pengerjaan', key: 'survey_date', width: 50 },
+        { header: 'Total Harga', key: 'invoice_price', width: 60 },
+        { header: 'Transaksi Customer', key: 'customer_transaction', width: 50 },
+        { header: 'Harga Jasa', key: 'instalation_price', width: 50 },
+        { header: 'Margin PPN', key: 'margin_ppn', width: 50 },
+        { header: 'Selisih Non PPN', key: 'margin_non_ppn', width: 50 },
+        { header: 'Margin', key: 'margin', width: 30 },
+        { header: 'No Receipt', key: 'receipt_number', width: 50 },
+      ];
+
+      // Tambah header pada row 3
+      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      worksheet.getCell('A1').value = null;
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.value = null;
+      });
+
+      // Inisialisasi total
+      let totals = {
+        customer_transaction: 0,
+        invoice_price: 0,
+        instalation_price: 0,
+        margin_ppn: 0,
+        margin_non_ppn: 0,
+        margin: 0,
+      };
+
+      // Proses setiap order dalam data
+      data.forEach((order, index) => {
+        const customer_transaction = order.order.payment_type !== PAYMENT_TYPE.SURVEY
+          ? order.order.grand_total
+          : (order.type === 2 && order.order.payment_type === PAYMENT_TYPE.SURVEY && order.order.quotation[0])
+            ? order.order.quotation[0].quotation_grand_total
+            : order.order.grand_total;
+
+        const invoice_price = order.total;
+        const instalation_price = Math.floor(+customer_transaction / 1.11);
+        const margin_ppn = instalation_price - invoice_price;
+        const price_difference = +customer_transaction - invoice_price;
+        const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+
+        // Tambahkan data ke dalam worksheet
+        worksheet.addRow({
+          no: index + 1,
+          order_id: order.order_id,
+          member_name: order.order.members.full_name,
+          item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
+          survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',
+          invoice_price: invoice_price,
+          customer_transaction: +customer_transaction,
+          instalation_price: instalation_price,
+          margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
+          margin_non_ppn: Math.ceil(price_difference / 1.11),
+          margin: `${Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
+          receipt_number: receipt_number,
+        });
+
+        // Update totals
+        totals.customer_transaction += +customer_transaction;
+        totals.invoice_price += invoice_price;
+        totals.instalation_price += instalation_price;
+        totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
+        totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
+        totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
+      });
+
+      // Tambahkan total baris
+      const totalsRow = worksheet.addRow({
+        no: 'Total',
+        invoice_price: totals.invoice_price,
+        customer_transaction: totals.customer_transaction,
+        instalation_price: totals.instalation_price,
+        margin_ppn: `${totals.margin_ppn}%`,
+        margin_non_ppn: totals.margin_non_ppn,
+        margin: `${totals.margin}%`,
+      });
+
+      worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
+      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalsRow.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        }
+      });
+
+      // Fungsi untuk mendapatkan tanggal format saat ini
+      const getFormattedDate = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      };
+
+      // Fungsi untuk membuat path file Excel
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/invoice/rekonsel';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const excelFileName = `${baseName}-${Date.now()}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      // Fungsi untuk menulis workbook dan mengirimkan respons
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      // Generate file Excel
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataInvoice-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      // Jalankan pembuatan file Excel
+      return generateExcelFile(res);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred while generating the invoice.");
+    }
+  }
+
+  async invoicePdf(id: number, res: Response) {
+    const invoices = await this.dbService.invoices.findFirst({
+      where: {
+        deleted_at: null,
+        deleted_by: null,
+        id: id,
+      },
+      include: {
+        invoice_details: {
+          include: {
+            order: {
+              include: {
+                members: true,
+                store: true,
+                quotation: true
+              }
+            }
+          }
+        },
+        vendor: true
+      }
+    });
+    console.log("INVOICE: ", invoices);
+    
+
+    if (!invoices) {
+      console.error('Quotation not found!');
+      throw new NotFoundException('quotation not found!');
+    }
+
+    const data = {
+      invoice: invoices,
+    };
+
+    const buffer = await this.pdfService.generate('invoice-pdf', data);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
+    res.send(buffer);
+  }
+  async rekonselPdf(id: number, res: Response) {
+    const invoices = await this.dbService.invoices.findFirst({
+      where: {
+        deleted_at: null,
+        deleted_by: null,
+        id: id,
+      },
+      include: {
+        invoice_details: {
+          include: {
+            order: {
+              include: {
+                members: true,
+                store: true,
+                quotation: true
+              }
+            }
+          }
+        },
+        vendor: true
+      }
+    });
+    console.log("INVOICE: ", invoices);
+    
+
+    if (!invoices) {
+      console.error('Invoices not found!');
+      throw new NotFoundException('Invoices not found!');
+    }
+
+    const data = {
+      invoice: invoices,
+    };
+
+    const buffer = await this.pdfService.generate('rekonsel-pdf', data);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=rekonsel.pdf');
+    res.send(buffer);
   }
 
   private async updateInvoiceWithNotes(invoiceId: number, note: string) {

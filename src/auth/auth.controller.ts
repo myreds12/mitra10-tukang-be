@@ -62,6 +62,14 @@ export class AuthController {
     return await this.authService.updateUser(id, dto, files);
   }
 
+  @Post('/update/training')
+  @UseInterceptors(FileInterceptor('files'))
+  @UseGuards(JwtAuthGuard)
+  async updateUserTraining(
+  ) {
+    return await this.authService.updateAllUsersForTesting();
+  }
+
   @HttpCode(200)
   @Post('login')
   async login(@Body() dto: CreateLoginDto) {

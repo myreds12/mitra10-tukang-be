@@ -104,7 +104,6 @@ export class OrderController {
   @Get('/quotation-pdf/:order_id')
   async downloadPdf(@Param('order_id', ParseIntPipe) order_id: number, @Res() res: IExpressResponse) {
     return await this.orderService.quotationPdf(order_id, res);
-   
   }
 
   @Get('/export-excel-ho')

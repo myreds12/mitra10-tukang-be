@@ -5,10 +5,11 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Module({
   controllers: [InvoicesController],
-  providers: [InvoicesService, NotificationsService],
+  providers: [InvoicesService, NotificationsService, PdfService],
   imports: [
     MulterModule.register({
       storage: diskStorage({

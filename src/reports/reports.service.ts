@@ -5,15 +5,19 @@ import { Prisma } from '@prisma/client';
 import { HttpService } from '@nestjs/axios';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { currentLineHeight } from 'pdfkit';
+import { Response } from 'express';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ReportsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly httpService: HttpService,
-  ) {}
-  async create(createReportDto: CreateReportDto) {}
-  async findAll() {}
+  ) { }
+  async create(createReportDto: CreateReportDto) { }
+  async findAll() { }
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
@@ -32,63 +36,63 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-                {
-                  quotation: {
-                    order_id: !isNaN(+search) ? +search : undefined,
-                  },
+              {
+                quotation: {
+                  order_id: !isNaN(+search) ? +search : undefined,
                 },
-                {
-                  quotation: {
-                    order: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+              },
+              {
+                quotation: {
+                  order: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
                 },
-                {
-                  sales: {
-                    full_name: {
-                      contains: search,
-                    },
+              },
+              {
+                sales: {
+                  full_name: {
+                    contains: search,
                   },
                 },
-                {
-                  nominal: !isNaN(+search) ? +search : undefined,
+              },
+              {
+                nominal: !isNaN(+search) ? +search : undefined,
+              },
+              {
+                quotation: {
+                  quotation_grand_total: !isNaN(+search)
+                    ? +search
+                    : undefined,
                 },
-                {
-                  quotation: {
-                    quotation_grand_total: !isNaN(+search)
-                      ? +search
-                      : undefined,
-                  },
-                },
-              ]
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  sales: {
-                    store_id: {
-                      in: store_id,
-                    },
+              {
+                sales: {
+                  store_id: {
+                    in: store_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { in: status } }] : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -306,8 +310,8 @@ export class ReportsService {
       const periods = isSameDay
         ? allHours
         : isSameMonth
-        ? allDaysInMonth
-        : allMonths;
+          ? allDaysInMonth
+          : allMonths;
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -358,24 +362,24 @@ export class ReportsService {
         AND: [
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
           ...(search
             ? [
-                {
-                  OR: [
-                    { receipt_number: { contains: search } },
-                    { request_survey: { equals: new Date(search) } },
-                    { members: { full_name: { contains: search } } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { request_survey: { equals: new Date(search) } },
+                  { members: { full_name: { contains: search } } },
+                ],
+              },
+            ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(member_id ? [{ member_id: { equals: member_id } }] : []),
@@ -384,28 +388,28 @@ export class ReportsService {
           ...(store_id ? [{ store_id: { in: store_id } }] : []),
           ...(vendor_id
             ? [
-                {
-                  vendor: {
-                    id: {
-                      equals: vendor_id,
-                    },
-                    deleted_at: null,
+              {
+                vendor: {
+                  id: {
+                    equals: vendor_id,
                   },
+                  deleted_at: null,
                 },
-              ]
+              },
+            ]
             : []),
           ...(tukang_id
             ? [
-                {
-                  work_orders: {
-                    work_order_tukang: {
-                      some: {
-                        tukang_id: tukang_id,
-                      },
+              {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -448,25 +452,25 @@ export class ReportsService {
           where: {
             ...(date_from && date_to
               ? {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
-                }
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
               : undefined),
             ...(store_id
               ? {
-                  orders: {
-                    store_id: { in: store_id },
-                  },
-                }
+                orders: {
+                  store_id: { in: store_id },
+                },
+              }
               : undefined),
             ...(vendor_id
               ? {
-                  orders: {
-                    vendor_id: vendor_id,
-                  },
-                }
+                orders: {
+                  vendor_id: vendor_id,
+                },
+              }
               : undefined),
             status: {
               category: {
@@ -483,25 +487,25 @@ export class ReportsService {
           where: {
             ...(date_from && date_to
               ? {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
-                }
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
               : undefined),
             ...(store_id
               ? {
-                  order: {
-                    store_id: { in: store_id },
-                  },
-                }
+                order: {
+                  store_id: { in: store_id },
+                },
+              }
               : undefined),
             ...(vendor_id
               ? {
-                  order: {
-                    vendor_id: vendor_id,
-                  },
-                }
+                order: {
+                  vendor_id: vendor_id,
+                },
+              }
               : undefined),
             order: {
               status: {
@@ -517,25 +521,25 @@ export class ReportsService {
           where: {
             ...(date_from && date_to
               ? {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
-                }
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
               : undefined),
             ...(store_id
               ? {
-                  orders: {
-                    store_id: { in: store_id },
-                  },
-                }
+                orders: {
+                  store_id: { in: store_id },
+                },
+              }
               : undefined),
             ...(vendor_id
               ? {
-                  orders: {
-                    vendor_id: vendor_id,
-                  },
-                }
+                orders: {
+                  vendor_id: vendor_id,
+                },
+              }
               : undefined),
             deleted_at: null,
           },
@@ -549,15 +553,15 @@ export class ReportsService {
       orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
-              hour: '2-digit',
-              hour12: false,
-              timeZone: 'UTC'
-            })
+            hour: '2-digit',
+            hour12: false,
+            timeZone: 'UTC'
+          })
           : isSameMonth
-          ? new Date(order.created_at).toLocaleString('id-ID', {
+            ? new Date(order.created_at).toLocaleString('id-ID', {
               day: '2-digit',
             })
-          : new Date(order.created_at).toLocaleString('id-ID', {
+            : new Date(order.created_at).toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -745,8 +749,8 @@ export class ReportsService {
       const periods = isSameDay
         ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
         : isSameMonth
-        ? allDaysInMonth
-        : Array.from({ length: 12 }, (_, i) =>
+          ? allDaysInMonth
+          : Array.from({ length: 12 }, (_, i) =>
             new Date(0, i).toLocaleString('id-ID', { month: 'long' }),
           );
 
@@ -760,108 +764,108 @@ export class ReportsService {
           status ? { status: { id: { in: status } } } : undefined,
           search
             ? {
-                OR: [
-                  !isNaN(Number(search))
-                    ? {
-                        id: {
-                          equals: Number(search),
-                        },
-                      }
-                    : undefined,
-                  !isNaN(Number(search))
-                    ? {
-                        order_id: Number(search),
-                      }
-                    : undefined,
-                  {
-                    complaint_channels: {
-                      name: { contains: search },
+              OR: [
+                !isNaN(Number(search))
+                  ? {
+                    id: {
+                      equals: Number(search),
                     },
+                  }
+                  : undefined,
+                !isNaN(Number(search))
+                  ? {
+                    order_id: Number(search),
+                  }
+                  : undefined,
+                {
+                  complaint_channels: {
+                    name: { contains: search },
                   },
-                  {
-                    orders: {
-                      members: {
-                        whatsapp_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        phone_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      phone_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      store: {
-                        store_name: search,
+                },
+                {
+                  orders: {
+                    store: {
+                      store_name: search,
+                    },
+                  },
+                },
+                {
+                  orders: {
+                    sales: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      sales: {
-                        full_name: {
-                          contains: search,
-                        },
-                      },
-                    },
-                  },
-                ],
-              }
+                },
+              ],
+            }
             : undefined,
           store_id
             ? {
-                orders: {
-                  store_id: {
-                    in: store_id,
-                  },
+              orders: {
+                store_id: {
+                  in: store_id,
                 },
-              }
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                orders: {
-                  vendor_id: {
-                    equals: vendor_id,
-                  },
+              orders: {
+                vendor_id: {
+                  equals: vendor_id,
                 },
-              }
+              },
+            }
             : undefined,
           tukang_id
             ? {
-                orders: {
-                  work_orders: {
-                    work_order_tukang: {
-                      some: {
-                        tukang_id: tukang_id,
-                      },
+              orders: {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
                     },
                   },
                 },
-              }
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -885,14 +889,14 @@ export class ReportsService {
       complaints.forEach((complaint) => {
         const period = isSameDay
           ? new Date(complaint.created_at).toLocaleString('id-ID', {
-              hour: '2-digit',
-              hour12: false,
-            })
+            hour: '2-digit',
+            hour12: false,
+          })
           : isSameMonth
-          ? new Date(complaint.created_at).toLocaleString('id-ID', {
+            ? new Date(complaint.created_at).toLocaleString('id-ID', {
               day: '2-digit',
             })
-          : new Date(complaint.created_at).toLocaleString('id-ID', {
+            : new Date(complaint.created_at).toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -1059,8 +1063,8 @@ export class ReportsService {
       const periods = isSameDay
         ? allHours
         : isSameMonth
-        ? allDaysInMonth
-        : allMonths;
+          ? allDaysInMonth
+          : allMonths;
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -1087,79 +1091,79 @@ export class ReportsService {
         AND: [
           search
             ? {
-                OR: [
-                  ...(isNaN(Date.parse(search))
-                    ? []
-                    : [
-                        { request_work_time: { equals: new Date(search) } },
-                        { survey_date: { equals: new Date(search) } },
-                        { work_start_date: { equals: new Date(search) } },
-                        { work_end_date: { equals: new Date(search) } },
-                      ]),
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    orders: {
-                      members: {
-                        whatsapp_number: {
-                          contains: search,
-                        },
+              OR: [
+                ...(isNaN(Date.parse(search))
+                  ? []
+                  : [
+                    { request_work_time: { equals: new Date(search) } },
+                    { survey_date: { equals: new Date(search) } },
+                    { work_start_date: { equals: new Date(search) } },
+                    { work_end_date: { equals: new Date(search) } },
+                  ]),
+                {
+                  id: !isNaN(+search) ? +search : undefined,
+                },
+                {
+                  orders: {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        phone_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      phone_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    order: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  order: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      sales: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    sales: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                ],
-              }
+                },
+              ],
+            }
             : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           tukang_id
             ? {
-                work_order_tukang: {
-                  some: {
-                    tukang_id: tukang_id,
-                  },
+              work_order_tukang: {
+                some: {
+                  tukang_id: tukang_id,
                 },
-              }
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -1251,14 +1255,14 @@ export class ReportsService {
       work_orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
-              hour: '2-digit',
-              hour12: false,
-            })
+            hour: '2-digit',
+            hour12: false,
+          })
           : isSameMonth
-          ? new Date(order.created_at).toLocaleString('id-ID', {
+            ? new Date(order.created_at).toLocaleString('id-ID', {
               day: '2-digit',
             })
-          : new Date(order.created_at).toLocaleString('id-ID', {
+            : new Date(order.created_at).toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -1350,86 +1354,86 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    {
-                      tukang_area: {
-                        some: {
+              {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    tukang_area: {
+                      some: {
+                        area: {
                           area: {
-                            area: {
-                              contains: search,
-                            },
+                            contains: search,
                           },
                         },
                       },
                     },
-                    { address: { contains: search } },
-                    { email: { contains: search } },
-                    { phone_number: { contains: search } },
-                    { full_name: { contains: search } },
-                    { ktp_number: { contains: search } },
-                    {
-                      full_name: {
-                        contains: search,
+                  },
+                  { address: { contains: search } },
+                  { email: { contains: search } },
+                  { phone_number: { contains: search } },
+                  { full_name: { contains: search } },
+                  { ktp_number: { contains: search } },
+                  {
+                    full_name: {
+                      contains: search,
+                    },
+                  },
+                  { vendor: { company_name: { contains: search } } },
+                  {
+                    tukang_service: {
+                      some: {
+                        service_type: { service_type: { contains: search } },
                       },
                     },
-                    { vendor: { company_name: { contains: search } } },
-                    {
-                      tukang_service: {
-                        some: {
-                          service_type: { service_type: { contains: search } },
-                        },
-                      },
-                    },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           service_types
             ? {
-                tukang_service: {
-                  some: {
-                    service_type_id: {
-                      in: service_types,
-                    },
+              tukang_service: {
+                some: {
+                  service_type_id: {
+                    in: service_types,
                   },
                 },
-              }
+              },
+            }
             : undefined,
           area_id
             ? {
-                tukang_area: {
-                  some: {
-                    area_id: {
-                      in: area_id,
-                    },
+              tukang_area: {
+                some: {
+                  area_id: {
+                    in: area_id,
                   },
                 },
-              }
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           search_date_from && search_date_to
             ? {
-                join_date: {
-                  gte: new Date(`${search_date_from}T00:00:00.000Z`),
-                  lte: new Date(`${search_date_to}T23:59:59.000Z`),
-                },
-              }
+              join_date: {
+                gte: new Date(`${search_date_from}T00:00:00.000Z`),
+                lte: new Date(`${search_date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ],
         deleted_at: null,
@@ -1540,6 +1544,234 @@ export class ReportsService {
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+
+  async generalReport(res: Response) {
+    try {
+      const data = await this.dbService.invoice_details.findMany({
+        where: {
+          deleted_at: null,
+          deleted_by: null,
+        },
+        include: {
+          invoices: {
+            include: { vendor: true },
+          },
+          order: {
+            include: {
+              quotation: {
+                where: { deleted_at: null },
+                include: { quotation_receipt: true },
+              },
+              sales: true,
+              members: true,
+              m_order_details: {
+                where: { deleted_at: null },
+                include: { item: true },
+              },
+            },
+          },
+        },
+      });
+
+      // Jika data tidak ada, kirimkan respons 404
+      if (!data || data.length === 0) {
+        console.log("No data to process");
+        return res.status(404).send("No data found for the given invoice.");
+      }
+
+      // Buat workbook dan worksheet
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Invoice', {
+        properties: {
+          tabColor: { argb: '097969' },
+        },
+        pageSetup: {
+          margins: {
+            left: 0.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      // Menggabungkan sel dan membuat header
+      console.log("Sebelum pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+      // Gabungkan sel terlebih dahulu
+      worksheet.mergeCells('A2:L3');
+
+      // Kemudian atur judulnya
+      worksheet.getCell('A2').value = `DATA REKONSEL ${data[0].invoices.vendor.company_name}`;
+      worksheet.getCell('A2').font = { size: 16, bold: true };
+      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Cek nilai setelah diatur
+      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+      // Definisikan kolom
+      worksheet.columns = [
+        { header: 'No', key: 'no', width: 10 },
+        { header: 'Order Id', key: 'order_id', width: 25 },
+        { header: 'Nama Customer', key: 'member_name', width: 50 },
+        { header: 'Nama Pemasangan', key: 'item_name', width: 50 },
+        { header: 'Tanggal Survey/Pengerjaan', key: 'survey_date', width: 50 },
+        { header: 'Total Harga', key: 'invoice_price', width: 60 },
+        { header: 'Transaksi Customer', key: 'customer_transaction', width: 50 },
+        { header: 'Harga Jasa', key: 'instalation_price', width: 50 },
+        { header: 'Margin PPN', key: 'margin_ppn', width: 50 },
+        { header: 'Selisih Non PPN', key: 'margin_non_ppn', width: 50 },
+        { header: 'Margin', key: 'margin', width: 30 },
+        { header: 'No Receipt', key: 'receipt_number', width: 50 },
+      ];
+
+      // Tambah header pada row 3
+      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      worksheet.getCell('A1').value = null;
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.value = null;
+      });
+
+      // Inisialisasi total
+      let totals = {
+        customer_transaction: 0,
+        invoice_price: 0,
+        instalation_price: 0,
+        margin_ppn: 0,
+        margin_non_ppn: 0,
+        margin: 0,
+      };
+
+      // Proses setiap order dalam data
+      data.forEach((order, index) => {
+        const customer_transaction = order.order.payment_type !== 'survey'
+          ? order.order.grand_total
+          : (order.type === 2 && order.order.payment_type === 'survey' && order.order.quotation[0])
+            ? order.order.quotation[0].quotation_grand_total
+            : order.order.grand_total;
+
+        const invoice_price = order.total;
+        const instalation_price = Math.floor(+customer_transaction / 1.11);
+        const margin_ppn = instalation_price - invoice_price;
+        const price_difference = +customer_transaction - invoice_price;
+        const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+
+        // Tambahkan data ke dalam worksheet
+        worksheet.addRow({
+          no: index + 1,
+          order_id: order.order_id,
+          member_name: order.order.members.full_name,
+          item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
+          survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',
+          invoice_price: invoice_price,
+          customer_transaction: +customer_transaction,
+          instalation_price: instalation_price,
+          margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
+          margin_non_ppn: Math.ceil(price_difference / 1.11),
+          margin: `${Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
+          receipt_number: receipt_number,
+        });
+
+        // Update totals
+        totals.customer_transaction += +customer_transaction;
+        totals.invoice_price += invoice_price;
+        totals.instalation_price += instalation_price;
+        totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
+        totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
+        totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
+      });
+
+      // Tambahkan total baris
+      const totalsRow = worksheet.addRow({
+        no: 'Total',
+        invoice_price: totals.invoice_price,
+        customer_transaction: totals.customer_transaction,
+        instalation_price: totals.instalation_price,
+        margin_ppn: `${totals.margin_ppn}%`,
+        margin_non_ppn: totals.margin_non_ppn,
+        margin: `${totals.margin}%`,
+      });
+
+      worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
+      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalsRow.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        }
+      });
+
+      // Fungsi untuk mendapatkan tanggal format saat ini
+      const getFormattedDate = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      };
+
+      // Fungsi untuk membuat path file Excel
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/invoice/rekonsel';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const excelFileName = `${baseName}-${Date.now()}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      // Fungsi untuk menulis workbook dan mengirimkan respons
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      // Generate file Excel
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataInvoice-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      // Jalankan pembuatan file Excel
+      return generateExcelFile(res);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred while generating the invoice.");
     }
   }
 }

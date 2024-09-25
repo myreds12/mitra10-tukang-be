@@ -152,7 +152,7 @@ export class NotificationsService {
                 in: status
               }
             },
-            { module_type: { in: [moduleTypeNotification.INVOICE, moduleTypeNotification.INCENTIVE] } },
+            { module_type: { in: [moduleTypeNotification.INVOICE, moduleTypeNotification.INCENTIVE] }, },
           ]
         } : undefined),
         user_id: user.id

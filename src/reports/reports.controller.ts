@@ -37,6 +37,13 @@ export class ReportsController {
     private readonly orderService: OrderService,
   ) {}
 
+  @Get('/general/export-excel')
+  async invoiceRekonselExportExcel(
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.reportsService.generalReport(res);
+  }
+
   @Get('/vendor')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)

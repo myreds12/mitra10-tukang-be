@@ -129,6 +129,36 @@ export class AuthService {
     }
   }
 
+  async updateAllUsersForTesting() {
+    try {
+      const users = await this.dbService.users.findMany();
+  
+      if (!users || users.length === 0) {
+        throw new NotFoundException('Tidak ada user yang ditemukan.');
+      }
+  
+      const updatedUsers = await Promise.all(
+        users.map(async (user) => {
+          const updatedUser = await this.dbService.users.update({
+            where: {
+              id: user.id,
+            },
+            data: {
+              username: `${user.username}_testing`, 
+              password: await hash('passworduntuktesting', 12), 
+            },
+          });
+          return updatedUser;
+        })
+      );
+  
+      return updatedUsers;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async deleteUser(id: number) {
     try {
       const user = await this.dbService.users.findFirst({
