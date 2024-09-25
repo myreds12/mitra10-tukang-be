@@ -38,8 +38,9 @@ export class AuthController {
   @Post('/update/training')
   @UseGuards(JwtAuthGuard)
   async updateUserTraining(
+    @Query('take') take: number = 100
   ) {
-    return await this.authService.updateAllUsersForTesting();
+    return await this.authService.updateAllUsersForTesting(take);
   }
 
   @Get('/get')
@@ -70,10 +71,10 @@ export class AuthController {
   }
 
 
+
   @HttpCode(200)
   @Post('login')
   async login(@Body() dto: CreateLoginDto) {
-    return await this.authService.login(dto);
   }
 
   @HttpCode(200)
