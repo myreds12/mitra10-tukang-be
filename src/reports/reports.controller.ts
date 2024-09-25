@@ -37,7 +37,7 @@ export class ReportsController {
     private readonly orderService: OrderService,
   ) { }
 
-  @Get('generate-static-report')
+  @Get('/general-report')
   async generateStaticReport(@Res() res: IExpressResponse,
   ) {
     const outputPath = 'static_booking_report.xlsx';
