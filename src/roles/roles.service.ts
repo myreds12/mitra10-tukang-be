@@ -7,7 +7,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class RolesService {
   constructor(private readonly dbService: PrismaService) {}
   async create(createRoleDto: CreateRoleDto, user_id: number) {
-    try {
+    // try {
+      console.log("kontol");
+      
       const roles = await this.dbService.roles.create({
         data: {
           ...createRoleDto,
@@ -16,12 +18,13 @@ export class RolesService {
       });
 
       return roles;
-    } catch (error) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'Failed to Create',
-      };
-    }
+    // } catch (error) {
+    //   console.log(error);
+    //   return {
+    //     status: HttpStatus.BAD_REQUEST,
+    //     message: 'Failed to Create',
+    //   };
+    // }
   }
 
   async findAll() {

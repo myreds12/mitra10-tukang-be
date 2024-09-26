@@ -2234,23 +2234,6 @@ export class OrderService {
                 updated_by: true,
               },
             },
-            invoice_details: {
-              where: {
-                deleted_at: null,
-              },
-              select: {
-                invoices: {
-                  select: {
-                    id: true,
-                    status: true,
-                    total_amount: true,
-                    invoice_logs: true,
-                    description: true,
-                    vendor: true,
-                  },
-                },
-              },
-            },
             sales: {
               where: {
                 deleted_at: null,
@@ -3928,7 +3911,9 @@ export class OrderService {
       message,
     };
 
-    const buffer = await this.pdfService.generate('quotation', data);
+    
+
+    const buffer = await this.pdfService.generate('quotation-pdf', data);
     // Set headers to download the PDF
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
