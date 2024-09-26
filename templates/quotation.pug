@@ -1,275 +1,213 @@
 doctype html
-html(lang="en")
+html(lang='en')
   head
     meta(charset='UTF-8')
+    | &#x9;&#x9;
     meta(name='viewport' content='width=device-width, initial-scale=1.0')
-    title Email Quotation
-
+    | &#x9;&#x9;
+    title Quotation Confirmation
+    | &#x9;&#x9;
+    link(href='https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap' rel='stylesheet')
+    | &#x9;&#x9;
+    script(src='https://cdn.tailwindcss.com')
+    | &#x9;
     style.
-      #preview-email th, td {
-        padding: 5px;
-        border: 1px solid black;
-        border-collapse: collapse;
+      ul.list-disc {
+      margin: auto;
+      padding: 0 0 0 50px !important;
       }
-      #preview-email .text-end {
-        text-align: end;
-      }
-      #preview-email .text-white {
-        color: #ffff;
-      }
-      #preview-email .normal {
-        font-weight: 400;
-      }
-      #preview-email .semibold {
-        font-weight: 600;
-      }
-      #preview-email .bold {
-        font-weight: 700;
-      }
-      #preview-email {
-        font-family: Arial, Helvetica, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      #preview-email .card {
-        width: 100%;
-        max-width: 900px;
-        margin: 0 auto;
-      }
-      #preview-email .card .card-body {
-        min-height: 50vh;
-        padding: 2rem !important;
-      }
-      #preview-email .card-header {
-        display: block !important;
-        padding: 10px 0 0 30px;
-        min-height: 5px;
-      }
-      #preview-email .card-header .header-information .header-title h3 {
-        margin: 5px;
-      }
-      #preview-email .card-header .content-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      #preview-email .card-header .content-header .header-information .header-logo {
-        display: flex;
-        align-items: center;
-      }
-      #preview-email .card-body .detail-pemesanan {
-        margin-bottom: 20px;
-      }
-      #preview-email .card-body .detail-pemesanan h4 {
-        margin: 5px 0px 5px 0;
-        padding: 0px;
-      }
-      #preview-email .detail-syarat ol li {
-        margin: 0px 0px 15px 0px;
-      }
-      #preview-email .card-footer .bank-payment h5 {
-        margin: 15px;
-        padding: 0px;
-      }
-      #preview-email .card-footer .payment-evidence h5 {
-        margin: 15px;
-        padding: 0px;
-      }
-        #preview-email table.table-detail-pemesanan {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 20px;
-      }
-      #preview-email .table-responsive {
-        overflow-x: auto;
-      }
-      #preview-email .header-img-wrapper {
-        flex: 1;
-      }
-      #preview-email .footer-img-wrapper {
-        flex: 1;
-      }
-      #preview-email .header-img {
-        width: 100%;
-        max-width: 100%;
-        height: auto;
-        display: block;
-      }
-      @media screen and (max-width: 576px) {
-        #preview-email .card-header .content-header {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-        #preview-email .card-header .content-header .header-logo {
-          margin-bottom: 1rem;
-        }
-        #preview-email .header-img-wrapper {
-          margin-bottom: 1rem;
-        }
-        #preview-email .footer-img-wrapper {
-          margin-bottom: 1rem;
-        }
-        #preview-email .card-footer {
-          font-size: 0.75rem; 
-        }
-        #preview-email h2 {
-          font-size: 1.2rem;
-        }
-        #preview-email .card-body .title h3 {
-          font-size: 1rem; 
-        }
-        #preview-email .card-body .title h4 {
-          font-size: 0.75rem; 
-        }
-        #preview-email .card-body .detail-pemesanan h4 {
-          font-size: 0.75rem; 
-        }
-        #preview-email .table-responsive {
-          font-size: 1rem;
-        }
-        #preview-email .card-body .detail-syarat {
-          font-size: 0.75rem; 
-        }
-      }
-
-  body
-    section#preview-email
-      .card
-        .card-header
-          .header-img-wrapper
-            img.header-img(src='https://i.ibb.co.com/fMKmCPX/Whats-App-Image-2024-08-07-at-11-27-26-c5a2069a.jpg' alt='header-email-instalasi-01' border='0')
-          .content-header
-            .header-information
-              .header-logo
-                img.h-30px.logo.mb-3.pe-1(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png' alt='Logo Mitra10' style='width: 50px; height: 25px')
-                h2 Instalasi & Service Mitra 10
-            .header-information
-              .header-title
-                h4.bold Quotation Id :
-                  span.normal #{data.quotation.id}
-                h4.bold  Order ID :
-                  span.normal #{data.quotation.order.id}
-        .card-body
-          .title
-            h3 #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
-            h3 #{data.message.greetings}
-            h3 Detail Pemesanan
-            .table-responsive
-              table.table-detail-pemesanan
-                thead
-                  tr
-                    th.text-center(style='width: 355px') Jenis Jasa
-                    th.text-center(style='width: 100px') QTY
-                    th.text-center(style='width: 250px') Satuan
-                    th.text-center(style='width: 250px') Final Price
-                tbody
-                  each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-                    tr(key=`${index} - quotation details`)               
-                      td= item.name ? item.name : '-'
-                      td= item.quantity ? (item.quantity ) : '-'
-                      td= item.unit ? item.unit : '-'
-                      - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                      td= formattedFinalPrice
-
-            .table-responsive
-              table.table-detail-pemesanan
-                thead
-                  tr
-                    th.text-center(style='width: 355px') Material Yang Dibutuhkan
-                    th.text-center(style='width: 100px') QTY
-                    th.text-center(style='width: 250px') Satuan
-                    th.text-center(style='width: 250px') Final Price
-                tbody
-                  each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
-                    tr(key=`${index} - quotation details`)               
-                      td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                      td= item.quantity ? (item.quantity ) : '-'
-                      td= item.unit ? item.unit : '-'
-                      - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                      td= formattedFinalPrice
-
-                  - var reducedTotal = 0
-                  - data.quotation.quotation_details.forEach(detail => {
-                  -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
-                  -   reducedTotal += reducedPrice
-                  - })
-                  // Pastikan angka diformat dengan benar
-                  - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
-
-                  tr
-                    td(colspan=3) Total 
-                    td(colspan=2)= formattedReducedTotal
-                  tr
-                    td(colspan=3) Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
-                    td(colspan=2)= formattedTotal
-                  tr
-                    td(colspan=3) Grand Total
-                    - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                    td(colspan=2)= formattedTotal
-
-          //- .table-responsive
-          //-   table.table-detail-pemesanan
-          //-     thead
-          //-       tr
-          //-         th Item Dari Customer
-          //-         th Item Type
-          //-         th Nama
-          //-         th Quantity
-          //-         th Harga Akhir
-          //-     tbody
-          //-       each item, index in data.quotation.quotation_details
-          //-         tr(key=`${index} - quotation details`)               
-          //-           td= item.is_customer === true ? 'IYA' : 'TIDAK'
-          //-           td= item.item_type === 1 ? 'Material' : 'Jasa'
-          //-           td= item.name ? item.name : '-'
-          //-           td= item.quantity ? (item.quantity ) : '-'
-          //-           - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-          //-           td= formattedFinalPrice
-          //-       tr
-          //-         td(colspan=4) Grand Total
-          //-         - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-          //-         td(colspan=2)= formattedTotal
-
-
-          .title
-            h3 Detail Pemasangan
-          .detail-pemesanan
-            h4.normal Nama Customer:
-              span.semibold #{data.quotation.order.members.full_name}
-            h4.normal Alamat :
-              span.semibold #{data.quotation.order.project_address}
-            h4.normal Telp :
-              span.semibold #{data.quotation.order.project_number}
-          .title
-            h4.bold Syarat & Ketentuan
-          .detial-syarat
-            ol
-              each item in data.message.terms_detail
-                li #{item.terms}
-          .title
-            h4.bold Informasi
-          .detail-syarat
-            ol
-              each item in data.message.information_detail
-                li.fw-normal #{item.information}
-          .card-footer
-            .bank-payment
-              h4 Silahkan melakukan pembayaran di account di bawah ini :
-              h5 #{data.quotation.store.bank_account}
-              h5 #{data.quotation.store.bank_name}
-              h5 #{data.quotation.store.bank_number}
-            .payment-evidence
-              h4 Silahkan kirim bukti bayar anda melalui :
-              h5 Telp : #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
-              h5 Email : #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
-            .footer-title
-              h4.bold #{data.message.footer}
-            .footer-img-wrapper
-            img.header-img(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg' border='0' alt='footer-email-instalasi-02')
-  script.
-    function formatRupiah(angka) {
-      return 'Rp. ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    }
+  | &#x9;
+  | &#x9;
+  body.bg-gray-100.font-sans.leading-normal.tracking-normal
+    .max-w-3xl.mx-auto.bg-white.shadow-md.rounded-lg.overflow-hidden
+      // Header
+      .p-0
+        img.w-full.h-auto(src='https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg' alt='Banner Image')
+      | &#x9;&#x9;&#x9;
+      .p-4.flex.flex-col.justify-between.items-center(class='md:flex-row')
+        img.h-12(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png' alt='Mitra 10 Logo')
+        | &#x9;&#x9;&#x9;&#x9;
+        p.ml-4.text-2xl.font-bold.text-center
+          | Instalasi &amp; Service Mitra 10
+        | &#x9;&#x9;&#x9;&#x9;
+        .text-center(class='md:text-right')
+          p.text-lg.font-bold Quotation ID: #{data.quotation.id}
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.text-sm Order ID: #{data.quotation.order.id}
+      .p-6
+        h1.text-2xl.font-bold.mb-4 Quotation Confirmation
+        | &#x9;&#x9;&#x9;&#x9;
+        span.mb-4.text-gray-700
+          | #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
+          | #{data.message.greetings}
+          p.mb-4.text-gray-700
+            | Berikut detail pemesanan Anda:
+        table.w-full.text-left.table-auto.border-collapse.mb-6
+          thead
+            tr
+              th.border.px-4.py-2 Jenis Jasa
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              th.border.px-4.py-2 QTY
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              th.border.px-4.py-2 Satuan
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              th.border.px-4.py-2 Final Price
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          tbody
+            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
+              tr(key=${index} - quotation details)               
+                td= item.name ? item.name : '-'
+                td= item.quantity ? (item.quantity ) : '-'
+                td= item.unit ? item.unit : '-'
+                - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                td= formattedFinalPrice
+        table.w-full.text-left.table-auto.border-collapse.mb-6
+          thead
+            tr
+              th.border.px-4.py-2
+                | Material Yang Dibutuhkan
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              th.border.px-4.py-2 QTY
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              th.border.px-4.py-2 Satuan
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              th.border.px-4.py-2 Final Price
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          tbody
+            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
+              tr(key=${index} - quotation details)               
+                td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                td= item.quantity ? (item.quantity ) : '-'
+                td= item.unit ? item.unit : '-'
+            - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+            td= formattedFinalPrice
+            - var reducedTotal = 0
+            - data.quotation.quotation_details.forEach(detail => {
+            -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
+            -   reducedTotal += reducedPrice
+            - })
+            - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+            tr
+              td.border.px-4.py-2(colspan='3')
+                p.text-right.font-bold Total
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              td.border.px-4.py-2(colspan='3')
+                p.text-right #{formattedReducedTotal}
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            tr
+              td.border.px-4.py-2(colspan='3')
+                p.text-right.font-bold
+                  | Additional Promotion  (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td.border.px-4.py-2(colspan='3')
+                p.text-right #{formattedTotal}
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            tr
+              td.border.px-4.py-2(colspan='3')
+                p.text-right.font-bold Grand Total
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              td.border.px-4.py-2(colspan='3')
+              - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                p.text-right #{formattedTotal}
+        .customer-information
+          h2.text-2xl.font-bold.mb-4
+            | Customer Information
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          .mb-5
+            p.text-gray-700
+              strong Name:
+              |  #{data.quotation.order.members.full_name}
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            p.text-gray-700
+              strong Email:
+              |  #{data.quotation.order.members.email}
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            p.text-gray-700
+              strong Phone:
+              |  #{data.quotation.order.project_number}
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            p.text-gray-700
+              strong Address:
+              |  #{data.quotation.order.project_address}
+        | &#x9;&#x9;&#x9;&#x9;
+        p.mt-4.text-gray-700 #{data.message.footer}
+        | &#x9;&#x9;&#x9;&#x9;
+        p.mt-1.text-gray-700
+          | Ini adalah email yang dikirimkan oleh sistem. Mohon untuk
+          | tidak membalas email ini.
+      // Etc
+      .divide-y
+        // Payment Instructions
+        .p-6.bg-gray-100.shadow-inner
+          h2.text-2xl.font-bold.mb-4
+            | Payment Instructions
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          .payment-information.mb-3
+            p.mb-2.text-gray-700.font-semibold
+              | 1. Silahkan melakukan pembayaran di account di bawah
+              | ini:
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            ul.list-disc
+              li.text-gray-700 Bank: #{data.quotation.store.bank_name}
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              li.text-gray-700
+                | Account Number: #{data.quotation.store.bank_number}
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              li.text-gray-700 Account Name: #{data.quotation.store.bank_account}
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          .payment-evidence
+            p.mb-2.text-gray-700.font-semibold
+              | 2. Silahkan kirim bukti bayar anda melalui:
+            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+            ul.list-disc
+              li.text-gray-700
+                | Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
+              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              li.text-gray-700
+                | Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
+        // Information
+        .p-6.bg-gray-100
+          h2.text-2xl.font-bold.mb-4 Information
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 1. All sales are final. No returns or exchanges will be
+            | accepted.
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 2. Payment must be made in full before the order is
+            | processed.
+        // Terms and Conditions
+        .p-6.bg-gray-100
+          h2.text-2xl.font-bold.mb-4
+            | Terms and Conditions
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 1. All sales are final. No returns or exchanges will be
+            | accepted.
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 2. Payment must be made in full before the order is
+            | processed.
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 3. Delivery times are estimates and may vary based on
+            | location and availability.
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 4. We are not responsible for any damages or losses
+            | incurred during shipping.
+          | &#x9;&#x9;&#x9;&#x9;&#x9;
+          p.mb-2.text-gray-700
+            | 5. By placing an order, you agree to our terms and
+            | conditions.
+      // Footer
+      .bg-gray-200.p-4.text-center
+        p.text-sm
+          | If you have any questions, feel free to contact us at
+          | customer.relation@mitra10.com
+        | &#x9;&#x9;&#x9;&#x9;
+        p.text-sm &copy; 2024 Mitra10. All rights reserved.
+      // After Footer
+      .p-0
+        img.w-full.h-auto(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg' alt='Banner Image')

@@ -22,9 +22,11 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Post('/')
-  create(@Body() createRoleDto: CreateRoleDto, @Request() req) {
+  async create(@Body() createRoleDto: CreateRoleDto, @Request() req) {
+    console.log("kontol");
+    
     const user_id = req.user.id;
-    return this.rolesService.create(createRoleDto, user_id);
+    return await this.rolesService.create(createRoleDto, user_id);
   }
 
   @Get('/')

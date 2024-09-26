@@ -4,259 +4,282 @@ html(lang="en")
     meta(charset="UTF-8")
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
     title Template PDF Quotation HO
-    link(
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-      crossorigin="anonymous"
-    )
-
+    link(href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous")
   style.
     * {
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 7px;
+    font-family: Arial, Helvetica, sans-serif;
     }
 
+    /* Header */
     #quotation .store-information img {
-      height: 50px;
-    }
-
-    #quotation .store-information {
-      padding: 0 100px 0 0;
-    }
-
-    #quotation .receiver-information {
-      padding: 0 100px 0 0;
-    }
-
-    #quotation .quotation-information {
-      padding: 0 0 0 100px;
+    height: 50px;
     }
 
     #quotation .notes {
-      padding: 0 9.75px 0 100px;
+    padding: 0 9.75px 0 100px;
     }
 
     #quotation .store-information h1 {
-      color: #007eb4;
-      font-size: 30px;
-      padding: 0 0 10px 0;
+    color: #007eb4;
+    font-size: 30px;
     }
 
     #quotation .quotation-information h1 {
-      color: #484747;
-      font-size: 30px;
-      padding: 0 0 10px 0;
+    color: #484747;
+    font-size: 30px;
     }
 
+    /* Table */
+
     #quotation .table-responsive {
-      padding: 0 !important;
+    padding: 0 !important;
     }
 
     #quotation table tr th {
-      font-size: 14px;
-      font-weight: 600;
-      color: white;
-      background-color: #555555;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    background-color: #555555;
     }
 
     #quotation table tr td {
-      font-size: 12px;
+    font-size: 12px;
     }
 
+    /* Footer */
+
     #quotation .payment-information .payment-method {
-      margin: 10px 0;
+    margin: 10px 0;
     }
 
     #quotation .payment-information .payment-evidence {
-      margin: 10px 0;
+    margin: 10px 0;
     }
 
     @media screen and (max-width: 991px) {
-      #quotation .store-information {
-        padding: 0;
-        margin-bottom: 20px;
-      }
+    #quotation .quotation-information {
+    padding: 0;
+    margin-bottom: 20px;
+    }
 
-      #quotation .receiver-information {
-        padding: 0;
-        margin-bottom: 20px;
-      }
-
-      #quotation .quotation-information {
-        padding: 0;
-        margin-bottom: 20px;
-      }
-
-      #quotation .notes {
-        padding: 0;
-        margin-bottom: 20px;
-      }
+    #quotation .notes {
+    padding: 0;
+    margin-bottom: 20px;
+    }
     }
 
     @media print {
-      .table-responsive {
-        overflow: visible !important;
-        max-height: none !important;
-      }
-
-      .quotation-wrapper {
-        margin-top: 3rem;
-        margin-bottom: 3rem;
-        min-height: 50vh;
-        page-break-after: always;
-      }
-
-      .footer {
-        margin-top: 3rem;
-        margin-bottom: 3rem;
-        page-break-before: always;
-      }
+    .table-responsive {
+    overflow: visible !important;
+    max-height: none !important;
     }
 
+    .quotation-wrapper {
+    margin-top: 3rem;
+    margin-bottom: -3rem;
+    min-height: 50vh;
+    }
+
+    .footer {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+    }
+    }
   body
     section#quotation.container.d-block.m-auto.mt-5.mb-5
       .quotation-wrapper
         .header
           .row.mb-3.d-flex.flex-column.flex-md-row
-            .col-12.col-md-6
-              .store-information
-                img.logo.mb-3(src="./logo-mitra.png", alt="Logo")
-                .address
-                  .fs-6.fw-semibold.mb-2 #{data.order.store.store_name}
-                  .fs-6.fw-normal #{data.order.store.address}
-                  .fs-6.fw-normal Telp : #{data.order.store.phone_number_1 ?? data.order.store.phone_number_2}
-            .col-12.col-md-6
-              .quotation-information
-                h1.fs-2.fw-bolder QUOTATION
-                .fs-6.fw-semibold 
-                  | Tanggal: 
-                   - var formateCreatedAt = new Date(data.quotation.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-                  span.fw-normal #{formateCreatedAt}
-                .fs-6.fw-semibold 
-                  | Quotation ID: 
-                  span.fw-normal #{data.quotation.id}
-                .fs-6.fw-semibold 
-                  | Customer ID: 
-                  span.fw-normal #{data.order.member_id}
+            h1.fs-2.fw-bolder.text-center
+              | KONFIRMASI QUOTATION
+            .store-information.mb-3
+              img.logo.mb-3(alt="Logo" src="https://na.leafletscdns.com/id/data/16/logo.png?f3b5760e2a9382044d17898b8bb9e7b5")
+              .address
+                .fs-5.fw-semibold.mb-2
+                  |  #{data.quotation.store.store_name}
+                .fs-6.fw-normal
+                  |  #{data.quotation.store.address}
+                .fs-6.fw-normal
+                  | Telp : #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
+            .quotation-information.mb-3
+              .fs-5.fw-bold.mb-1
+                | Informasi Quotation :
+              .fs-6.fw-semibold
+                | Tanggal:
+                -var formateCreatedAt = new Date(data.quotation.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+                span.fw-normal #{formateCreatedAt} 
+              .fs-6.fw-semibold
+                | Quotation ID:
+                span.fw-normal #{data.quotation.id}
+              .fs-6.fw-semibold
+                | Customer ID:
+                span.fw-normal #{data.quotation.order.members.full_name}
+              .fs-6.fw-semibold
+                | Quotation Valid Until :
+                -var formateValid = data.quotation.quotation_validity != null ? new Date(data.quotation.quotation_validity || '-').toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+                span.ms-1.fw-normal
+                  | #{formateValid}
+              .fs-6.fw-semibold
+                | Instruksi Spesial :
+                span.fs-6.fw-normal #{data.quotation.description}
           .row.mb-3
-            .col.col-12.col-xxl-6.col-xl-6.col-lg-6.col-md-6.col-sm-12.col-xs-12
-              .receiver-information
-                .fs-6.fw-semibold Ditunjukkan kepada :
-                .fs-6.mb-2.fw-bold #{data.order.members.full_name}
-                .fs-6.mb-2.fw-normal #{data.order.members.address_1 ?? data.order.members.address_2}
-                .fs-6.mb-2.fw-normal Telp : 0835-1234-3456
-            .col.col-12.col-xxl-6.col-xl-6.col-lg-6.col-md-6.col-sm-12.col-xs-12
-              .quotation-information
-                .fs-6.fw-semibold
-                  | Quotation Valid Until : 
-                  span.ms-1.fw-normal #{data.quotation.quotation_validity ? data.quotation.quotation_validity : '-'}
-                .description
-                  .fs-6.fw-semibold
-                    | Instruksi Spesial : 
-                    span.fs-6.fw-normal #{data.quotation.description}
-
+            .receiver-information
+              .fs-5.fw-semibold
+                | Ditunjukkan kepada :
+              .fs-6.mb-2.fw-bold #{data.quotation.order.members.full_name}
+              .fs-6.mb-2.fw-normal
+                | #{data.quotation.order.members.address_1}
+              .fs-6.mb-2.fw-normal
+                | Telp : #{data.quotation.order.members.whatsapp_number ? data.quotation.order.members.whatsapp_number : data.quotation.order.members.phone_number  }
         .content
           .table-responsive
             table.table.table-bordered
               thead
                 tr
-                  th.text-center(style="max-width: 20rem") Jenis Jasa
-                  th.text-center(style="max-width: 3rem") QTY
+                  th.text-center(style="max-width: 20rem")
+                    | Jenis Jasa
+                  th.text-center(style="max-width: 3rem")
+                    | QTY
                   th.text-center Satuan
                   th.text-center Final Price
               tbody
-                 each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-                    tr(key=`${index} - quotation details`)               
-                      td(style="max-width: 20rem")= item.name ? item.name : '-'
-                      td(style="max-width: 2rem")= item.quantity ? (item.quantity ) : '-'
-                      td(style="max-width: 2rem")= item.unit ? item.unit : '-'
-                      - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                      td(style="max-width: 2rem")= formattedFinalPrice
-
+                each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
+                  tr(key=${index} - quotation details)               
+                    td= item.name ? item.name : '-'
+                    td= item.quantity ? (item.quantity ) : '-'
+                    td= item.unit ? item.unit : '-'
+                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    td= formattedFinalPrice
           .table-responsive
             table.table.table-bordered
               thead
                 tr
-                  th.text-center(style="max-width: 20rem") Material yang dibutuhkan
+                  th.text-center(style="max-width: 20rem")
+                    | Material yang dibutuhkan
                   th.text-center QTY
                   th.text-center Satuan
                   th.text-center Final Price
               tbody
                 each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
-                    tr(key=`${index} - quotation details`)               
-                      td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                      td= item.quantity ? (item.quantity ) : '-'
-                      td= item.unit ? item.unit : '-'
-                      - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                      td= formattedFinalPrice
-
-                  - var reducedTotal = 0
-                  - data.quotation.quotation_details.forEach(detail => {
-                  -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
-                  -   reducedTotal += reducedPrice
-                  - })
-                  // Pastikan angka diformat dengan benar
-                  - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
-
-                  tr
-                    td(colspan=3) Total 
-                    td(colspan=2)= formattedReducedTotal
-                  tr
-                    td(colspan=3) Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-                    - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
-                    td(colspan=2)= formattedTotal
-                  tr
-                    td(colspan=3) Grand Total
-                    - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                    td(colspan=2)= formattedTotal
-
+                  tr(key=${index} - quotation details)               
+                    td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                    td= item.quantity ? (item.quantity ) : '-'
+                    td= item.unit ? item.unit : '-'
+                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    td= formattedFinalPrice
+                - var reducedTotalJasa = 0
+                - var reducedTotalMaterial = 0
+                - data.quotation.quotation_details.forEach(detail => {
+                -   var reducedPrice = parseFloat(detail.final_price)
+                -   if(detail.item_type === 2){
+                -   reducedTotalJasa += reducedPrice
+                -  }else if(detail.item_type === 1){
+                -   reducedTotalMaterial += reducedPrice
+                -  }
+                - })
+                - var formattedReducedTotalJasa = 'Rp. ' + reducedTotalJasa.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+                - var formattedReducedTotalMaterial = 'Rp. ' + reducedTotalMaterial.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+                tr
+                  td.text-end(colspan="3")
+                    | Total Jasa
+                  td(colspan="3") #{formattedReducedTotalJasa}
+                tr
+                  td.text-end(colspan="3")
+                    | Total Material
+                  td(colspan="3") #{formattedReducedTotalMaterial}
+                tr
+                  td.text-end(colspan="3")
+                    | Promosi
+                  td(colspan="3") Rp. 0
+                tr
+                  td.text-end(colspan="3")
+                    | Additional Promotion  (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+                  - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+                  td(colspan="3")= formattedTotal
+                tr
+                  td.text-end(colspan="3")
+                    | Grand Total
+                  - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                  td(colspan="3")= formattedTotal
       .footer
         .snk-wrapper
-          .title.fs-6.fw-semibold Syarat & Ketentuan
+          .title.fs-5.fw-semibold Syarat &amp; Ketentuan
           ol
-            li Jadwal survey/pengerjaan akan ditentukan oleh teknisi, setelah material tersedia...
-            li Penjadwalan ulang pada H-1 tidak dikenakan biaya...
-            li Pekerjaan tambahan akan dikenakan biaya tambahan...
-            li Semua jasa pemasangan wajib dilakukan survey...
-            li Quotation diberikan maksimal H+2 hari kerja setelah survey...
-            li Garansi 7 hari untuk instalasi/service...
-            li Biaya transportasi jarak dari toko Mitra10 kurang dari 10KM adalah FREE...
-
+            li
+              | Jadwal survey/pengerjaan akan ditentukan oleh
+              | teknisi, setelah material tersedia (material
+              | disediakan oleh customer) dan barang diterima
+              | customer, serta barang yang akan dikerjakan jasa
+              | instalasi adalah barang dari Mitra10.
+            li
+              | Penjadwalan ulang pada H-1 tidak dikenakan biaya,
+              | penjadwalan ulang pada hari H akan dikenakan biaya
+              | tambahan minimal sebesar Rp 75.000.
+            li
+              | Pekerjaan tambahan (Pekerjaan diluar yang sudah
+              | diajukan &amp; di transaksikan) akan dikenakan biaya
+              | tambahan.
+            li
+              | Semua jasa pemasangan wajib dilakukan survey. Biaya
+              | survey akan dikembalikan apabila biaya jasa
+              | instalasi/service minimal Rp 800.000.
+            li
+              | Quotation diberikan kepada customer maksimal H+2
+              | hari kerja setelah survey selesai.
+            li
+              | Garansi 7 (Tujuh) hari untuk instalasi/service
+              | terhitung sejak tanggal serah terima pekerjaan dan
+              | hanya 1x kunjungan. Kerusakan produk yang terpasang,
+              | tidak menjadi bagian garansi dan proses
+              | intalasi/service.
+            li
+              | Biaya transportasi, jarak dari toko Mitra10 lokasi
+              | pengerjaan kurang dari 10KM adalah FREE : Lebih dari
+              | 10KM dikenakan biaya transportasi Rp 25.000 Max
+              | 40KM.
         .information-wrapper
-          .title.fs-6.fw-semibold Informasi
+          .title.fs-5.fw-semibold Informasi
           ol
-            li Kontak layanan pelanggan Instalasi/Service (WA Only): 0878-8482-1089
-            li Operasional hari senin s/d jumat - Office hour 09:00 s/d 16:00
-            li Orderan diluar jam operasional akan diproses pada jam operasional
-
+            li
+              | Kontak layanan pelanggan Instalasi/Service (WA Only)
+              | : 0878-8482-1089
+            li
+              | Operasional hari senin s/d jumat - Office hour 09:00
+              | s/d 16:00
+            li
+              | Orderan instalasi/service yang masuk diluar jam
+              | operasional akan diproses pada jam operasional.
+        .information-wrapper
+          .title.fs-5.fw-semibold Catatan
+          ol
+            li
+              | Quotation ini sah jika disetujui dalam waktu 7 hari.
+            li Pembayaran dilakukan setelah pekerjaan selesai.
+            li
+              | Harga material dapat berubah sesuai harga pasar.
+            li
+              | Jika ada kesalahan atau ketidaksesuaian, silahkan
+              | hubungi kami secepatnya.
         .payment-information.mb-3
-          .payment-method.mb-3
-            .fs-6.fw-semibold Silahkan melakukan pembayaran di account di bawah ini :
-            .fs-6.fw-normal PT Catur Mitra Sejati Sentosa
-            .fs-6.fw-normal BCA
-            .fs-6.fw-normal 429-33-26919
-          .payment-evidence.mb-3
-            .fs-6.fw-semibold Silahkan kirim bukti bayar anda melalui:
-            .fs-6.fw-normal Telp : 0819-9154-7735
-            .fs-6.fw-normal.mb-3 Email : cs.alfaris@mcss.co
-            .fs-6.fw-normal Email : cs.alfaris@mcss.co
-          .payment-notes
-            .fs-6.fw-semibold Catatan penting:
-            .fs-6.fw-normal Pembayaran dilakukan sesuai dengan grand total yang tertera.
-            .fs-6.fw-normal Pembayaran dilakukan maksimal 7 hari setelah invoice diterima.
-
-      .notes
-        .fs-6.fw-semibold Notes:
-        ol
-          li Quotation ini sah jika disetujui dalam waktu 7 hari.
-          li Pembayaran dilakukan setelah pekerjaan selesai.
-          li Harga material dapat berubah sesuai harga pasar.
-          li Jika ada kesalahan atau ketidaksesuaian, silahkan hubungi kami secepatnya.
-
-    script(
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-Piv4xVNRyMGpqkzyzhaA3FJ6bOIeNqz3zBGzV0xL1NIeYHgjpSvU8FRbJ2R3lKcJ"
-      crossorigin="anonymous"
-    )
+          .title.fs-5.fw-semibold
+            | Instruksi Pembayaran
+          .fs-6.fw-normal
+            | 1. Silahkan melakukan pembayaran di account di bawah ini
+            | :
+          ul
+            li.fs-6.fw-normal
+              | PT Catur Mitra Sejati Sentosa
+            li.fs-6.fw-normal BCA
+            li.fs-6.fw-normal 429-33-26919
+          .fs-6.fw-normal
+            | 2. Silahkan kirim bukti bayar anda melalui:
+          ul
+            li Telp : #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
+            li Email : #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
+        .fs-6.text-normal
+          | Terima kasih telah melakukan bisnis dengan Mitra10. Kami
+          | harap kedatangan anda kembali.
+  script(src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous")
+  script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous")
