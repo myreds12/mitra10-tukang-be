@@ -146,7 +146,7 @@ html(lang="en")
                   th.text-center Final Price
               tbody
                 each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-                  tr(key=${index} - quotation details)               
+                  tr(key=index - quotation details)               
                     td= item.name ? item.name : '-'
                     td= item.quantity ? (item.quantity ) : '-'
                     td= item.unit ? item.unit : '-'
@@ -163,7 +163,7 @@ html(lang="en")
                   th.text-center Final Price
               tbody
                 each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
-                  tr(key=${index} - quotation details)               
+                  tr(key=index - quotation details)               
                     td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
                     td= item.quantity ? (item.quantity ) : '-'
                     td= item.unit ? item.unit : '-'
