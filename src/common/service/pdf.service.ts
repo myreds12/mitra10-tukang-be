@@ -12,7 +12,7 @@ export class PdfService {
       });
 
 
-      create(html).toBuffer((err, buffer) => {
+      create(html, {timeout: 60000 }).toBuffer((err, buffer) => {
         if (err) {
           reject(err);
         } else {

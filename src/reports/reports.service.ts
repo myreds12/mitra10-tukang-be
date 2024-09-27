@@ -2035,12 +2035,284 @@ export class ReportsService {
   //   }
   // }
 
-  async generateStaticBookingReport(res: Response) {
+  async generateStaticBookingReport(queryParams: QueryParamsDto ,res: Response) {
     try {
+      const {
+        take,
+        page,
+        search,
+        status,
+        date_from,
+        date_to,
+        order_by,
+        sales_id,
+        payment_type,
+        store_id,
+        vendor_id,
+        work_order_status,
+        is_invoice,
+        is_active_warranty,
+        tukang_id,
+        is_expired_warranty,
+        is_used_warranty,
+        is_receipt,
+        is_receipt_quotation,
+        promotion,
+        is_promotion,
+        history_status,
+      } = queryParams;
+
+      const skip = page * take - take;
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const where: Prisma.ordersWhereInput = {
+        AND: [
+          ...(search
+            ? [
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
+                        contains: search,
+                      },
+                    },
+                    {
+                      vendor: {
+                        company_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(history_status
+            ? [
+                {
+                  order_history: {
+                    some: {
+                      status_id: {
+                        in: history_status,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(is_promotion
+            ? [
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
+                            },
+                          },
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
+          ...(status ? [{ status: { id: { in: status } } }] : []),
+          ...(work_order_status
+            ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
+            : []),
+          ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
+          store_id
+            ? {
+                store_id: {
+                  in: store_id,
+                },
+              }
+            : undefined,
+          vendor_id
+            ? {
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
+            : undefined,
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
+          ...(tukang_id
+            ? [
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(Boolean(is_invoice)
+            ? [
+                {
+                  invoice_details: {
+                    none: {
+                      deleted_at: null,
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(Boolean(is_active_warranty)
+            ? [
+                {
+                  work_orders: {
+                    work_order_status: {
+                      some: {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                        created_at: {
+                          gte: sevenDaysAgo,
+                        },
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(Boolean(is_expired_warranty)
+            ? [
+                {
+                  OR: [
+                    {
+                      work_orders: {
+                        work_order_status: {
+                          some: {
+                            status: {
+                              category: 'WORKEND',
+                            },
+                            created_at: {
+                              lt: sevenDaysAgo,
+                            },
+                          },
+                        },
+                      },
+                    },
+                    {
+                      complaints: {
+                        some: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          ...(Boolean(is_receipt)
+            ? [
+                {
+                  receipt_number: {
+                    not: null,
+                  },
+                },
+              ]
+            : []),
+          ...(is_receipt_quotation
+            ? [
+                {
+                  quotation: {
+                    some: {
+                      receipt_quotation: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(Boolean(promotion)
+            ? [
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(Boolean(is_used_warranty)
+            ? [{ complaints: { some: { deleted_at: null } } }]
+            : []),
+        ].filter(Boolean),
+        deleted_at: null,
+      };
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Installation Booking');
 
       const data = await this.dbService.orders.findMany({
+        where,
         orderBy: {
           created_at: 'desc',
         },
@@ -2100,16 +2372,6 @@ export class ReportsService {
               invoice_number: true,
               total: true,
               type: true,
-              invoices: {
-                select: {
-                  id: true,
-                  status: true,
-                  total_amount: true,
-                  invoice_logs: true,
-                  description: true,
-                  vendor: true,
-                },
-              },
             },
           },
           sales: {
