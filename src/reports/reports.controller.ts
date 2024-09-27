@@ -38,10 +38,10 @@ export class ReportsController {
   ) { }
 
   @Get('/general-report')
-  async generateStaticReport(@Res() res: IExpressResponse,
+  async generateStaticReport(@Query() query: QueryParamsDto ,@Res() res: IExpressResponse
   ) {
     const outputPath = 'static_booking_report.xlsx';
-    await this.reportsService.generateStaticBookingReport(res);
+    await this.reportsService.generateStaticBookingReport(query ,res);
     return { message: 'Laporan statis berhasil dibuat', path: outputPath };
   }
 

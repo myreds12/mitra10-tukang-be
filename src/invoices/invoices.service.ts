@@ -11,7 +11,7 @@ import { Prisma, invoices, status, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { MulterError } from 'multer';
 import { throws } from 'assert';
-import { curry } from 'lodash';
+import { curry, difference } from 'lodash';
 import { objectEnumValues } from '@prisma/client/runtime/library';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
@@ -159,7 +159,7 @@ export class InvoicesService {
               });
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+vendor.margin_nominal))));
+              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+vendor.margin_nominal)))) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -172,7 +172,7 @@ export class InvoicesService {
               const totalMargin =
                 order.m_order_details
                   .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0);
+                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -183,7 +183,7 @@ export class InvoicesService {
             } else if (order.payment_type === 'gratis') {
               const totalMargin = order.m_order_details
                 .filter((i) => i.item.type === 1)
-                .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
+                .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -1102,6 +1102,7 @@ export class InvoicesService {
           },
           order: {
             include: {
+              status: true,
               quotation: {
                 where: { deleted_at: null },
                 include: { quotation_receipt: true },
@@ -1117,15 +1118,8 @@ export class InvoicesService {
         },
       });
 
-      // Jika data tidak ada, kirimkan respons 404
-      if (!data || data.length === 0) {
-        console.log("No data to process");
-        return res.status(404).send("No data found for the given invoice.");
-      }
-
-      // Buat workbook dan worksheet
       const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Invoice', {
+      const worksheet = workbook.addWorksheet('Data Invoice Rekonsel', {
         properties: {
           tabColor: { argb: '097969' },
         },
@@ -1141,13 +1135,9 @@ export class InvoicesService {
         },
       });
 
-      // Menggabungkan sel dan membuat header
-      console.log("Sebelum pengaturan, nilai A1: ", worksheet.getCell('A2').value);
 
-      // Gabungkan sel terlebih dahulu
-      worksheet.mergeCells('A2:L3');
+      worksheet.mergeCells('A2: N3');
 
-      // Kemudian atur judulnya
       worksheet.getCell('A2').value = `DATA REKONSEL ${data[0].invoices.vendor.company_name}`;
       worksheet.getCell('A2').font = { size: 16, bold: true };
       worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
@@ -1158,27 +1148,28 @@ export class InvoicesService {
       // Definisikan kolom
       worksheet.columns = [
         { header: 'No', key: 'no', width: 10 },
-        { header: 'Order Id', key: 'order_id', width: 25 },
-        { header: 'Nama Customer', key: 'member_name', width: 50 },
-        { header: 'Nama Pemasangan', key: 'item_name', width: 50 },
-        { header: 'Tanggal Survey/Pengerjaan', key: 'survey_date', width: 50 },
-        { header: 'Total Harga', key: 'invoice_price', width: 60 },
-        { header: 'Transaksi Customer', key: 'customer_transaction', width: 50 },
-        { header: 'Harga Jasa', key: 'instalation_price', width: 50 },
-        { header: 'Margin PPN', key: 'margin_ppn', width: 50 },
-        { header: 'Selisih Non PPN', key: 'margin_non_ppn', width: 50 },
-        { header: 'Margin', key: 'margin', width: 30 },
-        { header: 'No Receipt', key: 'receipt_number', width: 50 },
+        { header: 'Order Id', key: 'order_id', width: 10 },
+        { header: 'Nama Customer', key: 'member_name', width: 30 },
+        { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
+        { header: 'Tanggal \n Survey/Pengerjaan', key: 'survey_date', width: 20 },
+        { header: 'Total Harga', key: 'invoice_price', width: 15 },
+        { header: 'Transaksi \n Customer', key: 'customer_transaction', width: 20 },
+        { header: 'Selisih PPN', key: 'ppn_difference', width: 15 },
+        { header: 'Margin PPN', key: 'margin_ppn', width: 15 },
+        { header: 'Selisih', key: 'difference', width: 15 },
+        { header: 'Selisih \n Non PPN', key: 'margin_non_ppn', width: 15 },
+        { header: 'Margin', key: 'margin', width: 15 },
+        { header: 'No Receipt', key: 'receipt_number', width: 20 },
+        { header: 'Status \n Order', key: 'order_status', width: 30 },
       ];
 
-      // Tambah header pada row 3
       const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: '0000FF' },
+          fgColor: { argb: 'FF4CAF50' },
         };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
@@ -1188,6 +1179,7 @@ export class InvoicesService {
           right: { style: 'thin' },
         };
       });
+      headerRow.height = 35;
 
       worksheet.getCell('A1').value = null;
 
@@ -1195,7 +1187,6 @@ export class InvoicesService {
         cell.value = null;
       });
 
-      // Inisialisasi total
       let totals = {
         customer_transaction: 0,
         invoice_price: 0,
@@ -1203,6 +1194,8 @@ export class InvoicesService {
         margin_ppn: 0,
         margin_non_ppn: 0,
         margin: 0,
+        ppn: 0,
+        price_difference: 0,
       };
 
       // Proses setiap order dalam data
@@ -1214,13 +1207,23 @@ export class InvoicesService {
             : order.order.grand_total;
 
         const invoice_price = order.total;
-        const instalation_price = Math.floor(+customer_transaction / 1.11);
-        const margin_ppn = instalation_price - invoice_price;
-        const price_difference = +customer_transaction - invoice_price;
-        const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+        console.log("Invoice Price:", invoice_price);
+        
 
-        // Tambahkan data ke dalam worksheet
-        worksheet.addRow({
+        const instalation_price = Math.floor(+customer_transaction / 1.11);
+        console.log("Installation Price:", instalation_price);
+
+        const margin_ppn = instalation_price - invoice_price;
+        console.log("Margin PPN:", margin_ppn);
+
+        const price_difference = +customer_transaction - invoice_price;
+        console.log("Price Difference:", price_difference);
+
+        const receipt_number = order.order.quotation.length > 0 ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+        console.log("Receipt Number:", receipt_number);
+
+
+        const row = worksheet.addRow({
           no: index + 1,
           order_id: order.order_id,
           member_name: order.order.members.full_name,
@@ -1229,28 +1232,51 @@ export class InvoicesService {
           invoice_price: invoice_price,
           customer_transaction: +customer_transaction,
           instalation_price: instalation_price,
+          ppn_difference: margin_ppn,
           margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
+          difference: price_difference,
           margin_non_ppn: Math.ceil(price_difference / 1.11),
-          margin: `${Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
+          margin: `${isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
           receipt_number: receipt_number,
+          order_status: order.order.status.description,
         });
+      
+        row.eachCell((cell, colNumber) => {
+          // Menambahkan border ke semua sel
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+      
+          if (colNumber === 4) {
+            cell.alignment = { horizontal: 'left' };
+          } else {
+            cell.alignment = { horizontal: 'right' };
+          }
+        });
+      
 
-        // Update totals
         totals.customer_transaction += +customer_transaction;
         totals.invoice_price += invoice_price;
         totals.instalation_price += instalation_price;
         totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
         totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
-        totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
+        totals.margin += isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100);
+        totals.ppn += isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100);        
+        totals.price_difference += price_difference;
+        
       });
 
-      // Tambahkan total baris
       const totalsRow = worksheet.addRow({
         no: 'Total',
         invoice_price: totals.invoice_price,
         customer_transaction: totals.customer_transaction,
         instalation_price: totals.instalation_price,
-        margin_ppn: `${totals.margin_ppn}%`,
+        ppn_difference: totals.margin_ppn,
+        margin_ppn: `${totals.ppn}%`,
+        difference: totals.price_difference,
         margin_non_ppn: totals.margin_non_ppn,
         margin: `${totals.margin}%`,
       });
@@ -1261,13 +1287,17 @@ export class InvoicesService {
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
           cell.font = { bold: true };
-          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' },
+            right: { style: 'thin' }
           };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
       });
 
@@ -1303,7 +1333,7 @@ export class InvoicesService {
       // Generate file Excel
       const generateExcelFile = async (res) => {
         const formattedDate = getFormattedDate();
-        const baseName = `DataInvoice-${formattedDate}`;
+        const baseName = `DataRekonsel-${formattedDate}`;
         const excelFilePath = createExcelFilePath(baseName);
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
@@ -1338,8 +1368,7 @@ export class InvoicesService {
         vendor: true
       }
     });
-    console.log("INVOICE: ", invoices);
-    
+
 
     if (!invoices) {
       console.error('Quotation not found!');
@@ -1379,7 +1408,7 @@ export class InvoicesService {
       }
     });
     console.log("INVOICE: ", invoices);
-    
+
 
     if (!invoices) {
       console.error('Invoices not found!');
