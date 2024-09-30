@@ -335,7 +335,15 @@ export class RescheduleService {
                     deleted_at: null
                   },
                   include: {
-                    status: true
+                    status: true,
+                    work_order_items: {
+                      where: {
+                        deleted_at: null
+                      },
+                      include: {
+                        item: true
+                      }
+                    }
                   }
                 }
               }

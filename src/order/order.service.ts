@@ -176,7 +176,7 @@ export class OrderService {
         is_overdistance: createOrderDto.is_overdistance,
         ...(createOrderDto.is_overdistance === 1
           ? {
-              additional_fee: createOrderDto.additional_fee,
+              additional_fee: 25000,
             }
           : undefined),
         created_by: user_id,
@@ -1378,7 +1378,7 @@ export class OrderService {
         is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
         ...(updateOrderDto?.is_overdistance === 1
           ? {
-              additional_fee: updateOrderDto?.additional_fee ?? undefined,
+              additional_fee: 25000 ?? undefined,
             }
           : { additional_fee: 0 }),
         member_id: updateOrderDto?.member_id ?? undefined,

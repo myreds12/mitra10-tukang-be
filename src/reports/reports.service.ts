@@ -2579,15 +2579,20 @@ export class ReportsService {
           });
         }
       });
+      interface Item {
+        itemName: string;
+        quantity: number;
+        invoiceCount: number;
+      }
 
       // Transform itemMap entries to an array of objects
-      const allItems = [...itemMap.entries()]
+      const allItems : Item[] = [...itemMap.entries()]
         .sort((a, b) => b[1].quantity - a[1].quantity) // Sort descending by quantity
         .map(([itemName, data]) => ({
           itemName,
           quantity: data.quantity,
           invoiceCount: data.invoiceCount
-        })); // Convert to array of objects
+        })); 
 
       console.log(allItems);
 
@@ -2702,10 +2707,10 @@ export class ReportsService {
         pattern: 'solid',
         fgColor: { argb: 'FFFFFF' },
       };
-      worksheet.mergeCells('A1:D1');
-
+      worksheet.mergeCells('A1:F1');
+      
       worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone}`]);
-
+      
       const headerRow = worksheet.getRow(2);
       headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       headerRow.alignment = { horizontal: 'center' };
@@ -2725,7 +2730,8 @@ export class ReportsService {
         pattern: 'solid',
         fgColor: { argb: 'FF17365D' },
       };
-
+      worksheet.mergeCells('E2:F2');
+      
       const example = [];
 
       // Menambahkan elemen tetap untuk Booking Received dan Survey
@@ -2737,99 +2743,62 @@ export class ReportsService {
         `Add Program`
       ]);
 
-      // Daftar status yang ingin ditambahkan
-      const statuses = [
+      interface Status {
+        label: string;
+        value: string | number;
+        quotationLabel: string;
+        quotationValue: string | number;
+      }
+      const statuses : Status[] = [
         { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
         { label: 'Pending', value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
         { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
         { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
-        { label: 'On Going (Req Date September)', value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing }
+        { label: 'On Going (Req Date September)', value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
+        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation } 
       ];
 
-      // Menambahkan setiap status ke dalam array example
-      statuses.forEach((status, index) => {
-        example.push([
-          {
-            richText: [
-              { text: `${status.label}: `, font: { argb: 'FF000000' } }, // Hitam
-              { text: `${status.value}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
+      const itemLength = allItems.length;
+      const statusLength = statuses.length;
+
+      const maxLength = Math.max(itemLength, statusLength);
+
+      for (let i = 0; i < maxLength; i++) {
+        const status = statuses[i] || {} as Status;  // Beri tipe default 'Status'
+        const statusText = status.label ? `${status.label}: ${status.value}` : '';
+        const quotationText = status.quotationLabel ? `${status.quotationLabel}: ${status.quotationValue}` : '';
+
+        // Jika item masih ada, masukkan; jika tidak, masukkan string kosong
+        const item = allItems[i] || {} as Item;
+        const itemName = item.itemName && item.invoiceCount ? `${item.itemName}: ${item.invoiceCount}` || '' : '';
+        const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
+
+        // Jika salah satu kolom kosong, isi dengan placeholder agar tidak ada kolom kosong
+        const row = [
+          { richText: [{ text: statusText || '', font: { argb: 'FF000000' } }] },
           '',
-          {
-            richText: [
-              { text: `${status.quotationLabel}: `, font: { argb: 'FF000000' } }, // Hitam
-              { text: `${status.quotationValue}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
+          { richText: [{ text: quotationText || '', font: { argb: 'FF000000' } }] },
           '',
-        ]);
+          itemName || '',  // Pastikan ada placeholder
+          quantity || ''      // Pastikan ada placeholder
+        ];
 
-        // Jika statusnya 'Done', tambahkan informasi item
-        if (status.label === 'Done' && allItems.length > 0) {
-          allItems.forEach((item) => {
-            const itemName = item?.itemName || 'Tidak Ada Item';
-            const quantity = item?.quantity || '0';
+        // Tambahkan ke dalam array example
+        example.push(row);
+      }
 
-            // Push item name di satu baris
-            example.push([
-              '',
-              '',
-              '',
-              '',
-              itemName, // Item name di kolom 5
-            ]);
-
-            // Push quantity di baris berikutnya
-            example.push([
-              '',
-              '',
-              '',
-              '',
-              `Quantity: ${quantity}` // Quantity di kolom 5, sama dengan item name
-            ]);
-          });
-        }
-      });
-
-      // Tambahkan item tambahan jika ada, untuk status lain selain 'Done'
-      allItems.forEach((item, i) => {
-        if (i >= statuses.length) {
-          const itemName = item?.itemName || 'Tidak Ada Item';
-          const invoiceCount = item?.invoiceCount || '0';
-          const quantity = item?.quantity || '0';
-
-          // Push item name dengan invoiceCount di satu baris
-          example.push([
-            '',
-            '',
-            {
-              richText: [
-                { text: `${itemName}`, font: { argb: 'FF000000' } }, // Hitam
-                { text: `: ${invoiceCount}`, font: { argb: 'FFFF0000' } } // Merah
-              ]
-            },
-            '',
-          ]);
-
-          // Push quantity di baris berikutnya
-          example.push([
-            '',
-            '',
-            '',
-            '',
-            `Quantity: ${quantity}` // Quantity di kolom yang sama dengan item name
-          ]);
-        }
-      });
-
+      // Menampilkan hasil
       console.log(example);
 
+      // Menulis ke worksheet Excel
       example.forEach(row => {
         const newRow = worksheet.addRow(row);
         newRow.font = { size: 12 };
         newRow.alignment = { horizontal: 'left' };
       });
+
+
+
 
       worksheet.addRow([]);
 
@@ -2838,6 +2807,7 @@ export class ReportsService {
       worksheet.getColumn(3).width = 60;
       worksheet.getColumn(4).width = 15;
       worksheet.getColumn(5).width = 70;
+      worksheet.getColumn(6).width = 30;
 
       worksheet.eachRow((row) => {
         row.eachCell((cell) => {
