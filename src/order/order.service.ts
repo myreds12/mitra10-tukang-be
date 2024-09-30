@@ -3830,7 +3830,14 @@ export class OrderService {
         },
         order: {
           include: {
-            m_order_details: true,
+            m_order_details: {
+              where: {
+                deleted_at: null,
+              },
+              include: {
+                item: true
+              }
+            },
             members: true,
             vendor: true,
             work_orders: {
@@ -3911,7 +3918,7 @@ export class OrderService {
       message,
     };
 
-    
+    console.log(data.quotation.order.m_order_details);
 
     const buffer = await this.pdfService.generate('quotation-pdf', data);
     // Set headers to download the PDF

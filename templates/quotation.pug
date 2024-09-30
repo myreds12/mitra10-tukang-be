@@ -34,6 +34,33 @@ html(lang='en')
           p.text-lg.font-bold Quotation ID: #{data.quotation.id}
           | &#x9;&#x9;&#x9;&#x9;&#x9;
           p.text-sm Order ID: #{data.quotation.order.id}
+      .p-5
+        h1.text-xl.font-semibold.mb-4 Informasi Survei
+        // Table Information
+        table.w-full.text-left.table-auto.border-collapse.mb-6
+          thead
+            tr
+              th.min-w-36.max-w-36.border.px-4.py-2
+                | Kode Item
+              th.min-w-44.max-w-44.border.px-4.py-2
+                | Nama Item
+              th.min-w-44.max-w-44border.px-4.py-2
+                | Nama Jasa Pemasangan
+              th.border.px-4.py-2 QTY Pemasangan
+          tbody
+            each item, index in data.quotation.order.m_order_details
+              tr
+                td.min-w-36.max-w-36.border.px-4.py-2.break-words.break-all.text-sm
+                  | #{item.item ? item.item.item_code : item.item_code || ''}
+                td.min-w-44.max-w-44.border.px-4.py-2.text-sm
+                  | #{item.item ? item.item.item_name : item.item_name || ''}
+                td.min-w-44.max-w-44border.px-4.py-2.text-sm
+                  | #{item.item ? item.item.service_name || '' : item.item_name || ''}
+                td.border.px-4.py-2.text-sm #{item.quantity}
+            tr
+              td.border.px-4.py-2.text-end.text-sm.font-semibold(colspan='3')
+                | Biaya Survey
+              td.border.px-4.py-2 #{data.quotation.order.grand_total}
       .p-6
         h1.text-2xl.font-bold.mb-4 Quotation Confirmation
         | &#x9;&#x9;&#x9;&#x9;

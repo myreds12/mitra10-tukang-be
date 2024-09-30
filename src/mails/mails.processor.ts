@@ -443,7 +443,14 @@ export class EmailProcessor {
           },
           order: {
             include: {
-              m_order_details: true,
+              m_order_details: {
+                where: {
+                  deleted_at: null
+                },
+                include: {
+                  item: true
+                }
+              },
               members: true,
               vendor: true,
               work_orders: {
@@ -489,6 +496,7 @@ export class EmailProcessor {
         order: quotation.order,
         message,
       };
+      
       const { bcc, cc } = message;
 
       const storeMail = quotation.store.email;

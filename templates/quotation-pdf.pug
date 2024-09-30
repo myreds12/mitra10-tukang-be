@@ -134,6 +134,56 @@ html(lang="en")
               .fs-6.mb-2.fw-normal
                 | Telp : #{data.quotation.order.members.whatsapp_number ? data.quotation.order.members.whatsapp_number : data.quotation.order.members.phone_number  }
         .content
+          // Survei Information
+          .title.fs-5.fw-semibold
+            | Informasi Survei
+          .table-responsive
+            table.table.table-bordered
+              thead
+                tr
+                  th.text-center(style='\
+                  max-width: 5rem;\
+                  min-width: 5rem;\
+                  ')
+                    | Kode Item
+                  th.text-center(style='\
+                  max-width: 8rem;\
+                  min-width: 8rem;\
+                  ')
+                    | Nama Item
+                  th.text-center(style='\
+                  max-width: 8rem;\
+                  min-width: 8rem;\
+                  ')
+                    | Nama Pemasangan
+                  th.text-center
+                    | QTY Pemasangan
+              tbody
+                each item, index in data.quotation.order.m_order_details
+                  tr
+                    td(style='\
+                    max-width: 5rem;\
+                    min-width: 5rem;\
+                    ')
+                      | #{item.item ? item.item.item_code : item.item_code || ''}
+                    td(style='\
+                    max-width: 8rem;\
+                    min-width: 8rem;\
+                    ')
+                      | #{item.item ? item.item.item_name : item.item_name || ''}
+                    td(style='\
+                    max-width: 8rem;\
+                    min-width: 8rem;\
+                    ')
+                      | #{item.item ? item.item.service_name || '' : item.item_name || ''}
+                    td #{item.quantity}
+                tr
+                  td.border.px-4.py-2.text-end.text-sm.font-semibold(colspan='3')
+                    | Biaya Survey
+                  td.border.px-4.py-2 #{data.quotation.order.grand_total}
+        .content
+          .title.fs-5.fw-semibold
+            |  Konfirmasi Quotation 
           .table-responsive
             table.table.table-bordered
               thead
@@ -192,7 +242,8 @@ html(lang="en")
                 tr
                   td.text-end(colspan="3")
                     | Promosi
-                  td(colspan="3") Rp. 0
+                  - var formattedTotalPromotion = 'Rp. ' + data.quotation.quotation_promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                  td(colspan="3") #{formattedTotalPromotion}
                 tr
                   td.text-end(colspan="3")
                     | Additional Promotion  (#{data.quotation.promotion ? data.quotation.promotion.name : ''})

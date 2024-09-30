@@ -2035,7 +2035,7 @@ export class ReportsService {
   //   }
   // }
 
-  async generateStaticBookingReport(queryParams: QueryParamsDto ,res: Response) {
+  async generateStaticBookingReport(queryParams: QueryParamsDto, res: Response) {
     try {
       const {
         take,
@@ -2070,100 +2070,100 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { receipt_number: { contains: search } },
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    { members: { full_name: { contains: search } } },
-                    {
-                      store: {
-                        store_name: {
-                          contains: search,
-                        },
-                      },
-                    },
-                    {
-                      project_number: {
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { members: { full_name: { contains: search } } },
+                  {
+                    store: {
+                      store_name: {
                         contains: search,
                       },
                     },
-                    {
-                      vendor: {
-                        company_name: {
-                          contains: search,
-                        },
-                      },
+                  },
+                  {
+                    project_number: {
+                      contains: search,
                     },
-                    {
-                      members: {
-                        phone_number: {
-                          contains: search,
-                        },
-                      },
-                    },
-                    {
-                      members: {
-                        whatsapp_number: {
-                          contains: search,
-                        },
-                      },
-                    },
-                  ],
-                },
-              ]
-            : []),
-          ...(history_status
-            ? [
-                {
-                  order_history: {
-                    some: {
-                      status_id: {
-                        in: history_status,
+                  },
+                  {
+                    vendor: {
+                      company_name: {
+                        contains: search,
                       },
                     },
                   },
+                  {
+                    members: {
+                      phone_number: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(history_status
+            ? [
+              {
+                order_history: {
+                  some: {
+                    status_id: {
+                      in: history_status,
+                    },
+                  },
                 },
-              ]
+              },
+            ]
             : []),
           ...(is_promotion
             ? [
-                {
-                  OR: [
-                    {
-                      AND: [
-                        {
-                          payment_type: 'gratis',
+              {
+                OR: [
+                  {
+                    AND: [
+                      {
+                        payment_type: 'gratis',
+                      },
+                      {
+                        status: {
+                          category: 'WORKEND',
                         },
-                        {
-                          status: {
-                            category: 'WORKEND',
-                          },
-                        },
-                      ],
-                    },
-                    {
-                      AND: [
-                        {
-                          quotation: {
-                            some: {
-                              promotion_id: {
-                                not: null,
-                              },
+                      },
+                    ],
+                  },
+                  {
+                    AND: [
+                      {
+                        quotation: {
+                          some: {
+                            promotion_id: {
+                              not: null,
                             },
                           },
                         },
-                        {
-                          status: {
-                            category: 'WORKEND',
-                          },
+                      },
+                      {
+                        status: {
+                          category: 'WORKEND',
                         },
-                      ],
-                    },
-                  ],
-                },
-              ]
+                      },
+                    ],
+                  },
+                ],
+              },
+            ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -2173,134 +2173,134 @@ export class ReportsService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-                store_id: {
-                  in: store_id,
-                },
-              }
+              store_id: {
+                in: store_id,
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                vendor: {
-                  id: vendor_id,
-                  deleted_at: null,
-                },
-              }
+              vendor: {
+                id: vendor_id,
+                deleted_at: null,
+              },
+            }
             : undefined,
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
           ...(tukang_id
             ? [
-                {
-                  work_orders: {
-                    work_order_tukang: {
-                      some: {
-                        tukang_id: tukang_id,
-                      },
+              {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(is_invoice)
             ? [
-                {
-                  invoice_details: {
-                    none: {
-                      deleted_at: null,
-                    },
+              {
+                invoice_details: {
+                  none: {
+                    deleted_at: null,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(is_active_warranty)
             ? [
-                {
-                  work_orders: {
-                    work_order_status: {
-                      some: {
-                        status: {
-                          category: 'WORKEND',
-                        },
-                        created_at: {
-                          gte: sevenDaysAgo,
-                        },
+              {
+                work_orders: {
+                  work_order_status: {
+                    some: {
+                      status: {
+                        category: 'WORKEND',
+                      },
+                      created_at: {
+                        gte: sevenDaysAgo,
                       },
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(is_expired_warranty)
             ? [
-                {
-                  OR: [
-                    {
-                      work_orders: {
-                        work_order_status: {
-                          some: {
-                            status: {
-                              category: 'WORKEND',
-                            },
-                            created_at: {
-                              lt: sevenDaysAgo,
-                            },
+              {
+                OR: [
+                  {
+                    work_orders: {
+                      work_order_status: {
+                        some: {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                          created_at: {
+                            lt: sevenDaysAgo,
                           },
                         },
                       },
                     },
-                    {
-                      complaints: {
-                        some: {
-                          deleted_at: null,
-                        },
+                  },
+                  {
+                    complaints: {
+                      some: {
+                        deleted_at: null,
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(Boolean(is_receipt)
             ? [
-                {
-                  receipt_number: {
-                    not: null,
-                  },
+              {
+                receipt_number: {
+                  not: null,
                 },
-              ]
+              },
+            ]
             : []),
           ...(is_receipt_quotation
             ? [
-                {
-                  quotation: {
-                    some: {
-                      receipt_quotation: {
-                        not: null,
-                      },
+              {
+                quotation: {
+                  some: {
+                    receipt_quotation: {
+                      not: null,
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(promotion)
             ? [
-                {
-                  quotation: {
-                    some: {
-                      promotion_id: {
-                        not: null,
-                      },
+              {
+                quotation: {
+                  some: {
+                    promotion_id: {
+                      not: null,
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
@@ -2477,6 +2477,13 @@ export class ReportsService {
                   category: true,
                   default_price: true,
                   service_name: true,
+                  prices: {
+                    where: {
+                      deleted_at: null,
+                      periodic_start: { lte: new Date() },
+                      periodic_end: { gte: new Date() },
+                    }
+                  }
                 },
               },
               sales: true,
@@ -2554,7 +2561,7 @@ export class ReportsService {
       data.forEach(order => {
         if (order.invoice_details.length > 0) {
           order.m_order_details.forEach(detail => {
-            if (detail.item && detail.item.type === 1) {
+            if (detail.item && detail.item.type === 1 && detail.item.prices.length > 0) {
               const itemName = detail.item.item_name;
               const quantity = detail.quantity || 0;
 
@@ -2574,16 +2581,16 @@ export class ReportsService {
       });
 
       // Transform itemMap entries to an array of objects
-      const topItems = [...itemMap.entries()]
+      const allItems = [...itemMap.entries()]
         .sort((a, b) => b[1].quantity - a[1].quantity) // Sort descending by quantity
-        .slice(0, 5) // Limit to top 5 items
         .map(([itemName, data]) => ({
           itemName,
           quantity: data.quantity,
           invoiceCount: data.invoiceCount
         })); // Convert to array of objects
 
-      console.log(topItems);
+      console.log(allItems);
+
 
 
       const bookReceived = data.filter((x) =>
@@ -2719,134 +2726,104 @@ export class ReportsService {
         fgColor: { argb: 'FF17365D' },
       };
 
-      const example = [
-        [
-          `Booking Received: ${bookReceived}`,
-          '',
-          `Survey: ${orderSurvey}`,
-          '',
-          `${topItems[0]?.itemName ? topItems[0]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[0]?.invoiceCount || '0'}`
-        ],
-        [
-          {
-            richText: [
-              { text: 'Done: ', font: { color: { argb: 'FF000000' } } }, // Hitam
-              { text: `${orderDone}`, font: { color: { argb: 'FFFF0000' } } } // Merah
-            ]
-          },
-          '',
-          {
-            richText: [
-              { text: 'Survey & Implementation: ', font: { color: { argb: 'FF000000' } } }, // Hitam
-              { text: `${quotationPaid}`, font: { color: { argb: 'FFFF0000' } } } // Merah
-            ]
-          },
-          '',
-          `Quantity: ${topItems[0]?.quantity || '0'}`
-        ],
-        [
-          {
-            richText: [
-              { text: 'Pending: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${orderPending}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          {
-            richText: [
-              { text: 'Total Value: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${quotationPaidValue}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          `${topItems[1]?.itemName ? topItems[1]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[1]?.invoiceCount || '0'}`
-        ],
-        [
-          {
-            richText: [
-              { text: 'Refund: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${orderRefund}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          {
-            richText: [
-              { text: 'Survey & Quotation: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${quotationUnpaid}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          `Quantity: ${topItems[1]?.quantity || ''}`
-        ],
-        [
-          {
-            richText: [
-              { text: 'Cancel: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${orderCancel}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          {
-            richText: [
-              { text: 'Total Value: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${quotationUnpaidValue}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          `${topItems[2]?.itemName ? topItems[2]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[2]?.invoiceCount || '0'}`
-        ],
-        [
-          {
-            richText: [
-              { text: 'On Going (Req Date September): ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${orderProgress}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          {
-            richText: [
-              { text: 'Survey On Going: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${orderSurveyOnGoing}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          `Quantity: ${topItems[2]?.quantity || ''}`
-        ],
-        [
-          '',
-          '',
-          {
-            richText: [
-              { text: 'Survey No Quotation: ', font: { argb: 'FF000000' } }, // Hitam
-              { text: `${orderSurveyNoQuotation}`, font: { argb: 'FFFF0000' } } // Merah
-            ]
-          },
-          '',
-          `${topItems[3]?.itemName ? topItems[3]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[3]?.invoiceCount || '0'}`
-        ],
-        [
-          '',
-          '',
-          '',
-          '',
-          `Quantity: ${topItems[3]?.quantity || ''}`
-        ],
-        [
-          '',
-          '',
-          '',
-          '',
-          `${topItems[4]?.itemName ? topItems[4]?.itemName + '\n' : 'Tidak Ada Item'}: ${topItems[4]?.invoiceCount || '0'}`
-        ],
-        [
-          '',
-          '',
-          '',
-          '',
-          `Quantity: ${topItems[4]?.quantity || ''}`
-        ],
+      const example = [];
+
+      // Menambahkan elemen tetap untuk Booking Received dan Survey
+      example.push([
+        `Booking Received: ${bookReceived}`,
+        '',
+        `Survey: ${orderSurvey}`,
+        '',
+        `Add Program`
+      ]);
+
+      // Daftar status yang ingin ditambahkan
+      const statuses = [
+        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
+        { label: 'Pending', value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
+        { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
+        { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
+        { label: 'On Going (Req Date September)', value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing }
       ];
 
+      // Menambahkan setiap status ke dalam array example
+      statuses.forEach((status, index) => {
+        example.push([
+          {
+            richText: [
+              { text: `${status.label}: `, font: { argb: 'FF000000' } }, // Hitam
+              { text: `${status.value}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+          {
+            richText: [
+              { text: `${status.quotationLabel}: `, font: { argb: 'FF000000' } }, // Hitam
+              { text: `${status.quotationValue}`, font: { argb: 'FFFF0000' } } // Merah
+            ]
+          },
+          '',
+        ]);
+
+        // Jika statusnya 'Done', tambahkan informasi item
+        if (status.label === 'Done' && allItems.length > 0) {
+          allItems.forEach((item) => {
+            const itemName = item?.itemName || 'Tidak Ada Item';
+            const quantity = item?.quantity || '0';
+
+            // Push item name di satu baris
+            example.push([
+              '',
+              '',
+              '',
+              '',
+              itemName, // Item name di kolom 5
+            ]);
+
+            // Push quantity di baris berikutnya
+            example.push([
+              '',
+              '',
+              '',
+              '',
+              `Quantity: ${quantity}` // Quantity di kolom 5, sama dengan item name
+            ]);
+          });
+        }
+      });
+
+      // Tambahkan item tambahan jika ada, untuk status lain selain 'Done'
+      allItems.forEach((item, i) => {
+        if (i >= statuses.length) {
+          const itemName = item?.itemName || 'Tidak Ada Item';
+          const invoiceCount = item?.invoiceCount || '0';
+          const quantity = item?.quantity || '0';
+
+          // Push item name dengan invoiceCount di satu baris
+          example.push([
+            '',
+            '',
+            {
+              richText: [
+                { text: `${itemName}`, font: { argb: 'FF000000' } }, // Hitam
+                { text: `: ${invoiceCount}`, font: { argb: 'FFFF0000' } } // Merah
+              ]
+            },
+            '',
+          ]);
+
+          // Push quantity di baris berikutnya
+          example.push([
+            '',
+            '',
+            '',
+            '',
+            `Quantity: ${quantity}` // Quantity di kolom yang sama dengan item name
+          ]);
+        }
+      });
+
+      console.log(example);
 
       example.forEach(row => {
         const newRow = worksheet.addRow(row);

@@ -312,11 +312,34 @@ export class RescheduleService {
         reschedule_evidences: true,
         order: {
           include: {
+            quotation: {
+              where: {
+                deleted_at: null
+              },
+              include: {
+                quotation_details: {
+                  where: {
+                    deleted_at: null
+                  }
+                }
+              }
+            },
             members: true,
             store: true,
             sales: true,
             vendor: true,
-            work_orders: true,
+            work_orders: {
+              include: {
+                work_order_status: {
+                  where: {
+                    deleted_at: null
+                  },
+                  include: {
+                    status: true
+                  }
+                }
+              }
+            },
             status: true,
             m_order_details: {
               where: {
