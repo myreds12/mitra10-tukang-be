@@ -148,7 +148,7 @@ export class InvoicesService {
         createInvoiceDto.invoice_details?.forEach((detail) => {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
-              const totalMargin = 75000 + Number(order.additional_fee);
+              const totalMargin = vendor.nominal_survey ? Number(vendor.nominal_survey) : 75000 + Number(order.additional_fee);
               // console.log("TOTAL MARGIN: ", totalMargin);
 
               invoiceDetails.push({
