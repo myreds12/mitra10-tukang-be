@@ -169,14 +169,15 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+              console.log(order.m_order_details
+                .filter((i) => i.item.type === 2)
+                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0));
               const totalMargin =
               (vendor.margin_type === 1 ? order.m_order_details
                 .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * ((+vendor.margin_nominal) / 100) : (order.m_order_details
-                  .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * order.m_order_details
+                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * ((+vendor.margin_nominal) / 100) : (+vendor.margin_nominal * order.m_order_details
                     .filter((i) => i.item.type === 2)
-                    .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) + (+vendor.margin_nominal)) + Number(order.additional_fee);
+                    .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -554,22 +555,20 @@ export class InvoicesService {
 
         if (order) {
           if (order.payment_type === 'survey' && item.type === 1) {
-            total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000;
+            total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000 + Number(order.additional_fee);
           } else if (order.payment_type === 'survey' && item.type === 2) {
-            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal))));
+            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal)))) + Number(order.additional_fee);
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
             (invoice.vendor.margin_type === 1 ? order.m_order_details
               .filter((i) => i.item.type === 2)
-              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * ((+invoice.vendor.margin_nominal) / 100) : (order.m_order_details
-                .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * order.m_order_details
+              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * ((+invoice.vendor.margin_nominal) / 100) : ( order.m_order_details
                   .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) + (+invoice.vendor.margin_nominal)) + Number(order.additional_fee);
+                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0) * +invoice.vendor.margin_nominal)) + Number(order.additional_fee);
           } else if (order.payment_type === 'gratis') {
             total = order.m_order_details
               .filter((i) => i.item.type === 1)
-              .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0);
+              .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0) + Number(order.additional_fee);
           }
           totalGrandTotal += total || 0;
         }
