@@ -1428,7 +1428,7 @@ export class InvoicesService {
       invoice: invoices,
     };
 
-    const buffer = await this.pdfService.generate('rekonsel', data);
+    const buffer = await this.pdfService.generateLandscape('rekonsel', data);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=rekonsel.pdf');
     res.send(buffer);
