@@ -1387,7 +1387,7 @@ export class InvoicesService {
       invoice: invoices,
     };
 
-    const buffer = await this.pdfService.generate('invoice-pdf', data);
+    const buffer = await this.pdfService.generateLandscape('invoice-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);
