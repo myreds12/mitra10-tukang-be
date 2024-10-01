@@ -21,4 +21,21 @@ export class PdfService {
       });
     });
   }
+
+  async generateLandscape(templatePath: string, data: any) {
+    return new Promise((resolve, reject) => {
+      const html = renderFile(join('templates', `${templatePath}.pug`), {
+        data,
+      });
+
+
+      create(html, {timeout: 60000,orientation: 'landscape'  }).toBuffer((err, buffer) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(buffer);
+        }
+      });
+    });
+  }
 }
