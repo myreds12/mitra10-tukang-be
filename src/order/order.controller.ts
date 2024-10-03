@@ -52,6 +52,24 @@ export class OrderController {
   ) {}
   private readonly logger = new Logger(OrderController.name);
 
+  @Post(':id')
+  @UseGuards(JwtAuthGuard)
+  async deleteHistory(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    try {
+      const order = await this.orderService.deleteHistory(
+        id,
+      );
+
+      return order;
+    } catch (error) {
+      console.error(error);
+
+      throw error;
+    }
+  }
+
   @Post('/receipt-public/:id')
   @UseInterceptors(
     FileFieldsInterceptor([

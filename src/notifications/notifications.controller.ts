@@ -16,6 +16,13 @@ interface UserRequest extends IExpressRequest {
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) { }
+
+  @Delete()
+  @UseGuards(JwtAuthGuard)
+  delete(@Body() dto: UpdateNotificationDto[]) {
+    return this.notificationsService.delete(dto)
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(@Query() query: QueryParamsDto, @Req() req: UserRequest,

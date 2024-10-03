@@ -318,5 +318,20 @@ export class NotificationsService {
       throw error;
     }
   }
+
+  async delete(dto: UpdateNotificationDto[]){
+    try{
+      const deleteNotif = await this.dbService.notifications.deleteMany({
+        where: {
+          id: {
+            in: dto.map((x) => x.id)
+          }
+        }
+      });
+      return deleteNotif;
+    }catch(error){
+      throw error
+    }
+  }
 }
 

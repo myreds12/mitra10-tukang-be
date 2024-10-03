@@ -5135,4 +5135,17 @@ export class OrderService {
       throw new Error('Failed to update receipt public');
     }
   }
+
+  async deleteHistory(id: number){
+    try{
+      const history = await this.dbService.order_histories.delete({
+        where: {
+          id: id
+        }
+      });
+      return history;
+    }catch(error){
+      throw error
+    }
+  }
 }

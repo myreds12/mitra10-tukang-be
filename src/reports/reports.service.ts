@@ -2062,7 +2062,7 @@ export class ReportsService {
         history_status,
       } = queryParams;
 
-      if(date_from && date_to){
+      if(!date_from && date_to){
         throw new BadRequestException('Mohon untuk menginput date from dan date to!')
       }
 
