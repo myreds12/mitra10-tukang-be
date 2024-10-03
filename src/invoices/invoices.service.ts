@@ -1261,7 +1261,7 @@ export class InvoicesService {
           if (colNumber === 4) {
             cell.alignment = { horizontal: 'left' };
           } else {
-            cell.alignment = { horizontal: 'right' };
+            cell.alignment = { horizontal: 'left' };  
           }
         });
       
@@ -1295,7 +1295,7 @@ export class InvoicesService {
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
           cell.font = { bold: true };
-          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },

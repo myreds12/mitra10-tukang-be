@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateReportDto } from './dto/create-report.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -2062,6 +2062,10 @@ export class ReportsService {
         history_status,
       } = queryParams;
 
+      if(date_from && date_to){
+        throw new BadRequestException('Mohon untuk menginput date from dan date to!')
+      }
+
       const skip = page * take - take;
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -2565,14 +2569,12 @@ export class ReportsService {
               const itemName = detail.item.item_name;
               const quantity = detail.quantity || 0;
 
-              // Check if item is already in the map
               if (itemMap.has(itemName)) {
                 const itemData = itemMap.get(itemName);
-                itemData.quantity += quantity; // Update quantity
-                itemData.invoiceCount += 1; // Increment invoice count
+                itemData.quantity += quantity; 
+                itemData.invoiceCount += 1; 
                 itemMap.set(itemName, itemData);
               } else {
-                // Initialize item data
                 itemMap.set(itemName, { quantity: quantity, invoiceCount: 1 });
               }
             }
@@ -2585,9 +2587,8 @@ export class ReportsService {
         invoiceCount: number;
       }
 
-      // Transform itemMap entries to an array of objects
       const allItems : Item[] = [...itemMap.entries()]
-        .sort((a, b) => b[1].quantity - a[1].quantity) // Sort descending by quantity
+        .sort((a, b) => b[1].quantity - a[1].quantity) 
         .map(([itemName, data]) => ({
           itemName,
           quantity: data.quantity,
@@ -2649,10 +2650,10 @@ export class ReportsService {
       ).length;
 
       const orderSurvey = data.filter((x) =>
-        orderSurveyStatus.includes(x.status.category)
+        x.payment_type === 'survey'
       ).length;
 
-      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null).length;
+      const quotationPaid = data.filter((x) => x?.quotation.length  > 0 && x.payment_type === 'survet').length;
       const quotationPaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation != null)
         .reduce((total, order) => {
@@ -2686,19 +2687,12 @@ export class ReportsService {
         orderWork.includes(x.status.category) && x.payment_type === 'survey'
       ).length;
       const orderSurveyNoQuotation = data.filter((x) =>
-        orderSurveyStatus.includes(x.status.category) && x.payment_type === 'survey' && x.quotation.length === 0
+         x.payment_type === 'survey' && x.quotation.length === 0
       ).length;
-
-      const today = new Date();
-      const formattedDate = today.toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      });
 
       const titleCell = worksheet.getCell('A1');
       worksheet.getRow(1).height = 40;
-      titleCell.value = `Installation Service: ${formattedDate}`;
+      titleCell.value = `Installation Service: ${date_from} - ${date_to}`;
 
       titleCell.font = { size: 16, bold: true, color: { argb: 'FF0000FF' } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2734,7 +2728,6 @@ export class ReportsService {
       
       const example = [];
 
-      // Menambahkan elemen tetap untuk Booking Received dan Survey
       example.push([
         `Booking Received: ${bookReceived}`,
         '',
@@ -2754,7 +2747,7 @@ export class ReportsService {
         { label: 'Pending', value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
         { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
         { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
-        { label: 'On Going (Req Date September)', value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
+        { label: `On Going (${date_from} - ${date_to})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
         { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation } 
       ];
 
@@ -2764,33 +2757,28 @@ export class ReportsService {
       const maxLength = Math.max(itemLength, statusLength);
 
       for (let i = 0; i < maxLength; i++) {
-        const status = statuses[i] || {} as Status;  // Beri tipe default 'Status'
+        const status = statuses[i] || {} as Status;  
         const statusText = status.label ? `${status.label}: ${status.value}` : '';
         const quotationText = status.quotationLabel ? `${status.quotationLabel}: ${status.quotationValue}` : '';
 
-        // Jika item masih ada, masukkan; jika tidak, masukkan string kosong
         const item = allItems[i] || {} as Item;
         const itemName = item.itemName && item.invoiceCount ? `${item.itemName}: ${item.invoiceCount}` || '' : '';
         const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
-        // Jika salah satu kolom kosong, isi dengan placeholder agar tidak ada kolom kosong
         const row = [
           { richText: [{ text: statusText || '', font: { argb: 'FF000000' } }] },
           '',
           { richText: [{ text: quotationText || '', font: { argb: 'FF000000' } }] },
           '',
-          itemName || '',  // Pastikan ada placeholder
-          quantity || ''      // Pastikan ada placeholder
+          itemName || '',  
+          quantity || ''      
         ];
 
-        // Tambahkan ke dalam array example
         example.push(row);
       }
 
-      // Menampilkan hasil
       console.log(example);
 
-      // Menulis ke worksheet Excel
       example.forEach(row => {
         const newRow = worksheet.addRow(row);
         newRow.font = { size: 12 };
