@@ -264,7 +264,7 @@ export class InvoicesService {
         })
       ]);
       if (invoices) {
-        await this.notifService.create({ invoices: data }, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
+        await this.notifService.create({ invoices: invoices }, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
       }
 
       await this.invoiceLogs(invoices.id, invoices);
