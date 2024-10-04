@@ -52,7 +52,7 @@ export class OrderController {
   ) {}
   private readonly logger = new Logger(OrderController.name);
 
-  @Post(':id')
+  @Post('/history/:id')
   @UseGuards(JwtAuthGuard)
   async deleteHistory(
     @Param('id', ParseIntPipe) id: number,
