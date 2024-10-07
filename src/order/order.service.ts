@@ -65,6 +65,16 @@ export class OrderService {
         },
       });
 
+      const existingOrder = await this.dbService.orders.findFirst({
+        where: { receipt_number: createOrderDto.receipt_number },
+      });
+  
+      if (existingOrder) {
+        throw new BadRequestException(
+          `Receipt number ${createOrderDto.receipt_number} already exists!`,
+        );
+      }
+
       // if(salesUser.sales.length === 0) throw new BadRequestException('Sales not found!');
 
       const orderDetailItems = await this.dbService.items.findMany({
@@ -1132,6 +1142,15 @@ export class OrderService {
           sales: true,
         },
       });
+      const existingOrder = await this.dbService.orders.findFirst({
+        where: { receipt_number: updateOrderDto.receipt_number },
+      });
+  
+      if (existingOrder) {
+        throw new BadRequestException(
+          `Receipt number ${updateOrderDto.receipt_number} already exists!`,
+        );
+      }
       const files: Array<Prisma.order_filesCreateManyOrderInput> =
         order_files.map((item) => ({
           type: 'any',
