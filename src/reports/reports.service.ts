@@ -109,6 +109,7 @@ export class ReportsService {
           sales: {
             include: {
               store: true,
+              bank: true
             },
           },
           incentive: true,
@@ -116,6 +117,7 @@ export class ReportsService {
             include: {
               order: {
                 include: {
+                  store: true,
                   members: true,
                   status: true,
                 },
