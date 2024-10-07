@@ -1,240 +1,173 @@
 doctype html
-html(lang='en')
+html(lang="en")
   head
-    meta(charset='UTF-8')
-    | &#x9;&#x9;
-    meta(name='viewport' content='width=device-width, initial-scale=1.0')
-    | &#x9;&#x9;
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
     title Quotation Confirmation
-    | &#x9;&#x9;
-    link(href='https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap' rel='stylesheet')
-    | &#x9;&#x9;
-    script(src='https://cdn.tailwindcss.com')
-    | &#x9;
-    style.
-      ul.list-disc {
-      margin: auto;
-      padding: 0 0 0 50px !important;
-      }
-  | &#x9;
-  | &#x9;
-  body.bg-gray-100.font-sans.leading-normal.tracking-normal
-    .max-w-3xl.mx-auto.bg-white.shadow-md.rounded-lg.overflow-hidden
-      // Header
-      .p-0
-        img.w-full.h-auto(src='https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg' alt='Banner Image')
-      | &#x9;&#x9;&#x9;
-      .p-4.flex.flex-col.justify-between.items-center(class='md:flex-row')
-        img.h-12(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png' alt='Mitra 10 Logo')
-        | &#x9;&#x9;&#x9;&#x9;
-        p.ml-4.text-2xl.font-bold.text-center
-          | Instalasi &amp; Service Mitra 10
-        | &#x9;&#x9;&#x9;&#x9;
-        .text-center(class='md:text-right')
-          p.text-lg.font-bold Quotation ID: #{data.quotation.id}
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.text-sm Order ID: #{data.quotation.order.id}
-      .p-5
-        h1.text-xl.font-semibold.mb-4 Informasi Survei
-        // Table Information
-        table.w-full.text-left.table-auto.border-collapse.mb-6
+    link(href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet")
+  body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
+    .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
+      .header
+        img(src="https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg" alt="Banner Image" style="width: 100%; height: auto;")
+      
+      .order-details(style="padding-left: 16px; padding-right: 16px;")
+        table(style="width: 100%;")
+          tr
+            td(style="text-align: left;")
+              img(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png" alt="Mitra 10 Logo" style="height: 48px;")
+            td(style="text-align: center;")
+              p(style="font-size: 1.25rem; font-weight: 600;") Instalasi & Service Mitra 10
+            td(style="text-align: right;")
+              .order-id
+                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Quotation ID: #{data.quotation.id}
+                p(style="font-size: 0.875rem; margin: 0 !important;") Order ID : #{data.quotation.order.id}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+      
+      .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
+        p(style="color: #4a5568;") #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
+        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
+        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
+      
+      .order-info(style="padding: 20px;")
+        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Survei
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
             tr
-              th.min-w-36.max-w-36.border.px-4.py-2
-                | Kode Item
-              th.min-w-44.max-w-44.border.px-4.py-2
-                | Nama Item
-              th.min-w-44.max-w-44border.px-4.py-2
-                | Nama Jasa Pemasangan
-              th.border.px-4.py-2 QTY Pemasangan
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
+              th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
           tbody
             each item, index in data.quotation.order.m_order_details
               tr
-                td.min-w-36.max-w-36.border.px-4.py-2.break-words.break-all.text-sm
-                  | #{item.item ? item.item.item_code : item.item_code || ''}
-                td.min-w-44.max-w-44.border.px-4.py-2.text-sm
-                  | #{item.item ? item.item.item_name : item.item_name || ''}
-                td.min-w-44.max-w-44border.px-4.py-2.text-sm
-                  | #{item.item ? item.item.service_name || '' : item.item_name || ''}
-                td.border.px-4.py-2.text-sm #{item.quantity}
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.item ? item.item.item_code : item.item_code || ''}
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item ? item.item.item_name : item.item_name || ''}
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item ? item.item.service_name || '' : item.item_name || ''}
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || '0'}
             tr
-              td.border.px-4.py-2.text-end.text-sm.font-semibold(colspan='3')
-                | Biaya Survey
-              td.border.px-4.py-2 #{data.quotation.order.grand_total}
-      .p-6
-        h1.text-2xl.font-bold.mb-4 Quotation Confirmation
-        | &#x9;&#x9;&#x9;&#x9;
-        span.mb-4.text-gray-700
-          | #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
-          | #{data.message.greetings}
-          p.mb-4.text-gray-700
-            | Berikut detail pemesanan Anda:
-        table.w-full.text-left.table-auto.border-collapse.mb-6
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
+              - var formattedSurveyPrice = 'Rp. ' + data.quotation.order.grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedSurveyPrice}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .order-info(style="padding: 20px;")
+        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
             tr
-              th.border.px-4.py-2 Jenis Jasa
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              th.border.px-4.py-2 QTY
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              th.border.px-4.py-2 Satuan
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              th.border.px-4.py-2 Final Price
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
+              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
           tbody
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-              tr(key=index - quotation details)               
-                td= item.name ? item.name : '-'
-                td= item.quantity ? (item.quantity ) : '-'
-                td= item.unit ? item.unit : '-'
+              tr
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")=item.name ? item.name : '-'
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-'	
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
                 - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td= formattedFinalPrice
-        table.w-full.text-left.table-auto.border-collapse.mb-6
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= formattedFinalPrice
+
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
             tr
-              th.border.px-4.py-2
-                | Material Yang Dibutuhkan
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              th.border.px-4.py-2 QTY
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              th.border.px-4.py-2 Satuan
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              th.border.px-4.py-2 Final Price
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Material Yang Dibutuhkan
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
+              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
           tbody
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
-              tr(key=index - quotation details)               
-                td= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                td= item.quantity ? (item.quantity ) : '-'
-                td= item.unit ? item.unit : '-'
-            - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-            td= formattedFinalPrice
-            - var reducedTotal = 0
-            - data.quotation.quotation_details.forEach(detail => {
-            -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
-            -   reducedTotal += reducedPrice
-            - })
-            - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+              tr
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-'	
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-'
+                - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= formattedFinalPrice
             tr
-              td.border.px-4.py-2(colspan='3')
-                p.text-right.font-bold Total
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              td.border.px-4.py-2(colspan='3')
-                p.text-right #{formattedReducedTotal}
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
+              - var reducedTotal = 0
+              - data.quotation.quotation_details.forEach(detail => {
+              -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
+              -   reducedTotal += reducedPrice
+              - })
+              - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
             tr
-              td.border.px-4.py-2(colspan='3')
-                p.text-right.font-bold
-                  | Additional Promotion  (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              - var formattedTotal = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
-              td.border.px-4.py-2(colspan='3')
-                p.text-right #{formattedTotal}
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi ( FREE SURVEY )
+              - var formattedPromotion = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
             tr
-              td.border.px-4.py-2(colspan='3')
-                p.text-right.font-bold Grand Total
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              td.border.px-4.py-2(colspan='3')
-              - var formattedTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                p.text-right #{formattedTotal}
-        .customer-information
-          h2.text-2xl.font-bold.mb-4
-            | Customer Information
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          .mb-5
-            p.text-gray-700
-              strong Name:
-              |  #{data.quotation.order.members.full_name}
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-            p.text-gray-700
-              strong Email:
-              |  #{data.quotation.order.members.email}
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-            p.text-gray-700
-              strong Phone:
-              |  #{data.quotation.order.project_number}
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-            p.text-gray-700
-              strong Address:
-              |  #{data.quotation.order.project_address}
-        | &#x9;&#x9;&#x9;&#x9;
-        p.mt-4.text-gray-700 #{data.message.footer}
-        | &#x9;&#x9;&#x9;&#x9;
-        p.mt-1.text-gray-700
-          | Ini adalah email yang dikirimkan oleh sistem. Mohon untuk
-          | tidak membalas email ini.
-      // Etc
-      .divide-y
-        // Payment Instructions
-        .p-6.bg-gray-100.shadow-inner
-          h2.text-2xl.font-bold.mb-4
-            | Payment Instructions
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          .payment-information.mb-3
-            p.mb-2.text-gray-700.font-semibold
-              | 1. Silahkan melakukan pembayaran di account di bawah
-              | ini:
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-            ul.list-disc
-              li.text-gray-700 Bank: #{data.quotation.store.bank_name}
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              li.text-gray-700
-                | Account Number: #{data.quotation.store.bank_number}
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              li.text-gray-700 Account Name: #{data.quotation.store.bank_account}
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          .payment-evidence
-            p.mb-2.text-gray-700.font-semibold
-              | 2. Silahkan kirim bukti bayar anda melalui:
-            | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-            ul.list-disc
-              li.text-gray-700
-                | Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
-              | &#x9;&#x9;&#x9;&#x9;&#x9;&#x9;&#x9;
-              li.text-gray-700
-                | Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
-        // Information
-        .p-6.bg-gray-100
-          h2.text-2xl.font-bold.mb-4 Information
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 1. All sales are final. No returns or exchanges will be
-            | accepted.
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 2. Payment must be made in full before the order is
-            | processed.
-        // Terms and Conditions
-        .p-6.bg-gray-100
-          h2.text-2xl.font-bold.mb-4
-            | Terms and Conditions
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 1. All sales are final. No returns or exchanges will be
-            | accepted.
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 2. Payment must be made in full before the order is
-            | processed.
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 3. Delivery times are estimates and may vary based on
-            | location and availability.
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 4. We are not responsible for any damages or losses
-            | incurred during shipping.
-          | &#x9;&#x9;&#x9;&#x9;&#x9;
-          p.mb-2.text-gray-700
-            | 5. By placing an order, you agree to our terms and
-            | conditions.
-      // Footer
-      .bg-gray-200.p-4.text-center
-        p.text-sm
-          | If you have any questions, feel free to contact us at
-          | customer.relation@mitra10.com
-        | &#x9;&#x9;&#x9;&#x9;
-        p.text-sm &copy; 2024 Mitra10. All rights reserved.
-      // After Footer
-      .p-0
-        img.w-full.h-auto(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg' alt='Banner Image')
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi ( FREE SURVEY )
+              - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+      
+      .customer-info(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Pelanggan
+        p(style="color: #4a5568;") 
+          strong Nama:
+          |  #{data.quotation.order.members.full_name}
+        p(style="color: #4a5568;") 
+          strong Email:
+          |  #{data.quotation.order.project_number}
+        p(style="color: #4a5568;") 
+          strong Nomor Telepon:
+          |  #{data.quotation.order.project_address}
+        p(style="color: #4a5568;") 
+          strong Alamat:
+          |  #{data.quotation.order.project_address}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+      
+      .payment-instructions(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
+        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
+        ul(style="list-style-type: disc; margin-left: 5px;")
+          li(style="color: #4a5568;") Bank:  #{data.quotation.store.bank_name}
+          li(style="color: #4a5568;") Nomor Akun: #{data.quotation.store.bank_number}
+          li(style="color: #4a5568;") Nama Akun: #{data.quotation.store.bank_account}
+        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
+        ul(style="list-style-type: disc; margin-left: 5px;")
+          li(style="color: #4a5568;") Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
+          li(style="color: #4a5568;") Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .information(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
+        p(style="margin-bottom: 8px; color: #4a5568;") 1. All sales are final. No returns or exchanges will be accepted.
+        p(style="margin-bottom: 8px; color: #4a5568;") 2. Payment must be made in full before the order is processed.
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .terms-conditions(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
+        p(style="margin-bottom: 8px; color: #4a5568;") 1. All sales are final. No returns or exchanges will be accepted.
+        p(style="margin-bottom: 8px; color: #4a5568;") 2. Payment must be made in full before the order is processed.
+        p(style="margin-bottom: 8px; color: #4a5568;") 3. Delivery times are estimates and may vary based on location and availability.
+        p(style="margin-bottom: 8px; color: #4a5568;") 4. We are not responsible for any damages or losses incurred during shipping.
+        p(style="margin-bottom: 8px; color: #4a5568;") 5. By placing an order, you agree to our terms and conditions.
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .notes(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Catatan
+        p(style="margin-bottom: 8px; color: #4a5568;") 1. Quotation ini sah jika disetujui dalam waktu 7 hari.
+        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran dilakukan setelah pekerjaan selesai.
+        p(style="margin-bottom: 8px; color: #4a5568;") 3. Harga material dapat berubah sesuai harga pasar.
+        p(style="margin-bottom: 8px; color: #4a5568;") 4. Jika ada kesalahan atau ketidaksesuaian, silahkan hubungi kami secepatnya.
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+    
+      .footer-notes(style="padding: 20px;")
+        p(style="color: #4a5568; font-weight: 600; margin-top: 0; margin-bottom: 0;") #{data.message.footer}
+        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
+
+      .footer(style="background-color: #edf2f7; padding: 20px; text-align: center;")
+        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
+        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
+      .footer-banner
+        img(src="https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg" alt="Banner Image" style="width: 100%; height: auto;")

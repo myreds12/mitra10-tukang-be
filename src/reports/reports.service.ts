@@ -2563,7 +2563,6 @@ export class ReportsService {
       const itemMap = new Map();
 
       data.forEach(order => {
-        if (order.invoice_details.length > 0) {
           order.m_order_details.forEach(detail => {
             if (detail.item && detail.item.type === 1 && detail.item.prices.length > 0) {
               const itemName = detail.item.item_name;
@@ -2579,7 +2578,6 @@ export class ReportsService {
               }
             }
           });
-        }
       });
       interface Item {
         itemName: string;
@@ -2588,7 +2586,6 @@ export class ReportsService {
       }
 
       const allItems : Item[] = [...itemMap.entries()]
-        .sort((a, b) => b[1].quantity - a[1].quantity) 
         .map(([itemName, data]) => ({
           itemName,
           quantity: data.quantity,

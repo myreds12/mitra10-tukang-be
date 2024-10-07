@@ -1162,6 +1162,7 @@ export class InvoicesService {
         { header: 'Tanggal \n Survey/Pengerjaan', key: 'survey_date', width: 20 },
         { header: 'Total Harga', key: 'invoice_price', width: 15 },
         { header: 'Transaksi \n Customer', key: 'customer_transaction', width: 20 },
+        { header: 'Harga Jasa', key: 'instalation_price', width: 15 },
         { header: 'Selisih PPN', key: 'ppn_difference', width: 15 },
         { header: 'Margin PPN', key: 'margin_ppn', width: 15 },
         { header: 'Selisih', key: 'difference', width: 15 },
@@ -1214,11 +1215,11 @@ export class InvoicesService {
             ? order.order.quotation[0].quotation_grand_total
             : order.order.grand_total;
 
-        const invoice_price = order.total;
+        const invoice_price =  order.total;
         console.log("Invoice Price:", invoice_price);
         
 
-        const instalation_price = Math.floor(+customer_transaction / 1.11);
+        const instalation_price = order.order.payment_type === 'gratis'? 0 : Math.floor(+customer_transaction / 1.11);
         console.log("Installation Price:", instalation_price);
 
         const margin_ppn = instalation_price - invoice_price;
@@ -1227,7 +1228,7 @@ export class InvoicesService {
         const price_difference = +customer_transaction - invoice_price;
         console.log("Price Difference:", price_difference);
 
-        const receipt_number = order.order.quotation.length > 0 ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+        const receipt_number = order.order.quotation[0].receipt_quotation != null ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
         console.log("Receipt Number:", receipt_number);
 
 
@@ -1243,7 +1244,7 @@ export class InvoicesService {
           ppn_difference: margin_ppn,
           margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
           difference: price_difference,
-          margin_non_ppn: Math.ceil(price_difference / 1.11),
+          margin_non_ppn: order.order.payment_type === 'gratis'?-150000 : Math.ceil(price_difference / 1.11),
           margin: `${isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
           receipt_number: receipt_number,
           order_status: order.order.status.description,
@@ -1270,7 +1271,7 @@ export class InvoicesService {
         totals.invoice_price += invoice_price;
         totals.instalation_price += instalation_price;
         totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
-        totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
+        totals.margin_non_ppn += order.order.payment_type === 'gratis'?-150000 : Math.ceil(price_difference / 1.11);
         totals.margin += isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100);
         totals.ppn += isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100);        
         totals.price_difference += price_difference;
