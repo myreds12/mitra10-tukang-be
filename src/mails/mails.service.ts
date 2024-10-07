@@ -406,42 +406,56 @@ export class MailsService {
         where: {
           project_status_id: status_id,
           m_order_details: {
-            some: {}, // Only get order where it have a details
+            some: {},
           },
           deleted_at: null,
           deleted_by: null,
         },
       });
-
+  
       if (orders.length) {
-        this.logger.log(
-          `Order found for status id ${status_id} [${orders.length}]`,
-        );
-
+        this.logger.log(`Order found for status id ${status_id} [${orders.length}]`);
+  
         const jobs: {
           name?: string;
           data: OrderMailInterface;
           opts?: JobOptions;
         }[] = [];
         let delay: number = 5000;
-
+  
+        // Collect order IDs
+        const orderIds = orders.map(order => order.id);
+  
+        // Get counts in one query
+        const countResults = await this.dbService.mail_logs.groupBy({
+          by: ['moduleId', 'emailMessageId'],
+          where: {
+            moduleId: {
+              in: orderIds,
+            },
+            emailMessageId: template_id,
+            status: 1,
+          },
+          _count: {
+            moduleId: true,
+          },
+        });
+  
+        // Create a map of counts
+        const countMap = new Map<number, number>();
+        countResults.forEach(result => {
+          countMap.set(result.moduleId, result._count.moduleId);
+        });
+  
         for (let index = 0; index < orders.length; index++) {
           const order = orders[index];
-          const countSendedEmail = await this.dbService.mail_logs.count({
-            where: {
-              moduleId: order.id,
-              emailMessageId: template_id,
-              status: 1,
-            },
-          });
-
+          const countSendedEmail = countMap.get(order.id) || 0;
+  
           const jobId = `send-order-mail-${order.id}-${template_id}`;
           const jobExist = await this.emailQueue.getJob(jobId);
-
+  
           if (!countSendedEmail && !jobExist) {
-            this.logger.log(
-              `Sending email for order ${order.id} status ${status_id}`,
-            );
+            this.logger.log(`Sending email for order ${order.id} status ${status_id}`);
             jobs.push({
               name: 'send-order-mail',
               data: {
@@ -456,7 +470,7 @@ export class MailsService {
             delay += 5000;
           }
         }
-
+  
         if (jobs.length > 0) {
           this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
           await this.emailQueue.addBulk(jobs);
@@ -469,7 +483,7 @@ export class MailsService {
       this.logger.error(template_id, status_id);
     }
   }
-
+  
   async handleQuotationTriggers(template_id: number, status_id: number) {
     const quotations = await this.dbService.quotation.findMany({
       where: {
