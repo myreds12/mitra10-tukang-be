@@ -402,14 +402,15 @@ export class MailsService {
 
   async handleOrderTriggers(template_id: number, status_id: number) {
     try {
+      // Fetch orders based on the status_id
       const orders = await this.dbService.orders.findMany({
         where: {
           project_status_id: status_id,
           m_order_details: {
-            some: {},
+            some: {}, // Pastikan ada detail pesanan
           },
-          deleted_at: null,
-          deleted_by: null,
+          deleted_at: null, // Hanya ambil order yang tidak dihapus
+          deleted_by: null, // Hanya ambil order yang valid
         },
       });
   
@@ -421,66 +422,102 @@ export class MailsService {
           data: OrderMailInterface;
           opts?: JobOptions;
         }[] = [];
-        let delay: number = 5000;
   
-        // Collect order IDs
-        const orderIds = orders.map(order => order.id);
+        let delay: number = 5000; // Mulai delay untuk setiap job baru
   
-        // Get counts in one query
-        const countResults = await this.dbService.mail_logs.groupBy({
-          by: ['moduleId', 'emailMessageId'],
-          where: {
-            moduleId: {
-              in: orderIds,
-            },
-            emailMessageId: template_id,
-            status: 1,
-          },
-          _count: {
-            moduleId: true,
-          },
-        });
+        // Batch size to prevent too many orders being processed at once
+        const batchSize = 100;
+        for (let i = 0; i < orders.length; i += batchSize) {
+          const batchOrders = orders.slice(i, i + batchSize);
+          const orderIds = batchOrders.map(order => order.id);
   
-        // Create a map of counts
-        const countMap = new Map<number, number>();
-        countResults.forEach(result => {
-          countMap.set(result.moduleId, result._count.moduleId);
-        });
-  
-        for (let index = 0; index < orders.length; index++) {
-          const order = orders[index];
-          const countSendedEmail = countMap.get(order.id) || 0;
-  
-          const jobId = `send-order-mail-${order.id}-${template_id}`;
-          const jobExist = await this.emailQueue.getJob(jobId);
-  
-          if (!countSendedEmail && !jobExist) {
-            this.logger.log(`Sending email for order ${order.id} status ${status_id}`);
-            jobs.push({
-              name: 'send-order-mail',
-              data: {
-                module_id: order.id,
-                template_id,
+          // Retry mechanism for the query
+          const countResults = await this.retryQuery(() => 
+            this.dbService.mail_logs.groupBy({
+              by: ['moduleId', 'emailMessageId'],
+              where: {
+                moduleId: {
+                  in: orderIds,
+                },
+                emailMessageId: template_id,
+                status: 1, // Status email sudah terkirim
               },
-              opts: {
-                jobId,
-                delay,
+              _count: {
+                moduleId: true,
               },
-            });
-            delay += 5000;
+            })
+          );
+  
+          // Create a map to track email send counts per order
+          const countMap = new Map<number, number>();
+          countResults.forEach(result => {
+            countMap.set(result.moduleId, result._count.moduleId);
+          });
+  
+          // Ambil semua jobs dengan status 'waiting' atau 'active'
+          const allJobs = await this.emailQueue.getJobs(['waiting', 'active'], 0, 1000);
+  
+          for (let index = 0; index < batchOrders.length; index++) {
+            const order = batchOrders[index];
+            const countSendedEmail = countMap.get(order.id) || 0;
+  
+            // Jika email belum terkirim dan job belum ada di queue
+            const jobId = `send-order-mail-${order.id}-${template_id}`;
+            const jobExist = allJobs.find(job => job.id === jobId);
+  
+            // Pastikan email belum terkirim sebelumnya dan job belum ada
+            if (countSendedEmail === 0 && !jobExist) {
+              this.logger.log(`Sending email for order ${order.id} status ${status_id}`);
+  
+              // Push job untuk dikirim secara bulk
+              jobs.push({
+                name: 'send-order-mail',
+                data: {
+                  module_id: order.id,
+                  template_id,
+                },
+                opts: {
+                  jobId,
+                  delay, // Tambahkan delay untuk setiap job
+                },
+              });
+  
+              // Tambahkan delay untuk job berikutnya agar tidak terkirim bersamaan
+              delay += 5000;
+            }
           }
         }
   
+        // Jika ada jobs untuk dikirim, tambahkan secara bulk
         if (jobs.length > 0) {
           this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
           await this.emailQueue.addBulk(jobs);
+        } else {
+          this.logger.verbose(`No jobs to trigger for status id ${status_id}`);
         }
       } else {
         this.logger.verbose(`Order not found for status id ${status_id}`);
       }
     } catch (error) {
+      this.logger.error(`Error handling order triggers for template ${template_id}, status ${status_id}: ${error.message}`);
       console.error(error);
-      this.logger.error(template_id, status_id);
+    }
+  }
+  
+  // Retry mechanism to avoid query failure due to timeouts or other issues
+  async retryQuery<T>(query: () => Promise<T>, retries = 3): Promise<T> {
+    let attempt = 0;
+    while (attempt < retries) {
+      try {
+        return await query();
+      } catch (error) {
+        attempt++;
+        if (attempt === retries) {
+          throw error;
+        }
+        // Tunggu sebelum melakukan retry
+        await new Promise(res => setTimeout(res, 1000)); // Tunggu 1 detik sebelum mencoba lagi
+      }
     }
   }
   
