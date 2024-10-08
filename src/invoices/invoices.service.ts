@@ -175,7 +175,7 @@ export class InvoicesService {
               const totalMargin =
               (vendor.margin_type === 1 ? order.m_order_details
                 .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * ((+vendor.margin_nominal) / 100) : (+vendor.margin_nominal * order.m_order_details
+                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)  : (+vendor.margin_nominal * order.m_order_details
                     .filter((i) => i.item.type === 2)
                     .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
               invoiceDetails.push({
@@ -562,7 +562,7 @@ export class InvoicesService {
             total =
             (invoice.vendor.margin_type === 1 ? order.m_order_details
               .filter((i) => i.item.type === 2)
-              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * ((+invoice.vendor.margin_nominal) / 100) : ( order.m_order_details
+              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) : ( order.m_order_details
                   .filter((i) => i.item.type === 2)
                   .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0) * +invoice.vendor.margin_nominal)) + Number(order.additional_fee);
           } else if (order.payment_type === 'gratis') {
