@@ -168,6 +168,36 @@ export class InvoicesService {
               });
 
               totalGrandTotal += totalMargin || 0;
+            }else if (order.payment_type === 'survey' && detail.type === 3) {
+              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
+              invoiceDetails.push({   
+                order_id: order.id,
+                total: totalMargin,
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
+                type: detail.type,
+              });
+
+              totalGrandTotal += totalMargin || 0;
+            }else if (order.payment_type === 'survey' && detail.type === 4) {
+              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 50 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
+              invoiceDetails.push({   
+                order_id: order.id,
+                total: totalMargin,
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
+                type: detail.type,
+              });
+
+              totalGrandTotal += totalMargin || 0;
+            }else if (order.payment_type === 'survey' && detail.type === 5) {
+              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
+              invoiceDetails.push({   
+                order_id: order.id,
+                total: totalMargin,
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
+                type: detail.type,
+              });
+
+              totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
               console.log(order.m_order_details
                 .filter((i) => i.item.type === 2)
