@@ -669,26 +669,25 @@ export class QuotationService {
         }
       }
 
-      // Cek jika receipts_quotation ada dan panjangnya lebih dari 0
       if (updateQuotationDto.receipts_quotation && updateQuotationDto.receipts_quotation.length > 0) {
-        // Ambil semua receipt_quotation
-        const receiptNumbers = updateQuotationDto.receipts_quotation.map((item) => item.receipt_quotation);
+        const receiptNumbers = updateQuotationDto.receipts_quotation
+          .map((item) => item.receipt_quotation)
+          .filter((item) => item !== undefined); 
 
-        // Cari duplikasi dalam receiptNumbers
+        console.log(receiptNumbers);
+        
         const duplicates = receiptNumbers.filter((item, index) => receiptNumbers.indexOf(item) !== index);
 
-        // Jika ada duplikasi, lemparkan error
         if (duplicates.length > 0) {
           throw new BadRequestException(`Duplicate receipt number(s) found: ${duplicates.join(', ')}`);
         }
 
-        // Lanjutkan validasi ke database untuk pengecekan konflik
         const existingQuotation = await this.dbService.quotation.findMany({
           where: {
-            id: { not: id }, // Pastikan tidak mengecek quotation yang sedang di-update
+            id: { not: id },
             quotation_receipt: {
               some: {
-                receipt_quotation: { in: receiptNumbers } // Cek apakah receipt_quotation sudah ada di database
+                receipt_quotation: { in: receiptNumbers }
               }
             }
           },
@@ -704,13 +703,13 @@ export class QuotationService {
 
           const conflictReceipts = receiptNumbers.filter((receipt) => existingReceipts.includes(receipt));
 
-          throw new BadRequestException(
-            `Receipt numbers ${conflictReceipts.join(', ')} already exist!`
-          );
+          if (conflictReceipts.length > 0) {
+            throw new BadRequestException(
+              `Receipt numbers ${conflictReceipts.join(', ')} already exist!`
+            );
+          }
         }
       }
-
-
 
       let grandTotal = 0;
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
