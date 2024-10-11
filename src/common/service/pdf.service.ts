@@ -12,7 +12,7 @@ export class PdfService {
       });
 
 
-      create(html, {timeout: 60000 }).toBuffer((err, buffer) => {
+      create(html, { timeout: 60000 }).toBuffer((err, buffer) => {
         if (err) {
           reject(err);
         } else {
@@ -28,8 +28,44 @@ export class PdfService {
         data,
       });
 
+      const options = {
+        format: 'A4',
+        border: {
+          top: "1in",
+          right: "0.5in",
+          bottom: "0.5in",
+          left: "0.5in"
+        },
+        header: {
+          height: "20mm",
+          contents: '<div style="text-align: center;"></div>'
+        },
+        footer: {
+          height: "20mm",
+          contents: '<div style="text-align: center;"></div>'
+        },
+        timeout: 60000,
+        orientation: 'landscape'
+      };
 
-      create(html, {timeout: 60000,orientation: 'landscape'  }).toBuffer((err, buffer) => {
+
+      create(html, {
+        format: 'A4',
+        border: {
+          top: "0",
+          right: "0.5in",
+          bottom: "0.5in",
+          left: "0.5in"
+        },
+        header: {
+          height: "5mm",
+        },
+        footer: {
+          height: "5mm",
+        },
+        timeout: 60000,
+        orientation: 'landscape'
+      }).toBuffer((err, buffer) => {
         if (err) {
           reject(err);
         } else {

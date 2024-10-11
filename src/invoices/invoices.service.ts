@@ -588,13 +588,19 @@ export class InvoicesService {
             total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000 + Number(order.additional_fee);
           } else if (order.payment_type === 'survey' && item.type === 2) {
             total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal)))) + Number(order.additional_fee);
+          } else if (order.payment_type === 'survey' && item.type === 3) {
+            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal))));
+          } else if (order.payment_type === 'survey' && item.type === 4) {
+            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 50 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal))));
+          } else if (order.payment_type === 'survey' && item.type === 5) {
+            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal))));
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
             (invoice.vendor.margin_type === 1 ? order.m_order_details
               .filter((i) => i.item.type === 2)
-              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) : ( order.m_order_details
+              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)  : (+invoice.vendor.margin_nominal * order.m_order_details
                   .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0) * +invoice.vendor.margin_nominal)) + Number(order.additional_fee);
+                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
           } else if (order.payment_type === 'gratis') {
             total = order.m_order_details
               .filter((i) => i.item.type === 1)
@@ -1190,7 +1196,7 @@ export class InvoicesService {
         { header: 'Nama Customer', key: 'member_name', width: 30 },
         { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
         { header: 'Tanggal \n Survey/Pengerjaan', key: 'survey_date', width: 20 },
-        { header: 'Total Harga', key: 'invoice_price', width: 15 },
+        { header: 'Tagihan', key: 'invoice_price', width: 15 },
         { header: 'Transaksi \n Customer', key: 'customer_transaction', width: 20 },
         { header: 'Harga Jasa', key: 'instalation_price', width: 15 },
         { header: 'Selisih PPN', key: 'ppn_difference', width: 15 },
@@ -1258,7 +1264,8 @@ export class InvoicesService {
         const price_difference = +customer_transaction - invoice_price;
         console.log("Price Difference:", price_difference);
 
-        const receipt_number = order.order.quotation[0].receipt_quotation != null ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+        const receipt_number = order.order.quotation[0] ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
+        
         console.log("Receipt Number:", receipt_number);
 
 
@@ -1272,11 +1279,11 @@ export class InvoicesService {
           customer_transaction: +customer_transaction,
           instalation_price: instalation_price,
           ppn_difference: margin_ppn,
-          margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
+          margin_ppn: `${order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100))}%`,
           difference: price_difference,
-          margin_non_ppn: order.order.payment_type === 'gratis'?-150000 : Math.ceil(price_difference / 1.11),
-          margin: `${isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
-          receipt_number: receipt_number,
+          margin_non_ppn: order.order.payment_type === 'gratis'? -150000 : Math.ceil(price_difference / 1.11),
+          margin: `${order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100))}%`,
+          receipt_number: receipt_number || '-',
           order_status: order.order.status.description,
         });
       
@@ -1302,8 +1309,8 @@ export class InvoicesService {
         totals.instalation_price += instalation_price;
         totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
         totals.margin_non_ppn += order.order.payment_type === 'gratis'?-150000 : Math.ceil(price_difference / 1.11);
-        totals.margin += isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100);
-        totals.ppn += isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100);        
+        totals.margin += order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100));
+        totals.ppn += order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100));        
         totals.price_difference += price_difference;
         
       });
