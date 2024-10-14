@@ -2064,7 +2064,7 @@ export class ReportsService {
         history_status,
       } = queryParams;
 
-      if(!date_from && date_to){
+      if (!date_from && date_to) {
         throw new BadRequestException('Mohon untuk menginput date from dan date to!')
       }
 
@@ -2565,34 +2565,39 @@ export class ReportsService {
       const itemMap = new Map();
 
       data.forEach(order => {
-          order.m_order_details.forEach(detail => {
-            if (detail.item && detail.item.type === 1 && detail.item.prices.length > 0) {
-              const itemName = detail.item.item_name;
-              const quantity = detail.quantity || 0;
+        order.m_order_details.forEach(detail => {
+          if (detail.item.type === 1 || 2) {
+            const itemName = detail.item.item_name;
+            const quantity = detail.quantity || 0;
+            const type = detail.item.type;
 
-              if (itemMap.has(itemName)) {
-                const itemData = itemMap.get(itemName);
-                itemData.quantity += quantity; 
-                itemData.invoiceCount += 1; 
-                itemMap.set(itemName, itemData);
-              } else {
-                itemMap.set(itemName, { quantity: quantity, invoiceCount: 1 });
-              }
+            if (itemMap.has(itemName)) {
+              const itemData = itemMap.get(itemName);
+              itemData.quantity += quantity;
+              itemData.orderCount += 1;
+              itemData.type = type;
+              itemMap.set(itemName, itemData);
+            } else {
+              itemMap.set(itemName, { quantity: quantity, orderCount: 1 });
             }
-          });
+
+          }
+        });
       });
       interface Item {
         itemName: string;
         quantity: number;
-        invoiceCount: number;
+        orderCount: number;
+        type: number;
       }
 
-      const allItems : Item[] = [...itemMap.entries()]
+      const allItems: Item[] = [...itemMap.entries()]
         .map(([itemName, data]) => ({
           itemName,
           quantity: data.quantity,
-          invoiceCount: data.invoiceCount
-        })); 
+          orderCount: data.orderCount,
+          type: data.type
+        }));
 
       console.log(allItems);
 
@@ -2606,8 +2611,23 @@ export class ReportsService {
         x.status.category === 'WORKEND' || x.status.category === 'SURVEYDONE' || x.status.category === 'WORKENDSTEPONE' || x.status.category === 'WORKENDSTEPTWO' || x.status.category === 'WORKENDSTEPTHREE'
       ).length;
 
+      const currentDate = new Date();
+      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      const endOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
       const orderPending = data.filter((x) =>
-        x.status.category === 'WORKREQ' || x.status.category === 'SURVEYREQ' || x.status.category === 'WORKREQSTEPONE' || x.status.category === 'WORKREQSTEPTWO' || x.status.category === 'WORKREQSTEPTHREE'
+        (
+          x.status.category === 'WORKREQ' ||
+          x.status.category === 'SURVEYREQ' ||
+          x.status.category === 'WORKREQSTEPONE' ||
+          x.status.category === 'WORKREQSTEPTWO' ||
+          x.status.category === 'WORKREQSTEPTHREE'
+        ) &&
+        new Date(x.request_survey) >= startOfMonth &&
+        new Date(x.request_survey) <= endOfMonth || new Date(x.request_work) >= startOfMonth &&
+        new Date(x.request_work) <= endOfMonth
       ).length;
 
       const orderRefund = data.filter((x) =>
@@ -2618,7 +2638,7 @@ export class ReportsService {
         x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'CANCEL'
       ).length;
 
-      const orderSurveyStatus = ['SURVEYREQ', 'SURVEYSTART', 'SURVEYDONE', 'TUKANGSURVEY'];
+
 
       const totalProgressOrder = [
         'BOOKED',
@@ -2627,7 +2647,6 @@ export class ReportsService {
         'SURVEYREQ',
         'SURVEYSTART',
         'SURVEYEND',
-        'SURVEYDONE',
         'UNPAIDRECEIPT',
         'WORKREQ',
         'WORKSTART',
@@ -2641,28 +2660,29 @@ export class ReportsService {
         'RESURVEYEND',
         'REWORKREQ',
         'REWORKSTART',
-        'REWORKEND',
       ];
 
       const orderProgress = data.filter((x) =>
-        totalProgressOrder.includes(x.status.category)
+        totalProgressOrder.includes(x.status.category) && new Date(x.request_survey) >= nextMonth &&
+        new Date(x.request_survey) <= endOfNextMonth || new Date(x.request_work) >= nextMonth &&
+        new Date(x.request_work) <= endOfNextMonth
       ).length;
 
       const orderSurvey = data.filter((x) =>
         x.payment_type === 'survey'
       ).length;
 
-      const quotationPaid = data.filter((x) => x?.quotation.length  > 0 && x.payment_type === 'survet').length;
+      const quotationPaid = data.filter((x) => x?.quotation.length > 0 && x.payment_type === 'survey').length;
       const quotationPaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation != null)
+        .filter((x) => x?.quotation[0]?.receipt_quotation != null && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
         }, 0);
 
-      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null).length;
+      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null && x.payment_type === 'survey').length;
       const quotationUnpaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation === null)
+        .filter((x) => x?.quotation[0]?.receipt_quotation === null && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
@@ -2686,12 +2706,19 @@ export class ReportsService {
         orderWork.includes(x.status.category) && x.payment_type === 'survey'
       ).length;
       const orderSurveyNoQuotation = data.filter((x) =>
-         x.payment_type === 'survey' && x.quotation.length === 0
+        x.payment_type === 'survey' && x.quotation.length === 0
       ).length;
 
+      const dateFrom = new Date(date_from);
+      const dateTo = new Date(date_to);
+
+      const formattedDateFrom = dateFrom.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }); 
+      const formattedDateTo = dateTo.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // Mengatur nilai cell dengan format yang diinginkan
       const titleCell = worksheet.getCell('A1');
       worksheet.getRow(1).height = 40;
-      titleCell.value = `Installation Service: ${date_from} - ${date_to}`;
+      titleCell.value = `Installation Service: ${formattedDateFrom} - ${formattedDateTo}`;
 
       titleCell.font = { size: 16, bold: true, color: { argb: 'FF0000FF' } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -2701,9 +2728,9 @@ export class ReportsService {
         fgColor: { argb: 'FFFFFF' },
       };
       worksheet.mergeCells('A1:F1');
-      
+
       worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone}`]);
-      
+
       const headerRow = worksheet.getRow(2);
       headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       headerRow.alignment = { horizontal: 'center' };
@@ -2724,7 +2751,7 @@ export class ReportsService {
         fgColor: { argb: 'FF17365D' },
       };
       worksheet.mergeCells('E2:F2');
-      
+
       const example = [];
 
       example.push([
@@ -2741,14 +2768,21 @@ export class ReportsService {
         quotationLabel: string;
         quotationValue: string | number;
       }
-      const statuses : Status[] = [
+
+      const currentMonth = dateFrom.toLocaleString('default', { month: 'long' });
+
+      const nextMonthDate = new Date(dateFrom.getFullYear(), dateFrom.getMonth() + 1);
+      const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long' });
+
+      const statuses: Status[] = [
         { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
-        { label: 'Pending', value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
+        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue }, // Ganti dengan bulan ini
         { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
         { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
-        { label: `On Going (${date_from} - ${date_to})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
-        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation } 
+        { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing }, // Ganti dengan bulan depan
+        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation }
       ];
+
 
       const itemLength = allItems.length;
       const statusLength = statuses.length;
@@ -2756,12 +2790,12 @@ export class ReportsService {
       const maxLength = Math.max(itemLength, statusLength);
 
       for (let i = 0; i < maxLength; i++) {
-        const status = statuses[i] || {} as Status;  
+        const status = statuses[i] || {} as Status;
         const statusText = status.label ? `${status.label}: ${status.value}` : '';
         const quotationText = status.quotationLabel ? `${status.quotationLabel}: ${status.quotationValue}` : '';
 
         const item = allItems[i] || {} as Item;
-        const itemName = item.itemName && item.invoiceCount ? `${item.itemName}: ${item.invoiceCount}` || '' : '';
+        const itemName = item.itemName && item.orderCount ? `${item.itemName} ${item.type === 1 ? '(FREE)' : ''}: ${item.orderCount}` || '' : '';
         const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
         const row = [
@@ -2769,8 +2803,8 @@ export class ReportsService {
           '',
           { richText: [{ text: quotationText || '', font: { argb: 'FF000000' } }] },
           '',
-          itemName || '',  
-          quantity || ''      
+          itemName || '',
+          quantity || ''
         ];
 
         example.push(row);
@@ -2789,12 +2823,12 @@ export class ReportsService {
 
       worksheet.addRow([]);
 
-      worksheet.getColumn(1).width = 60;
+      worksheet.getColumn(1).width = 45;
       worksheet.getColumn(2).width = 15;
-      worksheet.getColumn(3).width = 60;
+      worksheet.getColumn(3).width = 45;
       worksheet.getColumn(4).width = 15;
-      worksheet.getColumn(5).width = 70;
-      worksheet.getColumn(6).width = 30;
+      worksheet.getColumn(5).width = 50;
+      worksheet.getColumn(6).width = 25;
 
       worksheet.eachRow((row) => {
         row.eachCell((cell) => {

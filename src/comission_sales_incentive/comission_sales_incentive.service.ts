@@ -92,9 +92,36 @@ export class ComissionSalesIncentiveService {
                   },
                 ],
               },
+              {
+                sales_incentive:{
+                  some: {
+                    sales: {
+                      OR: [
+                        {
+                          id: !isNaN(+search) ? +search : undefined,
+                        },
+                        { full_name: { contains: search } },
+                        { sales_brand: { contains: search } },
+                        { account_name: { contains: search } },
+                        { phone_number: { contains: search } },
+                        { account_number: { contains: search } },
+                        { nik: { contains: search } },
+                        { bank_branch: { contains: search } },
+                        {
+                          sales_categories: {
+                            some: {
+                              categories: { category_name: { contains: search } },
+                            },
+                          },
+                        },
+                      ]
+                    }
+                  }
+                }
+              }
             ]
             : []),
-          ...(invoice_status
+          ...(status
             ? [
               {
                 status: invoice_status,
@@ -161,7 +188,12 @@ export class ComissionSalesIncentiveService {
                   }
                 }
               },
-              sales: true
+              sales: {
+                include: {
+                  store: true,
+                  bank: true,
+                }
+              }
             }
           }
         }
@@ -214,7 +246,12 @@ export class ComissionSalesIncentiveService {
                   }
                 }
               },
-              sales: true
+              sales: {
+                include: {
+                  store: true,
+                  bank: true,
+                }
+              }
             }
           }
         }

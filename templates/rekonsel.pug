@@ -160,16 +160,16 @@ font-family: Arial, Helvetica, sans-serif;\
           td(style='font-size: 12px') #{invoice_price}
           td(style='font-size: 12px') #{Number(customer_transaction)}
           td(style='font-size: 12px') #{instalation_price}
-          td(style='font-size: 12px') #{`${order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100))}%`}
+          td(style='font-size: 12px') #{`${item.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100))}%`}
           td(style='font-size: 12px') #{Math.ceil(price_difference / 1.11)}
-          td(style='font-size: 12px') #{`${order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100))}%`}
+          td(style='font-size: 12px') #{`${item.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100))}%`}
           td(style='font-size: 12px') #{receipt_number}
           -totals.customer_transaction += +customer_transaction;
           -totals.invoice_price += invoice_price;
           -totals.instalation_price += instalation_price;
           -totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
-          -totals.margin_non_ppn += order.order.payment_type === 'gratis' ? -150000 : Math.ceil(price_difference / 1.11);
-          -totals.margin += order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100));
+          -totals.margin_non_ppn += item.order.payment_type === 'gratis' ? -150000 : Math.ceil(price_difference / 1.11);
+          -totals.margin += item.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100));
       tr
         td(colspan='5' style='font-weight: bold; font-size: 12px')
           | Total
