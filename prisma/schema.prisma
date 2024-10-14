@@ -59,13 +59,13 @@ model employee {
   store_id    Int?
   user_id     Int? @unique
 
-  full_name        String   @db.VarChar(255)
-  email            String   @db.VarChar(255)
-  birth            DateTime @db.DateTime()
-  nik              String   @db.VarChar(50)
-  phone_number     String?  @db.VarChar(50)
-  whatsapp_number  String?  @db.VarChar(50)
-  default_password String?  @db.VarChar(50)
+  full_name        String    @db.VarChar(255)
+  email            String    @db.VarChar(255)
+  birth            DateTime? @db.DateTime()
+  nik              String?   @db.VarChar(50)
+  phone_number     String?   @db.VarChar(50)
+  whatsapp_number  String?   @db.VarChar(50)
+  default_password String?   @db.VarChar(50)
 
   created_at DateTime?  @default(now()) @db.DateTime()
   updated_at DateTime?  @db.DateTime()
@@ -215,9 +215,9 @@ model notifications {
   module_id Int?
   status    Int?
 
-  data        String?  @db.Text()
-  module_type String?  @db.VarChar(100)
-  action      String?  @db.Text()
+  data        String? @db.Text()
+  module_type String? @db.VarChar(100)
+  action      String? @db.Text()
   is_read     Boolean @default(false)
 
   created_at DateTime @default(now()) @db.DateTime()
@@ -314,13 +314,13 @@ model users {
   updated_by Int?
   deleted_by Int?
 
-  roles             roles               @relation(fields: [role_id], references: [id])
-  store             store[]
-  sales             sales[]
-  employee          employee?
-  tukang            tukang[]
-  pic_vendor        pic_vendor[]
-  notifications     notifications[]
+  roles         roles           @relation(fields: [role_id], references: [id])
+  store         store[]
+  sales         sales[]
+  employee      employee?
+  tukang        tukang[]
+  pic_vendor    pic_vendor[]
+  notifications notifications[]
 }
 
 model sales {
@@ -1692,10 +1692,11 @@ model setting_incentive {
 }
 
 model sales_incentive {
-  id           Int @id @default(autoincrement())
-  incentive_id Int @map("incentiveId")
-  sales_id     Int @map("salesId")
-  quotation_id Int @map("quotationId")
+  id                           Int  @id @default(autoincrement())
+  comission_sales_incentive_id Int?
+  incentive_id                 Int  @map("incentiveId")
+  sales_id                     Int  @map("salesId")
+  quotation_id                 Int  @map("quotationId")
 
   nominal Decimal @default(0) @db.Decimal(32, 2)
   status  Int     @default(0) @db.Int()
@@ -1709,9 +1710,44 @@ model sales_incentive {
   updated_by Int? @map("updatedBy")
   deleted_by Int? @map("deletedBy")
 
-  quotation quotation         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
-  sales     sales             @relation(fields: [sales_id], references: [id])
+  quotation                 quotation                 @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  incentive                 setting_incentive         @relation(fields: [incentive_id], references: [id])
+  sales                     sales                     @relation(fields: [sales_id], references: [id])
+  comission_sales_incentive comission_sales_incentive? @relation(fields: [comission_sales_incentive_id], references: [id])
+}
+
+model comission_sales_incentive {
+  id Int @id @default(autoincrement())
+
+  total_amount Decimal @default(0) @db.Decimal(32, 2)
+  status       Int     @default(0) @db.Int()
+
+  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
+  updated_at DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+
+  created_by Int? @map("createdBy")
+  updated_by Int? @map("updatedBy")
+  deleted_by Int? @map("deletedBy")
+
+  comission_sales_incentive_evidence comission_sales_incentive_evidence[]
+  sales_incentive                    sales_incentive[]
+}
+
+model comission_sales_incentive_evidence {
+  id Int @id @default(autoincrement())
+
+  comission_sales_incentive_id Int
+  evidence_location            String
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at                DateTime                  @default(now()) @db.DateTime()
+  updated_at                DateTime?                 @db.DateTime()
+  deleted_at                DateTime?                 @db.DateTime()
+  comission_sales_incentive comission_sales_incentive @relation(fields: [comission_sales_incentive_id], references: [id])
 }
 
 model incentive_store {

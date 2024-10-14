@@ -8,11 +8,17 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-known-exception.filter';
 import { PrismaValidationFilter } from './common/filters/prisma-validation-error.filter';
+import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: true,
-  });
+  const corsOptions: CorsOptions = {
+    origin: ['*'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['*', 'ngrok-skip-browser-warning'],
+  };
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('INSTALASI REST API')
@@ -31,6 +37,9 @@ async function bootstrap() {
     new PrismaExceptionFilter(),
     new PrismaValidationFilter(),
   );
+
+  app.enableCors(corsOptions);
+
   app.useGlobalInterceptors(new TransformInterceptor());
 
   app.setBaseViewsDir(join('templates'));
