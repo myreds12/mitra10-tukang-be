@@ -12,7 +12,7 @@ export class ComissionSalesIncentiveService {
     try {
       const evidences = comission_sales_incentive_evidences.length > 0 ? comission_sales_incentive_evidences?.map((item) => {
         console.log(item);
-        
+
         return {
           evidence_location: item.filename,
           created_by: user.id,
@@ -20,13 +20,13 @@ export class ComissionSalesIncentiveService {
       }) : [];
 
       console.log(evidences);
-      
+
 
       console.log((await this.nextCode()).code)
       const salesIncentiveUpdateArgs = createComissionSalesIncentiveDto.sales_incentive.length > 0 ? createComissionSalesIncentiveDto.sales_incentive.map((item) => item.sales_incentive_id) : undefined;
       console.log(salesIncentiveUpdateArgs)
       const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
-        where: {  
+        where: {
           id: {
             in: salesIncentiveUpdateArgs
           }
@@ -93,7 +93,7 @@ export class ComissionSalesIncentiveService {
                 ],
               },
               {
-                sales_incentive:{
+                sales_incentive: {
                   some: {
                     sales: {
                       OR: [
@@ -199,7 +199,16 @@ export class ComissionSalesIncentiveService {
         }
       });
 
-      return comissionSalesIncentive;
+      const count = await this.dbService.comission_sales_incentive.count();
+      return {
+        data: comissionSalesIncentive,
+        meta: {
+          total: count,
+          page,
+          take,
+          takeTotal: comissionSalesIncentive.length,
+        }
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -209,9 +218,9 @@ export class ComissionSalesIncentiveService {
   async findOne(id: number) {
     try {
       const comissionSalesIncentive = await this.dbService.comission_sales_incentive.findFirst({
-       where: {
-        id
-       },
+        where: {
+          id
+        },
         include: {
           comission_sales_incentive_evidence: {
             where: {
@@ -264,9 +273,9 @@ export class ComissionSalesIncentiveService {
 
   async update(
     id: number, // ID dari comission_sales_incentive yang ingin di-update
-    updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto, 
-    comission_sales_incentive_evidences: Express.Multer.File[], 
-    user: users, 
+    updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
+    comission_sales_incentive_evidences: Express.Multer.File[],
+    user: users,
   ) {
     try {
       // Fetch existing sales_incentive_ids linked to the current comission_sales_incentive
@@ -278,22 +287,22 @@ export class ComissionSalesIncentiveService {
           id: true
         }
       });
-      
+
       const existingSalesIncentiveIds = existingSalesIncentives.map(item => item.id);
-  
+
       const newSalesIncentiveIds = updateComissionSalesIncentiveDto.sales_incentive.map(item => item.sales_incentive_id);
-  
+
       const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(id => !newSalesIncentiveIds.includes(id));
-  
+
       const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(id => !existingSalesIncentiveIds.includes(id));
-  
+
       const evidences = comission_sales_incentive_evidences.length > 0 ? comission_sales_incentive_evidences.map((item) => {
         return {
           evidence_location: item.filename,
           created_by: user.id,
         };
       }) : [];
-  
+
       // Calculate the total amount of the new sales_incentives
       const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
         where: {
@@ -302,7 +311,7 @@ export class ComissionSalesIncentiveService {
           }
         }
       }).then((data) => data.reduce((acc, curr) => acc + Number(curr?.nominal), 0));
-  
+
       // Perform the update in a transaction
       const [comissionSalesIncentive, updateSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.update({
@@ -318,7 +327,7 @@ export class ComissionSalesIncentiveService {
             }
           },
         }),
-  
+
         this.dbService.sales_incentive.updateMany({
           where: {
             id: {
@@ -326,10 +335,10 @@ export class ComissionSalesIncentiveService {
             }
           },
           data: {
-            comission_sales_incentive_id: null 
+            comission_sales_incentive_id: null
           }
         }),
-  
+
         this.dbService.sales_incentive.updateMany({
           where: {
             id: {
@@ -339,17 +348,17 @@ export class ComissionSalesIncentiveService {
           data: {
             comission_sales_incentive_id: id
           }
-        })  
+        })
       ]);
-  
+
       return comissionSalesIncentive;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-  
-  
+
+
 
   remove(id: number) {
     return `This action removes a #${id} comissionSalesIncentive`;
@@ -363,7 +372,7 @@ export class ComissionSalesIncentiveService {
       take: 1,
     });
     console.log(invoices);
-    
+
 
     let nextCode: number;
     if (invoices[0]) {
