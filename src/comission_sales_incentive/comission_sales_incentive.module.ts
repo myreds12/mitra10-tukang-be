@@ -10,7 +10,7 @@ import { extname } from 'path';
   providers: [ComissionSalesIncentiveService],
   imports: [MulterModule.register({
     storage: diskStorage({
-      destination: './uploads/receipt',
+      destination: './uploads/comission-sales-incentive',
       filename(req, file, callback) {
         const uniqueSuffix = `${Date.now()}`;
         const filename = `${uniqueSuffix}${extname(file.originalname)}`;
