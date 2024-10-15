@@ -124,7 +124,7 @@ export class ComissionSalesIncentiveService {
           ...(status
             ? [
               {
-                status: invoice_status,
+                status: status[0],
               },
             ]
             : []),
