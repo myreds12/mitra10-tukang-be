@@ -138,27 +138,32 @@ html(lang="en")
 
       .information(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. All sales are final. No returns or exchanges will be accepted.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Payment must be made in full before the order is processed.
+        each item, index in data.message.terms_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .terms-conditions(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. All sales are final. No returns or exchanges will be accepted.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Payment must be made in full before the order is processed.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Delivery times are estimates and may vary based on location and availability.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. We are not responsible for any damages or losses incurred during shipping.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. By placing an order, you agree to our terms and conditions.
+        p(style="margin-bottom: 8px; color: #4a5568;") 1. Biaya diatas adalah Jasa Instalasi berlaku 7 hari dari tanggal dikirimnya Quotation.
+        p(style="margin-bottom: 8px; color: #4a5568;") 2. Jadwal Survey/Pengerjaan akan ditentukan oleh teknisi, setelah material tersedia (material disediakan oleh Customer) dan barang diterima Customer, serta barang yang akan dikerjakan Jasa Instalasi adalah barang dari Mitra10.
+        p(style="margin-bottom: 8px; color: #4a5568;") 3. Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
+        p(style="margin-bottom: 8px; color: #4a5568;") 4. Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
+        p(style="margin-bottom: 8px; color: #4a5568;") 5. Semua Jasa Pemasangan wajib dilakukan Survey. Biaya survey akan dikembalikan apabila biaya Jasa Instalasi & Service minimal Rp 800.000.
+        p(style="margin-bottom: 8px; color: #4a5568;") 6. Quotation diberikan kepada Customer maksimal H+2 dihari kerja setelah Survey selesai.
+        p(style="margin-bottom: 8px; color: #4a5568;") 7. Garansi 7 (Tujuh) hari untuk Jasa Instalasi & Service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses Jasa Instalasi & Service.
+        p(style="margin-bottom: 8px; color: #4a5568;") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .notes(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Catatan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Quotation ini sah jika disetujui dalam waktu 7 hari.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran dilakukan di awal sebelum pengerjaan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Harga material dapat berubah sesuai harga pasar.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Jika ada kesalahan atau ketidaksesuaian, silahkan hubungi kami secepatnya.
+        p(style="margin-bottom: 8px; color: #4a5568;") 1. Semua penjualan  Jasa Instalasi bersifat final.
+        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran harus dilakukan secara penuh sebelum pesanan diproses.
+        p(style="margin-bottom: 8px; color: #4a5568;") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
+        p(style="margin-bottom: 8px; color: #4a5568;") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
+        p(style="margin-bottom: 8px; color: #4a5568;") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
+ 
 
       .divider(style="border-top: 1px solid #e5e7eb;")
     
