@@ -77,7 +77,6 @@ export class OrderService {
         }
       }
 
-      // if(salesUser.sales.length === 0) throw new BadRequestException('Sales not found!');
 
       const orderDetailItems = await this.dbService.items.findMany({
         where: {
@@ -3843,6 +3842,7 @@ export class OrderService {
         },
       },
       include: {
+        promotion: true,
         quotation_files: true,
         quotation_details: {
           where: {

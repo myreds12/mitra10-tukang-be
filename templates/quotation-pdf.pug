@@ -84,7 +84,7 @@ html(lang="en")
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-' 
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-' 
                 - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= formattedFinalPrice
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
             tr
               td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
               - var reducedTotal = 0
@@ -95,11 +95,15 @@ html(lang="en")
               - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
             tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi ( FREE SURVEY )
-              - var formattedPromotion = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
+              - var formattedQuotationPromotion = data.quotation.quotation_promotion ? 'Rp. ' + data.quotation.quotation_promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
+            tr
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+              - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
             tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi ( FREE SURVEY )
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
               - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
 
@@ -138,8 +142,11 @@ html(lang="en")
 
       .information(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. All sales are final. No returns or exchanges will be accepted.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Payment must be made in full before the order is processed.
+        p(style="margin-bottom: 8px; color: #4a5568;") 1. Semua penjualan  Jasa Instalasi bersifat final.
+        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran harus dilakukan secara penuh sebelum pesanan diproses.
+        p(style="margin-bottom: 8px; color: #4a5568;") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
+        p(style="margin-bottom: 8px; color: #4a5568;") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
+        p(style="margin-bottom: 8px; color: #4a5568;") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
@@ -155,14 +162,6 @@ html(lang="en")
         p(style="margin-bottom: 8px; color: #4a5568;") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .notes(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Catatan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Semua penjualan  Jasa Instalasi bersifat final.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran harus dilakukan secara penuh sebelum pesanan diproses.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 

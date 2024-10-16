@@ -68,7 +68,7 @@ html(lang="en")
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-'	
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
                 - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= formattedFinalPrice
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
 
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
@@ -84,22 +84,26 @@ html(lang="en")
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-'	
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-'
                 - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= formattedFinalPrice
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
             tr
               td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
               - var reducedTotal = 0
               - data.quotation.quotation_details.forEach(detail => {
-              -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
+              -   var reducedPrice = parseFloat(detail.final_price) 
               -   reducedTotal += reducedPrice
               - })
               - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi ( FREE SURVEY )
-              - var formattedPromotion = data.quotation.promotion && data.quotation.promotion.promotion ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
+              - var formattedQuotationPromotion = data.quotation.quotation_promotion ? 'Rp. ' + data.quotation.quotation_promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
+            tr
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+              - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi ( FREE SURVEY )
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
               - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
 

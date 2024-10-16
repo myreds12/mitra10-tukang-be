@@ -553,36 +553,38 @@ export class ReportsService {
       const now = new Date();
 
       orders.forEach((order) => {
+        // Tambahkan 7 jam ke waktu UTC
+        const orderTimeInWIB = new Date(new Date(order.created_at).getTime() + 7 * 60 * 60 * 1000);
+      
         const period = isSameDay
-          ? new Date(order.created_at).toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-            timeZone: 'UTC'
-          })
-          : isSameMonth
-            ? new Date(order.created_at).toLocaleString('id-ID', {
-              day: '2-digit',
+          ? orderTimeInWIB.toLocaleString('id-ID', {
+              hour: '2-digit',
+              hour12: false,
             })
-            : new Date(order.created_at).toLocaleString('id-ID', {
-              month: 'long',
-            });
-
+          : isSameMonth
+            ? orderTimeInWIB.toLocaleString('id-ID', {
+                day: '2-digit',
+              })
+            : orderTimeInWIB.toLocaleString('id-ID', {
+                month: 'long',
+              });
+      
         if (summary[period]) {
           if (!['INVESTIGATED'].includes(order.status.category)) {
             summary[period].totalOrder++;
           }
           summary[period].totalOrderGrandTotal += Number(order.grand_total);
-
+      
           Object.entries(statusCategories).forEach(([key, statuses]) => {
             if (statuses.includes(order.status.category)) {
               summary[period][key]++;
             }
           });
-
+      
           if (order.receipt_number === null) {
             summary[period].totalUnpaidReceipt++;
           }
-
+      
           if (order?.work_orders?.status?.category === 'RESURVEY') {
             summary[period].totalResurveyComplaint++;
           }
@@ -595,13 +597,13 @@ export class ReportsService {
           if (order?.work_orders?.status?.category === 'REWORKEND') {
             summary[period].totalReworkComplaint++;
           }
-
+      
           if (
             order?.complaints[0]?.status?.category === 'COMPLAINTAPPROVEDBYHO'
           ) {
             summary[period].totalComplaintApprovedByHo++;
           }
-
+      
           if (
             order?.complaints?.find(
               (i) => i.status.category === 'COMPLAINTREJECTEDBYHO',
@@ -609,7 +611,7 @@ export class ReportsService {
           ) {
             summary[period].totalComplaintRejectedByHo++;
           }
-
+      
           if (
             (order.payment_type === 'survey' ||
               order.payment_type === 'pemasangan_tanpa_survey') &&
@@ -617,7 +619,7 @@ export class ReportsService {
           ) {
             summary[period].totalUnpaidQuotation++;
           }
-
+      
           const workEndDate = new Date(
             order?.work_orders?.work_order_status?.find(
               (i) => i.status.category === 'WORKEND',
@@ -626,14 +628,14 @@ export class ReportsService {
           const warrantyExpirationDate = new Date(
             workEndDate.getTime() + H_PLUS_7_DAYS,
           );
-
+      
           const orderDoneStatuses = statusCategories.totalOrderDone;
-
+      
           if (orderDoneStatuses.includes(order.status.category)) {
             if (order.complaints) {
               summary[period].totalUsedWarranty++;
             }
-
+      
             if (now <= warrantyExpirationDate) {
               summary[period].totalActiveWarranty++;
             } else {
@@ -642,6 +644,7 @@ export class ReportsService {
           }
         }
       });
+      
 
       // Ensure all periods are accounted for, even if empty
       periods.forEach((period) => {
@@ -2773,6 +2776,7 @@ export class ReportsService {
 
       const nextMonthDate = new Date(dateFrom.getFullYear(), dateFrom.getMonth() + 1);
       const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long' });
+      console.log(nextMonthDate, nextMonthName)
 
       const statuses: Status[] = [
         { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },

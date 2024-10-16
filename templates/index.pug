@@ -19,8 +19,8 @@ html(lang="en")
               p(style="font-size: 1.25rem; font-weight: 600;") Instalasi & Service Mitra 10
             td(style="text-align: right;")
               .order-id
-                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Order ID: 123456
-                p(style="font-size: 0.875rem; margin: 0 !important;") Tanggal Order: 30 September 2024
+                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Order ID: #{data.order.id}
+                p(style="font-size: 0.875rem; margin: 0 !important;") Tanggal Order: #{new Date(data.order.created_at).toLocaleDateString('id-ID', {  day: 'numeric',  month: 'long',  year: 'numeric'})}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
       
