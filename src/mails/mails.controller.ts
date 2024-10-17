@@ -83,7 +83,7 @@ export class MailsController {
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'header_files', maxCount: 10 },
-      { name: 'footer_file', maxCount: 10 },
+      { name: 'footer_files', maxCount: 10 },
     ]),
   )
   async update(
