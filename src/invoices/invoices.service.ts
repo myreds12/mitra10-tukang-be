@@ -847,6 +847,8 @@ export class InvoicesService {
         },
       });
 
+      console.log(data);
+      
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Invoice', {
         properties: {
@@ -1006,6 +1008,294 @@ export class InvoicesService {
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  async invoiceDetailsExportExcel(id: number, res: Response) {
+    try {
+      const data = await this.dbService.invoice_details.findMany({
+        where: {
+          deleted_at: null,
+          deleted_by: null,
+          invoice_id: id,
+        },
+        include: {
+          invoices: {
+            include: { vendor: true },
+          },
+          order: {
+            include: {
+              status: true,
+              quotation: {
+                where: { deleted_at: null },
+                include: { quotation_receipt: true },
+              },
+              sales: true,
+              members: true,
+              m_order_details: {
+                where: { deleted_at: null },
+                include: { item: true },
+              },
+            },
+          },
+        },
+      });
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Invoice Rekonsel', {
+        properties: {
+          tabColor: { argb: '097969' },
+        },
+        pageSetup: {
+          margins: {
+            left: 0.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+
+      worksheet.mergeCells('A2: N3');
+
+      worksheet.getCell('A2').value = `DATA INVOICE ${data[0].invoices.vendor.company_name}`;
+      worksheet.getCell('A2').font = { size: 16, bold: true };
+      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Cek nilai setelah diatur
+      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+
+      // Definisikan kolom
+      worksheet.columns = [
+        { header: 'No', key: 'no', width: 10 },
+        { header: 'Order Id', key: 'order_id', width: 10 },
+        { header: 'Tanggal Order', key: 'order_create', width: 30 },
+        { header: 'Nama Konsumen', key: 'member_name', width: 30 },
+        { header: 'Tipe Order', key: 'payment_type', width: 20 },
+        { header: 'No. Receipt', key: 'no_receipt', width: 20 },
+        { header: 'Total Harga', key: 'total', width: 20 },
+      ];
+
+      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: '0000FF' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+      headerRow.height = 35;
+
+      worksheet.getCell('A1').value = null;
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.value = null;
+      });
+
+      // Proses setiap order dalam data
+      data.forEach((order, index) => {
+
+        const receipt_number = order.order.quotation[0] ? order.order.quotation[0].receipt_quotation || '-' : order.order.receipt_number || '-';
+        
+        console.log("Receipt Number:", order);
+
+
+        const row = worksheet.addRow({
+          no: index + 1,
+          order_id: order.order_id,
+          order_create: new Date(order.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
+          member_name: order.order.members.full_name,
+          payment_type: order.order.payment_type,
+          no_receipt: receipt_number,
+          total: Number(order.total),
+        });
+      
+        row.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+          cell.alignment = {horizontal: 'left'}
+        });
+      });
+
+      const totalsRow = worksheet.addRow({
+        no: 'Total',
+        total: data.reduce((acc, curr) => acc + Number(curr.total), 0)
+      });
+
+      worksheet.mergeCells(`A${totalsRow.number}:F${totalsRow.number}`);
+      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalsRow.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+
+      const totalPkp = worksheet.addRow({
+        no: 'PPn (Vendor PKP)',
+        total: Number(data[0].invoices.pkp_nominal)
+      });
+
+      worksheet.mergeCells(`A${totalPkp.number}:F${totalPkp.number}`);
+      totalPkp.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalPkp.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+
+      const totalPph = worksheet.addRow({
+        no: 'PPh',
+        total: Number(data[0].invoices.pph_nominal)
+      });
+
+      worksheet.mergeCells(`A${totalPph.number}:F${totalPph.number}`);
+      totalPph.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalPph.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+
+      const totalPenalty = worksheet.addRow({
+        no: 'PPh',
+        total: Number(data[0].invoices.penalty_nominal)
+      });
+
+      worksheet.mergeCells(`A${totalPenalty.number}:F${totalPenalty.number}`);
+      totalPenalty.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalPenalty.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+
+      const grand_total = worksheet.addRow({
+        no: 'PPh',
+        total: Number(data[0].invoices.total_amount)
+      });
+
+      worksheet.mergeCells(`A${grand_total.number}:F${grand_total.number}`);
+      grand_total.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      grand_total.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+
+      
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      };
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/invoice/';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const excelFileName = `${baseName}-${Date.now()}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataInvoiceDetailsId${id}-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(res);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred while generating the invoice.");
     }
   }
 
@@ -1427,7 +1717,7 @@ export class InvoicesService {
 
     const buffer = await this.pdfService.generateLandscape('invoice-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=invoice.pdf');
     res.send(buffer);
   }
   async rekonselPdf(id: number, res: Response) {

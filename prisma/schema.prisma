@@ -1613,14 +1613,33 @@ model email_messages {
   updated_by Int?
   deleted_by Int?
 
-  created_at         DateTime             @default(now()) @db.DateTime()
-  updated_at         DateTime?            @db.DateTime()
-  deleted_at         DateTime?            @db.DateTime()
-  terms_detail       terms_detail[]
-  information_detail information_detail[]
-  mail_logs          mail_logs[]
-  csi_template       csi_template?        @relation(fields: [csiTemplateId], references: [id])
-  trigger            status?              @relation(fields: [trigger_id], references: [id])
+  created_at          DateTime              @default(now()) @db.DateTime()
+  updated_at          DateTime?             @db.DateTime()
+  deleted_at          DateTime?             @db.DateTime()
+  terms_detail        terms_detail[]
+  information_detail  information_detail[]
+  mail_logs           mail_logs[]
+  csi_template        csi_template?         @relation(fields: [csiTemplateId], references: [id])
+  trigger             status?               @relation(fields: [trigger_id], references: [id])
+  email_message_image email_message_image[]
+}
+
+model email_message_image {
+  id       Int @id @default(autoincrement())
+  email_message_id Int 
+
+  type Int
+  path String @db.Text()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  email_message    email_messages @relation(fields: [email_message_id], references: [id])
 }
 
 model terms_detail {
@@ -1710,9 +1729,9 @@ model sales_incentive {
   updated_by Int? @map("updatedBy")
   deleted_by Int? @map("deletedBy")
 
-  quotation                 quotation                 @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  incentive                 setting_incentive         @relation(fields: [incentive_id], references: [id])
-  sales                     sales                     @relation(fields: [sales_id], references: [id])
+  quotation                 quotation                  @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  incentive                 setting_incentive          @relation(fields: [incentive_id], references: [id])
+  sales                     sales                      @relation(fields: [sales_id], references: [id])
   comission_sales_incentive comission_sales_incentive? @relation(fields: [comission_sales_incentive_id], references: [id])
 }
 

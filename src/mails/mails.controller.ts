@@ -10,7 +10,9 @@ import {
   Post,
   Query,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { MailType } from './enum/mail_type.enum';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -19,6 +21,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { MailsService } from './mails.service';
 import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
+import { FileFieldsInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('mails')
@@ -45,12 +48,19 @@ export class MailsController {
 
   @Post()
   @HttpCode(201)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'header_files', maxCount: 10 },
+      { name: 'footer_files', maxCount: 10 },
+    ]),
+  )  
   async create(
     @Req() req: RequestWithUser,
     @Body() createEmailMessageDto: CreateEmailMessageDto,
+    @UploadedFiles() files: { [name: string]: Express.Multer.File[]},
   ) {
     const user = req.user;
-    const data = await this.mailsService.create(createEmailMessageDto, user.id);
+    const data = await this.mailsService.create(createEmailMessageDto, user.id, files);
     return data;
   }
 
@@ -70,16 +80,24 @@ export class MailsController {
 
   @Patch(':id')
   @HttpCode(200)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'header_files', maxCount: 10 },
+      { name: 'footer_file', maxCount: 10 },
+    ]),
+  )
   async update(
     @Param('id') id: string,
     @Req() req: RequestWithUser,
     @Body() updateEmailMessageDto: UpdateEmailMessageDto,
+    @UploadedFiles() files: { [name: string]: Express.Multer.File[]},
   ) {
     const user = req.user;
     const data = await this.mailsService.update(
       +id,
       updateEmailMessageDto,
       user.id,
+      files
     );
 
     return data;

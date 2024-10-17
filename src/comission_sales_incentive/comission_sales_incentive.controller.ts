@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFiles, Req, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFiles, Req, Query, UseGuards, Res, ParseIntPipe } from '@nestjs/common';
 import { ComissionSalesIncentiveService } from './comission_sales_incentive.service';
 import { CreateComissionSalesIncentiveDto } from './dto/create-comission_sales_incentive.dto';
 import { UpdateComissionSalesIncentiveDto } from './dto/update-comission_sales_incentive.dto';
@@ -15,6 +15,19 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 export class ComissionSalesIncentiveController {
   constructor(private readonly comissionSalesIncentiveService: ComissionSalesIncentiveService) { }
+
+  @Get('/:id/pdf')
+  async rekonselPdf(@Param('id', ParseIntPipe) id: number, @Res() res: IExpressResponse) {
+    return await this.comissionSalesIncentiveService.comissionSalesIncentiveExportPdf(id, res);
+  }
+
+  @Get('/:id/export-excel')
+  async invoiceRekonselExportExcel(
+    @Param('id') id: string,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.comissionSalesIncentiveService.comissionSalesIncentiveExportExcel(+id, res);
+  }
 
   @Post()
   @UseInterceptors(FilesInterceptor('comission_sales_incentive_evidences'))

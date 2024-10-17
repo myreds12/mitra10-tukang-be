@@ -1,184 +1,13 @@
-doctype html
+html
 head
   meta(charset='UTF-8')
   meta(name='viewport' content='width=device-width, initial-scale=1.0')
-  title Template PDF Invoice
-  style.
-    * {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    }
-    /* Container */
-    #invoice {
-    max-width: 991px;
-    margin: 20px auto;
-    padding: 15px;
-    }
-    .d-flex {
-      display: flex;
-    }
-    .justify-content-between {
-      justify: space-between;
-    }
-    .row {
-    display: flex;
-    flex-wrap: wrap;
-    margin-right: -15px;
-    margin-left: -15px;
-    }
-    .mb-3 {
-    margin-bottom: 20px;
-    }
-    .fw-semibold {
-    font-weight: 600;
-    }
-    .col-12,
-    .col-xxl-8,
-    .col-xl-8,
-    .col-lg-8,
-    .col-md-8,
-    .col-md-6,
-    .col-xxl-6,
-    .col-xl-6,
-    .col-lg-6,
-    .col-md-6,
-    .col-sm-12,
-    .col-xs-12,
-    .col-xxl-4,
-    .col-xl-4,
-    .col-md-4,
-    .col-sm-12 {
-    padding-right: 15px;
-    padding-left: 15px;
-    box-sizing: border-box;
-    }
-    .col-12 {
-    flex: 0 0 100%;
-    max-width: 100%;
-    }
-    .col-xxl-8,
-    .col-xl-8,
-    .col-lg-8,
-    .col-md-8 {
-    flex: 0 0 66.67%;
-    max-width: 66.67%;
-    }
-    .col-xxl-6,
-    .col-xl-6,
-    .col-lg-6,
-    .col-md-6 {
-    flex: 0 0 50%;
-    max-width: 50%;
-    }
-    .col-xxl-4,
-    .col-xl-4,
-    .col-md-4 {
-    flex: 0 0 33.33%;
-    max-width: 33.33%;
-    }
-    .col-sm-12,
-    .col-xs-12 {
-    flex: 0 0 100%;
-    max-width: 100%;
-    }
-    /* Header */
-    .vendor-information h1 {
-    color: #007eb4;
-    font-size: 30px;
-    padding-bottom: 10px;
-    }
-    .invoice-information h1 {
-    color: #484747;
-    font-size: 30px;
-    padding-bottom: 10px;
-    }
-    /* Content */
-    .table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 1rem;
-    background-color: transparent;
-    }
-    .table th,
-    .table td {
-    padding: 0.75rem;
-    vertical-align: top;
-    border: 1px solid #dee2e6;
-    }
-    .table th {
-    font-size: 14px;
-    font-weight: 600;
-    color: white;
-    background-color: #555555;
-    }
-    .table td {
-    font-size: 12px;
-    }
-    .text-end {
-    text-align: right;
-    }
-    .text-center {
-    text-align: center;
-    }
-    /* Footer */
-    .payment-information .payment-method,
-    .payment-information .payment-evidence {
-    margin-bottom: 10px;
-    }
-    .signature-line {
-    width: 200px;
-    margin: 150px 0 10px 0;
-    border-bottom: 1px solid #000;
-    }
-    @media screen and (max-width: 991px) {
-    .vendor-information {
-    padding: 0;
-    margin-bottom: 20px;
-    }
-    .receiver-information {
-    padding: 0;
-    margin-bottom: 20px;
-    }
-    .invoice-information {
-    padding: 0;
-    margin-bottom: 20px;
-    }
-    .notes {
-    padding: 0;
-    margin-bottom: 20px;
-    }
-    }
-    @media screen and (max-width: 768px) {
-    .signature {
-    justify-content: start !important;
-    }
-    .signature-wrapper {
-    flex-direction: column;
-    }
-    }
-    @media screen and (max-width: 576px) {
-    .approver-wrapper {
-    flex-direction: column;
-    }
-    }
-    @media print {
-    .table-responsive {
-    overflow: visible !important;
-    max-height: none !important;
-    }
-    .invoice-wrapper {
-    margin-top: 3rem;
-    margin-bottom: 3rem;
-    min-height: 50vh;
-    page-break-after: always;
-    }
-    .footer {
-    margin-top: 1rem;
-    page-break-before: always;
-    }
-    }
-section#invoice
+  title Template PDF Rekonsel
+section#invoice(style='\
+margin: 0 auto;\
+padding: 20px;\
+font-family: Arial, Helvetica, sans-serif;\
+')
   - const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   - const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   - const today = new Date();
@@ -190,100 +19,158 @@ section#invoice
   - const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
   - const currentYear = today.getFullYear();
   - const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-  .invoice-wrapper
-    .header.mb-3
-      .d-flex.justify-content-between 
-          .vendor-information
-            h1 #{data.invoice.vendor.company_name}
-            div
-              | #{data.invoice.vendor.address}
-          .invoice-information
-            h1 INVOICE
-            div
-              | Invoice ID: 
-              span #{data.invoice.id}
-            div
-              | Tanggal dibuat:
-              - var formateCreatedAt = new Date(data.invoice.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-              span #{formatedCreatedAt}
-            div
-              | Periode:
-              span #{months[previousMonth]} - #{months[currentMonth]} #{previousMonth > currentMonth ? previousYear : currentYear}
-            div
+
+  .header
+  table(width='100%' cellpadding='0' cellspacing='0' style='margin-bottom: 10px')
+    tr
+      td(style='width: 50%; vertical-align: top')
+        h1(style='color: #007eb4; font-size: 20px; font-weight: bold; margin-bottom: 10px;')
+          | #{data.invoice.vendor.company_name}
+        p(style='font-size: 14px; margin: 0 !important; width: 400px;')
+          | #{data.invoice.vendor.address}
+
+      td(style='width: 50%; text-align: right; vertical-align: top; text-align: start;')
+        div
+          h1(style='color: #484747; font-size: 20px; font-weight: bold; margin-bottom: 10px;')
+            | INVOICE
+          p(style='font-size: 14px; margin-top: 5px !important; margin-bottom: 5px !important;')
+            strong Invoice ID:
+            |  #{data.invoice.id}
+          p(style='font-size: 14px; margin-top: 5px !important; margin-bottom: 5px !important;')
+            strong Tanggal dibuat:
+            - const formateInvoiceCreatedAt = new Date(data.invoice.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            |  #{formateInvoiceCreatedAt}
+          p(style='font-size: 14px; margin-top: 5px !important; margin-bottom: 5px !important;')
+            strong Periode:
+            | #{months[previousMonth]} - #{months[currentMonth]} #{previousMonth > currentMonth ? previousYear : currentYear}
+          p(style='font-size: 14px; margin-top: 5px !important; margin-bottom: 5px !important;')
+            strong
               | Tanggal diberikan kepada Finance:
-              span
-                | #{data.invoice.invoice_to_finance_date}
-      .row
-        .col-md-6
-          .receiver-information
-            div Ditunjukkan kepada :
-            div
-              strong PT Catur Mitra Sejati Sentosa
-            div
-              | Jl. Gading Serpong Boulevard Blok mitra 10,
-              | Curug Sangereng, Kec. Klp. Dua, Kabupaten
-              | Tangerang, Banten 15820
-            div Telp : 0878-8482-1089
-        .col-md-6
-    .content
-      table.table.table-bordered
-        thead
-          tr
-            th No. Invoice
-            th Order ID
-            th.text-center Tanggal Order
-            th Nama Toko
-            th.text-center Nama Konsumen
-            th.text-center Tipe Order
-            th.text-center No. Receipt
-            th.text-center Total Harga
-        tbody
-        each item, index in data.invoice.invoice_details
-          tr(key=`${index} - quotation details`)  
-            td #{item.invoice_number} 
-            td #{item.order_id}
-            - const orderCreatedAt = new Date(item.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-            td.text-center #{orderCreatedAt}
-            td #{item.order.store.store_name}
-            td.text-center #{item.order.members.full_name}
-            td.text-center #{item.order.payment_type}
-            td.text-center #{item.order.payment_type === 'survey' && item.type === 2 ? item.order.quotation[0].receipt_quotation || '-' : item.order.receipt_number}
-            td #{item.order.payment_type === 'survey' && item.type === 2 ? `Rp. ${parseInt(item.order.quotation[0].quotation_grand_total|| 0).toLocaleString('id')}`  : `Rp. ${parseInt(item.order.grand_total|| 0).toLocaleString('id')}`}
-        tr
-          td.text-end(colspan='7') Total
-          td Rp. #{data.invoice.invoice_details.reduce((acc, curr) => acc + Number(curr.total), 0).toLocaleString('id')}
-        tr
-          td.text-end(colspan='7')
-            | PPn ( Vendor PKP )
-          td Rp. #{parseInt(data.invoice.ppn_nominal).toLocaleString('id') || '0'} 
-        tr
-          td.text-end(colspan='7') PPh
-          td Rp. #{parseInt(data.invoice.pph_nominal).toLocaleString('id') || '0'} 
-        tr
-          td.text-end(colspan='7') Penalty
-          td Rp. #{parseInt(data.invoice.penalty_nominal).toLocaleString('id') || '0'} 
-        tr
-          td.text-end(colspan='7')
-            | Grand Total
-          td Rp. #{parseInt(data.invoice.total_amount).toLocaleString('id') || '0'} 
-    .footer
-      .payment-information
-        .payment-method
-          .fw-semibold
-            | Silahkan melakukan pembayaran di account di
-            | bawah ini :
-          div Nama Akun : #{data.invoice.vendor.company_name}
-          div Nomor Akun : #{data.invoice.vendor.account_number}
-        .payment-evidence
-          .fw-semibold
-            | Silahkan kirim bukti bayar anda melalui :
-          div WA : #{data.invoice.vendor.phone_number}
-          div Email : #{data.invoice.vendor.email_address}
-      .signature.row
-        .col-8.col-xxl-8.col-xl-8.col-md-8
-        .col-4.col-xxl-4.col-xl-4.col-md-4
-          .fs-6.fw-semibold Tanda Tangan :
-          .fs-6.fw-semibold
+            - const formateInvoiceDate = new Date(data.invoice.invoice_to_finance_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            | #{formateInvoiceDate}
+
+
+  
+  .content
+    table(border='1' cellpadding='10' cellspacing='0' style='width: 100%; border-collapse: collapse page-break-inside: auto; margin-top: 20px;')
+      thead
+        tr(style='background-color: #555555; color: white')
+          th(style='font-size: 12px') No.
+          th(style='font-size: 12px') Order ID
+          th(style='font-size: 12px') Tanggal Order
+          th(style='font-size: 12px') Nama Toko
+          th(style='font-size: 12px')
+            | Nama Konsumen
+          th(style='font-size: 12px') Tipe Order
+          th(style='font-size: 12px') No. Receipt
+          th(style='font-size: 12px') Total Harga
+      tbody
+      each item, index in data.invoice.invoice_details  
+        tr(key=`${index} - invoice details`)
+          td(style='font-size: 12px') #{item.invoice_number}.
+          td(style='font-size: 12px') #{item.order_id}
+          - const orderCreatedAt = new Date(item.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+          td(style='font-size: 12px') #{orderCreatedAt}
+          td(style='font-size: 12px')
+            | #{item.order.store.store_name}
+          td(style='font-size: 12px') #{item.order.members.full_name}
+          td(style='font-size: 12px') #{item.order.payment_type}
+          td(style='font-size: 12px') #{item.order.payment_type === 'survey' && item.type === 2 ? item.order.quotation[0].receipt_quotation || '-' : item.order.receipt_number}
+          td(style='font-size: 12px') Rp. #{item.total.toLocaleString('id')}
+      tr
+        td(colspan='7' style='font-weight: bold; font-size: 12px')
+          | Total
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp. #{data.invoice.invoice_details.reduce((acc, curr) => acc + Number(curr.total), 0).toLocaleString('id')}
+      tr
+        td(colspan='7' style='font-weight: bold; font-size: 12px')
+          | PPn ( Vendor PKP )
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp. #{parseInt(data.invoice.ppn_nominal).toLocaleString('id') || '0'} 
+      tr
+        td(colspan='7' style='font-weight: bold; font-size: 12px')
+          | PPh
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp. #{parseInt(data.invoice.pph_nominal).toLocaleString('id') || '0'} 
+      tr
+        td(colspan='7' style='font-weight: bold; font-size: 12px')
+          | Penalty
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp. #{parseInt(data.invoice.penalty_nominal).toLocaleString('id') || '0'} 
+      tr
+        td(colspan='7' style='font-weight: bold; font-size: 12px')
+          | Grand Total
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp. #{parseInt(data.invoice.total_amount).toLocaleString('id') || '0'} 
+  .footer
+    .payment-information(style='margin-bottom: 10px')
+      p(style='font-size: 14px; font-weight: bold')
+        | Silahkan melakukan pembayaran di account di bawah ini :
+      p(style='\
+      font-size: 14px;\
+      font-weight: 600;\
+      margin-top: 5px;\
+      margin-bottom: 5px;\
+      ')
+        | Nama Akun :
+        span(style='font-weight: 400') #{data.invoice.vendor.company_name}
+      p(style='\
+      font-size: 14px;\
+      font-weight: 600;\
+      margin-top: 5px;\
+      margin-bottom: 5px;\
+      ')
+        | Nomor Akun :
+        span(style='font-weight: 400') #{data.invoice.vendor.account_number}
+    .payment-evidence(style='margin-bottom: 10px')
+      p(style='font-size: 14px; font-weight: bold')
+        | Silahkan kirim bukti bayar anda melalui:
+      p(style='\
+      font-size: 14px;\
+      font-size: 14px;\
+      margin-top: 5px;\
+      margin-bottom: 5px;\
+      ')
+        strong WA :
+        |  #{data.invoice.vendor.phone_number}
+      p(style='\
+      font-size: 14px;\
+      font-size: 14px;\
+      margin-top: 5px;\
+      margin-bottom: 5px;\
+      ')
+        strong Email :
+        |  #{data.invoice.vendor.email_address}
+  .signature(style='width: 100%; margin-top: 50px')
+    table(width='100%' cellpadding='0' cellspacing='0' style='table-layout: fixed')
+      tr
+        td(style='\
+        text-align: center;\
+        width: 60%;\
+        vertical-align: top;\
+        padding-right: 20px;\
+        ')
+        td(style='\
+        text-align: start;\
+        width: 40%;\
+        vertical-align: top;\
+        ')
+          div(style='font-weight: 600;')
+            | Tanda Tangan,
+          div(style='font-weight: 600; margin-bottom: 150px')
             | #{dayName}, #{day} #{month} #{year}
-          .signature-line
-          .fs-6 #{data.invoice.vendor.company_name}
+
+          table(width='100%' cellpadding='0' cellspacing='0' style='margin-top: 40px')
+            tr
+              td(style='\
+              text-align: start;\
+              vertical-align: top;\
+              ')
+                .signature-line(style='\
+                width: 250px;\
+                margin-bottom: 10px;\
+                border-bottom: 1px solid #000;\
+                display: inline-block;\
+                ')
+                div(style='font-size: 14px')
+                  | #{data.invoice.vendor.company_name}

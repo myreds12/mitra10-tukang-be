@@ -4,10 +4,11 @@ import { ComissionSalesIncentiveController } from './comission_sales_incentive.c
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Module({
   controllers: [ComissionSalesIncentiveController],
-  providers: [ComissionSalesIncentiveService],
+  providers: [ComissionSalesIncentiveService, PdfService],
   imports: [MulterModule.register({
     storage: diskStorage({
       destination: './uploads/comission-sales-incentive',

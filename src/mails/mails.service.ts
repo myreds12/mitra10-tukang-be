@@ -20,18 +20,31 @@ export class MailsService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   private readonly logger = new Logger(MailsService.name);
 
-  async create(createEmailMessageDto: CreateEmailMessageDto, user_id: number) {
+  async create(createEmailMessageDto: CreateEmailMessageDto, user_id: number, files: { [name: string]: Express.Multer.File[] }) {
+    const { header_files, footer_files } = files;
+    const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+      header_files?.map((item) => ({
+        type: 1,
+        path: item.filename,
+        created_by: user_id,
+      }));
+    const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+      footer_files?.map((item) => ({
+        type: 2,
+        path: item.filename,
+        created_by: user_id,
+      }));
+    const evidence = [...header || [], ...footer || []];
     const termsDetail: Prisma.terms_detailCreateManyEmail_messagesInput[] =
       createEmailMessageDto.terms_detail.map((item) => {
         return {
           terms: item.term,
         };
       });
-
     const informationDetail: Prisma.information_detailCreateManyEmail_messagesInput[] =
       createEmailMessageDto.information_detail.map((item) => {
         return {
@@ -50,6 +63,9 @@ export class MailsService {
           data: termsDetail,
         },
       },
+      email_message_image: header_files || footer_files ? {
+        createMany: {data: evidence}
+      } : undefined,
       information_detail: {
         createMany: {
           data: informationDetail,
@@ -58,10 +74,10 @@ export class MailsService {
       title: createEmailMessageDto?.title,
       trigger: createEmailMessageDto?.trigger_id
         ? {
-            connect: {
-              id: createEmailMessageDto.trigger_id,
-            },
-          }
+          connect: {
+            id: createEmailMessageDto.trigger_id,
+          },
+        }
         : undefined,
       bcc: createEmailMessageDto?.bcc
         .split(',')
@@ -73,10 +89,10 @@ export class MailsService {
         .join(','),
       csi_template: createEmailMessageDto?.csi_id
         ? {
-            connect: {
-              id: createEmailMessageDto.csi_id,
-            },
-          }
+          connect: {
+            id: createEmailMessageDto.csi_id,
+          },
+        }
         : undefined,
     };
 
@@ -95,12 +111,12 @@ export class MailsService {
       AND: [
         ...(type_email_message
           ? [
-              {
-                email_type: {
-                  equals: Number(type_email_message),
-                },
+            {
+              email_type: {
+                equals: Number(type_email_message),
               },
-            ]
+            },
+          ]
           : []),
       ],
       deleted_at: null,
@@ -170,56 +186,71 @@ export class MailsService {
     id: number,
     updateEmailMessageDto: UpdateEmailMessageDto,
     user_id: number,
+    files: { [name: string]: Express.Multer.File[] }
   ) {
     try {
+      const { header_files, footer_files } = files;
+    const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+      header_files?.map((item) => ({
+        type: 1,
+        path: item.filename,
+        created_by: user_id,
+      }));
+    const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+      footer_files?.map((item) => ({
+        type: 2,
+        path: item.filename,
+        created_by: user_id,
+      }));
+    const evidence = [...header, ...footer];
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
           ? updateEmailMessageDto.terms_detail.map((item) => {
-              return {
-                where: {
-                  id: item.id ?? 0,
-                },
-                update: {
-                  terms: item.term,
-                },
-                create: {
-                  terms: item.term,
-                },
-              };
-            })
+            return {
+              where: {
+                id: item.id ?? 0,
+              },
+              update: {
+                terms: item.term,
+              },
+              create: {
+                terms: item.term,
+              },
+            };
+          })
           : undefined;
 
       const informationDetail: Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.information_detail
           ? updateEmailMessageDto.information_detail.map((item) => {
-              return {
-                where: {
-                  id: item.id ?? 0,
-                },
-                update: {
-                  information: item.information,
-                },
-                create: {
-                  information: item.information,
-                },
-              };
-            })
+            return {
+              where: {
+                id: item.id ?? 0,
+              },
+              update: {
+                information: item.information,
+              },
+              create: {
+                information: item.information,
+              },
+            };
+          })
           : undefined;
 
       const deletedInformationId = updateEmailMessageDto.information_detail
         ? updateEmailMessageDto.information_detail
-            .filter((x) => Boolean(x?.id))
-            .map((item) => {
-              return item.id;
-            })
+          .filter((x) => Boolean(x?.id))
+          .map((item) => {
+            return item.id;
+          })
         : undefined;
 
       const deletedTermsDetailsId = updateEmailMessageDto.terms_detail
         ? updateEmailMessageDto.terms_detail
-            .filter((x) => Boolean(x?.id))
-            .map((item) => {
-              return item.id;
-            })
+          .filter((x) => Boolean(x?.id))
+          .map((item) => {
+            return item.id;
+          })
         : undefined;
 
       const data: Prisma.email_messagesUpdateInput = {
@@ -228,6 +259,9 @@ export class MailsService {
         welcome_header: updateEmailMessageDto.welcome_header,
         footer: updateEmailMessageDto.footer,
         is_active: Boolean(updateEmailMessageDto.is_active),
+        email_message_image: header_files || footer_files ? {
+          createMany: {data: evidence}
+        } : undefined,
         updated_at: new Date(),
         updated_by: user_id,
         terms_detail: {
@@ -238,42 +272,47 @@ export class MailsService {
         },
         trigger: updateEmailMessageDto?.trigger_id
           ? {
-              connect: {
-                id: updateEmailMessageDto.trigger_id,
-              },
-            }
+            connect: {
+              id: updateEmailMessageDto.trigger_id,
+            },
+          }
           : undefined,
         title: updateEmailMessageDto?.title,
         bcc: updateEmailMessageDto?.bcc
           ? updateEmailMessageDto?.bcc
-              .split(',')
-              .map((s) => s.trim())
-              .join(',')
+            .split(',')
+            .map((s) => s.trim())
+            .join(',')
           : undefined,
         cc: updateEmailMessageDto?.cc
           ? updateEmailMessageDto?.cc
-              .split(',')
-              .map((s) => s.trim())
-              .join(',')
+            .split(',')
+            .map((s) => s.trim())
+            .join(',')
           : undefined,
         csi_template: updateEmailMessageDto?.csi_id
           ? {
-              connect: {
-                id: updateEmailMessageDto.csi_id,
-              },
-            }
+            connect: {
+              id: updateEmailMessageDto.csi_id,
+            },
+          }
           : undefined,
       };
 
-      const [syncTerms, syncInformation ,emailMessage] = await this.dbService.$transaction([
+      const [syncFiles ,syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
+        this.dbService.email_message_image.deleteMany({
+          where: {
+            email_message_id: id
+          }
+        }),
         this.dbService.terms_detail.updateMany({
           where: {
             ...(deletedTermsDetailsId && deletedTermsDetailsId.length
               ? {
-                  id: {
-                    notIn: deletedTermsDetailsId,
-                  },
-                }
+                id: {
+                  notIn: deletedTermsDetailsId,
+                },
+              }
               : undefined),
             email_messages_id: id,
           },
@@ -286,10 +325,10 @@ export class MailsService {
           where: {
             ...(deletedInformationId && deletedInformationId.length
               ? {
-                  id: {
-                    notIn: deletedInformationId,
-                  },
-                }
+                id: {
+                  notIn: deletedInformationId,
+                },
+              }
               : undefined),
             email_messages_id: id,
           },
@@ -435,7 +474,7 @@ export class MailsService {
             },
           });
 
-          const jobId =` send-order-mail-${order.id}-${template_id}`;
+          const jobId = ` send-order-mail-${order.id}-${template_id}`;
           const jobExist = await this.emailQueue.getJob(jobId);
 
           if (!countSendedEmail && !jobExist) {

@@ -1,0 +1,159 @@
+doctype html
+head
+  meta(charset='UTF-8')
+  meta(name='viewport', content='width=device-width, initial-scale=1.0')
+  title Template PDF Request Incentive
+section#request-incentive(style='\
+margin: 0 auto;\
+padding: 20px;\
+font-family: Arial, Helvetica, sans-serif;\
+')
+  - const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  - const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  - const today = new Date();
+  - const dayName = days[today.getDay()];
+  - const day = today.getDate();
+  - const month = months[today.getMonth()];
+  - const year = today.getFullYear();
+  - const currentMonth = today.getMonth();
+  - const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  - const currentYear = today.getFullYear();
+  - const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+  .header
+    .header-title
+      h1(style='\
+      color: #484747;\
+      font-size: 24px;\
+      font-weight: bolder;\
+      margin-bottom: 10px;\
+      text-align: center;\
+      ')
+        | PENGAJUAN INSENTIF
+    table(width='100%', cellpadding='0', cellspacing='0', style='margin-bottom: 10px')
+      tr
+        // Invoice Information
+        td(style='\
+        text-align: right;\
+        vertical-align: top;\
+        text-align: start;\
+        ')
+          div
+            p(style='\
+            font-size: 14px;\
+            margin-top: 5px !important;\
+            margin-bottom: 5px !important;\
+            ')
+              strong ID:
+              |  01
+            p(style='\
+            font-size: 14px;\
+            margin-top: 5px !important;\
+            margin-bottom: 5px !important;\
+            ')
+              strong Tanggal dibuat:
+              - const formateComissionCreatedAt = new Date(data.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            |  #{formateComissionCreatedAt}
+            p(style='\
+            font-size: 14px;\
+            margin-top: 5px !important;\
+            margin-bottom: 5px !important;\
+            ')
+              strong Periode:
+              | #{months[previousMonth]} - #{months[currentMonth]} #{previousMonth > currentMonth ? previousYear : currentYear}
+  .content
+    table(border='1', cellpadding='10', cellspacing='0', style='width: 100%; border-collapse: collapse')
+      thead
+        tr(style='background-color: #555555; color: white')
+          th(style='font-size: 12px') No.
+          th(style='font-size: 12px') Order ID
+          th(style='font-size: 12px') Nama Toko
+          th(style='font-size: 12px') Nama Sales
+          th(style='font-size: 12px') Brands
+          th(style='font-size: 12px') Nama Bank
+          th(style='font-size: 12px') Nama Akun
+          th(style='font-size: 12px') Nomor Akun
+          th(style='font-size: 12px') Nama Konsumen
+          th(style='font-size: 12px') No. Receipt
+          th(style='font-size: 12px')
+            | Grand Total Quotation
+          th(style='font-size: 12px') Komisi Sales
+      tbody
+      each item, index in data.sales_incentive
+        tr(key=`${index} - sales_incentive`)
+          td(style='font-size: 12px') #{index + 1}.
+          td(style='font-size: 12px') #{item.quotation && item.quotation.order_id ? item.quotation.order_id : ''}
+          td(style='font-size: 12px') #{item.sales && item.sales.store && item.sales.store.store_name ? item.sales.store.store_name : ''}
+          td(style='font-size: 12px') #{item.sales && item.sales.full_name ? item.sales.full_name : ''}
+          td(style='font-size: 12px') #{item.sales && item.sales.sales_brand ? item.sales.sales_brand : ''}
+          td(style='font-size: 12px') #{item.sales && item.sales.bank && item.sales.bank.bank_name ? item.sales.bank.bank_name : ''}
+          td(style='font-size: 12px') #{item.sales && item.sales.account_name ? item.sales.account_name : ''}
+          td(style='font-size: 12px') #{item.sales && item.sales.account_number ? item.sales.account_number : ''}
+          td(style='font-size: 12px') #{item.quotation && item.quotation.order && item.quotation.order.members && item.quotation.order.members.full_name ? item.quotation.order.members.full_name : ''}
+          td(style='font-size: 12px') #{item.quotation && item.quotation.receipt_quotation ? item.quotation.receipt_quotation : (item.quotation && item.quotation.order && item.quotation.order.receipt_number ? item.quotation.order.receipt_number : '')}
+          td(style='font-size: 12px') Rp. #{item.quotation && item.quotation.quotation_grand_total ? parseInt(item.quotation.quotation_grand_total).toLocaleString('id') : '0'}
+          td(style='font-size: 12px') Rp. #{item.nominal ? parseInt(item.nominal).toLocaleString('id') : '0'}
+
+      tr
+        td(align='end', colspan='10', style='font-weight: bold; font-size: 12px')
+          | Grand Total 
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp. #{data.sales_incentive.reduce((acc, curr) => acc + Number(curr.quotation.quotation_grand_total), 0).toLocaleString('id')}
+        td(style='font-weight: bold; font-size: 12px')
+          | Rp.  #{data.sales_incentive.reduce((acc, curr) => acc + Number(curr.nominal), 0).toLocaleString('id') || '0'}
+  .signature(style='width: 100%; margin-top: 50px')
+    table(width='100%', cellpadding='0', cellspacing='0', style='table-layout: fixed')
+      tr
+        // Kolom Applier
+        td(style='\
+        text-align: center;\
+        width: 50%;\
+        vertical-align: top;\
+        padding-right: 20px;\
+        ')
+          div(style='font-weight: 600; margin-bottom: 150px')
+            | Yang Mengajukan,
+          .signature-line(style='\
+          width: 200px;\
+          margin-bottom: 10px;\
+          border-bottom: 1px solid #000;\
+          display: inline-block;\
+          ')
+          div(style='font-size: 14px') Admin Instalasi
+        // Kolom Approver
+        td(style='\
+        text-align: center;\
+        width: 50%;\
+        vertical-align: top;\
+        ')
+          div(style='font-weight: 600; margin-bottom: 150px')
+            | Yang Menyetujui,
+          // Tabel untuk Manager dan General Manager
+          table(width='100%', cellpadding='0', cellspacing='0', style='margin-top: 40px')
+            tr
+              // Manager
+              td(style='\
+              text-align: center;\
+              vertical-align: top;\
+              padding-right: 20px;\
+              ')
+                .signature-line(style='\
+                width: 200px;\
+                margin-bottom: 10px;\
+                border-bottom: 1px solid #000;\
+                display: inline-block;\
+                ')
+                div(style='font-size: 14px')
+                  | Manager
+              // General Manager
+              td(style='\
+              text-align: center;\
+              vertical-align: top;\
+              ')
+                .signature-line(style='\
+                width: 200px;\
+                margin-bottom: 10px;\
+                border-bottom: 1px solid #000;\
+                display: inline-block;\
+                ')
+                div(style='font-size: 14px')
+                  | General Manager

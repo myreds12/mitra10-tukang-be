@@ -13,13 +13,15 @@ import { MailType } from '../enum/mail_type.enum';
 
 export class CreateEmailMessageDto {
   @ApiProperty()
+  @Type(() => Number)
   @IsEnum(MailType)
   email_type: MailType;
-
+  
   @ValidateIf((o) => o.email_type === MailType.CSI)
   @IsNumber()
   csi_id: number;
-
+  
+  @Type(() => Number)
   @IsNumber()
   trigger_id: number;
 

@@ -74,6 +74,17 @@ export class EmailProcessor {
             information: true,
           },
         },
+        email_message_image: {
+          where: {
+            deleted_at: null
+          },
+          select: {
+            id: true,
+            email_message_id: true,
+            type: true,
+            path: true
+          }
+        }
       },
     });
   }
@@ -173,6 +184,7 @@ export class EmailProcessor {
               },
             },
           },
+          order_files: true
         },
       });
       this.logger.log('Order: ', order);
@@ -188,6 +200,7 @@ export class EmailProcessor {
       const data = {
         order,
         message,
+        apiUrl: this.configService.get<string>('API_URL'),
       };
 
       const { bcc, cc } = message;
@@ -495,6 +508,7 @@ export class EmailProcessor {
         quotation,
         order: quotation.order,
         message,
+        apiUrl: this.configService.get<string>('API_URL'),
       };
       
       const { bcc, cc } = message;
@@ -671,6 +685,7 @@ export class EmailProcessor {
         quotation,
         order: quotation.order,
         message,
+        apiUrl: this.configService.get<string>('API_URL'),
       };
       const { bcc, cc } = message;
 
