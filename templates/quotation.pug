@@ -8,7 +8,7 @@ html(lang="en")
   body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
     .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
       .header
-        img(src=${data.apiUrl}/public/receipt/${data?.message?.email_message_image?.filter((x) => x?.type === 1)[0].path} alt="Banner Image" style="width: 100%; height: auto;")
+        img(src=`${data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
       
       .order-details(style="padding-left: 16px; padding-right: 16px;")
         table(style="width: 100%;")
@@ -179,4 +179,4 @@ html(lang="en")
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
       .footer-banner
-        img(src=${data.apiUrl}/public/receipt/${data.message.email_message_image.filter((x) => x.type === 2)[0].path} alt="Banner Image" style="width: 100%; height: auto;")
+        img(src=`${data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
