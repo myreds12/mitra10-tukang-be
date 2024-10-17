@@ -179,4 +179,4 @@ html(lang="en")
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
       .footer-banner
-        img(src=${data.apiUrl}/public/receipt/${data?.message?.email_message_image?.filter((x) => x?.type === 2)[0].path} alt="Banner Image" style="width: 100%; height: auto;")
+        img(src=${data.apiUrl}/public/receipt/${data.message.email_message_image.filter((x) => x.type === 2)[0].path} alt="Banner Image" style="width: 100%; height: auto;")
