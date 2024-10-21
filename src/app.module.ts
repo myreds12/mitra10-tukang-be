@@ -49,6 +49,7 @@ import { PdfService } from './common/service/pdf.service';
 import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comission_sales_incentive.module';
+import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 
 @Module({
   imports: [
@@ -152,6 +153,7 @@ import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comis
     IncentiveModule,
     NotificationsModule,
     ComissionSalesIncentiveModule,
+    QuotationPromotionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
