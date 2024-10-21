@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReportDto } from './dto/create-report.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -2331,14 +2331,6 @@ export class ReportsService {
               deleted_at: null
             }
           },
-          order_follow_up: {
-            where: {
-              deleted_at: null,
-            },
-            orderBy: {
-              created_at: 'desc',
-            },
-          },
           members: {
             where: {
               deleted_at: null,
@@ -2365,14 +2357,6 @@ export class ReportsService {
               updated_by: true,
             },
           },
-          reschedule: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              reschedule_evidences: true,
-            },
-          },
           invoice_details: {
             where: {
               deleted_at: null,
@@ -2381,41 +2365,6 @@ export class ReportsService {
               invoice_number: true,
               total: true,
               type: true,
-            },
-          },
-          sales: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              store_id: true,
-              user_id: true,
-              full_name: true,
-              nik: true,
-              bank_id: true,
-              bank_branch: true,
-              account_name: true,
-              is_active: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          store: {
-            select: {
-              id: true,
-              store_name: true,
-              address: true,
-              area_id: true,
-              area: true,
-              zip_code: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
             },
           },
           status: {
@@ -2430,38 +2379,6 @@ export class ReportsService {
               complaint_histories: {
                 include: {
                   complaint_evidence: true,
-                },
-              },
-            },
-          },
-          vendor: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              company_name: true,
-              address: true,
-              phone_number: true,
-              is_active: true,
-              work_orders: {
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-              },
-            },
-          },
-          order_history: {
-            select: {
-              order_id: true,
-              created_at: true,
-              status: {
-                select: {
-                  id: true,
-                  category: true,
-                  description: true,
                 },
               },
             },
@@ -2520,50 +2437,13 @@ export class ReportsService {
               quotation_files: true,
             },
           },
-          work_orders: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              request_tukang: {
-                include: {
-                  tukang_to_request_tukang: true,
-                  tukang_to_replace_tukang: true,
-                },
-              },
-              vendor: true,
-              work_order_evidences: true,
-              work_order_tukang: {
-                include: {
-                  tukang: true,
-                },
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-              },
-              work_order_status: {
-                include: {
-                  status: true,
-                  work_order_items: {
-                    include: {
-                      item: true,
-                    },
-                    where: {
-                      deleted_at: null,
-                      deleted_by: null,
-                    },
-                  },
-                },
-                orderBy: {
-                  created_at: 'desc',
-                },
-              },
-            },
-          },
-          order_files: true,
         },
       });
+
+      console.log(data);
+      
+
+      if(data.length === 0) throw new NotFoundException('Order data not found');
 
       const itemMap = new Map();
 

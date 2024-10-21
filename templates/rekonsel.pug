@@ -148,7 +148,7 @@ font-family: Arial, Helvetica, sans-serif;\
           -const instalation_price = Math.floor(+customer_transaction / 1.11);
           -const margin_ppn = instalation_price - invoice_price;
           -const price_difference = +customer_transaction - invoice_price;
-          -const receipt_number = item.order.quotation.length ? item.order.quotation[0].receipt_quotation : item.order.receipt_number;
+          -const receipt_number = item.order.payment_type === 'survey' && item.type != 1  ? item.order.quotation[0].receipt_quotation || '-' : item.order.receipt_number;
           td(style='font-size: 12px') #{index + 1}.
           td(style='font-size: 12px') #{item.order_id}
           td(style='font-size: 12px') #{item.order.members.full_name}

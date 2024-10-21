@@ -46,7 +46,7 @@ font-family: Arial, Helvetica, sans-serif;\
           p(style='font-size: 14px; margin-top: 5px !important; margin-bottom: 5px !important;')
             strong
               | Tanggal diberikan kepada Finance:
-            - const formateInvoiceDate = new Date(data.invoice.invoice_to_finance_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            - const formateInvoiceDate = data.invoice.invoice_to_finance_date ? new Date(data.invoice.invoice_to_finance_date).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : "Invoice ini belum dikirimkan ke finance";
             | #{formateInvoiceDate}
 
 
@@ -75,7 +75,7 @@ font-family: Arial, Helvetica, sans-serif;\
             | #{item.order.store.store_name}
           td(style='font-size: 12px') #{item.order.members.full_name}
           td(style='font-size: 12px') #{item.order.payment_type}
-          td(style='font-size: 12px') #{item.order.payment_type === 'survey' && item.type === 2 ? item.order.quotation[0].receipt_quotation || '-' : item.order.receipt_number}
+          td(style='font-size: 12px') #{item.order.payment_type === 'survey' && item.type != 1  ? item.order.quotation[0].receipt_quotation || '-' : item.order.receipt_number}
           td(style='font-size: 12px') Rp. #{item.total.toLocaleString('id')}
       tr
         td(colspan='7' style='font-weight: bold; font-size: 12px')

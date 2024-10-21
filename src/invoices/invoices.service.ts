@@ -359,10 +359,12 @@ export class InvoicesService {
               },
             ]
             : []),
-          ...(invoice_status
+          ...(status
             ? [
               {
-                status: invoice_status,
+                status: {
+                  in: status
+                },
               },
             ]
             : []),
@@ -1546,16 +1548,10 @@ export class InvoicesService {
         
 
         const instalation_price = order.order.payment_type === 'gratis'? 0 : Math.floor(+customer_transaction / 1.11);
-        console.log("Installation Price:", instalation_price);
-
         const margin_ppn = instalation_price - invoice_price;
-        console.log("Margin PPN:", margin_ppn);
-
         const price_difference = +customer_transaction - invoice_price;
-        console.log("Price Difference:", price_difference);
-
-        const receipt_number = order.order.quotation[0] ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
-        
+        const receipt_number = order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type != 1 ? order.order.quotation[0].receipt_quotation || '-' : order.order.receipt_number;
+        console.log("Order ID:", order.order_id);
         console.log("Receipt Number:", receipt_number);
 
 
@@ -1715,7 +1711,7 @@ export class InvoicesService {
       invoice: invoices,
     };
 
-    const buffer = await this.pdfService.generateLandscape('invoice-pdf', data);
+    const buffer = await this.pdfService.generate('invoice-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=invoice.pdf');
     res.send(buffer);

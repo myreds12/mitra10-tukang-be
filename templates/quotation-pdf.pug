@@ -96,7 +96,7 @@ html(lang="en")
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
             tr
               td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
-              - var totalQuotation = (Number(data.quotation.quotation_promotion) || 0) + (Number(data.quotation.quotation_disc) || 0)
+              - var totalQuotation = (Number(data.quotation.quotation_promotion)) + (Number(data.quotation.quotation_disc))
               - var formattedQuotationPromotion = 'Rp. ' + totalQuotation.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
             tr

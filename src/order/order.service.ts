@@ -1904,6 +1904,21 @@ export class OrderService {
               },
             },
           },
+          order_history: {
+            select: {
+              order_id: true,
+              payload: true,
+              created_at: true,
+              created_by: true,
+              status: {
+                select: {
+                  id: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
         },
       });
 
