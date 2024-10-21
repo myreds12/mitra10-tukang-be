@@ -282,9 +282,20 @@ export class RescheduleService {
     });
     const countTotal = await this.dbService.reschedule.count();
 
+    const rescheduleGrandTotal = await this.dbService.reschedule
+        .findMany({
+          where,
+          include: {
+            order: true,
+          },
+        })
+        .then((data) =>
+          data.reduce((acc, curr) => acc + Number(curr.order.grand_total), 0),
+        );
+
     return {
       data: reschedule,
-      meta: { countTotal, takeTotal: reschedule.length, page, take },
+      meta: { countTotal, takeTotal: reschedule.length, page, take, rescheduleGrandTotal },
     };
   }
 
