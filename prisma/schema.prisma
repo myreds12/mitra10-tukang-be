@@ -954,15 +954,54 @@ model quotation {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  store               store                 @relation(fields: [store_id], references: [id])
-  order               orders                @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  status              status                @relation(fields: [quotation_status], references: [id])
-  promotion           promotion?            @relation(fields: [promotion_id], references: [id])
-  quotation_files     quotation_files[]
-  quotation_details   quotation_details[]
-  sales_incentive     sales_incentive[]
-  quotation_receipt   quotation_receipt[]
-  quotation_follow_up quotation_follow_up[]
+  store                  store                 @relation(fields: [store_id], references: [id])
+  order                  orders                @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status                 status                @relation(fields: [quotation_status], references: [id])
+  promotion              promotion?            @relation(fields: [promotion_id], references: [id])
+  quotation_files        quotation_files[]
+  quotation_details      quotation_details[]
+  sales_incentive        sales_incentive[]
+  quotation_receipt      quotation_receipt[]
+  quotation_follow_up    quotation_follow_up[]
+  quotation_promotion_ho quotation_promotion[]
+}
+
+model quotation_promotion {
+  id                Int     @id @default(autoincrement())
+  quotation_id      Int     @db.Int
+  promotion_nominal Decimal @db.Decimal(32, 2)
+  description       String? @db.Text
+  status            Int     @default(1)
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  quotation                     quotation                       @relation(fields: [quotation_id], references: [id])
+  quotation_promotion_evidences quotation_promotion_evidences[]
+}
+
+model quotation_promotion_evidences {
+  id Int @id @default(autoincrement())
+  quotation_promotion_id Int
+
+  path String @db.Text()
+  type Int    @default(1) @db.Int
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  quotation_promotion_ho quotation_promotion @relation(fields: [quotation_promotion_id], references: [id])
+
 }
 
 model quotation_follow_up {
@@ -1625,8 +1664,8 @@ model email_messages {
 }
 
 model email_message_image {
-  id       Int @id @default(autoincrement())
-  email_message_id Int 
+  id               Int @id @default(autoincrement())
+  email_message_id Int
 
   type Int
   path String @db.Text()
@@ -1639,7 +1678,7 @@ model email_message_image {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  email_message    email_messages @relation(fields: [email_message_id], references: [id])
+  email_message email_messages @relation(fields: [email_message_id], references: [id])
 }
 
 model terms_detail {
