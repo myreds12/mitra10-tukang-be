@@ -176,6 +176,11 @@ export class MailsService {
         },
         csi_template: true,
         trigger: true,
+        email_message_image: {
+          where: {
+            deleted_at: null
+          }
+        }
       },
     });
 
@@ -259,9 +264,9 @@ export class MailsService {
         welcome_header: updateEmailMessageDto.welcome_header,
         footer: updateEmailMessageDto.footer,
         is_active: Boolean(updateEmailMessageDto.is_active),
-        email_message_image: header_files || footer_files ? {
+        email_message_image: {
           createMany: {data: evidence}
-        } : undefined,
+        },
         updated_at: new Date(),
         updated_by: user_id,
         terms_detail: {
@@ -297,6 +302,7 @@ export class MailsService {
             },
           }
           : undefined,
+
       };
 
       const [syncFiles ,syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
