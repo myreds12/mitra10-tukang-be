@@ -833,7 +833,7 @@ export class ComissionSalesIncentiveService {
 
       worksheet.mergeCells('A2: N3');
 
-      worksheet.getCell('A2').value = `REKAP DATA INCENTIVE ${new Date(date_from).toLocaleDateString('id-ID', {year: 'numeric',month: 'long',day: 'numeric'})} - ${new Date(date_to).toLocaleDateString('id-ID', {year: 'numeric',month: 'long',day: 'numeric'})}`;
+      worksheet.getCell('A2').value = `REKAP DATA INCENTIVE `;
       worksheet.getCell('A2').font = { size: 16, bold: true };
       worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
 
