@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Response } from 'express';
 import { PdfService } from 'src/common/service/pdf.service';
+import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 
 @Injectable()
 export class ComissionSalesIncentiveService {
@@ -391,7 +392,7 @@ export class ComissionSalesIncentiveService {
     };
   }
 
-  async comissionSalesIncentiveExportExcel(id: number, res: Response) {
+  async comissionSalesIncentiveDetailExportExcel(id: number, res: Response) {
     try {
       const data = await this.dbService.comission_sales_incentive.findFirst({
         where: {
@@ -676,5 +677,297 @@ export class ComissionSalesIncentiveService {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=comission-sales-incentive.pdf');
     res.send(buffer);
+  }
+
+  async comissionSalesIncentiveExportExcel(query: QueryParamsDto, res: Response) {
+    try {
+      const {
+        page,
+        take,
+        search,
+        date_from,
+        date_to,
+        order_by,
+        vendor_id,
+        monthly,
+        status,
+        invoice_status,
+      } = query;
+      const skip = page * take - take;
+      const now = new Date();
+      if (monthly) now.setFullYear(monthly);
+      const where: Prisma.comission_sales_incentiveScalarWhereWithAggregatesInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                ],
+              },
+              {
+                sales_incentive: {
+                  some: {
+                    sales: {
+                      OR: [
+                        {
+                          id: !isNaN(+search) ? +search : undefined,
+                        },
+                        { full_name: { contains: search } },
+                        { sales_brand: { contains: search } },
+                        { account_name: { contains: search } },
+                        { phone_number: { contains: search } },
+                        { account_number: { contains: search } },
+                        { nik: { contains: search } },
+                        { bank_branch: { contains: search } },
+                        {
+                          sales_categories: {
+                            some: {
+                              categories: { category_name: { contains: search } },
+                            },
+                          },
+                        },
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+            : []),
+          ...(status
+            ? [
+              {
+                status: status[0],
+              },
+            ]
+            : []),
+          date_from && date_to
+            ? {
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
+            : undefined,
+          monthly
+            ? {
+              created_at: {
+                gte: new Date(now.getFullYear(), 0, 1),
+                lte: new Date(now.getFullYear(), 11, 31),
+              },
+            }
+            : undefined,
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+      const data = await this.dbService.comission_sales_incentive.findMany({
+        where,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          comission_sales_incentive_evidence: {
+            where: {
+              deleted_at: null
+            }
+          },
+          sales_incentive: {
+            where: {
+              deleted_at: null
+            },
+            include: {
+              incentive: true,
+              quotation: {
+                include: {
+                  quotation_details: {
+                    where: {
+                      deleted_at: null
+                    },
+                  },
+                  promotion: true,
+                  order: {
+                    include: {
+                      m_order_details: {
+                        where: {
+                          deleted_at: null
+                        },
+                        include: {
+                          item: true
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              sales: {
+                include: {
+                  store: true,
+                  bank: true,
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Comission Sales Incentive', {
+        properties: {
+          tabColor: { argb: '097969' },
+        },
+        pageSetup: {
+          margins: {
+            left: 0.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+
+      worksheet.mergeCells('A2: N3');
+
+      worksheet.getCell('A2').value = `REKAP DATA INCENTIVE ${new Date(date_from).toLocaleDateString('id-ID', {year: 'numeric',month: 'long',day: 'numeric'})} - ${new Date(date_to).toLocaleDateString('id-ID', {year: 'numeric',month: 'long',day: 'numeric'})}`;
+      worksheet.getCell('A2').font = { size: 16, bold: true };
+      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      worksheet.columns = [
+        { header: 'No', key: 'no', width: 10 },
+        { header: 'Incentive ID', key: 'incentive_id', width: 25 },
+        { header: 'Tanggal Pengajuan', key: 'created_at', width: 17 },
+        { header: 'Status Insentif', key: 'status', width: 30 },
+        { header: 'Grand Total \n Insentif', key: 'grand_total', width: 25 },
+      ];
+      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+      headerRow.height = 35;
+
+      worksheet.getCell('A1').value = null;
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.value = null;
+      });
+
+      // Proses setiap order dalam data
+      data.forEach((item, index) => {
+        console.log(item.sales_incentive.map((x) => x.id)[0] ?? '')
+
+        const row = worksheet.addRow({
+          no: index + 1,
+          incentive_id: item.sales_incentive.map((x) => x.id)[0] ?? '',
+          created_at: new Date(item.created_at).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          status: IncentiveStatus[item.status],
+          grand_total: Number(item.total_amount),
+        });
+
+        row.eachCell((cell, colNumber) => {
+          // Menambahkan border ke semua sel
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+
+          if (colNumber === 4) {
+            cell.alignment = { horizontal: 'left' };
+          } else {
+            cell.alignment = { horizontal: 'left' };
+          }
+        });
+
+
+      });
+
+      const totalsRow = worksheet.addRow({
+        no: 'Total',
+        incentive_id: '',
+        created_at: '',
+        status: '',
+        grand_total: data.reduce((acc, curr) => acc + Number(curr.total_amount), 0),
+      });
+
+      worksheet.mergeCells(`A${totalsRow.number}:D${totalsRow.number}`);
+      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalsRow.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      };
+
+      const createExcelFilePath = (baseName: string) => {
+        const folderPath = './storage/excel/comission-sales-incentive';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+        const excelFileName = `${baseName}-${Date.now()}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook: exceljs.Workbook,
+        excelFilePath: string,
+        res: Response,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (res) => {
+        const formattedDate = getFormattedDate();
+        const baseName = `DataComissionSalesIncentive-${formattedDate}`;
+        const excelFilePath = createExcelFilePath(baseName);
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(res);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred while generating the invoice.");
+    }
   }
 }

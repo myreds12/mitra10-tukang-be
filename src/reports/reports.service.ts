@@ -892,16 +892,18 @@ export class ReportsService {
       });
 
       complaints.forEach((complaint) => {
+        const complaintWib = new Date(new Date(complaint.created_at).getTime() + 7 * 60 * 60 * 1000);
+
         const period = isSameDay
-          ? new Date(complaint.created_at).toLocaleString('id-ID', {
+          ? complaintWib.toLocaleString('id-ID', {
             hour: '2-digit',
             hour12: false,
           })
           : isSameMonth
-            ? new Date(complaint.created_at).toLocaleString('id-ID', {
+            ? complaintWib.toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : new Date(complaint.created_at).toLocaleString('id-ID', {
+            : complaintWib.toLocaleString('id-ID', {
               month: 'long',
             });
 

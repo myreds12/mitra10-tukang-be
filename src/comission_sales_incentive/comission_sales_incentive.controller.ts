@@ -15,19 +15,27 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 export class ComissionSalesIncentiveController {
   constructor(private readonly comissionSalesIncentiveService: ComissionSalesIncentiveService) { }
-
+  
+  @Get('/export-excel')
+  async invoiceRekonselExportExcel(
+    @Query() query: QueryParamsDto,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.comissionSalesIncentiveService.comissionSalesIncentiveExportExcel(query, res);
+  }
   @Get('/:id/pdf')
   async rekonselPdf(@Param('id', ParseIntPipe) id: number, @Res() res: IExpressResponse) {
     return await this.comissionSalesIncentiveService.comissionSalesIncentiveExportPdf(id, res);
   }
 
   @Get('/:id/export-excel')
-  async invoiceRekonselExportExcel(
+  async invoiceRekonselExportExcelDetails(
     @Param('id') id: string,
     @Res() res: IExpressResponse,
   ) {
-    return await this.comissionSalesIncentiveService.comissionSalesIncentiveExportExcel(+id, res);
+    return await this.comissionSalesIncentiveService.comissionSalesIncentiveDetailExportExcel(+id, res);
   }
+  
 
   @Post()
   @UseInterceptors(FilesInterceptor('comission_sales_incentive_evidences'))

@@ -37,6 +37,14 @@ interface UserRequest extends IExpressRequest {
 export class ComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
+  @Get('/export-excel')
+  async complaintExportExcel(
+    @Res() res: IExpressResponse,
+    @Query() query: QueryParamsDto,
+  ) {
+    return await this.complaintsService.complaintExportExcel(res, query);
+  }
+
   @Get('next-code')
   async getCode() {
     try {

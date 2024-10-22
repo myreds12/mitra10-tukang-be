@@ -657,14 +657,14 @@ export class QuotationService {
           }))
           : [];
 
-      if (updateQuotationDto.receipt_quotation) {
+      if (updateQuotationDto.receipt_quotation && updateQuotationDto.receipt_quotation != "null") {
         const existingQuotation = await this.dbService.quotation.findFirst({
           where: { id: { not: id }, receipt_quotation: updateQuotationDto.receipt_quotation },
         });
 
         if (existingQuotation) {
           throw new BadRequestException(
-            `Receipt number ${updateQuotationDto.receipt_quotation} already exists!`,
+            `No Receipt "${updateQuotationDto.receipt_quotation}" already exists!`,
           );
         }
       }
@@ -884,7 +884,7 @@ export class QuotationService {
               connect: { id: updateQuotationDto.quotation_status },
             },
             receipt_quotation:
-              updateQuotationDto?.receipt_quotation ?? undefined,
+              updateQuotationDto?.receipt_quotation,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,

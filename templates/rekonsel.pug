@@ -180,11 +180,11 @@ font-family: Arial, Helvetica, sans-serif;\
         td(style='font-weight: bold; font-size: 12px')
           | Rp. #{totals.instalation_price.toLocaleString('id')}
         td(style='font-weight: bold; font-size: 12px')
-          | #{`${totals.margin_ppn}%`}
+          | #{`${(totals.margin_ppn / totals.instalation_price) * 100}%`}
         td(style='font-weight: bold; font-size: 12px')
           | Rp. #{totals.margin_non_ppn.toLocaleString('id')}
         td(style='font-weight: bold; font-size: 12px')
-          | #{`${totals.margin}%`}
+          | #{`${(totals.margin_non_ppn/totals.customer_transaction) * 100}%`}
         td
   .footer
     .payment-information(style='margin-bottom: 2rem')
