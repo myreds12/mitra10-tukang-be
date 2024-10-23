@@ -319,15 +319,17 @@ export class NotificationsService {
     }
   }
 
-  async delete(dto: UpdateNotificationDto[]){
+  async delete(dto: UpdateNotificationDto[], user: users){
     try{
       const deleteNotif = await this.dbService.notifications.deleteMany({
         where: {
-          id: {
-            in: dto.map((x) => x.id)
+          module_type: moduleTypeNotification.INVOICE,
+          user_id: { 
+            not: user.id
           }
         }
       });
+
       return deleteNotif;
     }catch(error){
       throw error

@@ -892,6 +892,14 @@ export class ComplaintsService {
         { header: 'Complaint Melalui', key: 'complaint_channel', width: 20 },
         { header: 'Deskripsi', key: 'description', width: 40 },
         { header: 'Tanggal Complaint', key: 'complaint_date', width: 25 },
+        { header: 'Nama Toko', key: 'store_name', width: 30 },
+        { header: 'Nama Konsumen', key: 'member_name', width: 30 },
+        { header: 'Nama Telepon Konsumen', key: 'phone_number', width: 30 },
+        { header: 'Tanggal Order', key: 'order_create', width: 30 },
+        { header: 'Umur Complaint', key: 'complaint_age', width: 20 },
+        { header: 'Status Order', key: 'order_status', width: 30 },
+        { header: 'Status Pengerjaan', key: 'work_status', width: 30 },
+        { header: 'Status Complaint', key: 'complaint_status', width: 30 },
         { header: 'Feedback Name', key: 'feedback_name', width: 25 },
         { header: 'Feedback Role', key: 'feedback_role', width: 25 },
         { header: 'Complaint Dibuat', key: 'created_at', width: 25 },
@@ -924,6 +932,29 @@ export class ComplaintsService {
             minute: '2-digit',
           })}`;
 
+        function calculateComplaintAge(complaintCreatedAt) {
+          const complaintCreatedAtDate = new Date(complaintCreatedAt);
+          if (isNaN(complaintCreatedAtDate.getTime())) {
+            throw new Error('Invalid date for complaintCreatedAt');
+          }
+
+          const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000;
+          const complaintCreatedAtWith7Days = new Date(complaintCreatedAtDate.getTime() + sevenDaysInMillis);
+
+          const now = new Date();
+
+          const timeDiff = complaintCreatedAtWith7Days.getTime() - now.getTime() ;
+          
+          console.log(timeDiff);
+          console.log(complaintCreatedAtWith7Days);
+          const days = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
+          const hours = Math.floor((timeDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
+          return `${days} hari, ${hours} jam`;
+        }
+
+        const complaintAge = calculateComplaintAge(complaint.created_at);
+
         const row = worksheet.addRow({
           id: complaint.id,
           order_id: complaint.order_id,
@@ -932,6 +963,14 @@ export class ComplaintsService {
             : 'N/a',
           description: complaint.description,
           complaint_date: formattedDateTime(complaint.complaint_date),
+          store_name: complaint.orders.store.store_name,
+          member_name: complaint.orders.members.full_name,
+          phone_number: complaint?.orders?.members?.whatsapp_number ?? complaint?.orders?.members?.whatsapp_number,
+          order_create: formattedDateTime(complaint.orders.created_at),
+          complaint_age: complaintAge,
+          order_status: complaint.orders.status.description,
+          work_status: complaint.orders?.work_orders?.status?.description || '-',
+          complaint_status: complaint?.status?.description || '',
           feedback_name: complaint.feedback_name
             ? complaint.feedback_name
             : 'N/a',
@@ -952,7 +991,6 @@ export class ComplaintsService {
         });
       });
 
-      // Calculate the total grand total of all complaints
       const totalGrandTotal = data.reduce((total, complaint) => {
         return (
           total + (complaint.orders ? Number(complaint.orders.grand_total) : 0)
@@ -962,35 +1000,6 @@ export class ComplaintsService {
         style: 'currency',
         currency: 'IDR',
       }).format(totalGrandTotal);
-
-      // Add total row
-      const totalRow = worksheet.addRow({
-        id: 'Total',
-        order_id: '',
-        complaint_channel: '',
-        description: '',
-        complaint_date: '',
-        feedback_name: '',
-        feedback_role: '',
-        created_at: '',
-      });
-      totalRow.getCell('A').value = 'Total Keluhan';
-      totalRow.getCell('H').value = formattedTotalGrandTotal;
-
-      totalRow.eachCell((cell) => {
-        cell.font = { bold: true };
-        cell.alignment = { vertical: 'middle', horizontal: 'left' };
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' },
-        };
-      });
-
-      totalRow.height = 30;
-
-      worksheet.mergeCells(`A${totalRow.number}:G${totalRow.number}`);
 
       const getFormattedDate = () => {
         const now = new Date();
@@ -1033,7 +1042,7 @@ export class ComplaintsService {
 
       const generateExcelFile = async (res) => {
         const formattedDate = getFormattedDate();
-        const baseName = `DataKeluhan-${formattedDate}`;
+        const baseName = `DataKomplain-${formattedDate}`;
         const excelFilePath = createExcelFilePath(baseName);
 
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);

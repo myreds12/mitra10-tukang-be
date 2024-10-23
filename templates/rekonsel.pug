@@ -1,4 +1,3 @@
-qudoctype html
 head
   meta(charset='UTF-8')
   meta(name='viewport' content='width=device-width, initial-scale=1.0')
@@ -131,7 +130,7 @@ font-family: Arial, Helvetica, sans-serif;\
           th(style='font-size: 12px') Nama Customer
           th(style='font-size: 12px') Nama Pemasangan
           th(style='font-size: 12px')
-            | Tanggal Survey/Pengerjaan
+            | Tipe Order
           th(style='font-size: 12px') Total Harga
           th(style='font-size: 12px') Transaksi Customer
           th(style='font-size: 12px') Harga Jasa
@@ -153,7 +152,7 @@ font-family: Arial, Helvetica, sans-serif;\
           td(style='font-size: 12px') #{item.order_id}
           td(style='font-size: 12px') #{item.order.members.full_name}
           td(style='font-size: 12px')
-            | #{item.order.m_order_details.map((x) => x.item_name || '-').join(', ')}
+            | #{item.order.payment_type}
           - const orderCreatedAt = new Date(item.order.request_work ? item.order.request_work : item.order.request_survey || '-').toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
           td(style='font-size: 12px')
             | #{orderCreatedAt}
@@ -180,11 +179,11 @@ font-family: Arial, Helvetica, sans-serif;\
         td(style='font-weight: bold; font-size: 12px')
           | Rp. #{totals.instalation_price.toLocaleString('id')}
         td(style='font-weight: bold; font-size: 12px')
-          | #{`${(totals.margin_ppn / totals.instalation_price) * 100}%`}
+          | #{`${Math.ceil((totals.margin_ppn / totals.instalation_price) * 100)}%`}
         td(style='font-weight: bold; font-size: 12px')
           | Rp. #{totals.margin_non_ppn.toLocaleString('id')}
         td(style='font-weight: bold; font-size: 12px')
-          | #{`${(totals.margin_non_ppn/totals.customer_transaction) * 100}%`}
+          | #{`${Math.ceil((totals.margin_non_ppn / totals.customer_transaction) * 100)}%`}
         td
   .footer
     .payment-information(style='margin-bottom: 2rem')

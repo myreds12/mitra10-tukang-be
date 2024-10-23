@@ -31,17 +31,17 @@ export class PdfService {
       const options = {
         format: 'A4',
         border: {
-          top: "1in",
-          right: "0.5in",
-          bottom: "0.5in",
-          left: "0.5in"
+          top: "4in",
+          right: "1in",
+          bottom: "1in",
+          left: "1in"
         },
         header: {
-          height: "20mm",
+          height: "30mm",
           contents: '<div style="text-align: center;"></div>'
         },
         footer: {
-          height: "20mm",
+          height: "5mm",
           contents: '<div style="text-align: center;"></div>'
         },
         timeout: 60000,
@@ -52,13 +52,13 @@ export class PdfService {
       create(html, {
         format: 'A4',
         border: {
-          top: "0",
+          top: "0.5in",
           right: "0.5in",
-          bottom: "0.5in",
+          bottom: "0",
           left: "0.5in"
         },
         header: {
-          height: "5mm",
+          height: "10mm",
         },
         footer: {
           height: "5mm",

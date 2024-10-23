@@ -9,6 +9,7 @@ import {
   Response as IExpressResponse,
 } from 'express';
 import { users } from '@prisma/client';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -19,8 +20,8 @@ export class NotificationsController {
 
   @Delete()
   @UseGuards(JwtAuthGuard)
-  delete(@Body() dto: UpdateNotificationDto[]) {
-    return this.notificationsService.delete(dto)
+  delete(@Body() dto: UpdateNotificationDto[], @Req() req: RequestWithUser) {
+    return this.notificationsService.delete(dto, req.user)
   }
 
   @Get()

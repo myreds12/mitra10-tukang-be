@@ -1607,10 +1607,10 @@ export class InvoicesService {
         customer_transaction: totals.customer_transaction,
         instalation_price: totals.instalation_price,
         ppn_difference: totals.margin_ppn,
-        margin_ppn: `${(totals.margin_ppn / totals.instalation_price) * 100}%`,
+        margin_ppn: `${Math.ceil((totals.margin_ppn / totals.instalation_price) * 100)}%`,
         difference: totals.price_difference,
         margin_non_ppn: totals.margin_non_ppn,
-        margin: `${(totals.margin_non_ppn/totals.customer_transaction) * 100}%`,
+        margin: `${Math.ceil((totals.margin_non_ppn/totals.customer_transaction) * 100)}%`,
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
