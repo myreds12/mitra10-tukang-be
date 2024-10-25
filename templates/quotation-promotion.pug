@@ -1,0 +1,327 @@
+doctype html
+head
+    meta(charset='UTF-8')
+    meta(name='viewport' content='width=device-width, initial-scale=1.0')
+    title Request Discount
+    link(href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap' rel='stylesheet')
+.container(style='\
+max-width: 768px;\
+margin: 0 auto;\
+background-color: #ffffff;\
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\
+border-radius: 0.5rem;\
+overflow: hidden;\
+')
+    .header-info
+        div(style='padding-left: 16px; padding-right: 16px')
+            table(style='width: 100%; margin-bottom: 20px')
+                tr
+                    td(style='text-align: left; width: 60%')
+                        img(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png' alt='Mitra 10 Logo' style='height: 48px')
+                        .address
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | #{data.order.store.store_name}
+                            .fs-6.fw-normal
+                                | #{data.order.store.address}
+                            .fs-6.fw-normal
+                                | Telp : #{data.order.store.phone_number_1}
+                    td(style='text-align: left; width: 40%')
+                        .quotation-information
+                            div(style='\
+                            font-size: 2rem;\
+                            font-weight: 700;\
+                            ')
+                                | PENGAJUAN
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                - const formateQuotationPromotionCreatedAt = new Date(data.quotation_promotion_ho[0].created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+                                | Tanggal : #{formateQuotationPromotionCreatedAt}
+                                span(style='font-weight: 500') 
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | Quotation ID : 
+                                span(style='font-weight: 500') #{data.id}
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | Customer ID : 
+                                span(style='font-weight: 500') #{data.order.members.id}
+            table(style='width: 100%; margin-bottom: 20px')
+                tr
+                    td(style='text-align: left; width: 60%')
+                        .receiver-information
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | Informasi Konsumen : 
+                            div(style='font-size: 1rem') #{data.order.members.full_name}
+                            div(style='font-size: 1rem')
+                                | #{data.order.members.address_1}
+                            div(style='font-size: 1rem')
+                                | Telp : #{data.order.members.whatsapp_number}
+                    td(style='text-align: left; width: 40%')
+                        .quotation-information
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | Quotation Valid Until :
+                                span(style='\
+                                font-size: 1rem;\
+                                font-weight: 400;\
+                                ')
+                                - const formateQuotationValidity = data.quotation_validity ? new Date(data.quotation_validity).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+                                    | #{formateQuotationValidity}
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | Instruksi Spesial :
+                                span(style='\
+                                font-size: 1rem;\
+                                font-weight: 400;\
+                                ') #{data.description || ''}
+                            div(style='\
+                            font-size: 1rem;\
+                            font-weight: 600;\
+                            ')
+                                | Alasan Pengajuan :
+                                span(style='\
+                                font-size: 1rem;\
+                                font-weight: 400;\
+                                ') #{data.quotation_promotion_ho.description || ''}
+    .quotation-info(style='\
+    padding-top: 10px;\
+    padding-left: 20px;\
+    padding-right: 20px;\
+    padding-bottom: 10px;\
+    ')
+        h1(style='\
+        margin: 0 !important;\
+        font-size: 1.25rem;\
+        font-weight: 600;\
+        ')
+            | Pengajuan Diskon Konsumen
+        table(style='\
+        width: 100%;\
+        text-align: left;\
+        border-collapse: collapse;\
+        margin-bottom: 20px;\
+        ')
+            thead
+                tr
+                    th(style='\
+                    min-width: 144px;\
+                    max-width: 144px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    ')
+                        | Jenis Jasa
+                    th(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    ')
+                        | QTY
+                    th(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    ')
+                        | Satuan
+                    th(style='border: 1px solid #e2e8f0; padding: 8px')
+                        | Final Price
+            tbody
+                each item, index in data.quotation_details.filter((x) => x.item_type === 2)
+                    tr
+                    td(style='\
+                    min-width: 144px;\
+                    max-width: 144px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    word-break: break-word;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{item.name}
+                    td(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{item.quantity}
+                    td(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{item.unit}
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                            | #{formattedFinalPriceItem}
+        table(style='\
+        width: 100%;\
+        text-align: left;\
+        border-collapse: collapse;\
+        margin-bottom: 20px;\
+        ')
+            thead
+                tr
+                    th(style='\
+                    min-width: 144px;\
+                    max-width: 144px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    ')
+                        | Material Yang Dibutuhkan
+                    th(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    ')
+                        | QTY
+                    th(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    ')
+                        | Satuan
+                    th(style='border: 1px solid #e2e8f0; padding: 8px')
+                        | Final Price
+            tbody
+                each item, index in data.quotation_details.filter((x) => x.item_type === 1)
+                    tr
+                    td(style='\
+                    min-width: 144px;\
+                    max-width: 144px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    word-break: break-word;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{item.name}
+                    td(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{item.quantity}
+                    td(style='\
+                    min-width: 176px;\
+                    max-width: 176px;\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{item.unit}
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                        | #{formattedFinalPriceItem}
+                tr
+                td(colspan='3', style='\
+                border: 1px solid #e2e8f0;\
+                padding: 8px;\
+                text-align: end;\
+                font-size: 0.875rem;\
+                font-weight: 600;\
+                ')
+                | Total
+                td(style='\
+                border: 1px solid #e2e8f0;\
+                padding: 8px;\
+                font-size: 0.875rem;\
+                ')
+                    - var reducedTotal = 0
+                    - data.quotation_details.forEach(detail => {
+                    -   var reducedPrice = parseFloat(detail.final_price) 
+                    -   reducedTotal += reducedPrice
+                    - })
+                    - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+                    | #{formattedReducedTotal}
+                tr
+                    td(colspan='3', style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    text-align: end;\
+                    font-size: 0.875rem;\
+                    font-weight: 600;\
+                    ')
+                        | Additional Promosi ( #{data.promotion ? data.promotion.name : ''})
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        - var formattedPromotion = data.promotion  ? 'Rp. ' + data.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+                        | #{formattedPromotion}
+                tr
+                    td(colspan='3', style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    text-align: end;\
+                    font-size: 0.875rem;\
+                    font-weight: 600;\
+                    ')
+                        | Total Sebelum Pengajuan Diskon
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{'Rp. ' +  data.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                tr
+                    td(colspan='3', style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    text-align: end;\
+                    font-size: 0.875rem;\
+                    font-weight: 600;\
+                    ')
+                        | Nominal Pengajuan Diskon
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{'Rp. ' + data.quotation_promotion_ho[0].promotion_nominal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                tr
+                    td(colspan='3', style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    text-align: end;\
+                    font-size: 0.875rem;\
+                    font-weight: 600;\
+                    ')
+                        | Grand Total
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        | #{'Rp. ' + (reducedTotal - data.quotation_promotion_ho[0].promotion_nominal).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}

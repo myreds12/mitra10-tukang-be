@@ -4,10 +4,11 @@ import { QuotationPromotionController } from './quotation_promotion.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { PdfService } from 'src/common/service/pdf.service';
 
 @Module({
   controllers: [QuotationPromotionController],
-  providers: [QuotationPromotionService],
+  providers: [QuotationPromotionService, PdfService],
   imports: [
     MulterModule.register({
     storage: diskStorage({

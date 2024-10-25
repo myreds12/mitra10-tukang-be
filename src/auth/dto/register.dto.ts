@@ -32,4 +32,24 @@ export class CreateRegisterDto {
   @IsOptional()
   @IsEmail()
   email?: string; 
+
+  @ApiProperty()
+  @IsOptional()
+  nik?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  phone_number?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  whatsapp_number?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  birth?: string; 
+
+  @ApiProperty()
+  @IsOptional()
+  store_id?: number;
 }

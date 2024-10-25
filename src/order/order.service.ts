@@ -3975,7 +3975,6 @@ export class OrderService {
     console.log(data.quotation.order.m_order_details);
 
     const buffer = await this.pdfService.generate('quotation-pdf', data);
-    // Set headers to download the PDF
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);

@@ -13,7 +13,7 @@ export class EmployeeService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
   async create(createEmployeeDto: CreateEmployeeDto, user_id: number) {
     try {
       const position = await this.dbService.positions.findFirst({
@@ -38,7 +38,7 @@ export class EmployeeService {
         },
       });
 
-      
+
 
       const employee = await this.dbService.employee.create({
         data: {
@@ -67,7 +67,7 @@ export class EmployeeService {
         },
       });
 
-     
+
 
       this.emailQueue.add(
         'send-credential-mail',
@@ -114,23 +114,23 @@ export class EmployeeService {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { full_name: { contains: search } },
-                  { email: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                { full_name: { contains: search } },
+                { email: { contains: search } },
+              ],
+            },
+          ]
           : []),
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -142,6 +142,7 @@ export class EmployeeService {
       include: {
         positions: true,
         store: true,
+        users: true,
       },
     });
 
@@ -154,6 +155,11 @@ export class EmployeeService {
         where: {
           id,
         },
+        include: {
+          positions: true,
+          store: true,
+          users: true, 
+        }
       });
 
       return {

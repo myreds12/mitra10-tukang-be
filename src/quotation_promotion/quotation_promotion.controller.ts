@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFiles, Req, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFiles, Req, Query, UseGuards, Res, ParseIntPipe } from '@nestjs/common';
 import { QuotationPromotionService } from './quotation_promotion.service';
 import { CreateQuotationPromotionDto } from './dto/create-quotation_promotion.dto';
 import { UpdateQuotationPromotionDto } from './dto/update-quotation_promotion.dto';
@@ -6,11 +6,28 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import {
+  Request as IExpressRequest,
+  Response as IExpressResponse,
+} from 'express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('quotation-promotion')
 export class QuotationPromotionController {
   constructor(private readonly quotationPromotionService: QuotationPromotionService) {}
+
+  @Get('/:quotation_id/pdf')
+  async downloadPdf(@Param('quotation_id', ParseIntPipe) quotation_id: number, @Res() res: IExpressResponse) {
+    return await this.quotationPromotionService.quotationPdf(quotation_id, res);
+  }
+
+  @Get('/:id/export-excel')
+  async promotionRequestExportExcel(
+    @Param('id') id: string,
+    @Res() res: IExpressResponse,
+  ) {
+    return await this.quotationPromotionService.promotionRequest(+id, res);
+  }
 
   @Get('next-code')
   async getCode() {

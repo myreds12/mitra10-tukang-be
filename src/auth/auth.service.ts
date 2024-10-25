@@ -18,7 +18,6 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { isFQDN } from 'class-validator';
-// import { PermissionAction } from '../casl/factory/casl-ability.factory';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +28,7 @@ export class AuthService {
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     try {
+
       const user = await this.dbService.users.findFirst({
         where: {
           username: dto.username,
@@ -69,6 +69,21 @@ export class AuthService {
                   },
                 }
               : undefined),
+              employee: {
+                create: {
+                  email: dto?.email ?? undefined,
+                  full_name: dto?.pic_name ?? undefined,
+                  nik: dto?.nik ?? undefined,
+                  birth: dto?.birth ? new Date(dto.birth) : undefined,
+                  phone_number: dto?.phone_number ?? undefined,
+                  whatsapp_number: dto?.whatsapp_number ?? undefined,
+                  store: dto?.store_id ? {
+                    connect: {
+                      id: dto.store_id
+                    }
+                  } : undefined
+                }
+              }
           },
         }),
       ]);
@@ -88,8 +103,6 @@ export class AuthService {
         },
       });
 
-      
-      
       if (!user) {
         throw new NotFoundException('User tidak ada.');
       }
@@ -118,7 +131,23 @@ export class AuthService {
             : undefined),
           ...(files ? {
             profile_picture: files.filename
-          } : undefined)
+          } : undefined),
+          employee: {
+            update: {
+              email: dto?.email ?? undefined,
+              full_name: dto?.pic_name ?? undefined,
+              nik: dto?.nik ?? undefined,
+              birth: dto?.birth ? new Date(dto.birth) : undefined,
+              phone_number: dto?.phone_number ?? undefined,
+              whatsapp_number: dto?.whatsapp_number ?? undefined,
+              store: dto?.store_id ? {
+                connect: {
+                  id: dto.store_id
+                }
+              } : undefined,
+              updated_at: new Date()
+            }
+          }
         },
       });
 
@@ -529,8 +558,14 @@ export class AuthService {
         where,
         skip,
         take: getTake(),
-        include: {
-          employee: true,
+        select: {
+          id: true,
+          username: true,
+          created_at: true,
+          created_by: true,
+          updated_at: true,
+          updated_by: true,
+        employee: true,
           store: true,
           roles: true,
           sales: true,
