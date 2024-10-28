@@ -244,26 +244,25 @@ overflow: hidden;\
                         - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                         | #{formattedFinalPriceItem}
                 tr
-                td(colspan='3', style='\
-                border: 1px solid #e2e8f0;\
-                padding: 8px;\
-                text-align: end;\
-                font-size: 0.875rem;\
-                font-weight: 600;\
-                ')
-                | Total
-                td(style='\
-                border: 1px solid #e2e8f0;\
-                padding: 8px;\
-                font-size: 0.875rem;\
-                ')
-                    - var reducedTotal = 0
-                    - data.quotation_details.forEach(detail => {
-                    -   var reducedPrice = parseFloat(detail.final_price) 
-                    -   reducedTotal += reducedPrice
-                    - })
-                    - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
-                    | #{formattedReducedTotal}
+                    td(colspan='3', style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    text-align: end;\
+                    font-size: 0.875rem;\
+                    font-weight: 600;\
+                    ') Total 
+                    td(style='\
+                    border: 1px solid #e2e8f0;\
+                    padding: 8px;\
+                    font-size: 0.875rem;\
+                    ')
+                        - var reducedTotal = 0
+                        - data.quotation_details.forEach(detail => {
+                        -   var reducedPrice = parseFloat(detail.final_price) 
+                        -   reducedTotal += reducedPrice
+                        - })
+                        - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+                        | #{formattedReducedTotal}
                 tr
                     td(colspan='3', style='\
                     border: 1px solid #e2e8f0;\
@@ -309,7 +308,7 @@ overflow: hidden;\
                     padding: 8px;\
                     font-size: 0.875rem;\
                     ')
-                        | #{'Rp. ' + data.quotation_promotion_ho[0].promotion_nominal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                        | #{data.quotation_promotion_ho[0].promotion_nominal} %
                 tr
                     td(colspan='3', style='\
                     border: 1px solid #e2e8f0;\
@@ -324,4 +323,4 @@ overflow: hidden;\
                     padding: 8px;\
                     font-size: 0.875rem;\
                     ')
-                        | #{'Rp. ' + (data.quotation_grand_total - data.quotation_promotion_ho[0].promotion_nominal).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                        | #{'Rp. ' + (Number(data.quotation_grand_total) - (Number(data.quotation_promotion_ho[0].promotion_nominal) * Number(data.quotation_grand_total) / 100 )).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}

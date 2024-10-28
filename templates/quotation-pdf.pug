@@ -4,8 +4,7 @@ html(lang="en")
     meta(charset="UTF-8")
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
     title Quotation Confirmation
-    link(href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet")
-  body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
+  body(style="background-color: rgb(242, 242, 242); font-family: Arial, sans-serif; line-height: 1.6; letter-spacing: normal;")
     .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
       .header
         img(src="https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg" alt="Banner Image" style="width: 100%; height: auto;")
@@ -16,21 +15,21 @@ html(lang="en")
             td(style="text-align: left;")
               img(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png" alt="Mitra 10 Logo" style="height: 48px;")
             td(style="text-align: center;")
-              p(style="font-size: 1.25rem; font-weight: 600;") Instalasi & Service Mitra 10
+              p(style="font-size: 1.25rem; font-weight: bold;") Instalasi & Service Mitra 10
             td(style="text-align: right;")
               .order-id
-                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Quotation ID: #{data.quotation.id}
+                p(style="font-size: 1.125rem; font-weight: bold; margin: 0 !important;") Quotation ID: #{data.quotation.id}
                 p(style="font-size: 0.875rem; margin: 0 !important;") Order ID : #{data.quotation.order.id}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
         p(style="color: #4a5568;") #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
+        p(style="color: #4a5568; font-weight: bold; margin: 0 !important;") Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
+        p(style="color: #4a5568; font-weight: bold; margin: 0 !important;") Berikut detail pemesanan Anda:
 
       .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Survei
+        h1(style="font-size: 1.25rem; font-weight: bold; margin-bottom: 16px;") Informasi Survei
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
             tr
@@ -46,72 +45,14 @@ html(lang="en")
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item ? item.item.service_name || '' : item.item_name || ''}
                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || '0'}
             tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: bold;") Biaya Survey
               - var formattedSurveyPrice = 'Rp. ' + data.quotation.order.grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedSurveyPrice}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
-      .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
-          tbody
-            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-              tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")=item.name ? item.name : '-' 
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-' 
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
-                - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= formattedFinalPrice
-
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Material Yang Dibutuhkan
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
-          tbody
-            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
-              tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-' 
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-' 
-                - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
-            tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
-              - var reducedTotal = 0
-              - data.quotation.quotation_details.forEach(detail => {
-              -   var reducedPrice = parseFloat(detail.final_price) // Pastikan harga final sebagai angka
-              -   reducedTotal += reducedPrice
-              - })
-              - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
-            tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
-              - var totalQuotation = (Number(data.quotation.quotation_promotion)) + (Number(data.quotation.quotation_disc))
-              - var formattedQuotationPromotion = 'Rp. ' + totalQuotation.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
-            tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-              - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
-            tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
-              - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
       .customer-info(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Pelanggan
+        h2(style="font-size: 1.25rem; font-weight: bold; margin-bottom: 16px;") Informasi Pelanggan
         p(style="color: #4a5568;") 
           strong Nama:
           |  #{data.quotation.order.members.full_name}
@@ -127,51 +68,8 @@ html(lang="en")
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
-      .payment-instructions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Bank:  #{data.quotation.store.bank_name}
-          li(style="color: #4a5568;") Nomor Akun: #{data.quotation.store.bank_number}
-          li(style="color: #4a5568;") Nama Akun: #{data.quotation.store.bank_account}
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
-          li(style="color: #4a5568;") Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .information(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Semua penjualan  Jasa Instalasi bersifat final.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran harus dilakukan secara penuh sebelum pesanan diproses.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .terms-conditions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Biaya diatas adalah Jasa Instalasi berlaku 7 hari dari tanggal dikirimnya Quotation.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Jadwal Survey/Pengerjaan akan ditentukan oleh teknisi, setelah material tersedia (material disediakan oleh Customer) dan barang diterima Customer, serta barang yang akan dikerjakan Jasa Instalasi adalah barang dari Mitra10.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. Semua Jasa Pemasangan wajib dilakukan Survey. Biaya survey akan dikembalikan apabila biaya Jasa Instalasi & Service minimal Rp 800.000.
-        p(style="margin-bottom: 8px; color: #4a5568;") 6. Quotation diberikan kepada Customer maksimal H+2 dihari kerja setelah Survey selesai.
-        p(style="margin-bottom: 8px; color: #4a5568;") 7. Garansi 7 (Tujuh) hari untuk Jasa Instalasi & Service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses Jasa Instalasi & Service.
-        p(style="margin-bottom: 8px; color: #4a5568;") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .footer-notes(style="padding: 20px;")
-        p(style="color: #4a5568; font-weight: 600; margin-top: 0; margin-bottom: 0;") #{data.message.footer}
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
-
       .footer(style="background-color: #edf2f7; padding: 20px; text-align: center;")
-        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
-        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
+        p(style="font-size: 0.875rem; font-weight: bold; margin: 0 !important") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
+        p(style="font-size: 0.875rem; font-weight: bold; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
       .footer-banner
         img(src="https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg" alt="Banner Image" style="width: 100%; height: auto;")
