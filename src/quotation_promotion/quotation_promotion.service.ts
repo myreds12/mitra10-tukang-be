@@ -332,6 +332,9 @@ export class QuotationPromotionService {
           deleted_by: null,
           quotation_id: id,
         },
+        orderBy: {
+          created_at: 'desc'
+        },
         include: {
           quotation: {
             include: {
@@ -378,7 +381,7 @@ export class QuotationPromotionService {
       const quotationNoPromotion = data.quotation.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0);
       const promotion = data.quotation.promotion ? (-Number(data.quotation.promotion.promotion)) : 0;
       const customerPrice = quotationNoPromotion + promotion;
-      const vendorMargin = (quotationNoPromotion * ((100 - Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)) / 100));
+      const vendorMargin = (quotationNoPromotion * ((Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)) / 100));
       const mitraMargin = 100 - Number(data?.quotation?.order?.vendor?.margin_nominal ?? 0);
       const promotionNominal = Number(data.promotion_nominal);
       const customerTransaction = customerPrice - promotionNominal; 
@@ -393,8 +396,8 @@ export class QuotationPromotionService {
         { key: `Margin Vendor ${Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)}%`, value: vendorMargin },
         { key: 'Pengajuan Discount Customer', value: promotionNominal },
         { key: 'Total Transakasi Customer', value: customerTransaction },
-        { key: 'Margin', value: customerPrice - vendorMargin },
-        { key: 'Margin Mitra setelah Disc', value: Math.ceil((customerPrice - vendorMargin) / quotationNoPromotion) },
+        { key: 'Margin', value: customerTransaction - vendorMargin },
+        { key: 'Margin Mitra setelah Disc', value: Math.ceil((customerTransaction - vendorMargin) / customerTransaction) },
       ];
 
       keyValuePairs.forEach(({ key, value }, pairIndex) => {

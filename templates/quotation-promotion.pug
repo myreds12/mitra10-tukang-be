@@ -324,4 +324,4 @@ overflow: hidden;\
                     padding: 8px;\
                     font-size: 0.875rem;\
                     ')
-                        | #{'Rp. ' + (reducedTotal - data.quotation_promotion_ho[0].promotion_nominal).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                        | #{'Rp. ' + (data.quotation_grand_total - data.quotation_promotion_ho[0].promotion_nominal).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
