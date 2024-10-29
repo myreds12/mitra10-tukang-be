@@ -390,7 +390,7 @@ export class QuotationPromotionService {
       const customerPrice = quotationNoPromotion + promotion;
       const vendorMargin = (quotationNoPromotion * ((Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)) / 100));
       const mitraMargin = 100 - Number(data?.quotation?.order?.vendor?.margin_nominal ?? 0);
-      const promotionNominal = Number(data.promotion_nominal) * quotationNoPromotion / 100;
+      const promotionNominal = (Number(data.promotion_nominal) * quotationNoPromotion) / 100;
       const customerTransaction = customerPrice - promotionNominal; 
 
       console.log(promotionNominal);
@@ -407,7 +407,7 @@ export class QuotationPromotionService {
         { key: 'Pengajuan Discount Customer', value: promotionNominal },
         { key: 'Total Transakasi Customer', value: customerTransaction },
         { key: 'Margin', value: customerTransaction - vendorMargin },
-        { key: 'Margin Mitra setelah Disc', value: Math.ceil((customerTransaction - vendorMargin) / customerTransaction) },
+        { key: 'Margin Mitra setelah Disc', value: `${Math.ceil((customerTransaction - vendorMargin) / customerTransaction)}%` },
       ];
 
       keyValuePairs.forEach(({ key, value }, pairIndex) => {
