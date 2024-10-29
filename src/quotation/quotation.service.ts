@@ -887,6 +887,7 @@ export class QuotationService {
               updateQuotationDto?.receipt_quotation,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
+            quotation_special: updateQuotationDto?.quotation_special ?? undefined, 
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)

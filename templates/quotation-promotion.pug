@@ -308,7 +308,7 @@ overflow: hidden;\
                     padding: 8px;\
                     font-size: 0.875rem;\
                     ')
-                        | #{data.quotation_promotion_ho[0].promotion_nominal} %
+                        | #{'Rp. ' + ((data.quotation_promotion_ho[0].promotion_nominal * reducedTotal) / 100).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} 
                 tr
                     td(colspan='3', style='\
                     border: 1px solid #e2e8f0;\

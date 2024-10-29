@@ -10,10 +10,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
 import { PdfService } from 'src/common/service/pdf.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
 @Injectable()
 export class QuotationPromotionService {
-  constructor(private readonly dbService: PrismaService, private readonly pdfService: PdfService) { }
+  constructor(private readonly dbService: PrismaService, private readonly pdfService: PdfService, private readonly notifService: NotificationsService) { }
   async create(createQuotationPromotionDto: CreateQuotationPromotionDto, quotation_promotion_evidences: Express.Multer.File[], user: users) {
     try {
       const { id: user_id } = user;
@@ -45,6 +47,8 @@ export class QuotationPromotionService {
           data
         })
       ]);
+
+      await this.notifService.create(quotation_promotion, "CREATE",quotation_promotion.created_by, moduleTypeNotification.QUOTATION_PROMOTION, quotation_promotion.id, quotation_promotion.status);
 
       return quotation_promotion;
     } catch (error) {
@@ -280,7 +284,10 @@ export class QuotationPromotionService {
           }
         }),
         this.dbService.quotation_promotion.update(data),
-      ])
+      ]);
+
+      await this.notifService.create(quotationPromotion, "UPDATE",quotationPromotion.updated_by, moduleTypeNotification.QUOTATION_PROMOTION, quotationPromotion.id, quotationPromotion.status);
+
 
       return quotationPromotion;
     } catch (error) {
@@ -383,8 +390,11 @@ export class QuotationPromotionService {
       const customerPrice = quotationNoPromotion + promotion;
       const vendorMargin = (quotationNoPromotion * ((Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)) / 100));
       const mitraMargin = 100 - Number(data?.quotation?.order?.vendor?.margin_nominal ?? 0);
-      const promotionNominal = Number(data.promotion_nominal);
+      const promotionNominal = Number(data.promotion_nominal) * quotationNoPromotion / 100;
       const customerTransaction = customerPrice - promotionNominal; 
+
+      console.log(promotionNominal);
+      
 
 
       // Define key-value pairs for each order

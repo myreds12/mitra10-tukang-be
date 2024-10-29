@@ -4,7 +4,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { HttpService } from '@nestjs/axios';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { currentLineHeight } from 'pdfkit';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
@@ -555,36 +554,36 @@ export class ReportsService {
       orders.forEach((order) => {
         // Tambahkan 7 jam ke waktu UTC
         const orderTimeInWIB = new Date(new Date(order.created_at).getTime() + 7 * 60 * 60 * 1000);
-      
+
         const period = isSameDay
           ? orderTimeInWIB.toLocaleString('id-ID', {
-              hour: '2-digit',
-              hour12: false,
-            })
+            hour: '2-digit',
+            hour12: false,
+          })
           : isSameMonth
             ? orderTimeInWIB.toLocaleString('id-ID', {
-                day: '2-digit',
-              })
+              day: '2-digit',
+            })
             : orderTimeInWIB.toLocaleString('id-ID', {
-                month: 'long',
-              });
-      
+              month: 'long',
+            });
+
         if (summary[period]) {
           if (!['INVESTIGATED'].includes(order.status.category)) {
             summary[period].totalOrder++;
           }
           summary[period].totalOrderGrandTotal += Number(order.grand_total);
-      
+
           Object.entries(statusCategories).forEach(([key, statuses]) => {
             if (statuses.includes(order.status.category)) {
               summary[period][key]++;
             }
           });
-      
+
           if (order.receipt_number === null) {
             summary[period].totalUnpaidReceipt++;
           }
-      
+
           if (order?.work_orders?.status?.category === 'RESURVEY') {
             summary[period].totalResurveyComplaint++;
           }
@@ -597,13 +596,13 @@ export class ReportsService {
           if (order?.work_orders?.status?.category === 'REWORKEND') {
             summary[period].totalReworkComplaint++;
           }
-      
+
           if (
             order?.complaints[0]?.status?.category === 'COMPLAINTAPPROVEDBYHO'
           ) {
             summary[period].totalComplaintApprovedByHo++;
           }
-      
+
           if (
             order?.complaints?.find(
               (i) => i.status.category === 'COMPLAINTREJECTEDBYHO',
@@ -611,7 +610,7 @@ export class ReportsService {
           ) {
             summary[period].totalComplaintRejectedByHo++;
           }
-      
+
           if (
             (order.payment_type === 'survey' ||
               order.payment_type === 'pemasangan_tanpa_survey') &&
@@ -619,7 +618,7 @@ export class ReportsService {
           ) {
             summary[period].totalUnpaidQuotation++;
           }
-      
+
           const workEndDate = new Date(
             order?.work_orders?.work_order_status?.find(
               (i) => i.status.category === 'WORKEND',
@@ -628,14 +627,14 @@ export class ReportsService {
           const warrantyExpirationDate = new Date(
             workEndDate.getTime() + H_PLUS_7_DAYS,
           );
-      
+
           const orderDoneStatuses = statusCategories.totalOrderDone;
-      
+
           if (orderDoneStatuses.includes(order.status.category)) {
             if (order.complaints) {
               summary[period].totalUsedWarranty++;
             }
-      
+
             if (now <= warrantyExpirationDate) {
               summary[period].totalActiveWarranty++;
             } else {
@@ -644,7 +643,7 @@ export class ReportsService {
           }
         }
       });
-      
+
 
       // Ensure all periods are accounted for, even if empty
       periods.forEach((period) => {
@@ -1554,495 +1553,7 @@ export class ReportsService {
     }
   }
 
-
-  // async generalReport(res: Response, queryParams: QueryParamsDto) {
-  //   try {
-  //     const {
-  //       take,
-  //       page,
-  //       search,
-  //       status,
-  //       date_from,
-  //       date_to,
-  //       order_by,
-  //       sales_id,
-  //       payment_type,
-  //       store_id,
-  //       vendor_id,
-  //       work_order_status,
-  //       is_promotion,
-  //     } = queryParams;
-
-  //     const skip = page * take - take;
-
-  //     const where: Prisma.ordersWhereInput = {
-  //       AND: [
-  //         ...(search
-  //           ? [
-  //               {
-  //                 OR: [
-  //                   { receipt_number: { contains: search } },
-  //                   { members: { full_name: { contains: search } } },
-  //                   {
-  //                     store: {
-  //                       store_name: {
-  //                         contains: search,
-  //                       },
-  //                     },
-  //                   },
-  //                   {
-  //                     project_number: {
-  //                       contains: search,
-  //                     },
-  //                   },
-  //                 ],
-  //               },
-  //             ]
-  //           : []),
-  //         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
-  //         ...(status ? [{ status: { id: { in: status } } }] : []),
-  //         ...(work_order_status
-  //           ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
-  //           : []),
-  //         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
-  //         store_id
-  //           ? {
-  //               store_id: {
-  //                 in: store_id,
-  //               },
-  //             }
-  //           : undefined,
-  //         vendor_id
-  //           ? {
-  //               vendor: {
-  //                 id: vendor_id,
-  //                 deleted_at: null,
-  //               },
-  //             }
-  //           : undefined,
-  //         ...(date_from && date_to
-  //           ? [
-  //               {
-  //                 created_at: {
-  //                   gte: new Date(date_from),
-  //                   lte: new Date(`${date_to}T23:59:59.000Z`),
-  //                 },
-  //               },
-  //             ]
-  //           : []),
-  //         ...(is_promotion
-  //           ? [
-  //               {
-  //                 OR: [
-  //                   {
-  //                     AND: [
-  //                       {
-  //                         payment_type: 'gratis',
-  //                       },
-  //                       {
-  //                         status: {
-  //                           category: 'WORKEND',
-  //                         },
-  //                       },
-  //                     ],
-  //                   },
-  //                   {
-  //                     AND: [
-  //                       {
-  //                         quotation: {
-  //                           some: {
-  //                             promotion_id: {
-  //                               not: null,
-  //                             },
-  //                           },
-  //                         },
-  //                       },
-  //                       {
-  //                         status: {
-  //                           category: 'WORKEND',
-  //                         },
-  //                       },
-  //                     ],
-  //                   },
-  //                 ],
-  //               },
-  //             ]
-  //           : []),
-  //       ].filter(Boolean),
-  //       deleted_at: null,
-  //     };
-
-  //     const data = await this.dbService.orders.findMany({
-  //       where,
-  //       orderBy: {
-  //         created_at: order_by,
-  //       },
-  //       include: {
-  //         members: {
-  //           where: {
-  //             deleted_at: null,
-  //             deleted_by: null,
-  //           },
-  //           select: {
-  //             id: true,
-  //             area_id: true,
-  //             area: true,
-  //             join_location: true,
-  //             member_number: true,
-  //             full_name: true,
-  //             email: true,
-  //             phone_number: true,
-  //             whatsapp_number: true,
-  //             address_1: true,
-  //             address_2: true,
-  //             zip_code: true,
-  //             rating: true,
-  //             join_date: true,
-  //             created_at: true,
-  //             updated_at: true,
-  //             created_by: true,
-  //             updated_by: true,
-  //           },
-  //         },
-  //         sales: {
-  //           where: {
-  //             deleted_at: null,
-  //             deleted_by: null,
-  //           },
-  //           select: {
-  //             id: true,
-  //             store_id: true,
-  //             user_id: true,
-  //             full_name: true,
-  //             nik: true,
-  //             bank_id: true,
-  //             bank_branch: true,
-  //             account_name: true,
-  //             is_active: true,
-  //             created_at: true,
-  //             updated_at: true,
-  //             created_by: true,
-  //             updated_by: true,
-  //           },
-  //         },
-  //         store: {
-  //           select: {
-  //             id: true,
-  //             store_name: true,
-  //             address: true,
-  //             area_id: true,
-  //             area: true,
-  //             zip_code: true,
-  //             created_at: true,
-  //             updated_at: true,
-  //             created_by: true,
-  //             updated_by: true,
-  //           },
-  //         },
-  //         status: {
-  //           select: {
-  //             id: true,
-  //             category: true,
-  //             description: true,
-  //           },
-  //         },
-
-  //         vendor: {
-  //           where: {
-  //             deleted_at: null,
-  //             deleted_by: null,
-  //           },
-  //           select: {
-  //             id: true,
-  //             company_name: true,
-  //             address: true,
-  //             phone_number: true,
-  //             is_active: true,
-  //             work_orders: {
-  //               where: {
-  //                 deleted_at: null,
-  //                 deleted_by: null,
-  //               },
-  //             },
-  //           },
-  //         },
-  //         m_order_details: {
-  //           where: {
-  //             deleted_at: null,
-  //             deleted_by: null,
-  //           },
-  //           select: {
-  //             id: true,
-  //             order_id: true,
-  //             item_code: true,
-  //             item_name: true,
-  //             item_notes: true,
-  //             item_id: true,
-  //             item: {
-  //               select: {
-  //                 id: true,
-  //                 item_name: true,
-  //                 category: true,
-  //                 default_price: true,
-  //                 service_name: true,
-  //               },
-  //             },
-  //             sales: true,
-  //             unit_price: true,
-  //             quantity: true,
-  //             total: true,
-  //             comission: true,
-  //             created_by: true,
-  //             created_at: true,
-  //           },
-  //         },
-  //         quotation: {
-  //           where: {
-  //             deleted_at: null,
-  //             deleted_by: null,
-  //           },
-  //           include: {
-  //             promotion: true,
-  //             quotation_details: {
-  //               include: {
-  //                 item: true,
-  //               },
-  //             },
-  //             quotation_files: true,
-  //           },
-  //         },
-  //         work_orders: {
-  //           where: {
-  //             deleted_at: null,
-  //           },
-  //           include: {
-  //             request_tukang: {
-  //               include: {
-  //                 tukang_to_request_tukang: true,
-  //                 tukang_to_replace_tukang: true,
-  //               },
-  //             },
-  //             vendor: true,
-  //             work_order_evidences: true,
-  //             work_order_tukang: {
-  //               include: {
-  //                 tukang: true,
-  //               },
-  //             },
-  //             work_order_status: {
-  //               include: {
-  //                 status: true,
-  //                 work_order_items: {
-  //                   include: {
-  //                     item: true,
-  //                   },
-  //                   where: {
-  //                     deleted_at: null,
-  //                     deleted_by: null,
-  //                   },
-  //                 },
-  //               },
-  //               orderBy: {
-  //                 created_at: 'desc',
-  //               },
-  //             },
-  //           },
-  //         },
-  //       },
-  //     });
-
-  //     if (!data || data.length === 0) {
-  //       console.log("No data to process");
-  //       return res.status(404).send("No data found for the given invoice.");
-  //     }
-
-  //     const workbook = new exceljs.Workbook();
-  //     const worksheet = workbook.addWorksheet('Data Invoice', {
-  //       properties: {
-  //         tabColor: { argb: '097969' },
-  //       },
-  //       pageSetup: {
-  //         margins: {
-  //           left: 0.7,
-  //           right: 0.7,
-  //           top: 0.75,
-  //           bottom: 0.75,
-  //           header: 0.3,
-  //           footer: 0.3,
-  //         },
-  //       },
-  //     });
-
-  //     console.log("Sebelum pengaturan, nilai A1: ", worksheet.getCell('A2').value);
-
-  //     worksheet.mergeCells('A2:L3');
-
-  //     worksheet.getCell('A2').value = `Mitra10 E-Commerce and Digital Marketing`;
-  //     worksheet.getCell('A2').font = { size: 16, bold: true };
-  //     worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
-
-  //     console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
-
-  //     worksheet.columns = [
-  //       { header: 'Instalation Booking', key: 'instalation_booking', width: 10 },
-  //       { header: 'kosongkan ', key: 'kosong', width: 25 },
-  //       { header: 'Nama Customer', key: 'member_name', width: 50 },
-  //       { header: 'Nama Pemasangan', key: 'item_name', width: 50 },
-  //       { header: 'Tanggal Survey/Pengerjaan', key: 'survey_date', width: 50 },
-  //       { header: 'Total Harga', key: 'invoice_price', width: 60 },
-  //       { header: 'Transaksi Customer', key: 'customer_transaction', width: 50 },
-  //       { header: 'Harga Jasa', key: 'instalation_price', width: 50 },
-  //       { header: 'Margin PPN', key: 'margin_ppn', width: 50 },
-  //       { header: 'Selisih Non PPN', key: 'margin_non_ppn', width: 50 },
-  //       { header: 'Margin', key: 'margin', width: 30 },
-  //       { header: 'No Receipt', key: 'receipt_number', width: 50 },
-  //     ];
-
-  //     const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
-  //     headerRow.eachCell((cell) => {
-  //       cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
-  //       cell.fill = {
-  //         type: 'pattern',
-  //         pattern: 'solid',
-  //         fgColor: { argb: '0000FF' },
-  //       };
-  //       cell.alignment = { vertical: 'middle', horizontal: 'center' };
-  //       cell.border = {
-  //         top: { style: 'thin' },
-  //         left: { style: 'thin' },
-  //         bottom: { style: 'thin' },
-  //         right: { style: 'thin' },
-  //       };
-  //     });
-
-  //     worksheet.getCell('A1').value = null;
-
-  //     worksheet.getRow(1).eachCell((cell) => {
-  //       cell.value = null;
-  //     });
-
-  //     // Inisialisasi total
-  //     let totals = {
-  //       customer_transaction: 0,
-  //       invoice_price: 0,
-  //       instalation_price: 0,
-  //       margin_ppn: 0,
-  //       margin_non_ppn: 0,
-  //       margin: 0,
-  //     };
-
-  //     // Proses setiap order dalam data
-  //     data.forEach((order, index) => {
-  //       const customer_transaction = order.order.payment_type !== 'survey'
-  //         ? order.order.grand_total
-  //         : (order.type === 2 && order.order.payment_type === 'survey' && order.order.quotation[0])
-  //           ? order.order.quotation[0].quotation_grand_total
-  //           : order.order.grand_total;
-
-  //       const invoice_price = order.total;
-  //       const instalation_price = Math.floor(+customer_transaction / 1.11);
-  //       const margin_ppn = instalation_price - invoice_price;
-  //       const price_difference = +customer_transaction - invoice_price;
-  //       const receipt_number = order.order.quotation.length ? order.order.quotation[0].receipt_quotation : order.order.receipt_number;
-
-  //       // Tambahkan data ke dalam worksheet
-  //       worksheet.addRow({
-  //         no: index + 1,
-  //         order_id: order.order_id,
-  //         member_name: order.order.members.full_name,
-  //         item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
-  //         survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',
-  //         invoice_price: invoice_price,
-  //         customer_transaction: +customer_transaction,
-  //         instalation_price: instalation_price,
-  //         margin_ppn: `${isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100)}%`,
-  //         margin_non_ppn: Math.ceil(price_difference / 1.11),
-  //         margin: `${Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)}%`,
-  //         receipt_number: receipt_number,
-  //       });
-
-  //       // Update totals
-  //       totals.customer_transaction += +customer_transaction;
-  //       totals.invoice_price += invoice_price;
-  //       totals.instalation_price += instalation_price;
-  //       totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
-  //       totals.margin_non_ppn += Math.ceil(price_difference / 1.11);
-  //       totals.margin += Math.ceil((price_difference / +customer_transaction) * 100);
-  //     });
-
-  //     // Tambahkan total baris
-  //     const totalsRow = worksheet.addRow({
-  //       no: 'Total',
-  //       invoice_price: totals.invoice_price,
-  //       customer_transaction: totals.customer_transaction,
-  //       instalation_price: totals.instalation_price,
-  //       margin_ppn: `${totals.margin_ppn}%`,
-  //       margin_non_ppn: totals.margin_non_ppn,
-  //       margin: `${totals.margin}%`,
-  //     });
-
-  //     worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
-  //     totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
-
-  //     totalsRow.eachCell((cell, colNumber) => {
-  //       if (colNumber > 1) {
-  //         cell.font = { bold: true };
-  //         cell.alignment = { vertical: 'middle', horizontal: 'left' };
-  //         cell.border = {
-  //           top: { style: 'thin' },
-  //           left: { style: 'thin' },
-  //           bottom: { style: 'thin' },
-  //           right: { style: 'thin' },
-  //         };
-  //       }
-  //     });
-
-  //     // Fungsi untuk mendapatkan tanggal format saat ini
-  //     const getFormattedDate = () => {
-  //       const now = new Date();
-  //       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  //     };
-
-  //     // Fungsi untuk membuat path file Excel
-  //     const createExcelFilePath = (baseName: string) => {
-  //       const folderPath = './storage/excel/invoice/rekonsel';
-  //       if (!fs.existsSync(folderPath)) {
-  //         fs.mkdirSync(folderPath, { recursive: true });
-  //       }
-  //       const excelFileName = `${baseName}-${Date.now()}.xlsx`;
-  //       return path.join(folderPath, excelFileName);
-  //     };
-
-  //     // Fungsi untuk menulis workbook dan mengirimkan respons
-  //     const writeWorkbookAndSendResponse = async (
-  //       workbook: exceljs.Workbook,
-  //       excelFilePath: string,
-  //       res: Response,
-  //     ) => {
-  //       await workbook.xlsx.writeFile(excelFilePath);
-  //       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  //       res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
-  //       const fileStream = fs.createReadStream(excelFilePath);
-  //       fileStream.pipe(res);
-  //     };
-
-  //     // Generate file Excel
-  //     const generateExcelFile = async (res) => {
-  //       const formattedDate = getFormattedDate();
-  //       const baseName = `DataInvoice-${formattedDate}`;
-  //       const excelFilePath = createExcelFilePath(baseName);
-  //       await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
-  //     };
-
-  //     // Jalankan pembuatan file Excel
-  //     return generateExcelFile(res);
-  //   } catch (error) {
-  //     console.error(error);
-  //     res.status(500).send("An error occurred while generating the invoice.");
-  //   }
-  // }
-
-  async generateStaticBookingReport(queryParams: QueryParamsDto, res: Response) {
+  async generalReport(queryParams: QueryParamsDto, res: Response) {
     try {
       const {
         take,
@@ -2428,6 +1939,9 @@ export class ReportsService {
               deleted_at: null,
               deleted_by: null,
             },
+            orderBy: {
+              created_at: 'desc'
+            },
             include: {
               promotion: true,
               quotation_receipt: true,
@@ -2443,29 +1957,26 @@ export class ReportsService {
       });
 
       console.log(data);
-      
 
-      if(data.length === 0) throw new NotFoundException('Order data not found');
+
+      if (data.length === 0) throw new NotFoundException('Order data not found');
 
       const itemMap = new Map();
 
       data.forEach(order => {
         order.m_order_details.forEach(detail => {
-          if (detail.item.type === 1 || 2) {
-            const itemName = detail.item.item_name;
-            const quantity = detail.quantity || 0;
-            const type = detail.item.type;
+          if (detail?.item?.type === 1 || detail?.item?.type === 2) {
+            const quantity = detail?.quantity || 0;
+            const type = detail?.item?.type;
 
-            if (itemMap.has(itemName)) {
-              const itemData = itemMap.get(itemName);
+            if (itemMap.has(type)) {
+              const itemData = itemMap.get(type);
               itemData.quantity += quantity;
               itemData.orderCount += 1;
-              itemData.type = type;
-              itemMap.set(itemName, itemData);
+              itemMap.set(type, itemData);
             } else {
-              itemMap.set(itemName, { quantity: quantity, orderCount: 1 });
+              itemMap.set(type, { quantity: quantity, orderCount: 1, type: type });
             }
-
           }
         });
       });
@@ -2476,13 +1987,7 @@ export class ReportsService {
         type: number;
       }
 
-      const allItems: Item[] = [...itemMap.entries()]
-        .map(([itemName, data]) => ({
-          itemName,
-          quantity: data.quantity,
-          orderCount: data.orderCount,
-          type: data.type
-        }));
+      const allItems = Array.from(itemMap.values());
 
       console.log(allItems);
 
@@ -2557,7 +2062,7 @@ export class ReportsService {
         x.payment_type === 'survey'
       ).length;
 
-      const quotationPaid = data.filter((x) => x?.quotation.length > 0 && x.payment_type === 'survey').length;
+      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
       const quotationPaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation != null && x.payment_type === 'survey')
         .reduce((total, order) => {
@@ -2597,10 +2102,9 @@ export class ReportsService {
       const dateFrom = new Date(date_from);
       const dateTo = new Date(date_to);
 
-      const formattedDateFrom = dateFrom.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }); 
+      const formattedDateFrom = dateFrom.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
       const formattedDateTo = dateTo.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // Mengatur nilai cell dengan format yang diinginkan
       const titleCell = worksheet.getCell('A1');
       worksheet.getRow(1).height = 40;
       titleCell.value = `Installation Service: ${formattedDateFrom} - ${formattedDateTo}`;
@@ -2635,7 +2139,6 @@ export class ReportsService {
         pattern: 'solid',
         fgColor: { argb: 'FF17365D' },
       };
-      worksheet.mergeCells('E2:F2');
 
       const example = [];
 
@@ -2652,51 +2155,57 @@ export class ReportsService {
         value: string | number;
         quotationLabel: string;
         quotationValue: string | number;
+        itemLabel: string | number;
+        itemValue: string | number;
       }
+
+
 
       const currentMonth = dateFrom.toLocaleString('default', { month: 'long' });
 
       const nextMonthDate = new Date(dateFrom.getFullYear(), dateFrom.getMonth() + 1);
       const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long' });
-      console.log(nextMonthDate, nextMonthName)
+
+      const freeSummary = allItems.find(item => item.type === 1) || { orderCount: 0, quantity: 0 };
+      const installationSummary = allItems.find(item => item.type === 2) || { orderCount: 0, quantity: 0 };
+
+      // Periksa apakah freeSummary dan installationSummary memiliki nilai yang benar
+      console.log("freeSummary:", freeSummary);
+      console.log("installationSummary:", installationSummary);
 
       const statuses: Status[] = [
-        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
-        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue }, // Ganti dengan bulan ini
-        { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
-        { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
-        { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing }, // Ganti dengan bulan depan
-        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation }
+        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid, itemLabel: `FREE(${freeSummary?.orderCount})`, itemValue: freeSummary?.quantity || 0 },
+        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue, itemLabel: `PEMASANGAN TANPA SURVEY(${installationSummary?.orderCount})`, itemValue: installationSummary?.quantity || 0 },
+        { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid, itemLabel: '', itemValue: '' },
+        { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue, itemLabel: '', itemValue: '' },
+        { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing, itemLabel: '', itemValue: '' },
+        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation, itemLabel: '', itemValue: '' },
+        { label: '', value: '', quotationLabel: '', quotationValue: '', itemLabel: '', itemValue: '' },
+        { label: '', value: '', quotationLabel: '', quotationValue: '', itemLabel: '', itemValue: '' }
       ];
 
-
-      const itemLength = allItems.length;
-      const statusLength = statuses.length;
-
-      const maxLength = Math.max(itemLength, statusLength);
+      const maxLength = statuses.length;
 
       for (let i = 0; i < maxLength; i++) {
         const status = statuses[i] || {} as Status;
         const statusText = status.label ? `${status.label}: ${status.value}` : '';
         const quotationText = status.quotationLabel ? `${status.quotationLabel}: ${status.quotationValue}` : '';
-
-        const item = allItems[i] || {} as Item;
-        const itemName = item.itemName && item.orderCount ? `${item.itemName} ${item.type === 1 ? '(FREE)' : ''}: ${item.orderCount}` || '' : '';
-        const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
+        const itemText = status.itemLabel ? `${status.itemLabel}: ${status.itemValue}` : '';
 
         const row = [
           { richText: [{ text: statusText || '', font: { argb: 'FF000000' } }] },
           '',
           { richText: [{ text: quotationText || '', font: { argb: 'FF000000' } }] },
           '',
-          itemName || '',
-          quantity || ''
+          { richText: [{ text: itemText || '', font: { argb: 'FF000000' } }] },
+          ''
         ];
 
         example.push(row);
       }
 
-      console.log(example);
+      // Output hasil untuk memastikan data sudah terisi
+      console.log("example:", example);
 
       example.forEach(row => {
         const newRow = worksheet.addRow(row);
