@@ -830,7 +830,7 @@ model m_order_details {
   id       Int  @id @default(autoincrement())
   order_id Int
   item_id  Int?
-  sales_id Int
+  sales_id Int?
 
   item_code  String? @db.VarChar(200)
   item_name  String? @db.VarChar(200)
@@ -848,7 +848,7 @@ model m_order_details {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
 
-  sales sales  @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales sales? @relation(fields: [sales_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   order orders @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   item  items? @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: Cascade)
 }
@@ -937,14 +937,15 @@ model quotation {
   emailSended       Int @default(0)
   quotation_special Int @default(0)
 
-  description           String    @db.Text()
-  quotation_number      String
-  quotation_date        DateTime  @db.Date()
-  quotation_validity    DateTime? @db.Date()
-  quotation_disc        Decimal   @default(0) @db.Decimal(32, 2)
-  quotation_promotion   Decimal   @default(0) @db.Decimal(32, 2)
-  quotation_grand_total Decimal   @db.Decimal(32, 2)
-  receipt_quotation     String?   @db.NVarChar(30)
+  description            String    @db.Text()
+  quotation_number       String
+  quotation_date         DateTime  @db.Date()
+  quotation_validity     DateTime? @db.Date()
+  quotation_disc         Decimal   @default(0) @db.Decimal(32, 2)
+  quotation_promotion    Decimal   @default(0) @db.Decimal(32, 2)
+  quotation_grand_total  Decimal   @db.Decimal(32, 2)
+  quotation_no_promotion Decimal   @default(0) @db.Decimal(32, 2)
+  receipt_quotation      String?   @db.NVarChar(30)
 
   created_by Int?
   updated_by Int?
@@ -986,7 +987,7 @@ model quotation_promotion {
 }
 
 model quotation_promotion_evidences {
-  id Int @id @default(autoincrement())
+  id                     Int @id @default(autoincrement())
   quotation_promotion_id Int
 
   path String @db.Text()
@@ -1001,7 +1002,6 @@ model quotation_promotion_evidences {
   deleted_at DateTime? @db.DateTime()
 
   quotation_promotion_ho quotation_promotion @relation(fields: [quotation_promotion_id], references: [id])
-
 }
 
 model quotation_follow_up {

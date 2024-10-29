@@ -207,6 +207,7 @@ export class QuotationService {
         quotation_disc: createQuotationDto?.quotation_disc,
         quotation_promotion: createQuotationDto?.quotation_promotion,
         quotation_special: createQuotationDto.quotation_special,
+        quotation_no_promotion: grandTotal,
         quotation_grand_total:
           grandTotal -
           (createQuotationDto.quotation_disc
@@ -901,6 +902,7 @@ export class QuotationService {
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
+            quotation_no_promotion: grandTotal,
             quotation_grand_total:
               grandTotal -
               ((updateQuotationDto.quotation_disc
