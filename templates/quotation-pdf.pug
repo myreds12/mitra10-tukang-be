@@ -48,6 +48,60 @@ html(lang="en")
               td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: bold;") Biaya Survey
               - var formattedSurveyPrice = 'Rp. ' + data.quotation.order.grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedSurveyPrice}
+        .order-info(style="padding: 20px;")
+        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+          thead
+            tr
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
+              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
+          tbody
+            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
+              tr
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")=item.name ? item.name : '-'
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-'	
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
+
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+          thead
+            tr
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Material Yang Dibutuhkan
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
+              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
+          tbody
+            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
+              tr
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-'	
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-'
+                - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
+            tr
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
+              - var reducedTotal = 0
+              - data.quotation.quotation_details.forEach(detail => {
+              -   var reducedPrice = parseFloat(detail.final_price) 
+              -   reducedTotal += reducedPrice
+              - })
+              - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
+            tr
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
+              - var formattedQuotationPromotion = data.quotation.quotation_promotion ? 'Rp. ' + data.quotation.quotation_promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
+            tr
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+              - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
+            tr
+              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
+              - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
