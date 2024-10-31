@@ -26,19 +26,19 @@ export class MailsService {
 
   async create(createEmailMessageDto: CreateEmailMessageDto, user_id: number, files: { [name: string]: Express.Multer.File[] }) {
     const { header_files, footer_files } = files;
-    const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-      header_files?.map((item) => ({
-        type: 1,
-        path: item.filename,
-        created_by: user_id,
-      }));
-    const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-      footer_files?.map((item) => ({
-        type: 2,
-        path: item.filename,
-        created_by: user_id,
-      }));
-    const evidence = [...header || [], ...footer || []];
+    // const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+    //   header_files?.map((item) => ({
+    //     type: 1,
+    //     path: item.filename,
+    //     created_by: user_id,
+    //   }));
+    // const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+    //   footer_files?.map((item) => ({
+    //     type: 2,
+    //     path: item.filename,
+    //     created_by: user_id,
+    //   }));
+    // const evidence = [...header || [], ...footer || []];
     const termsDetail: Prisma.terms_detailCreateManyEmail_messagesInput[] =
       createEmailMessageDto.terms_detail.map((item) => {
         return {
@@ -63,9 +63,9 @@ export class MailsService {
           data: termsDetail,
         },
       },
-      email_message_image: header_files || footer_files ? {
-        createMany: {data: evidence}
-      } : undefined,
+      // email_message_image: header_files || footer_files ? {
+      //   createMany: {data: evidence}
+      // } : undefined,
       information_detail: {
         createMany: {
           data: informationDetail,
@@ -176,11 +176,11 @@ export class MailsService {
         },
         csi_template: true,
         trigger: true,
-        email_message_image: {
-          where: {
-            deleted_at: null
-          }
-        }
+        // email_message_image: {
+        //   where: {
+        //     deleted_at: null
+        //   }
+        // }
       },
     });
 
@@ -195,19 +195,19 @@ export class MailsService {
   ) {
     try {
       const { header_files, footer_files } = files;
-    const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-      header_files?.map((item) => ({
-        type: 1,
-        path: item.filename,
-        created_by: user_id,
-      }));
-    const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-      footer_files?.map((item) => ({
-        type: 2,
-        path: item.filename,
-        created_by: user_id,
-      }));
-    const evidence = [...header, ...footer];
+    // const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+    //   header_files?.map((item) => ({
+    //     type: 1,
+    //     path: item.filename,
+    //     created_by: user_id,
+    //   }));
+    // const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+    //   footer_files?.map((item) => ({
+    //     type: 2,
+    //     path: item.filename,
+    //     created_by: user_id,
+    //   }));
+    // const evidence = [...header, ...footer];
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
           ? updateEmailMessageDto.terms_detail.map((item) => {
@@ -264,9 +264,9 @@ export class MailsService {
         welcome_header: updateEmailMessageDto.welcome_header,
         footer: updateEmailMessageDto.footer,
         is_active: Boolean(updateEmailMessageDto.is_active),
-        email_message_image: {
-          createMany: {data: evidence}
-        },
+        // email_message_image: {
+        //   createMany: {data: evidence}
+        // },
         updated_at: new Date(),
         updated_by: user_id,
         terms_detail: {
@@ -305,12 +305,12 @@ export class MailsService {
 
       };
 
-      const [syncFiles ,syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
-        this.dbService.email_message_image.deleteMany({
-          where: {
-            email_message_id: id
-          }
-        }),
+      const [syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
+        // this.dbService.email_message_image.deleteMany({
+        //   where: {
+        //     email_message_id: id
+        //   }
+        // }),
         this.dbService.terms_detail.updateMany({
           where: {
             ...(deletedTermsDetailsId && deletedTermsDetailsId.length
