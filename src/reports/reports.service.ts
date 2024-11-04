@@ -2007,17 +2007,19 @@ export class ReportsService {
         x.status.category === 'WORKEND' || x.status.category === 'SURVEYDONE' || x.status.category === 'WORKENDSTEPONE' || x.status.category === 'WORKENDSTEPTWO' || x.status.category === 'WORKENDSTEPTHREE'
       ).length;
 
-      const currentDate = new Date();
-      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-      const endOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const currentDate = new Date(date_from);
 
-      console.log("startOfMonth", startOfMonth);
-      console.log("endOfMonth", endOfMonth);
-      console.log("nextMonth", nextMonth);
-      console.log("endOfNextMonth", endOfNextMonth);
-
+      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 2);
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      
+      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 2);
+      const endOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 2);
+      
+      startOfMonth.setHours(0, 0, 0, 0);
+      endOfMonth.setHours(0, 0, 0, 0);
+      nextMonth.setHours(0, 0, 0, 0);
+      endOfNextMonth.setHours(0, 0, 0, 0);
+      
       const orderPending = data.filter((x) =>
         (
           x.status.category === 'WORKREQ' ||
@@ -2026,8 +2028,8 @@ export class ReportsService {
           x.status.category === 'WORKREQSTEPTWO' ||
           x.status.category === 'WORKREQSTEPTHREE'
         ) &&
-        new Date(x.request_survey) >= startOfMonth &&
-         new Date(x.request_work) >= startOfMonth &&
+        new Date(x.request_survey) >= startOfMonth || new Date(x.request_survey) <= endOfMonth &&
+        new Date(x.request_work) >= startOfMonth ||
         new Date(x.request_work) <= endOfMonth
       ).length;
 
@@ -2042,29 +2044,18 @@ export class ReportsService {
 
 
       const totalProgressOrder = [
-        'BOOKED',
-        'BOOK',
-        'PICKLIST',
-        'SURVEYREQ',
-        'SURVEYSTART',
-        'SURVEYEND',
-        'UNPAIDRECEIPT',
-        'WORKREQ',
-        'WORKSTART',
-        'QUOTEIN',
-        'QUOTEOUT',
-        'UNPAID',
-        'PAID',
-        'INVESTIGATED',
-        'RESURVEYREQ',
-        'RESURVEYSTART',
-        'RESURVEYEND',
-        'REWORKREQ',
-        'REWORKSTART',
+        'COMPLAINT',
+        'REFUND',
+        'RESCHEDULE',
+        'WORKEND',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'WORKENDSTEPTHREE',
+        'QUOTEIN'
       ];
 
       const orderProgress = data.filter((x) =>
-        totalProgressOrder.includes(x.status.category) && new Date(x.request_survey) >= nextMonth &&
+        !totalProgressOrder.includes(x.status.category) && new Date(x.request_survey) >= nextMonth &&
         new Date(x.request_survey) <= endOfNextMonth || new Date(x.request_work) >= nextMonth &&
         new Date(x.request_work) <= endOfNextMonth
       ).length;
@@ -2088,26 +2079,12 @@ export class ReportsService {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
         }, 0);
-
-      const orderWork = [
-        'WORKREQ',
-        'WORKSTART',
-        'TUKANGWORK',
-        'WORKREQSTEPTWO',
-        'WORKREQSTEPTHREE',
-        'WORKREQSTEPONE',
-        'WORKSTARTSTEPONE',
-        'WORKSTARTSTEPTWO',
-        'WORKSTARTSTEPTHREE',
-        'TUKANGWORKSTEPONE',
-        'TUKANGWORKSTEPTWO',
-        'TUKANGWORKSTEPTHREE',
-      ];
+        
       const orderSurveyOnGoing = data.filter((x) =>
         x.status.category === 'SURVEYREQ' || x.status.category === 'SURVEYSTART' && x.payment_type === 'survey'
       ).length;
       const orderSurveyNoQuotation = data.filter((x) =>
-        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYEND'
+        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYDONE'
       ).length;
 
       const dateFrom = new Date(date_from);
