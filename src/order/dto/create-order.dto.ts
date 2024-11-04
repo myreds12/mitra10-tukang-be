@@ -33,6 +33,9 @@ export class CreateOrderDto {
   store_id: number;
 
   @ApiProperty()
+  store_name: string;
+
+  @ApiProperty()
   @Type(() => Number)
   // @IsNumber()
   sales_id?: number;

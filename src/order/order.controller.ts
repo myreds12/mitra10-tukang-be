@@ -33,6 +33,7 @@ import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 // import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
 // import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
 // import { PermissionAction } from 'src/casl/enum/permission-action.enum';
@@ -51,6 +52,35 @@ export class OrderController {
     @InjectQueue('email') private emailQueue: Queue,
   ) {}
   private readonly logger = new Logger(OrderController.name);
+
+  @Post('/public')
+  // @CheckPermissions([PermissionAction.CREATE, menuName])
+  @UseInterceptors(FilesInterceptor('order_files'))
+  async createPublic(
+    @Body() createOrderDto: CreateOrderDto,
+    @Body() createMemberDto: CreateMemberDto,
+  ) {
+    try {
+      if (!createOrderDto.order_details)
+        throw new BadRequestException('Order Details cannot be null.');
+      if (!createOrderDto.order_details.length)
+        throw new BadRequestException(
+          'Order Details should be an one or many.',
+        );
+
+      const order = await this.orderService.createOrderPublic(
+        createOrderDto,
+        createMemberDto
+      );
+      // await this.sendEmailService.sendMail(order.id);
+
+      return order;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
 
   @Post('/history/:id')
   @UseGuards(JwtAuthGuard)

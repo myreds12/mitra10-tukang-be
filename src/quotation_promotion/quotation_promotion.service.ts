@@ -385,7 +385,7 @@ export class QuotationPromotionService {
 
       let rowIndex = 4; 
 
-      const quotationNoPromotion = data.quotation.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0);
+      const quotationNoPromotion = data?.quotation?.quotation_details?.reduce((acc, curr) => acc + Number(curr.final_price), 0);
       const promotion = data.quotation.promotion ? (-Number(data.quotation.promotion.promotion)) : 0;
       const customerPrice = quotationNoPromotion + promotion;
       const vendorMargin = (quotationNoPromotion * ((Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)) / 100));
