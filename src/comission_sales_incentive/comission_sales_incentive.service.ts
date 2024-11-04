@@ -50,6 +50,17 @@ export class ComissionSalesIncentiveService {
               }
             }
           },
+          include: {
+            sales_incentive: {
+              include: {
+                quotation:{
+                  include:{
+                    order: true
+                  }
+                }
+              }
+            }
+          }
         }),
         this.dbService.sales_incentive.updateMany({
           where: {
@@ -216,7 +227,7 @@ export class ComissionSalesIncentiveService {
         }
       }
     } catch (error) {
-      console.error(error);
+      console.log(error);
       throw error;
     }
   }
@@ -278,13 +289,12 @@ export class ComissionSalesIncentiveService {
   }
 
   async update(
-    id: number, // ID dari comission_sales_incentive yang ingin di-update
+    id: number,
     updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
     comission_sales_incentive_evidences: Express.Multer.File[],
     user: users,
   ) {
     try {
-      // Fetch existing sales_incentive_ids linked to the current comission_sales_incentive
       const existingSalesIncentives = await this.dbService.sales_incentive.findMany({
         where: {
           comission_sales_incentive_id: id,
@@ -309,7 +319,6 @@ export class ComissionSalesIncentiveService {
         };
       }) : [];
 
-      // Calculate the total amount of the new sales_incentives
       const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
         where: {
           id: {
@@ -318,7 +327,6 @@ export class ComissionSalesIncentiveService {
         }
       }).then((data) => data.reduce((acc, curr) => acc + Number(curr?.nominal), 0));
 
-      // Perform the update in a transaction
       const [comissionSalesIncentive, updateSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.update({
           where: { id },

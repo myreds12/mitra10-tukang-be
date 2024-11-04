@@ -18,6 +18,7 @@ import { basename, join } from 'path';
 import { PdfService } from 'src/common/service/pdf.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 
 @Injectable()
 export class OrderService {
@@ -5201,4 +5202,175 @@ export class OrderService {
       throw error
     }
   }
+
+  async createOrderPublic(dto: CreateOrderDto, memberDto: CreateMemberDto) {
+    try {
+      const store = await this.dbService.store.findFirst({
+        where: {
+          store_name: {
+            contains: dto.store_name
+          }
+        }
+      });
+
+      const member = await this.dbService.members.findFirst({
+        where: {
+          deleted_at: null,
+          email: memberDto?.email ?? undefined,
+          full_name: memberDto?.full_name ?? undefined,
+        }
+      });
+
+      let newMember;
+      if (!member) {
+        newMember = await this.dbService.members.create({
+          data: {
+            full_name: memberDto?.full_name ?? undefined,
+            email: memberDto?.email ?? undefined,
+            phone_number: memberDto?.phone_number ?? undefined,
+            whatsapp_number: memberDto?.whatsapp_number ?? undefined,
+            address_1: memberDto?.address_1 ?? undefined,
+            address_2: memberDto?.address_2 ?? undefined,
+            area_id: memberDto?.area_id ?? undefined,
+            zip_code: memberDto?.zip_code ?? undefined,
+            join_date: new Date(),
+            join_location: store?.id ?? undefined,
+          }
+        });
+      }
+
+      const requestedItemCodes = dto?.order_details?.map((x) => x?.item_code);
+
+      const items = await this.dbService.items.findMany({
+        where: {
+          deleted_at: null,
+          item_code: { in: requestedItemCodes }
+        },
+        include: {
+          category: true,
+          prices: {
+            where: {
+              periodic_start: { lte: new Date() },
+              periodic_end: { gte: new Date() },
+            },
+          },
+        },
+      });
+
+      const foundItemCodes = new Set(items.map(item => item.item_code));
+      const missingItems = requestedItemCodes.filter(code => !foundItemCodes.has(code));
+
+      if (missingItems.length > 0) {
+        throw new NotFoundException(`Item tidak ditemukan: ${missingItems.join(', ')}`);
+      }
+
+      const itemTypes = new Set(items.map(item => item.type));
+      if (itemTypes.size > 1) {
+        throw new BadRequestException("Tipe item berbeda ditemukan dalam daftar item yang diminta.");
+      }
+
+      const itemType = items[0]?.type;
+      let payment_type;
+      switch (itemType) {
+        case 1:
+          payment_type = "gratis";
+          break;
+        case 2:
+          payment_type = "pemasangan_tanpa_survey";
+          break;
+        case 3:
+          payment_type = "survey";
+          break;
+        default:
+          throw new BadRequestException("Tipe item tidak valid.");
+      }
+
+      const bookedStatus = await this.dbService.status.findFirst({
+        where: {
+          category: 'BOOKED'
+        }
+      });
+
+
+      let grand_total = 0;
+      if (payment_type === 'survey') grand_total += 99000;
+
+      const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
+        dto.order_details.map((item) => {
+          let total = 0;
+          const currentItem = items.find(({ item_code }) => item_code === item?.item_code);
+          const itemPrice = currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]?.price
+            ?? currentItem?.default_price
+            ?? 0;
+
+          if (payment_type === "pemasangan_tanpa_survey") {
+            total = Number(itemPrice) * item.quantity;
+            grand_total += total;
+          }
+
+          return {
+            item_id: currentItem?.id,
+            item_name: currentItem?.service_name ?? currentItem?.item_name,
+            item_code: currentItem?.item_code,
+            quantity: item?.quantity,
+            item_notes: item?.item_notes,
+            unit_price: itemPrice,
+            comission: 0,
+            total,
+          };
+        });
+
+
+      const orderConnection = Object.fromEntries(
+        Object.entries({
+          members: { connect: { id: member ? member.id : newMember.id } },
+          store: { connect: { id: store.id } },
+          status: { connect: { id: bookedStatus.id } },
+        }).filter(([key, value]) => value !== undefined),
+      );
+
+      const orderData = {
+        notes: dto?.notes ?? undefined,
+        project_address: member ? member?.address_1 : newMember.address_1,
+        project_number: dto?.project_number ?? undefined,
+        receipt_number: dto?.receipt_number ?? undefined,
+        grand_total: grand_total.toFixed(2),
+        payment_type,  // Menggunakan `payment_type` yang di-set berdasarkan tipe item
+        print_counter: 0,
+        request_survey: new Date(dto?.request_survey),
+      };
+
+      const ordersOptions: Prisma.ordersCreateArgs = {
+        data: {
+          ...orderConnection,
+          ...orderData,
+          m_order_details: { createMany: { data: order_details } },
+        },
+        include: {
+          status: true,
+        },
+      };
+
+      const [order] = await this.dbService.$transaction([
+        this.dbService.orders.create({
+          data: {
+            ...ordersOptions.data,
+          },
+          include: {
+            status: true,
+            work_orders: {
+              include: {
+                work_order_tukang: true,
+              },
+            },
+          },
+        }),
+      ]);
+      return order;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
 }

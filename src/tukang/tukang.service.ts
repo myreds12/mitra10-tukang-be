@@ -266,7 +266,7 @@ export class TukangService {
               }
             : undefined,
         ],
-        // deleted_at: null,
+        deleted_at: null,
       };
 
       const tukang = await this.dbService.tukang.findMany({
