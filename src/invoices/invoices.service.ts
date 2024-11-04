@@ -790,67 +790,111 @@ export class InvoicesService {
 
   async invoiceExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { invoice_status, invoice_id } = queryParams;
-      const data = await this.dbService.orders.findMany({
-        where: {
-          deleted_at: null,
-          deleted_by: null,
-          invoice_details: {
-            ...(invoice_status
-              ? {
-                some: {
-                  invoices: {
-                    status: invoice_status,
+      const {
+        page,
+        take,
+        search,
+        date_from,
+        date_to,
+        order_by,
+        vendor_id,
+        monthly,
+        status,
+        invoice_status,
+      } = queryParams;
+      const skip = page * take - take;
+      const now = new Date();
+      if (monthly) now.setFullYear(monthly);
+      const where: Prisma.invoicesWhereInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+                  {
+                    invoice_number: { contains: search },
                   },
-                },
-              }
-              : {}),
-            ...(invoice_id
-              ? {
-                some: {
-                  invoices: {
-                    id: invoice_id,
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
                   },
+                  {
+                    invoice_details: {
+                      some: {
+                        order_id: !isNaN(+search) ? +search : undefined,
+                      },
+                    },
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order: {
+                          store: {
+                            store_name: {
+                              contains: search,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(status
+            ? [
+              {
+                status: {
+                  in: status
                 },
-              }
-              : {}),
-          },
-        },
+              },
+            ]
+            : []),
+          date_from && date_to
+            ? {
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
+            : undefined,
+          vendor_id
+            ? {
+              vendor_id: vendor_id,
+            }
+            : undefined,
+          monthly
+            ? {
+              created_at: {
+                gte: new Date(now.getFullYear(), 0, 1),
+                lte: new Date(now.getFullYear(), 11, 31),
+              },
+            }
+            : undefined,
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+      const data = await this.dbService.invoices.findMany({
+        where,
         include: {
-          members: true,
           vendor: true,
-          store: true,
           invoice_details: {
             where: {
-              AND: [
-                ...(invoice_id
-                  ? [
-                    {
-                      invoice_id: invoice_id,
-                    },
-                  ]
-                  : []),
-                {
-                  deleted_at: null,
-                },
-              ],
+              deleted_at: null,
             },
             include: {
-              invoices: true,
               order: {
                 include: {
                   members: true,
-                  vendor: true,
-                  store: true,
-                },
-              },
-            },
+                  quotation: true,
+                  store: true
+                }
+              }
+            }
           },
-        },
+        }
       });
 
-      console.log(data);
-      
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Invoice', {
         properties: {
@@ -872,16 +916,10 @@ export class InvoicesService {
 
       worksheet.columns = [
         { header: 'Invoice Id', key: 'invoice_id', width: 10 },
-        { header: 'Order Id', key: 'order_id', width: 25 },
-        { header: 'Nama Customer', key: 'member_name', width: 50 },
-        { header: 'Jenis Pengerjaan', key: 'payment_type', width: 50 },
-        { header: 'Nomor Receipt', key: 'receipt_number', width: 60 },
-        { header: 'Vendor ID', key: 'vendor_id', width: 50 },
-        { header: 'Nama Vendor', key: 'vendor_name', width: 50 },
-        { header: 'Nomor Invoice', key: 'invoice_number', width: 50 },
-        { header: 'Total Invoice', key: 'total_amount', width: 50 },
-        { header: 'Invoice Dibuat', key: 'created_at', width: 30 },
-        { header: 'Notes', key: 'description', width: 50 },
+        { header: 'Tanggal Invoice Terbit', key: 'created_at', width: 30 },
+        { header: 'Nama Vendor', key: 'vendor_name', width: 25 },
+        { header: 'Total Tagihan', key: 'total', width: 50 },
+        { header: 'Status', key: 'status', width: 60 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -901,21 +939,6 @@ export class InvoicesService {
       });
 
       data.forEach((order) => {
-        order.invoice_details.forEach((detail) => {
-          const invoice = detail.invoices;
-          const member = order.members ? order.members.full_name : 'N/a';
-          const paymentType = (() => {
-            switch (order.payment_type) {
-              case 'pemasangan_tanpa_survey':
-                return 'Pemasangan Tanpa Survey';
-              case 'survey':
-                return 'Survey';
-              case 'gratis':
-                return 'Gratis';
-              default:
-                return 'N/a';
-            }
-          })();
           const formattedDateTime = (dateTime) =>
             `${new Date(dateTime).toLocaleDateString('id-ID', {
               day: 'numeric',
@@ -925,26 +948,19 @@ export class InvoicesService {
               hour: '2-digit',
               minute: '2-digit',
             })}`;
-          const grandTotal = Number(invoice.total_amount);
-          const formattedGrandTotal = !isNaN(grandTotal)
+          const formattedGrandTotal = !isNaN(Number(order.total_amount))
             ? new Intl.NumberFormat('id-ID', {
               style: 'currency',
               currency: 'IDR',
-            }).format(grandTotal)
+            }).format(Number(order.total_amount))
             : 'Rp. 0';
 
           const row = worksheet.addRow({
-            invoice_id: invoice.id,
-            order_id: order.id,
-            member_name: member,
-            payment_type: paymentType,
-            receipt_number: order.receipt_number || 'N/a',
-            vendor_id: order.vendor ? order.vendor_id : 'N/a',
-            vendor_name: order.vendor ? order.vendor.company_name : 'N/a',
-            invoice_number: invoice.invoice_number,
-            total_amount: formattedGrandTotal,
-            created_at: formattedDateTime(invoice.created_at),
-            description: invoice.description || 'N/a',
+            invoice_id: order.id,
+            created_at: formattedDateTime(order.created_at),
+            vendor_name: order.vendor.company_name,
+            total: formattedGrandTotal,
+            status: InvoiceStatus[order.status],
           });
 
           row.eachCell((cell) => {
@@ -956,7 +972,6 @@ export class InvoicesService {
               right: { style: 'thin' },
             };
           });
-        });
       });
 
       const getFormattedDate = () => {

@@ -36,38 +36,40 @@ export class ReportsService {
           ...(search
             ? [
               {
-                quotation: {
-                  order_id: !isNaN(+search) ? +search : undefined,
+                OR: [{
+                  quotation: {
+                    order_id: !isNaN(+search) ? +search : undefined,
+                  },
                 },
-              },
-              {
-                quotation: {
-                  order: {
-                    members: {
-                      full_name: {
-                        contains: search,
+                {
+                  quotation: {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
                 },
-              },
-              {
-                sales: {
-                  full_name: {
-                    contains: search,
+                {
+                  sales: {
+                    full_name: {
+                      contains: search,
+                    },
                   },
                 },
-              },
-              {
-                nominal: !isNaN(+search) ? +search : undefined,
-              },
-              {
-                quotation: {
-                  quotation_grand_total: !isNaN(+search)
-                    ? +search
-                    : undefined,
+                {
+                  nominal: !isNaN(+search) ? +search : undefined,
                 },
-              },
+                {
+                  quotation: {
+                    quotation_grand_total: !isNaN(+search)
+                      ? +search
+                      : undefined,
+                  },
+                },]
+              }
             ]
             : []),
           ...(store_id
@@ -94,6 +96,11 @@ export class ReportsService {
             ]
             : []),
         ].filter(Boolean),
+        // comission_sales_incentive: {
+        //   deleted_at:{
+        //     not: null
+        //   }
+        // },
         deleted_at: null,
       };
 
@@ -123,6 +130,7 @@ export class ReportsService {
               },
             },
           },
+          comission_sales_incentive: true
         },
       });
       // console.log(sales);
@@ -1956,8 +1964,6 @@ export class ReportsService {
         },
       });
 
-      console.log(data);
-
 
       if (data.length === 0) throw new NotFoundException('Order data not found');
 
@@ -2007,6 +2013,11 @@ export class ReportsService {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
+      console.log("startOfMonth", startOfMonth);
+      console.log("endOfMonth", endOfMonth);
+      console.log("nextMonth", nextMonth);
+      console.log("endOfNextMonth", endOfNextMonth);
+
       const orderPending = data.filter((x) =>
         (
           x.status.category === 'WORKREQ' ||
@@ -2016,7 +2027,7 @@ export class ReportsService {
           x.status.category === 'WORKREQSTEPTHREE'
         ) &&
         new Date(x.request_survey) >= startOfMonth &&
-        new Date(x.request_survey) <= endOfMonth || new Date(x.request_work) >= startOfMonth &&
+         new Date(x.request_work) >= startOfMonth &&
         new Date(x.request_work) <= endOfMonth
       ).length;
 
@@ -2093,10 +2104,10 @@ export class ReportsService {
         'TUKANGWORKSTEPTHREE',
       ];
       const orderSurveyOnGoing = data.filter((x) =>
-        orderWork.includes(x.status.category) && x.payment_type === 'survey'
+        x.status.category === 'SURVEYREQ' || x.status.category === 'SURVEYSTART' && x.payment_type === 'survey'
       ).length;
       const orderSurveyNoQuotation = data.filter((x) =>
-        x.payment_type === 'survey' && x.quotation.length === 0
+        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYEND'
       ).length;
 
       const dateFrom = new Date(date_from);
@@ -2170,8 +2181,6 @@ export class ReportsService {
       const installationSummary = allItems.find(item => item.type === 2) || { orderCount: 0, quantity: 0 };
 
       // Periksa apakah freeSummary dan installationSummary memiliki nilai yang benar
-      console.log("freeSummary:", freeSummary);
-      console.log("installationSummary:", installationSummary);
 
       const statuses: Status[] = [
         { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid, itemLabel: `FREE(${freeSummary?.orderCount})`, itemValue: freeSummary?.quantity || 0 },
@@ -2204,17 +2213,11 @@ export class ReportsService {
         example.push(row);
       }
 
-      // Output hasil untuk memastikan data sudah terisi
-      console.log("example:", example);
-
       example.forEach(row => {
         const newRow = worksheet.addRow(row);
         newRow.font = { size: 12 };
         newRow.alignment = { horizontal: 'left' };
       });
-
-
-
 
       worksheet.addRow([]);
 
