@@ -2066,15 +2066,15 @@ export class ReportsService {
 
       const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
       const quotationPaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation != null && x.payment_type === 'survey')
+        .filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
         }, 0);
 
-      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null && x.payment_type === 'survey').length;
+      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey').length;
       const quotationUnpaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation === null && x.payment_type === 'survey')
+        .filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
