@@ -918,8 +918,8 @@ export class InvoicesService {
         { header: 'Invoice Id', key: 'invoice_id', width: 10 },
         { header: 'Tanggal Invoice Terbit', key: 'created_at', width: 30 },
         { header: 'Nama Vendor', key: 'vendor_name', width: 25 },
-        { header: 'Total Tagihan', key: 'total', width: 50 },
         { header: 'Status', key: 'status', width: 60 },
+        { header: 'Total Tagihan', key: 'total', width: 50 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -948,19 +948,13 @@ export class InvoicesService {
               hour: '2-digit',
               minute: '2-digit',
             })}`;
-          const formattedGrandTotal = !isNaN(Number(order.total_amount))
-            ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-            }).format(Number(order.total_amount))
-            : 'Rp. 0';
 
           const row = worksheet.addRow({
             invoice_id: order.id,
             created_at: formattedDateTime(order.created_at),
             vendor_name: order.vendor.company_name,
-            total: formattedGrandTotal,
             status: InvoiceStatus[order.status],
+            total: Number(order.total_amount),
           });
 
           row.eachCell((cell) => {
@@ -972,6 +966,34 @@ export class InvoicesService {
               right: { style: 'thin' },
             };
           });
+      });
+
+      const totalsRow = worksheet.addRow({
+        invoice_id: 'Total',
+        created_at: '',
+        vendor_name: '',
+        status: '',
+        total: data.reduce((acc, order) => acc + Number(order.total_amount), 0),
+      });
+
+      worksheet.mergeCells(`A${totalsRow.number}:D${totalsRow.number}`);
+      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+
+      totalsRow.eachCell((cell, colNumber) => {
+        if (colNumber > 1) {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+        
+        if (colNumber === 1) {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
       });
 
       const getFormattedDate = () => {

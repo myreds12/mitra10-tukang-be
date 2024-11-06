@@ -971,7 +971,7 @@ export class QuotationService {
         where: { quotation_id: id },
       });
 
-      if (!existingIncentive && quotation.status.category === 'QUOTEOUT') {
+      if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || 'QUOTATIONPAIDSTEPTHREE') {
         console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
