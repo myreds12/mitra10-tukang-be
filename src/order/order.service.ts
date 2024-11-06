@@ -5332,7 +5332,7 @@ export class OrderService {
       const orderData = {
         notes: dto?.notes ?? undefined,
         project_address: member ? member?.address_1 : newMember.address_1,
-        project_number: dto?.project_number ?? undefined,
+        project_number: member ? member?.phone_number ?? member?.whatsapp_number : newMember?.phone_number ?? newMember?.whatsapp_number,
         receipt_number: dto?.receipt_number ?? undefined,
         grand_total: grand_total.toFixed(2),
         payment_type,  // Menggunakan `payment_type` yang di-set berdasarkan tipe item
@@ -5356,14 +5356,77 @@ export class OrderService {
           data: {
             ...ordersOptions.data,
           },
-          include: {
-            status: true,
+          select: {
+            id: true,
+            member_id: true,
+            members: {
+              select: {
+                id: true,
+                full_name: true,
+                email: true,
+                phone_number: true,
+                whatsapp_number: true,
+                address_1: true,
+                address_2: true,
+                area_id: true,
+                zip_code: true,
+                join_date: true,
+                join_location: true,
+              },
+            },
+            store_id: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                address: true
+              },
+            },
+            project_address: true,
+            project_number: true,
+            m_order_details: {
+              select: {
+                id: true,
+                item_id: true,
+                item_name: true,
+                item_code: true,
+                item: {
+                  select: {
+                    item_code: true,
+                    item_name: true,
+                    service_name: true,
+                    default_price: true,
+                    prices: {
+                      select: {
+                        price: true,
+                        min_order: true
+                      }
+                    }
+                  }
+                },
+                quantity: true,
+                item_notes: true,
+                unit_price: true,
+                comission: true,
+                total: true,
+              }
+            },
+            request_survey: true,
+            grand_total: true,
+            project_status_id: true,
+            status: {
+              select: {
+                id: true,
+                category: true,
+              },
+            },
             work_orders: {
               include: {
                 work_order_tukang: true,
               },
             },
-          },
+            created_at: true,
+          }
         }),
       ]);
       return order;

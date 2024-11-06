@@ -18,6 +18,7 @@ import {
   NotFoundException,
   Logger,
   HttpCode,
+  UseFilters,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
@@ -34,6 +35,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
+import { NotFoundExceptionFilter } from 'src/common/filters/not-found-exceptopm.filter';
+import { BadRequestExceptionFilter } from 'src/common/filters/bad-request-exception.filter';
 // import { CheckPermissions } from 'src/casl/decorator/permission.decorator';
 // import { PermissionsGuard } from 'src/casl/guards/permissions.guard';
 // import { PermissionAction } from 'src/casl/enum/permission-action.enum';
@@ -55,6 +58,7 @@ export class OrderController {
 
   @Post('/public')
   // @CheckPermissions([PermissionAction.CREATE, menuName])
+  @UseFilters(NotFoundExceptionFilter, BadRequestExceptionFilter)
   @UseInterceptors(FilesInterceptor('order_files'))
   async createPublic(
     @Body() createOrderDto: CreateOrderDto,
