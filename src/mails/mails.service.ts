@@ -445,75 +445,79 @@ export class MailsService {
     }
   }
 
-  async handleOrderTriggers(template_id: number, status_id: number) {
-    try {
-      const orders = await this.dbService.orders.findMany({
-        where: {
-          project_status_id: status_id,
-          m_order_details: {
-            some: {}, // Only get order where it have a details
-          },
-          deleted_at: null,
-          deleted_by: null,
+async handleOrderTriggers(template_id: number, status_id: number) {
+  try {
+    
+    const orders = await this.dbService.orders.findMany({
+      where: {
+        project_status_id: status_id,
+        m_order_details: {
+          some: {},
         },
-      });
+        deleted_at: null,
+        deleted_by: null,
+      },
+      select: { id: true }, 
+    });
 
-      if (orders.length) {
-        this.logger.log(
-          `Order found for status id ${status_id} [${orders.length}],`
-        );
-
-        const jobs: {
-          name?: string;
-          data: OrderMailInterface;
-          opts?: JobOptions;
-        }[] = [];
-        let delay: number = 5000;
-
-        for (let index = 0; index < orders.length; index++) {
-          const order = orders[index];
-          const countSendedEmail = await this.dbService.mail_logs.count({
-            where: {
-              moduleId: order.id,
-              emailMessageId: template_id,
-              status: 1,
-            },
-          });
-
-          const jobId = ` send-order-mail-${order.id}-${template_id}`;
-          const jobExist = await this.emailQueue.getJob(jobId);
-
-          if (!countSendedEmail && !jobExist) {
-            this.logger.log(
-              `Sending email for order ${order.id} status ${status_id}`,
-            );
-            jobs.push({
-              name: 'send-order-mail',
-              data: {
-                module_id: order.id,
-                template_id,
-              },
-              opts: {
-                jobId,
-                delay,
-              },
-            });
-            delay += 5000;
-          }
-        }
-
-        if (jobs.length > 0) {
-          this.logger.verbose(`Jobs triggered [${jobs.length}] => ${jobs}`);
-          await this.emailQueue.addBulk(jobs);
-        }
-      } else {
-        this.logger.verbose(`Order not found for status id ${status_id}`);
-      }
-    } catch (error) {
-      console.error(error);
-      this.logger.error(template_id, status_id);
+    if (!orders.length) {
+      this.logger.verbose(`Order not found for status id ${status_id}`);
+      return;
     }
+
+    this.logger.log(`Order found for status id ${status_id} [${orders.length}]`);
+
+    const sentEmailLogs = await this.dbService.mail_logs.findMany({
+      where: {
+        moduleId: { in: orders.map(order => order.id) },
+        emailMessageId: template_id,
+        status: 1,
+      },
+      select: { moduleId: true }, 
+    });
+    const sentEmailIds = new Set(sentEmailLogs.map(log => log.moduleId));
+
+    const jobs: {
+      name?: string;
+      data: OrderMailInterface;
+      opts?: JobOptions;
+    }[] = [];
+
+    let delay = 5000;
+
+    const jobPromises = orders.map(async (order) => {
+      const jobId = `send-order-mail-${order.id}-${template_id}`;
+      const jobExist = await this.emailQueue.getJob(jobId);
+
+      if (!sentEmailIds.has(order.id) && !jobExist) {
+        this.logger.log(`Scheduling email for order ${order.id} status ${status_id}`);
+        jobs.push({
+          name: 'send-order-mail',
+          data: {
+            module_id: order.id,
+            template_id,
+          },
+          opts: {
+            jobId,
+            delay,
+          },
+        });
+        delay += 5000; 
+      }
+    });
+
+    await Promise.all(jobPromises); 
+
+    if (jobs.length > 0) {
+      this.logger.verbose(`Jobs triggered [${jobs.length}]`);
+      await this.emailQueue.addBulk(jobs); 
+    }
+  } catch (error) {
+    console.error(error);
+    this.logger.error(`Error processing orders for template_id ${template_id}, status_id ${status_id}`);
   }
+}
+
 
   async handleQuotationTriggers(template_id: number, status_id: number) {
     const quotations = await this.dbService.quotation.findMany({
