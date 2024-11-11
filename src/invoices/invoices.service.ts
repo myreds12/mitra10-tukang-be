@@ -129,7 +129,6 @@ export class InvoicesService {
 
       // console.log('Refund: ', refund);
 
-      const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
       // console.log('Penalty Nominal: ', penaltyNominal);
 
@@ -240,7 +239,7 @@ export class InvoicesService {
       const ppnNominal = createInvoiceDto.ppn_nominal ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100) : 0;
 
 
-      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) + (penaltyNominal != 0 ? penaltyNominal : 0);
+      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal);
       console.log('TOTAL AMOUNT: ', totalAmount);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
@@ -256,7 +255,6 @@ export class InvoicesService {
         pkp_nominal: pkpNominal,
         pph_nominal: pphNominal,
         ppn_nominal: ppnNominal,
-        penalty_nominal: penaltyNominal,
         status: createInvoiceDto.status,
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
@@ -281,17 +279,7 @@ export class InvoicesService {
 
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
-        this.dbService.refund.updateMany({
-          where: {
-            orders: {
-              vendor_id: vendor.id,
-            },
-            paid_status: 0
-          },
-          data: {
-            paid_status: 1
-          }
-        })
+        
       ]);
       if (invoices) {
         await this.notifService.create({ invoices: invoices }, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
@@ -575,6 +563,8 @@ export class InvoicesService {
         },
       });
 
+      console.log("REFUNDS" ,refund)
+
       const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
       let totalGrandTotal = invoice.invoice_details.reduce((acc, curr) => {
@@ -636,7 +626,7 @@ export class InvoicesService {
       const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
 
 
-      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) + (penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
+      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) - (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI && penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
 
       const statusInvoice = totalAmount >= 5000000 && invoice.status === 1 ? 4 : updateInvoiceDto.status;
       const invoiceData = {
@@ -695,6 +685,20 @@ export class InvoicesService {
               },
             }),
           ] : []),
+          ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI ? [ 
+            this.dbService.refund.updateMany({
+              where: {
+                orders: {
+                  vendor_id: invoice.vendor.id,
+                },
+                paid_status: 0
+              },
+              data: {
+                paid_status: 1
+              }
+            })
+          ] : [])
+          
 
         ]);
 

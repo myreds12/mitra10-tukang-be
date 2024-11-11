@@ -1162,7 +1162,6 @@ export class QuotationService {
         },
       });
 
-      console.log(`Found closed status with id: ${NEWSTATUS.id}`);
 
       await Promise.all(
         quotations.map(async (quotation) => {
