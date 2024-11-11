@@ -169,8 +169,6 @@ export class ItemsService {
                     prices: {
                       some: {
                         deleted_at: null,
-                        deleted_by: null,
-                        is_active: true,
                       },
                     },
                   },
@@ -180,7 +178,6 @@ export class ItemsService {
               {
                 prices: {
                   some:{
-                    is_active: true,
                     deleted_at: null,
                     price_stores: {
                       some: {
