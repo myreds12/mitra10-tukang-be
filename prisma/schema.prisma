@@ -1115,13 +1115,16 @@ model complaints {
   complaint_channel Int?
   complaint_status  Int?
   pic_name          String? @db.VarChar(150)
-  type              Int     @default(1) // 1 = COMPLAINT, 2 =  CLAIMGARANSI
+  type              Int     @default(1) // 1 = COMPLAINT, 2 =  
+  is_sync           Int     @default(0)
+  crm_type    Int?
 
   description String @db.Text()
 
-  complaint_date DateTime @db.Date()
-  feedback_name  String?  @db.VarChar(50)
-  feedback_role  String?  @db.VarChar(50)
+  complaint_date          DateTime @db.Date()
+  complaint_received_date DateTime? @db.Date()
+  feedback_name           String?  @db.VarChar(50)
+  feedback_role           String?  @db.VarChar(50)
 
   created_by Int?
   updated_by Int?

@@ -7,7 +7,14 @@ export class CreateComplaintDto {
   @Type(() => Number)
   order_id: number;
 
+  @Type(() => Number)
+  @IsOptional()
+  crm_type?: number;
+
   description: string;
+
+  feedback_name: string;
+  feedback_role: string;
 
   @IsOptional()
   pic_name?: string;
@@ -16,6 +23,9 @@ export class CreateComplaintDto {
   complaint_channel: number;
 
   complaint_date: string;
+
+  @IsOptional()
+  complaint_received_date?: string;
   
   @Type(() => Number)
   @IsNotEmpty()
