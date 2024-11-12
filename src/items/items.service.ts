@@ -7,7 +7,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @Injectable()
 export class ItemsService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(createItemDto: CreateItemDto, user_id: number) {
     try {
       const {
@@ -142,66 +142,66 @@ export class ItemsService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      service_name: {
-                        contains: search,
-                      },
-                    },
-                    {
-                      item_name: {
-                        contains: search,
-                      },
-                    },
-                    {
-                      item_code: {
-                        contains: search,
-                      },
-                    },
-                  ],
-                },
-              ]
-            : []),
-            ...(is_promotion === 1
-              ? [
+              {
+                OR: [
                   {
-                    prices: {
-                      some: {
-                        deleted_at: null,
-                      },
+                    service_name: {
+                      contains: search,
                     },
                   },
-                ]
-              : []),
-          ...(store_id ? [
+                  {
+                    item_name: {
+                      contains: search,
+                    },
+                  },
+                  {
+                    item_code: {
+                      contains: search,
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(is_promotion === 1
+            ? [
               {
                 prices: {
-                  some:{
+                  some: {
                     deleted_at: null,
-                    price_stores: {
-                      some: {
-                        deleted_at: null,
-                        store_id: {
-                          in: store_id
-                        }
+                  },
+                },
+              },
+            ]
+            : []),
+          ...(store_id ? [
+            {
+              prices: {
+                some: {
+                  deleted_at: null,
+                  price_stores: {
+                    some: {
+                      deleted_at: null,
+                      store_id: {
+                        in: store_id
                       }
                     }
                   }
                 }
               }
+            }
           ] : []),
           ...(item_type ? [{ type: { equals: item_type } }] : []),
           ...(is_free === 1
             ? [
-                {
-                  prices: {
-                    every: {
-                      price: 0,
-                    },
+              {
+                prices: {
+                  every: {
+                    price: 0,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           // category_id
           //   ? {
@@ -212,20 +212,20 @@ export class ItemsService {
           //   : undefined,
           ...(all_store === 1
             ? [
-                {
-                  prices: {
-                    every: {
-                      price_stores: {
-                        every: {
-                          store_id: {
-                            in: allStore,
-                          },
+              {
+                prices: {
+                  every: {
+                    price_stores: {
+                      every: {
+                        store_id: {
+                          in: allStore,
                         },
                       },
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           // sales.sales
           //   ? {
@@ -238,9 +238,9 @@ export class ItemsService {
           //       },
           //     }
           //   : undefined,
-          {
-            deleted_at: null,
-          },
+          // {
+          //   deleted_at: null,
+          // },
         ].filter(Boolean),
         is_active: true
       };
@@ -429,7 +429,7 @@ export class ItemsService {
               }
             }
             console.log(Boolean(price.is_active));
-            
+
 
             return {
               where: { item_id: id, id: price?.id ?? 0 },
@@ -441,7 +441,7 @@ export class ItemsService {
                   ? new Date(price.periodic_end)
                   : undefined,
                 min_order: price?.min_order,
-                is_active: Boolean(price.is_active),
+                is_active: Boolean(price?.is_active),
                 price: price.price,
                 price_stores: {
                   upsert: priceStoreUpsert,
@@ -450,7 +450,7 @@ export class ItemsService {
                 updated_at: new Date(),
               },
               create: {
-                is_active: price?.is_active ? Boolean(price.is_active) : undefined,
+                is_active: Boolean(price?.is_active),
                 periodic_start: price?.periodic_start
                   ? new Date(price.periodic_start)
                   : undefined,
@@ -474,6 +474,8 @@ export class ItemsService {
           }),
         );
 
+
+
       const itemQuery = {
         where: { id },
         data: {
@@ -485,11 +487,7 @@ export class ItemsService {
           category_id: UpdateDataDto?.category_id,
           default_price: UpdateDataDto?.default_price,
           prices: { upsert: priceUpsert },
-          ...(UpdateDataDto?.is_active
-            ? {
-                is_active: Boolean(UpdateDataDto?.is_active),
-              }
-            : undefined),
+          is_active: Boolean(UpdateDataDto?.is_active),
         },
       };
 
