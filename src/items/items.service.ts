@@ -242,7 +242,6 @@ export class ItemsService {
           //   deleted_at: null,
           // },
         ].filter(Boolean),
-        is_active: true
       };
 
       // console.log('Generated WHERE clause:', JSON.stringify(where, null, 2));
