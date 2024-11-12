@@ -311,16 +311,16 @@ export class ItemsService {
       const items = await this.dbService.items.findFirst({
         where: {
           id,
-          deleted_at: null,
-          deleted_by: null,
+          // deleted_at: null,
+          // deleted_by: null,
         },
         include: {
           category: true,
           prices: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
+            // where: {
+            //   deleted_at: null,
+            //   deleted_by: null,
+            // },
             select: {
               id: true,
               item_id: true,
@@ -328,10 +328,10 @@ export class ItemsService {
               periodic_end: true,
               is_active: true,
               price_stores: {
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
+                // where: {
+                //   deleted_at: null,
+                //   deleted_by: null,
+                // },
                 select: {
                   id: true,
                   store_id: true,
