@@ -93,7 +93,13 @@ export class ComplaintsService {
           },
         },
         description: createComplaintDto.description,
+        crm_type: createComplaintDto.crm_type,
         pic_name: createComplaintDto.pic_name,
+        feedback_name: createComplaintDto.feedback_name,
+        feedback_role: createComplaintDto.feedback_role,
+        ...(createComplaintDto.complaint_received_date ? {
+          complaint_received_date: new Date(createComplaintDto.complaint_received_date),
+        } : undefined),
         complaint_date: new Date(createComplaintDto.complaint_date),
         type: createComplaintDto.type,
         created_by: user_id,
@@ -677,6 +683,9 @@ export class ComplaintsService {
           complaint_channels: complaint_channelsConn,
           pic_name: updateComplaintDto.pic_name,
           description: updateComplaintDto.description ?? undefined,
+          ...(updateComplaintDto.complaint_received_date ? {
+            complaint_received_date: new Date(updateComplaintDto.complaint_received_date),
+          } : undefined),
           complaint_date: updateComplaintDto.complaint_date
             ? new Date(updateComplaintDto.complaint_date)
             : undefined,
