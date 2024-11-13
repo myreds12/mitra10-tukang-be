@@ -64,7 +64,7 @@ export class MailsService {
         },
       },
       email_message_image: header_files || footer_files ? {
-        createMany: {data: evidence}
+        createMany: { data: evidence }
       } : undefined,
       information_detail: {
         createMany: {
@@ -195,19 +195,19 @@ export class MailsService {
   ) {
     try {
       const { header_files, footer_files } = files;
-    const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-      header_files?.map((item) => ({
-        type: 1,
-        path: item.filename,
-        created_by: user_id,
-      }));
-    const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-      footer_files?.map((item) => ({
-        type: 2,
-        path: item.filename,
-        created_by: user_id,
-      }));
-    const evidence = [...header, ...footer];
+      const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+        header_files?.map((item) => ({
+          type: 1,
+          path: item.filename,
+          created_by: user_id,
+        }));
+      const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
+        footer_files?.map((item) => ({
+          type: 2,
+          path: item.filename,
+          created_by: user_id,
+        }));
+      const evidence = [...header, ...footer];
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
           ? updateEmailMessageDto.terms_detail.map((item) => {
@@ -265,7 +265,7 @@ export class MailsService {
         footer: updateEmailMessageDto.footer,
         is_active: Boolean(updateEmailMessageDto.is_active),
         email_message_image: {
-          createMany: {data: evidence}
+          createMany: { data: evidence }
         },
         updated_at: new Date(),
         updated_by: user_id,
@@ -305,7 +305,7 @@ export class MailsService {
 
       };
 
-      const [syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
+      const [syncFiles, syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
         this.dbService.email_message_image.deleteMany({
           where: {
             email_message_id: id
@@ -445,78 +445,78 @@ export class MailsService {
     }
   }
 
-async handleOrderTriggers(template_id: number, status_id: number) {
-  try {
-    
-    const orders = await this.dbService.orders.findMany({
-      where: {
-        project_status_id: status_id,
-        m_order_details: {
-          some: {},
+  async handleOrderTriggers(template_id: number, status_id: number) {
+    try {
+
+      const orders = await this.dbService.orders.findMany({
+        where: {
+          project_status_id: status_id,
+          m_order_details: {
+            some: {},
+          },
+          deleted_at: null,
+          deleted_by: null,
         },
-        deleted_at: null,
-        deleted_by: null,
-      },
-      select: { id: true }, 
-    });
+        select: { id: true },
+      });
 
-    if (!orders.length) {
-      this.logger.verbose(`Order not found for status id ${status_id}`);
-      return;
-    }
-
-    this.logger.log(`Order found for status id ${status_id} [${orders.length}]`);
-
-    const sentEmailLogs = await this.dbService.mail_logs.findMany({
-      where: {
-        moduleId: { in: orders.map(order => order.id) },
-        emailMessageId: template_id,
-        status: 1,
-      },
-      select: { moduleId: true }, 
-    });
-    const sentEmailIds = new Set(sentEmailLogs.map(log => log.moduleId));
-
-    const jobs: {
-      name?: string;
-      data: OrderMailInterface;
-      opts?: JobOptions;
-    }[] = [];
-
-    let delay = 5000;
-
-    const jobPromises = orders.map(async (order) => {
-      const jobId = `send-order-mail-${order.id}-${template_id}`;
-      const jobExist = await this.emailQueue.getJob(jobId);
-
-      if (!sentEmailIds.has(order.id) && !jobExist) {
-        this.logger.log(`Scheduling email for order ${order.id} status ${status_id}`);
-        jobs.push({
-          name: 'send-order-mail',
-          data: {
-            module_id: order.id,
-            template_id,
-          },
-          opts: {
-            jobId,
-            delay,
-          },
-        });
-        delay += 5000; 
+      if (!orders.length) {
+        this.logger.verbose(`Order not found for status id ${status_id}`);
+        return;
       }
-    });
 
-    await Promise.all(jobPromises); 
+      this.logger.log(`Order found for status id ${status_id} [${orders.length}]`);
 
-    if (jobs.length > 0) {
-      this.logger.verbose(`Jobs triggered [${jobs.length}]`);
-      await this.emailQueue.addBulk(jobs); 
+      const sentEmailLogs = await this.dbService.mail_logs.findMany({
+        where: {
+          moduleId: { in: orders.map(order => order.id) },
+          emailMessageId: template_id,
+          status: 1,
+        },
+        select: { moduleId: true },
+      });
+      const sentEmailIds = new Set(sentEmailLogs.map(log => log.moduleId));
+
+      const jobs: {
+        name?: string;
+        data: OrderMailInterface;
+        opts?: JobOptions;
+      }[] = [];
+
+      let delay = 5000;
+
+      const jobPromises = orders.map(async (order) => {
+        const jobId = `send-order-mail-${order.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (!sentEmailIds.has(order.id) && !jobExist) {
+          this.logger.log(`Scheduling email for order ${order.id} status ${status_id}`);
+          jobs.push({
+            name: 'send-order-mail',
+            data: {
+              module_id: order.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      });
+
+      await Promise.all(jobPromises);
+
+      if (jobs.length > 0) {
+        this.logger.verbose(`Jobs triggered [${jobs.length}]`);
+        await this.emailQueue.addBulk(jobs);
+      }
+    } catch (error) {
+      console.error(error);
+      this.logger.error(`Error processing orders for template_id ${template_id}, status_id ${status_id}`);
     }
-  } catch (error) {
-    console.error(error);
-    this.logger.error(`Error processing orders for template_id ${template_id}, status_id ${status_id}`);
   }
-}
 
 
   async handleQuotationTriggers(template_id: number, status_id: number) {

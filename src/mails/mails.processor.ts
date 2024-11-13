@@ -1008,6 +1008,14 @@ export class EmailProcessor {
           },
         },
         include: {
+          reschedule_status: {
+            where: {
+              deleted_at: null
+            },
+            orderBy: {
+              created_at: 'desc'
+            }
+          },
           order: {
             include: {
               store: true,
