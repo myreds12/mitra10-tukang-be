@@ -198,10 +198,8 @@ export class CrmService {
 
   @Cron(CronExpression.EVERY_5_SECONDS)
   async syncAnswer() {
-    console.log("Database data successfully sent to Google Sheets.");
     const spreadsheetId = this.configService.get<string>('SPREADSHEET_CRM');
 
-    // Mengirim data dari database ke Google Sheets
     await this.storeAnswer(spreadsheetId);
   }
 
@@ -239,7 +237,6 @@ export class CrmService {
     });
 
     if (complaints.length === 0) {
-      console.log("No data found in the database to send to Google Sheets.");
       return;
     }
     const userIds = [
@@ -275,7 +272,6 @@ export class CrmService {
     }));
 
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
-    console.log("SHEET HEADER: ", sheetHeader);
 
     if (!sheetHeader) {
       console.log("No header found in the spreadsheet.");
@@ -285,7 +281,6 @@ export class CrmService {
     const akColumnIndex = sheetHeader.indexOf("AK") !== -1 ? sheetHeader.indexOf("AJ") : sheetHeader.length + 10;
     const alColumnIndex = sheetHeader.indexOf("AL") !== -1 ? sheetHeader.indexOf("AJ") : sheetHeader.length + 11;
     const amColumnIndex = sheetHeader.indexOf("AM") !== -1 ? sheetHeader.indexOf("AM") : sheetHeader.length + 12;
-    console.log(ajColumnIndex);
 
 
     const values = complaintWithUser.map((complaint) => {
@@ -378,7 +373,6 @@ export class CrmService {
     
      
 
-    console.log("BEFORE INSERT SPREADSHEET");
 
     await spreadsheetInstances.spreadsheets.values.append({
       spreadsheetId: spreadsheetId,
@@ -424,10 +418,9 @@ export class CrmService {
       return null;
     }
 
-    return headers; // Mengembalikan header kolom
+    return headers; 
   }
 
-  // Fungsi untuk mengubah angka kolom menjadi label (A, B, C, ..., AA, AB, dst.)
   numberToColumnLabel(column: number): string {
     let label = '';
     while (column > 0) {
@@ -454,12 +447,11 @@ export class CrmService {
   
     const response = await spreadsheetInstances.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
-      range: `${sheetName}!A:A`, // Pastikan kolom ini memiliki data di setiap baris
+      range: `${sheetName}!A:A`, 
     });
   
     const rows = response.data.values;
   
-    // Mengembalikan jumlah baris
     return rows ? rows.length + 1 : 0;
   }
 }
