@@ -159,7 +159,7 @@ export class InvoicesService {
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
               const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
-              invoiceDetails.push({   
+              invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
                 invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
@@ -167,9 +167,9 @@ export class InvoicesService {
               });
 
               totalGrandTotal += totalMargin || 0;
-            }else if (order.payment_type === 'survey' && detail.type === 3) {
+            } else if (order.payment_type === 'survey' && detail.type === 3) {
               const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
-              invoiceDetails.push({   
+              invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
                 invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
@@ -177,9 +177,9 @@ export class InvoicesService {
               });
 
               totalGrandTotal += totalMargin || 0;
-            }else if (order.payment_type === 'survey' && detail.type === 4) {
+            } else if (order.payment_type === 'survey' && detail.type === 4) {
               const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 50 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
-              invoiceDetails.push({   
+              invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
                 invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
@@ -187,9 +187,9 @@ export class InvoicesService {
               });
 
               totalGrandTotal += totalMargin || 0;
-            }else if (order.payment_type === 'survey' && detail.type === 5) {
+            } else if (order.payment_type === 'survey' && detail.type === 5) {
               const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))));
-              invoiceDetails.push({   
+              invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
                 invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
@@ -202,9 +202,9 @@ export class InvoicesService {
                 .filter((i) => i.item.type === 2)
                 .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0));
               const totalMargin =
-              (vendor.margin_type === 1 ? order.m_order_details
-                .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)  : (+vendor.margin_nominal * order.m_order_details
+                (vendor.margin_type === 1 ? order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) : (+vendor.margin_nominal * order.m_order_details
                     .filter((i) => i.item.type === 2)
                     .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
               invoiceDetails.push({
@@ -279,7 +279,7 @@ export class InvoicesService {
 
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
-        
+
       ]);
       if (invoices) {
         await this.notifService.create({ invoices: invoices }, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
@@ -563,7 +563,7 @@ export class InvoicesService {
         },
       });
 
-      console.log("REFUNDS" ,refund)
+      console.log("REFUNDS", refund)
 
       const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
 
@@ -588,9 +588,9 @@ export class InvoicesService {
             total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal))));
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
-            (invoice.vendor.margin_type === 1 ? order.m_order_details
-              .filter((i) => i.item.type === 2)
-              .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0)  : (+invoice.vendor.margin_nominal * order.m_order_details
+              (invoice.vendor.margin_type === 1 ? order.m_order_details
+                .filter((i) => i.item.type === 2)
+                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * (+invoice.vendor.margin_nominal / 100) : (+invoice.vendor.margin_nominal * order.m_order_details
                   .filter((i) => i.item.type === 2)
                   .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
           } else if (order.payment_type === 'gratis') {
@@ -685,7 +685,7 @@ export class InvoicesService {
               },
             }),
           ] : []),
-          ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI ? [ 
+          ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI ? [
             this.dbService.refund.updateMany({
               where: {
                 orders: {
@@ -698,7 +698,7 @@ export class InvoicesService {
               }
             })
           ] : [])
-          
+
 
         ]);
 
@@ -943,33 +943,33 @@ export class InvoicesService {
       });
 
       data.forEach((order) => {
-          const formattedDateTime = (dateTime) =>
-            `${new Date(dateTime).toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}`;
+        const formattedDateTime = (dateTime) =>
+          `${new Date(dateTime).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
 
-          const row = worksheet.addRow({
-            invoice_id: order.id,
-            created_at: formattedDateTime(order.created_at),
-            vendor_name: order.vendor.company_name,
-            status: InvoiceStatus[order.status],
-            total: Number(order.total_amount),
-          });
+        const row = worksheet.addRow({
+          invoice_id: order.id,
+          created_at: formattedDateTime(order.created_at),
+          vendor_name: order.vendor.company_name,
+          status: InvoiceStatus[order.status],
+          total: Number(order.total_amount),
+        });
 
-          row.eachCell((cell) => {
-            cell.alignment = { vertical: 'middle', horizontal: 'left' };
-            cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' },
-            };
-          });
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
       });
 
       const totalsRow = worksheet.addRow({
@@ -994,7 +994,7 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
@@ -1150,7 +1150,7 @@ export class InvoicesService {
       data.forEach((order, index) => {
 
         const receipt_number = order.order.quotation[0] ? order.order.quotation[0].receipt_quotation || '-' : order.order.receipt_number || '-';
-        
+
         console.log("Receipt Number:", order);
 
 
@@ -1163,7 +1163,7 @@ export class InvoicesService {
           no_receipt: receipt_number,
           total: Number(order.total),
         });
-      
+
         row.eachCell((cell, colNumber) => {
           cell.border = {
             top: { style: 'thin' },
@@ -1171,7 +1171,7 @@ export class InvoicesService {
             bottom: { style: 'thin' },
             right: { style: 'thin' }
           };
-          cell.alignment = {horizontal: 'left'}
+          cell.alignment = { horizontal: 'left' }
         });
       });
 
@@ -1194,7 +1194,7 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
@@ -1219,7 +1219,7 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
@@ -1244,7 +1244,7 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
@@ -1269,7 +1269,7 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
@@ -1294,13 +1294,13 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
       });
 
-      
+
 
       const getFormattedDate = () => {
         const now = new Date();
@@ -1584,11 +1584,11 @@ export class InvoicesService {
             ? order.order.quotation[0].quotation_grand_total
             : order.order.grand_total;
 
-        const invoice_price =  order.total;
+        const invoice_price = order.total;
         console.log("Invoice Price:", invoice_price);
-        
 
-        const instalation_price = order.order.payment_type === 'gratis'? 0 : Math.floor(+customer_transaction / 1.11);
+
+        const instalation_price = order.order.payment_type === 'gratis' ? 0 : Math.floor(+customer_transaction / 1.11);
         const margin_ppn = instalation_price - invoice_price;
         const price_difference = +customer_transaction - invoice_price;
         const receipt_number = order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type != 1 ? order.order.quotation[0].receipt_quotation || '-' : order.order.receipt_number;
@@ -1608,12 +1608,12 @@ export class InvoicesService {
           ppn_difference: margin_ppn,
           margin_ppn: `${order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100))}%`,
           difference: price_difference,
-          margin_non_ppn: order.order.payment_type === 'gratis'? -150000 : Math.ceil(price_difference / 1.11),
+          margin_non_ppn: order.order.payment_type === 'gratis' ? -150000 : Math.ceil(price_difference / 1.11),
           margin: `${order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100))}%`,
           receipt_number: receipt_number || '-',
           order_status: order.order.status.description,
         });
-      
+
         row.eachCell((cell, colNumber) => {
           // Menambahkan border ke semua sel
           cell.border = {
@@ -1622,24 +1622,24 @@ export class InvoicesService {
             bottom: { style: 'thin' },
             right: { style: 'thin' }
           };
-      
+
           if (colNumber === 4) {
             cell.alignment = { horizontal: 'left' };
           } else {
-            cell.alignment = { horizontal: 'left' };  
+            cell.alignment = { horizontal: 'left' };
           }
         });
-      
+
 
         totals.customer_transaction += +customer_transaction;
         totals.invoice_price += invoice_price;
         totals.instalation_price += instalation_price;
         totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
-        totals.margin_non_ppn += order.order.payment_type === 'gratis'?-150000 : Math.ceil(price_difference / 1.11);
+        totals.margin_non_ppn += order.order.payment_type === 'gratis' ? -150000 : Math.ceil(price_difference / 1.11);
         totals.margin += order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100));
-        totals.ppn += order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100));        
+        totals.ppn += order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100));
         totals.price_difference += price_difference;
-        
+
       });
 
       const totalsRow = worksheet.addRow({
@@ -1651,7 +1651,7 @@ export class InvoicesService {
         margin_ppn: `${Math.ceil((totals.margin_ppn / totals.instalation_price) * 100)}%`,
         difference: totals.price_difference,
         margin_non_ppn: totals.margin_non_ppn,
-        margin: `${Math.ceil((totals.margin_non_ppn/totals.customer_transaction) * 100)}%`,
+        margin: `${Math.ceil((totals.margin_non_ppn / totals.customer_transaction) * 100)}%`,
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
@@ -1668,7 +1668,7 @@ export class InvoicesService {
             right: { style: 'thin' }
           };
         }
-        
+
         if (colNumber === 1) {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
