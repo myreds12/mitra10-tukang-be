@@ -133,7 +133,6 @@ export class ReportsService {
           comission_sales_incentive: true
         },
       });
-      // console.log(sales);
       const totalIncentive = await this.dbService.sales_incentive.aggregate({
         where,
         _sum: {
@@ -685,14 +684,6 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      // console.log('Fetched orders:', orders);
-      // console.log('Fetched complaints:', complaints);
-      // console.log('Fetched reschedules:', reschedules);
-      // console.log('Fetched refunds:', refunds);
-      // console.log("Generated summary:", summary);
-      // console.log("Generated report data:", reportData);
-
-      // Return final report
       return {
         data: reportData,
         meta: {
@@ -1327,14 +1318,6 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      // console.log('Fetched orders:', orders);
-      // console.log('Fetched complaints:', complaints);
-      // console.log('Fetched reschedules:', reschedules);
-      // console.log('Fetched refunds:', refunds);
-      // console.log("Generated summary:", summary);
-      // console.log("Generated report data:", reportData);
-
-      // Return final report
       return {
         data: reportData,
         meta: {
@@ -1995,10 +1978,6 @@ export class ReportsService {
 
       const allItems = Array.from(itemMap.values());
 
-      console.log(allItems);
-
-
-
       const bookReceived = data.filter((x) =>
         x.status.category != 'PICKLIST'
       ).length;
@@ -2028,10 +2007,11 @@ export class ReportsService {
           x.status.category === 'WORKREQSTEPTWO' ||
           x.status.category === 'WORKREQSTEPTHREE'
         ) &&
-        new Date(x.request_survey) >= startOfMonth || new Date(x.request_survey) <= endOfMonth &&
-        new Date(x.request_work) >= startOfMonth ||
-        new Date(x.request_work) <= endOfMonth
-      ).length;
+        (
+          (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
+          (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
+        )
+    ).length;
 
       const orderRefund = data.filter((x) =>
         x.refund.length > 0
@@ -2040,7 +2020,6 @@ export class ReportsService {
       const orderCancel = data.filter((x) =>
         x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'CANCEL'
       ).length;
-
 
 
       const totalProgressOrder = [
@@ -2072,7 +2051,13 @@ export class ReportsService {
           return total + grandTotal;
         }, 0);
 
-      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey').length;
+        const quotationUnpaid = data.filter((x) => 
+          (
+            x?.quotation[0]?.receipt_quotation === null || 
+            (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0)
+          ) &&
+          x.payment_type === 'survey'
+      ).length;
       const quotationUnpaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
