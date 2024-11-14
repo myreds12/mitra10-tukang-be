@@ -305,7 +305,7 @@ export class MailsService {
 
       };
 
-      const [syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
+      const [syncFiles, syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
         this.dbService.email_message_image.deleteMany({
           where: {
             email_message_id: id
