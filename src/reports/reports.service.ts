@@ -8,6 +8,7 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { MATCHES } from 'class-validator';
 
 @Injectable()
 export class ReportsService {
@@ -133,7 +134,6 @@ export class ReportsService {
           comission_sales_incentive: true
         },
       });
-      // console.log(sales);
       const totalIncentive = await this.dbService.sales_incentive.aggregate({
         where,
         _sum: {
@@ -685,14 +685,6 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      // console.log('Fetched orders:', orders);
-      // console.log('Fetched complaints:', complaints);
-      // console.log('Fetched reschedules:', reschedules);
-      // console.log('Fetched refunds:', refunds);
-      // console.log("Generated summary:", summary);
-      // console.log("Generated report data:", reportData);
-
-      // Return final report
       return {
         data: reportData,
         meta: {
@@ -1327,14 +1319,6 @@ export class ReportsService {
         })
         .then((data) => data._sum.quotation_grand_total);
 
-      // console.log('Fetched orders:', orders);
-      // console.log('Fetched complaints:', complaints);
-      // console.log('Fetched reschedules:', reschedules);
-      // console.log('Fetched refunds:', refunds);
-      // console.log("Generated summary:", summary);
-      // console.log("Generated report data:", reportData);
-
-      // Return final report
       return {
         data: reportData,
         meta: {
@@ -1924,13 +1908,13 @@ export class ReportsService {
                   category: true,
                   default_price: true,
                   service_name: true,
-                  prices: {
-                    where: {
-                      deleted_at: null,
-                      periodic_start: { lte: new Date() },
-                      periodic_end: { gte: new Date() },
-                    }
-                  }
+                  // prices: {
+                  //   where: {
+                  //     deleted_at: null,
+                  //     periodic_start: { lte: new Date() },
+                  //     periodic_end: { gte: new Date() },
+                  //   }
+                  // }
                 },
               },
               sales: true,
@@ -1969,23 +1953,51 @@ export class ReportsService {
 
       const itemMap = new Map();
 
+      // Iterate over each order in the data
       data.forEach(order => {
         order.m_order_details.forEach(detail => {
+          // Check if the item type is 1 or 2
           if (detail?.item?.type === 1 || detail?.item?.type === 2) {
+            const fullName = detail.item.item_name;
             const quantity = detail?.quantity || 0;
-            const type = detail?.item?.type;
+            const type = detail.item.type;
 
-            if (itemMap.has(type)) {
-              const itemData = itemMap.get(type);
-              itemData.quantity += quantity;
-              itemData.orderCount += 1;
-              itemMap.set(type, itemData);
-            } else {
-              itemMap.set(type, { quantity: quantity, orderCount: 1, type: type });
+            // Split the item name into words
+            const words = fullName.split(" ");
+            console.log("WORDS:", words);
+
+            // Ensure the item name has at least two words
+            if (words.length >= 2) {
+              // Use the first two words for grouping
+              const baseName = `${words[0]} ${words[1]}`; // First two words
+              console.log("BASE NAME (first 2 words):", baseName);
+
+              // Check if the base name is valid
+              if (baseName) {
+                // Create a unique key based on the base name (first two words) and type
+                const key = `${baseName}_${type}`;
+
+                // If the key already exists in the map, update the quantities
+                if (itemMap.has(key)) {
+                  const itemData = itemMap.get(key);
+                  itemData.quantity += quantity; // Add the quantity
+                  itemData.orderCount += 1; // Increment the order count
+                  itemMap.set(key, itemData); // Set updated data
+                } else {
+                  // If the key doesn't exist, add a new entry with just the baseName
+                  itemMap.set(key, {
+                    itemName: baseName, // Use only the first two words as the item name
+                    quantity: quantity,
+                    orderCount: 1,
+                    type: type
+                  });
+                }
+              }
             }
           }
         });
       });
+
       interface Item {
         itemName: string;
         quantity: number;
@@ -1993,11 +2005,19 @@ export class ReportsService {
         type: number;
       }
 
-      const allItems = Array.from(itemMap.values());
+      const allItems: Item[] = [...itemMap.entries()].map(([_, data]) => ({
+        itemName: data.itemName, // The itemName is now just the first two words
+        quantity: data.quantity,
+        orderCount: data.orderCount,
+        type: data.type
+      }));
+
+      console.log("Grouped Items:", allItems);
+
+
+
 
       console.log(allItems);
-
-
 
       const bookReceived = data.filter((x) =>
         x.status.category != 'PICKLIST'
@@ -2011,15 +2031,15 @@ export class ReportsService {
 
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 2);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-      
+
       const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 2);
       const endOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 2);
-      
+
       startOfMonth.setHours(0, 0, 0, 0);
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
-      
+
       const orderPending = data.filter((x) =>
         (
           x.status.category === 'WORKREQ' ||
@@ -2028,9 +2048,10 @@ export class ReportsService {
           x.status.category === 'WORKREQSTEPTWO' ||
           x.status.category === 'WORKREQSTEPTHREE'
         ) &&
-        new Date(x.request_survey) >= startOfMonth || new Date(x.request_survey) <= endOfMonth &&
-        new Date(x.request_work) >= startOfMonth ||
-        new Date(x.request_work) <= endOfMonth
+        (
+          (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
+          (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
+        )
       ).length;
 
       const orderRefund = data.filter((x) =>
@@ -2040,7 +2061,6 @@ export class ReportsService {
       const orderCancel = data.filter((x) =>
         x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'CANCEL'
       ).length;
-
 
 
       const totalProgressOrder = [
@@ -2072,19 +2092,30 @@ export class ReportsService {
           return total + grandTotal;
         }, 0);
 
-      const quotationUnpaid = data.filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey').length;
+      const quotationUnpaid = data.filter((x) =>
+        (
+          x?.quotation[0]?.receipt_quotation === null ||
+          (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0)
+        ) &&
+        x.payment_type === 'survey'
+      ).length;
       const quotationUnpaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
         }, 0);
-        
-      const orderSurveyOnGoing = data.filter((x) =>
-        x.status.category === 'SURVEYREQ' || x.status.category === 'SURVEYSTART' && x.payment_type === 'survey'
+
+      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'TUKANGWORK', 'INVESTIGATED'];
+
+      const orderSurveyOnGoing = data.filter(
+        x => ongoingSurveyCategories.includes(x.status.category) && x.payment_type === 'survey'
       ).length;
       const orderSurveyNoQuotation = data.filter((x) =>
         x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYDONE'
+      ).length;
+      const orderSurveyCancelRefund = data.filter((x) =>
+        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND'
       ).length;
 
       const dateFrom = new Date(date_from);
@@ -2105,6 +2136,7 @@ export class ReportsService {
         fgColor: { argb: 'FFFFFF' },
       };
       worksheet.mergeCells('A1:F1');
+
 
       worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone}`]);
 
@@ -2127,6 +2159,7 @@ export class ReportsService {
         pattern: 'solid',
         fgColor: { argb: 'FF17365D' },
       };
+      worksheet.mergeCells('E2:F2');
 
       const example = [];
 
@@ -2138,57 +2171,60 @@ export class ReportsService {
         `Add Program`
       ]);
 
-      interface Status {
-        label: string;
-        value: string | number;
-        quotationLabel: string;
-        quotationValue: string | number;
-        itemLabel: string | number;
-        itemValue: string | number;
-      }
-
-
-
       const currentMonth = dateFrom.toLocaleString('default', { month: 'long' });
 
       const nextMonthDate = new Date(dateFrom.getFullYear(), dateFrom.getMonth() + 1);
       const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long' });
 
-      const freeSummary = allItems.find(item => item.type === 1) || { orderCount: 0, quantity: 0 };
-      const installationSummary = allItems.find(item => item.type === 2) || { orderCount: 0, quantity: 0 };
+      interface Status {
+        label: string;
+        value: string | number;
+        quotationLabel: string;
+        quotationValue: string | number;
+      }
 
-      // Periksa apakah freeSummary dan installationSummary memiliki nilai yang benar
-
+      // Data untuk entri default di statuses
       const statuses: Status[] = [
-        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid, itemLabel: `FREE(${freeSummary?.orderCount})`, itemValue: freeSummary?.quantity || 0 },
-        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue, itemLabel: `PEMASANGAN TANPA SURVEY(${installationSummary?.orderCount})`, itemValue: installationSummary?.quantity || 0 },
-        { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid, itemLabel: '', itemValue: '' },
-        { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue, itemLabel: '', itemValue: '' },
-        { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing, itemLabel: '', itemValue: '' },
-        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation, itemLabel: '', itemValue: '' },
-        { label: '', value: '', quotationLabel: '', quotationValue: '', itemLabel: '', itemValue: '' },
-        { label: '', value: '', quotationLabel: '', quotationValue: '', itemLabel: '', itemValue: '' }
+        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
+        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
+        { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
+        { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
+        { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
+        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation },
+        { label: '', value: '', quotationLabel: 'Survey & Cancel Refund', quotationValue: orderSurveyCancelRefund },
+        { label: '', value: '', quotationLabel: '', quotationValue: '' }
       ];
 
-      const maxLength = statuses.length;
+
+      const itemLength = allItems.length;
+      const statusLength = statuses.length;
+
+      const maxLength = Math.max(itemLength, statusLength);
 
       for (let i = 0; i < maxLength; i++) {
         const status = statuses[i] || {} as Status;
         const statusText = status.label ? `${status.label}: ${status.value}` : '';
         const quotationText = status.quotationLabel ? `${status.quotationLabel}: ${status.quotationValue}` : '';
-        const itemText = status.itemLabel ? `${status.itemLabel}: ${status.itemValue}` : '';
+
+        const item = allItems[i] || {} as Item;
+        const itemName = item.itemName && item.orderCount
+          ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY'}${item.itemName}: ${item.orderCount}`
+          : '';
+        const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
         const row = [
           { richText: [{ text: statusText || '', font: { argb: 'FF000000' } }] },
           '',
           { richText: [{ text: quotationText || '', font: { argb: 'FF000000' } }] },
           '',
-          { richText: [{ text: itemText || '', font: { argb: 'FF000000' } }] },
-          ''
+          itemName || '',
+          quantity || ''
         ];
 
         example.push(row);
       }
+
+
 
       example.forEach(row => {
         const newRow = worksheet.addRow(row);

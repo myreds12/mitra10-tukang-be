@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
@@ -581,7 +582,7 @@ export class ComplaintsService {
       const status = await this.dbService.status.findMany();
 
       if (!complaints)
-        throw new HttpException('Complaint Not Found!', HttpStatus.NOT_FOUND);
+        throw new NotFoundException('Complaint Not Found!');
 
       await this.dbService.complaint_evidence.updateMany({
         where: {
