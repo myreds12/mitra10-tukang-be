@@ -1,182 +1,901 @@
 doctype html
-html(lang="en")
-  head
-    meta(charset="UTF-8")
-    meta(name="viewport" content="width=device-width, initial-scale=1.0")
-    title Quotation Confirmation
-    link(href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet")
-  body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
-    .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
-      .header
-        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
-      
-      .order-details(style="padding-left: 16px; padding-right: 16px;")
-        table(style="width: 100%;")
-          tr
-            td(style="text-align: left;")
-              img(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png" alt="Mitra 10 Logo" style="height: 48px;")
-            td(style="text-align: center;")
-              p(style="font-size: 1.25rem; font-weight: 600;") Instalasi & Service Mitra 10
-            td(style="text-align: right;")
-              .order-id
-                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Quotation ID: #{data.quotation.id}
-                p(style="font-size: 0.875rem; margin: 0 !important;") Order ID : #{data.quotation.order.id}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-      
-      .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
-        p(style="color: #4a5568;") #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
-      
-      .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Survei
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
+head
+  meta(charset='UTF-8')
+  meta(name='viewport', content='width=device-width, initial-scale=1.0')
+  title Order Confirmation
+  link(href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap', rel='stylesheet')
+style.
+  table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  }
+  table.table-responsive-header {
+  display: none;
+  }
+  table.table-desktop {
+  display: table;
+  }
+  table.table-responsive {
+  display: none;
+  }
+  .order-title {
+  display: none;
+  }
+  @media (max-width: 600px) {
+  h1 {
+  font-size: 24px;
+  }
+  p {
+  font-size: 16px;
+  }
+  th,
+  td {
+  font-size: 18px;
+  }
+  table.table-responsive-header {
+  display: table;
+  }
+  table.table-desktop {
+  display: none;
+  }
+  table.table-responsive {
+  display: table;
+  margin-top: 15px;
+  }
+  .order-title {
+  display: block;
+  }
+  }
+.container(style='\
+max-width: 768px;\
+margin: 0 auto;\
+background-color: #ffffff;\
+box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\
+border-radius: 0.5rem;\
+overflow: hidden;\
+')
+  .header
+    img(src='https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg', alt='Banner Image', style='width: 100%; height: auto')
+  .order-details(style='padding-left: 16px; padding-right: 16px')
+    table.table-responsive-header(style='width: 100%; border-collapse: collapse')
+      tr
+        td
+          table(style='\
+          width: 100%;\
+          border-collapse: collapse;\
+          margin-bottom: 0;\
+          ')
             tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
-          tbody
-            each item, index in data.quotation.order.m_order_details
-              tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.item ? item.item.item_code : item.item_code || ''}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item ? item.item.item_name : item.item_name || ''}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item ? item.item.service_name || '' : item.item_name || ''}
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || '0'}
+              td(style='\
+              padding: 10px 0;\
+              text-align: left;\
+              ')
+                img(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png', alt='Mitra 10 Logo', style='\
+                height: 48px;\
+                max-width: 100%;\
+                ')
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
-              - var formattedSurveyPrice = 'Rp. ' + data.quotation.order.grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedSurveyPrice}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
-          tbody
-            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
-              tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")=item.name ? item.name : '-'
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-'	
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
-                - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
-
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Material Yang Dibutuhkan
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
-          tbody
-            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
-              tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-'	
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-'
-                - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
-            tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
-              - var reducedTotal = 0
-              - data.quotation.quotation_details.forEach(detail => {
-              -   var reducedPrice = parseFloat(detail.final_price) 
-              -   reducedTotal += reducedPrice
-              - })
-              - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
-            tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
-              - var formattedQuotationPromotion = data.quotation.quotation_promotion ? 'Rp. ' + data.quotation.quotation_promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
-            tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
-              - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
-            tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
-              - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-      
-      .customer-info(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Pelanggan
-        p(style="color: #4a5568;") 
-          strong Nama:
-          |  #{data.quotation.order.members.full_name}
-        p(style="color: #4a5568;") 
-          strong Email:
-          |  #{data.quotation.order.project_number}
-        p(style="color: #4a5568;") 
-          strong Nomor Telepon:
-          |  #{data.quotation.order.project_address}
-        p(style="color: #4a5568;") 
-          strong Alamat:
-          |  #{data.quotation.order.project_address}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-      
-      .payment-instructions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Bank:  #{data.quotation.store.bank_name}
-          li(style="color: #4a5568;") Nomor Akun: #{data.quotation.store.bank_number}
-          li(style="color: #4a5568;") Nama Akun: #{data.quotation.store.bank_account}
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
-          li(style="color: #4a5568;") Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .information(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        each item, index in data.message.terms_detail
-          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .terms-conditions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Biaya diatas adalah Jasa Instalasi berlaku 7 hari dari tanggal dikirimnya Quotation.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Jadwal Survey/Pengerjaan akan ditentukan oleh teknisi, setelah material tersedia (material disediakan oleh Customer) dan barang diterima Customer, serta barang yang akan dikerjakan Jasa Instalasi adalah barang dari Mitra10.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. Semua Jasa Pemasangan wajib dilakukan Survey. Biaya survey akan dikembalikan apabila biaya Jasa Instalasi & Service minimal Rp 800.000.
-        p(style="margin-bottom: 8px; color: #4a5568;") 6. Quotation diberikan kepada Customer maksimal H+2 dihari kerja setelah Survey selesai.
-        p(style="margin-bottom: 8px; color: #4a5568;") 7. Garansi 7 (Tujuh) hari untuk Jasa Instalasi & Service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses Jasa Instalasi & Service.
-        p(style="margin-bottom: 8px; color: #4a5568;") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .notes(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Catatan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Semua penjualan  Jasa Instalasi bersifat final.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Pembayaran harus dilakukan secara penuh sebelum pesanan diproses.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
- 
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-    
-      .footer-notes(style="padding: 20px;")
-        p(style="color: #4a5568; font-weight: 600; margin-top: 0; margin-bottom: 0;") #{data.message.footer}
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
-
-      .footer(style="background-color: #edf2f7; padding: 20px; text-align: center;")
-        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
-        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
-      .footer-banner
-        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
+              td(style='\
+              padding: 10px 0;\
+              text-align: center;\
+              ')
+                p(style='\
+                font-size: 18px;\
+                font-weight: 600;\
+                margin: 0;\
+                ')
+                  | Instalasi &amp; Service Mitra 10
+    table.table-desktop(style='width: 100%; border-collapse: collapse')
+      tr
+        td(style='text-align: left')
+          img(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png', alt='Mitra 10 Logo', style='height: 48px')
+        td(style='text-align: center')
+          p(style='font-size: 1.25rem; font-weight: 600')
+            | Instalasi &amp; Service Mitra 10
+        td(style='text-align: right')
+          .order-id
+            p(style='\
+            font-size: 1.125rem;\
+            font-weight: 600;\
+            margin: 0 !important;\
+            ')
+              | Quotation ID: 123456
+            p(style='\
+            font-size: 0.875rem;\
+            margin: 0 !important;\
+            ')
+              | Order ID : 123456
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .content(style='\
+  padding-top: 16px;\
+  padding-left: 24px;\
+  padding-right: 24px;\
+  ')
+    p(style='color: #4a5568') Halo, Alif
+    p(style='\
+    color: #4a5568;\
+    font-weight: 600;\
+    margin: 0 !important;\
+    ')
+      | Terima kasih telah melakukan order Layanan Jasa Instalasi &amp;
+      | Service Mitra10
+    p(style='\
+    color: #4a5568;\
+    font-weight: 600;\
+    margin: 0 !important;\
+    ')
+      | Berikut detail pemesanan Anda:
+  .order-info(style='padding: 20px')
+    h1(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Informasi Survei
+    .order-title
+      p(style='font-size: 18px; font-weight: 600; margin: 0')
+        | Quotation ID: 123456
+      p(style='font-size: 14px; margin: 0') Order ID: 123456
+    table.table-desktop(style='\
+    width: 100%;\
+    text-align: left;\
+    border-collapse: collapse;\
+    margin-bottom: 24px;\
+    ')
+      thead
+        tr
+          th(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Kode Item
+          th(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Nama Item
+          th(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Nama Jasa Pemasangan
+          th(style='border: 1px solid #e2e8f0; padding: 8px')
+            | QTY Pemasangan
+      tbody
+        tr
+          td(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          word-break: break-word;\
+          font-size: 0.875rem;\
+          ')
+            | 0900007266
+          td(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | FIXMAN OMC-M0603 CHISEL 10MM
+          td(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | FIXMAN OMC-M0603 CHISEL 10MM
+          td(style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | 1
+        tr
+          td(colspan='3', style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          text-align: end;\
+          font-size: 0.875rem;\
+          font-weight: 600;\
+          ')
+            | Biaya Survey
+          td(style='border: 1px solid #e2e8f0; padding: 8px')
+            | Rp. 99.000
+    table.table-responsive(style='\
+    width: 100%;\
+    text-align: left;\
+    border-collapse: collapse;\
+    margin-bottom: 24px;\
+    ')
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Kode Item (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | 0900007266
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Nama Item (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | FIXMAN OMC-M0603 CHISEL 10MM
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Nama Jasa (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | FIXMAN OMC-M0603 CHISEL 10MM
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | QTY (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | 50
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Biaya Survei
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | Rp. 99.000
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .order-info(style='padding: 20px')
+    h1(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Konfirmasi Quotation
+    table.table-desktop(style='\
+    width: 100%;\
+    text-align: left;\
+    border-collapse: collapse;\
+    margin-bottom: 24px;\
+    ')
+      thead
+        tr
+          th(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Jenis Jasa
+          th(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | QTY
+          th(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Satuan
+          th(style='border: 1px solid #e2e8f0; padding: 8px')
+            | Final Price
+      tbody
+        tr
+          td(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          word-break: break-word;\
+          font-size: 0.875rem;\
+          ')
+            | PEMASANGAN KERAMIK GRANIT
+          td(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | 1
+          td(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | UNIT
+          td(style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | Rp. 5.000.000
+    table.table-desktop(style='\
+    width: 100%;\
+    text-align: left;\
+    border-collapse: collapse;\
+    margin-bottom: 24px;\
+    ')
+      thead
+        tr
+          th(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Material Yang Dibutuhkan
+          th(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | QTY
+          th(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            | Satuan
+          th(style='border: 1px solid #e2e8f0; padding: 8px')
+            | Final Price
+      tbody
+        tr
+          td(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          word-break: break-word;\
+          font-size: 0.875rem;\
+          ')
+            | PEMASANGAN KERAMIK GRANIT
+          td(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | 1
+          td(style='\
+          min-width: 176px;\
+          max-width: 176px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | UNIT
+          td(style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          font-size: 0.875rem;\
+          ')
+            | Rp. 5.000.000
+        tr
+          td(colspan='3', style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          text-align: end;\
+          font-size: 0.875rem;\
+          font-weight: 600;\
+          ')
+            | Total
+          td(style='border: 1px solid #e2e8f0; padding: 8px')
+            | Rp. 10.000.000
+        tr
+          td(colspan='3', style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          text-align: end;\
+          font-size: 0.875rem;\
+          font-weight: 600;\
+          ')
+            | Additional Promosi ( FREE SURVEY )
+          td(style='border: 1px solid #e2e8f0; padding: 8px')
+            | Rp. 99.000
+        tr
+          td(colspan='3', style='\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          text-align: end;\
+          font-size: 0.875rem;\
+          font-weight: 600;\
+          ')
+            | Grand Total
+          td(style='border: 1px solid #e2e8f0; padding: 8px')
+            | Rp. 9.901.000
+    table.table-responsive(style='\
+    width: 100%;\
+    text-align: left;\
+    border-collapse: collapse;\
+    margin-bottom: 24px;\
+    ')
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Jenis Jasa (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | PEMASANGAN KERAMIK GRANIT
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | QTY (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | 5
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Satuan (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | UNIT
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Final Price
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | Rp. 5.000.000
+    table.table-responsive(style='\
+    width: 100%;\
+    text-align: left;\
+    border-collapse: collapse;\
+    margin-bottom: 24px;\
+    ')
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Material Yang Dibutuhkan (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | PEMASANGAN KERAMIK GRANIT
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | QTY (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | 5
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Satuan (1)
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | UNIT
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Final Price
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | Rp. 5.000.000
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Total
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | Rp. 10.000.000
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Additional Promosi ( FREE SURVEY )
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | Rp. 99.000
+      tr(style='\
+      min-width: 144px;\
+      max-width: 144px;\
+      border: 1px solid #e2e8f0;\
+      padding: 8px;\
+      ')
+        th(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        background-color: #eef1f5b0;\
+        ')
+          | Grand Total
+        td(style='\
+        min-width: 144px;\
+        max-width: 144px;\
+        border: 1px solid #e2e8f0;\
+        padding: 8px;\
+        word-break: break-word;\
+        font-size: 0.875rem;\
+        ')
+          | Rp. 9.901.000
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .customer-info(style='padding: 20px')
+    h2(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Informasi Pelanggan
+    p(style='color: #4a5568')
+      strong Nama:
+      |  John Doe
+    p(style='color: #4a5568')
+      strong Email:
+      |  john.doe@example.com
+    p(style='color: #4a5568')
+      strong Nomor Telepon:
+      |  +62 812-3456-7890
+    p(style='color: #4a5568')
+      strong Alamat:
+      |  Jl. Example No. 123, Jakarta,
+      | &#x9;&#x9;&#x9;&#x9;&#x9;Indonesia
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .payment-instructions(style='padding: 20px')
+    h2(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Intruksi Pembayaran
+    p(style='margin-bottom: 8px; color: #4a5568; font-weight: 600')
+      | 1. Silahkan melakukan pembayaran di account di bawah ini:
+    ul(style='list-style-type: disc; margin-left: 5px')
+      li(style='color: #4a5568') Bank: BCA
+      li(style='color: #4a5568') Nomor Akun: 801-58-55840
+      li(style='color: #4a5568')
+        | Nama Akun: Catur Mitra Sejati Sentosa
+    p(style='margin-bottom: 8px; color: #4a5568; font-weight: 600')
+      | 2. Silahkan kirim bukti bayar anda melalui:
+    ul(style='list-style-type: disc; margin-left: 5px')
+      li(style='color: #4a5568') Email: payment@mitra10.com
+      li(style='color: #4a5568') Whatsapp: +62 812-3456-7890
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .information(style='padding: 20px')
+    h2(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Informasi
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 1. All sales are final. No returns or exchanges will be
+      | accepted.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 2. Payment must be made in full before the order is
+      | processed.
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .terms-conditions(style='padding: 20px')
+    h2(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Syarat dan Ketentuan
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 1. All sales are final. No returns or exchanges will be
+      | accepted.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 2. Payment must be made in full before the order is
+      | processed.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 3. Delivery times are estimates and may vary based on
+      | location and availability.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 4. We are not responsible for any damages or losses incurred
+      | during shipping.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 5. By placing an order, you agree to our terms and
+      | conditions.
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .notes(style='padding: 20px')
+    h2(style='\
+    font-size: 1.25rem;\
+    font-weight: 600;\
+    margin-bottom: 16px;\
+    ')
+      | Catatan
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 1. Quotation ini sah jika disetujui dalam waktu 7 hari.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 2. Pembayaran dilakukan setelah pekerjaan selesai.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 3. Harga material dapat berubah sesuai harga pasar.
+    p(style='margin-bottom: 8px; color: #4a5568')
+      | 4. Jika ada kesalahan atau ketidaksesuaian, silahkan hubungi
+      | kami secepatnya.
+  .divider(style='border-top: 1px solid #e5e7eb')
+  .footer-notes(style='padding: 20px')
+    p(style='\
+    color: #4a5568;\
+    font-weight: 600;\
+    margin-top: 0;\
+    margin-bottom: 0;\
+    ')
+      | Hormat Kami, Mitra10
+    p(style='\
+    color: #4a5568;\
+    font-weight: 600;\
+    margin: 0 !important;\
+    ')
+      | Ini adalah email yang dikirimkan oleh sistem. Mohon untuk
+      | tidak membalas email ini.
+  .footer(style='\
+  background-color: #edf2f7;\
+  padding: 20px;\
+  text-align: center;\
+  ')
+    p(style='\
+    font-size: 0.875rem;\
+    font-weight: 600;\
+    margin: 0 !important;\
+    ')
+      | Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi
+      | kami di customer.relation@mitra10.com
+    p(style='\
+    font-size: 0.875rem;\
+    font-weight: 600;\
+    margin: 0 !important;\
+    ')
+      | &copy; 2024 Mitra10. All rights reserved.
+  .footer-banner
+    img(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg', alt='Banner Image', style='width: 100%; height: auto')

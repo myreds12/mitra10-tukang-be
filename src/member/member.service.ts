@@ -181,7 +181,6 @@ export class MemberService {
       let orderMemberOne = 0
       let orderMemberMany = 0
       const dataMember = members.map((item) => {
-        console.log("ORDER MEMBER:" ,item.order);
         
         const totalOrder = item.order.length;
 

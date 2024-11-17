@@ -23,7 +23,6 @@ export class VendorService {
     user: users,
   ) {
     try {
-      console.log(createVendorDto);
       const { id: user_id } = user;
       const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
         ? Object.entries(files).map((file) => {
@@ -210,10 +209,8 @@ export class VendorService {
       //         }),
       // now.setHours(0, 0, 0, 0);
       const formattedDate = new Date().toISOString().split('T')[0];
-      console.log(formattedDate);
 
 
-      console.log('vendor_with_max_order', vendor_with_max_order);
       const skip = page * take - take;
 
       const where: Prisma.vendorWhereInput = {
@@ -451,7 +448,6 @@ export class VendorService {
         };
       });
       const dataVendor = vendor.map((item) => {
-        console.log("ORDER MEMBER:", item.orders);
 
         const totalOrder = item.orders.length;
 
@@ -613,7 +609,6 @@ export class VendorService {
   ) {
     try {
       const { id: user_id } = user;
-      console.log(updateVendorDto);
       const vendors = await this.dbService.vendor.findFirst({
         where: {
           id,
@@ -649,7 +644,6 @@ export class VendorService {
           }
         })
         : undefined;
-      console.log(updateVendorDto.vendor_service);
 
       const vendorServiceUpsert: Prisma.vendor_serviceUpsertWithWhereUniqueWithoutVendorInput[] =
         updateVendorDto.vendor_service
@@ -714,7 +708,6 @@ export class VendorService {
           }))
           : undefined;
 
-      console.log(updateVendorDto);
 
       const formattedUsername =
         updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
@@ -1073,7 +1066,6 @@ export class VendorService {
           }, 0),
         )
         .reduce((acc, total) => acc + total, 0);
-      console.log(grandTotal);
 
       //
       const formattedGrandTotal = !isNaN(grandTotal)
