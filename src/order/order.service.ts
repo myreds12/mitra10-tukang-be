@@ -2527,7 +2527,7 @@ export class OrderService {
         order.m_order_details.forEach((detail) => {
           const itemName = detail.item_name || 'Item belum ditentukan';
           const categoryName =
-            detail.item.category.category_name || '';
+            detail?.item?.category?.category_name ?? '';
           const quantity = detail?.quantity || 'Quantity Belum ditentukan';
           const tukangName = order?.work_orders?.work_order_tukang
             ? [

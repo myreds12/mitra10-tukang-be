@@ -970,8 +970,10 @@ export class QuotationService {
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
         where: { quotation_id: id },
       });
+      console.log(quotation, "QUOTATION");
+      
 
-      if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || 'QUOTATIONPAIDSTEPTHREE') {
+      if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || quotation.status.category === 'QUOTATIONPAIDSTEPTHREE') {
         console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
