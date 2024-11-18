@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus, HttpException, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpStatus, HttpException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -338,7 +338,7 @@ export class SalesService {
       });
 
       if (!sales) {
-        throw new HttpException('Sales not found', HttpStatus.NOT_FOUND);
+        throw new NotFoundException('Sales not found');
       }
 
       const SALES_ROLES: roles = await this.dbService.roles.findFirst({
@@ -405,7 +405,6 @@ export class SalesService {
           },
         };
       }
-        console.log('IS ACTIVE : ', Boolean(updateSalesDto.is_active));
       const salesData: Prisma.salesUpdateInput = {
         // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
         ...(sales.users && updateSalesDto.username && updateSalesDto.password
@@ -859,7 +858,6 @@ export class SalesService {
         const order_id = worksheet.getCell(`A${rowNumber}`).value as number;
         const incentive_id = worksheet.getCell(`L${rowNumber}`).value as number;
         const notes = worksheet.getCell(`P${rowNumber}`).value;
-        console.log(salesOrderPairs, 'SALES ORDER PAIRS');
         
         if (sales_id && order_id && incentive_id) {
           salesOrderPairs.push({
@@ -900,7 +898,6 @@ export class SalesService {
                 id: pair.incentive_id,
               },
             });
-          console.log(setting_incentive, 'SETTING INCENTIVE');
 
           if (!setting_incentive) {
             console.warn(`Incentive with ID ${pair.incentive_id} not found.`);
@@ -945,7 +942,6 @@ export class SalesService {
           updatedCount += 1;
         }),
       );
-      console.log('SUCCESS');
 
       return { count: updatedCount };
     } catch (error) {
@@ -1017,11 +1013,9 @@ export class SalesService {
       const takeData = 900;
       let skipData = 0;
       const countTake = Math.floor(count / takeData);
-      console.log(countTake, 'COUNT TAKE');
 
       for (let i = 0; i < countTake; i++) {
         skipData = i * takeData;
-        console.log(skipData);
 
         const data = await this.dbService.sales.findMany({
           where,
@@ -1088,8 +1082,6 @@ export class SalesService {
         dataExcel = [...dataExcel, ...data];
       }
 
-      console.log(dataExcel.length, 'TAKE DATA'); // Log the total number of records fetched
-      console.log(count, 'COUNT');
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Profile Sales ', {

@@ -8,6 +8,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { PrismaExceptionFilter } from './common/filters/prisma-known-exception.filter';
 import { PrismaValidationFilter } from './common/filters/prisma-validation-error.filter';
+import { NotFoundExceptionFilter } from './common/filters/not-found-exceptopm.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -30,6 +31,7 @@ async function bootstrap() {
     new HttpExceptionFilter(),
     new PrismaExceptionFilter(),
     new PrismaValidationFilter(),
+    new NotFoundExceptionFilter()
   );
   app.useGlobalInterceptors(new TransformInterceptor());
 

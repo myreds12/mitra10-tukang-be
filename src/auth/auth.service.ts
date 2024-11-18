@@ -164,13 +164,11 @@ export class AuthService {
       let batchNumber = 0;
   
       while (true) {
-        // Mengambil 100 user per batch
         const users = await this.dbService.users.findMany({
-          skip: batchNumber * take, // Skip sejumlah batch yang sudah diambil
-          take: take,               // Ambil sejumlah take user
+          skip: batchNumber * take, 
+          take: take,
         });
   
-        // Jika tidak ada user yang diambil, hentikan loop
         if (users.length === 0) {
           break;
         }
@@ -307,7 +305,7 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+        throw new NotFoundException('User not found');
       }
 
       const checkPassword = await compare(dto.password, user.password);

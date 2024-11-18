@@ -111,6 +111,7 @@ export class EmailProcessor {
           receipt_number: true,
           request_survey: true,
           grand_total: true,
+          created_at: true,
           work_orders: {
             select: {
               id: true,

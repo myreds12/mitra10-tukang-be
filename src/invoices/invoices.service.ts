@@ -113,7 +113,6 @@ export class InvoicesService {
         },
       });
 
-      // console.log('Orders: ', orders);
 
       const refund = await this.dbService.refund.findMany({
         where: {
@@ -126,11 +125,6 @@ export class InvoicesService {
           }
         },
       });
-
-      // console.log('Refund: ', refund);
-
-
-      // console.log('Penalty Nominal: ', penaltyNominal);
 
 
 
@@ -148,8 +142,6 @@ export class InvoicesService {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
               const totalMargin = vendor.nominal_survey ? Number(vendor.nominal_survey) : 75000 + Number(order.additional_fee);
-              // console.log("TOTAL MARGIN: ", totalMargin);
-
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -198,15 +190,14 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-              console.log(order.m_order_details
-                .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0));
               const totalMargin =
-                (vendor.margin_type === 1 ? order.m_order_details
+                (vendor.margin_type === 1 ? (order.m_order_details
                   .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) : (+vendor.margin_nominal * order.m_order_details
+                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * order.m_order_details
                     .filter((i) => i.item.type === 2)
-                    .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
+                    .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) * (+vendor.margin_nominal / 100) : (+vendor.margin_nominal * order.m_order_details
+                      .filter((i) => i.item.type === 2)
+                      .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -588,9 +579,11 @@ export class InvoicesService {
             total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal))));
           } else if (order.payment_type === 'pemasangan_tanpa_survey') {
             total =
-              (invoice.vendor.margin_type === 1 ? order.m_order_details
+              (invoice.vendor.margin_type === 1 ? (order.m_order_details
                 .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * (+invoice.vendor.margin_nominal / 100) : (+invoice.vendor.margin_nominal * order.m_order_details
+                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) * (+invoice.vendor.margin_nominal / 100) : (+invoice.vendor.margin_nominal * order.m_order_details
                   .filter((i) => i.item.type === 2)
                   .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
           } else if (order.payment_type === 'gratis') {

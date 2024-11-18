@@ -17,7 +17,6 @@ export class ComissionSalesIncentiveService {
   async create(createComissionSalesIncentiveDto: CreateComissionSalesIncentiveDto, user: users, comission_sales_incentive_evidences: Express.Multer.File[]) {
     try {
       const evidences = comission_sales_incentive_evidences.length > 0 ? comission_sales_incentive_evidences?.map((item) => {
-        console.log(item);
 
         return {
           evidence_location: item.filename,
@@ -25,12 +24,9 @@ export class ComissionSalesIncentiveService {
         }
       }) : [];
 
-      console.log(evidences);
 
 
-      console.log((await this.nextCode()).code)
       const salesIncentiveUpdateArgs = createComissionSalesIncentiveDto.sales_incentive.length > 0 ? createComissionSalesIncentiveDto.sales_incentive.map((item) => item.sales_incentive_id) : undefined;
-      console.log(salesIncentiveUpdateArgs)
       const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
         where: {
           id: {
@@ -38,7 +34,7 @@ export class ComissionSalesIncentiveService {
           }
         }
       }).then((data) => data.reduce((acc, curr) => acc + Number(curr?.nominal), 0));
-      const [comissionSalesIncentive, updateSalesIncentive] = await this.dbService.$transaction([
+      const [comissionSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.create({
           data: {
             total_amount: salesIncentiveTotalAmount,
@@ -62,17 +58,17 @@ export class ComissionSalesIncentiveService {
             }
           }
         }),
-        this.dbService.sales_incentive.updateMany({
-          where: {
-            id: {
-              in: salesIncentiveUpdateArgs
-            }
-          },
-          data: {
-            comission_sales_incentive_id: (await this.nextCode()).code
-          }
-        })
       ]);
+      await this.dbService.sales_incentive.updateMany({
+        where: {
+          id: {
+            in: salesIncentiveUpdateArgs
+          }
+        },
+        data: {
+          comission_sales_incentive_id: comissionSalesIncentive.id
+        }
+      });
       return comissionSalesIncentive;
     } catch (error) {
       console.error(error);
@@ -304,13 +300,18 @@ export class ComissionSalesIncentiveService {
         }
       });
 
-      const existingSalesIncentiveIds = existingSalesIncentives.map(item => item.id);
+      const existingSalesIncentiveIds = existingSalesIncentives.map((item) => item.id);
 
-      const newSalesIncentiveIds = updateComissionSalesIncentiveDto.sales_incentive.map(item => item.sales_incentive_id);
-
-      const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(id => !newSalesIncentiveIds.includes(id));
-
-      const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(id => !existingSalesIncentiveIds.includes(id));
+      const newSalesIncentiveIds =
+        updateComissionSalesIncentiveDto?.sales_incentive?.map((item) => item?.sales_incentive_id) || [];
+  
+      const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(
+        (existingId) => !newSalesIncentiveIds.includes(existingId),
+      );
+  
+      const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(
+        (newId) => !existingSalesIncentiveIds.includes(newId),
+      );
 
       const evidences = comission_sales_incentive_evidences.length > 0 ? comission_sales_incentive_evidences.map((item) => {
         return {
@@ -322,12 +323,12 @@ export class ComissionSalesIncentiveService {
       const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
         where: {
           id: {
-            in: newSalesIncentiveIds
+            in: newSalesIncentiveIds.length > 0 ? newSalesIncentiveIds : existingSalesIncentiveIds
           }
         }
       }).then((data) => data.reduce((acc, curr) => acc + Number(curr?.nominal), 0));
 
-      const [comissionSalesIncentive, updateSalesIncentive] = await this.dbService.$transaction([
+      const [comissionSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.update({
           where: { id },
           data: {
@@ -341,28 +342,23 @@ export class ComissionSalesIncentiveService {
             }
           },
         }),
-
-        this.dbService.sales_incentive.updateMany({
-          where: {
-            id: {
-              in: salesIncentiveIdsToDisconnect
-            }
-          },
-          data: {
-            comission_sales_incentive_id: null
-          }
-        }),
-
-        this.dbService.sales_incentive.updateMany({
-          where: {
-            id: {
-              in: salesIncentiveIdsToConnect
-            }
-          },
-          data: {
-            comission_sales_incentive_id: id
-          }
-        })
+        ...(salesIncentiveIdsToConnect.length > 0
+          ? [
+              this.dbService.sales_incentive.updateMany({
+                where: { id: { in: salesIncentiveIdsToDisconnect } },
+                data: { comission_sales_incentive_id: null },
+              }),
+            ]
+          : []),
+  
+        ...(salesIncentiveIdsToConnect.length > 0
+          ? [
+              this.dbService.sales_incentive.updateMany({
+                where: { id: { in: salesIncentiveIdsToConnect } },
+                data: { comission_sales_incentive_id: id },
+              }),
+            ]
+          : []),
       ]);
 
       return comissionSalesIncentive;
@@ -385,7 +381,6 @@ export class ComissionSalesIncentiveService {
       },
       take: 1,
     });
-    console.log(invoices);
 
 
     let nextCode: number;
@@ -463,10 +458,6 @@ export class ComissionSalesIncentiveService {
       worksheet.getCell('A2').font = { size: 16, bold: true };
       worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
 
-      // Cek nilai setelah diatur
-      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
-
-      // Definisikan kolom
       worksheet.columns = [
         { header: 'No', key: 'no', width: 10 },
         { header: 'Store Name', key: 'store_name', width: 30 },
@@ -517,7 +508,6 @@ export class ComissionSalesIncentiveService {
         price_difference: 0,
       };
 
-      // Proses setiap order dalam data
       data.sales_incentive.forEach((item, index) => {
         const receipt_number = item.quotation.receipt_quotation ? item.quotation.receipt_quotation : item.quotation.order.receipt_number
 
@@ -537,7 +527,6 @@ export class ComissionSalesIncentiveService {
         });
 
         row.eachCell((cell, colNumber) => {
-          // Menambahkan border ke semua sel
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },
@@ -590,13 +579,11 @@ export class ComissionSalesIncentiveService {
         }
       });
 
-      // Fungsi untuk mendapatkan tanggal format saat ini
       const getFormattedDate = () => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
-      // Fungsi untuk membuat path file Excel
       const createExcelFilePath = (baseName: string) => {
         const folderPath = './storage/excel/comission-sales-incentive';
         if (!fs.existsSync(folderPath)) {
@@ -606,7 +593,6 @@ export class ComissionSalesIncentiveService {
         return path.join(folderPath, excelFileName);
       };
 
-      // Fungsi untuk menulis workbook dan mengirimkan respons
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
@@ -619,7 +605,6 @@ export class ComissionSalesIncentiveService {
         fileStream.pipe(res);
       };
 
-      // Generate file Excel
       const generateExcelFile = async (res) => {
         const formattedDate = getFormattedDate();
         const baseName = `DataComissionSalesIncentiveId${id}-${formattedDate}`;
@@ -627,7 +612,6 @@ export class ComissionSalesIncentiveService {
         await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
       };
 
-      // Jalankan pembuatan file Excel
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
@@ -679,7 +663,6 @@ export class ComissionSalesIncentiveService {
       throw new NotFoundException('Comission Sales Incentive not found!');
     }
 
-    console.log(data.sales_incentive[0].sales.bank.bank_name)
 
     const buffer = await this.pdfService.generateLandscape('comission-sales-incentive-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
@@ -876,9 +859,7 @@ export class ComissionSalesIncentiveService {
         cell.value = null;
       });
 
-      // Proses setiap order dalam data
       data.forEach((item, index) => {
-        console.log(item.sales_incentive.map((x) => x.id)[0] ?? '')
 
         const row = worksheet.addRow({
           no: index + 1,
@@ -893,7 +874,6 @@ export class ComissionSalesIncentiveService {
         });
 
         row.eachCell((cell, colNumber) => {
-          // Menambahkan border ke semua sel
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },

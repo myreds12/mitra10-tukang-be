@@ -1014,6 +1014,7 @@ export class OrderService {
           },
           order_history: {
             select: {
+              id: true,
               order_id: true,
               payload: true,
               created_at: true,
@@ -2526,7 +2527,7 @@ export class OrderService {
         order.m_order_details.forEach((detail) => {
           const itemName = detail.item_name || 'Item belum ditentukan';
           const categoryName =
-            detail.item?.category?.category_name || 'Category Belum ditentukan';
+            detail.item.category.category_name || '';
           const quantity = detail?.quantity || 'Quantity Belum ditentukan';
           const tukangName = order?.work_orders?.work_order_tukang
             ? [
@@ -2593,7 +2594,6 @@ export class OrderService {
             phone_number:
               order?.members?.phone_number ??
               order?.members?.whatsapp_number ??
-              order?.members ??
               'N/a',
             item_name: itemName,
             category_name: categoryName,
@@ -2625,9 +2625,9 @@ export class OrderService {
                 ? `${formattedDateTime(
                   order.work_orders.work_start_date,
                 )} - ${formattedDateTime(order.work_orders.work_end_date)}`
-                : 'Order Tidak Ada Tanggal Survey',
-            company_name: order.vendor ? order.vendor.company_name : 'N/a',
-            sales_name: order.sales ? order.sales.full_name : 'N/a',
+                : 'Order Tidak Ada Tanggal Pengerjaan',
+            company_name: order.vendor ? order.vendor.company_name : 'Vendor Belum Ditentukan',
+            sales_name: order.sales ? order.sales.full_name : '',
             tukang_name: tukangName,
             grand_total_survey: grandTotalSurveyValue,
             quotation_grand_total: quotationGrandTotalValue,
@@ -5229,6 +5229,7 @@ export class OrderService {
             email: memberDto?.email ?? undefined,
             phone_number: memberDto?.phone_number ?? undefined,
             whatsapp_number: memberDto?.whatsapp_number ?? undefined,
+            member_number: memberDto?.phone_number ?? memberDto?.whatsapp_number,
             address_1: memberDto?.address_1 ?? undefined,
             address_2: memberDto?.address_2 ?? undefined,
             area_id: memberDto?.area_id ?? undefined,
