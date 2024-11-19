@@ -1953,50 +1953,42 @@ export class ReportsService {
 
       const itemMap = new Map();
 
-      // Iterate over each order in the data
       data.forEach(order => {
         order.m_order_details.forEach(detail => {
-          // Check if the item type is 1 or 2
           if (detail?.item?.type === 1 || detail?.item?.type === 2) {
             const fullName = detail.item.item_name;
             const quantity = detail?.quantity || 0;
             const type = detail.item.type;
-
-            // Split the item name into words
-            const words = fullName.split(" ");
-            console.log("WORDS:", words);
-
-            // Ensure the item name has at least two words
-            if (words.length >= 2) {
-              // Use the first two words for grouping
-              const baseName = `${words[0]} ${words[1]}`; // First two words
-              console.log("BASE NAME (first 2 words):", baseName);
-
-              // Check if the base name is valid
-              if (baseName) {
-                // Create a unique key based on the base name (first two words) and type
-                const key = `${baseName}_${type}`;
-
-                // If the key already exists in the map, update the quantities
-                if (itemMap.has(key)) {
-                  const itemData = itemMap.get(key);
-                  itemData.quantity += quantity; // Add the quantity
-                  itemData.orderCount += 1; // Increment the order count
-                  itemMap.set(key, itemData); // Set updated data
-                } else {
-                  // If the key doesn't exist, add a new entry with just the baseName
-                  itemMap.set(key, {
-                    itemName: baseName, // Use only the first two words as the item name
-                    quantity: quantity,
-                    orderCount: 1,
-                    type: type
-                  });
-                }
+      
+            let baseName;
+            if (type === 1) {
+              baseName = fullName;
+            } else if (type === 2) {
+              const words = fullName.split(" ");
+              baseName = words.length >= 2 ? `${words[0]} ${words[1]}` : fullName;
+            }
+      
+            if (baseName) {
+              const key = `${baseName}_${type}`;
+      
+              if (itemMap.has(key)) {
+                const itemData = itemMap.get(key);
+                itemData.quantity += quantity;
+                itemData.orderCount += 1;
+                itemMap.set(key, itemData);
+              } else {
+                itemMap.set(key, {
+                  itemName: baseName,
+                  quantity: quantity,
+                  orderCount: 1,
+                  type: type
+                });
               }
             }
           }
         });
       });
+      
 
       interface Item {
         itemName: string;
@@ -2006,7 +1998,7 @@ export class ReportsService {
       }
 
       const allItems: Item[] = [...itemMap.entries()].map(([_, data]) => ({
-        itemName: data.itemName, // The itemName is now just the first two words
+        itemName: data.itemName,
         quantity: data.quantity,
         orderCount: data.orderCount,
         type: data.type
@@ -2024,7 +2016,13 @@ export class ReportsService {
       ).length;
 
       const orderDone = data.filter((x) =>
-        x.status.category === 'WORKEND' || x.status.category === 'SURVEYDONE' || x.status.category === 'WORKENDSTEPONE' || x.status.category === 'WORKENDSTEPTWO' || x.status.category === 'WORKENDSTEPTHREE'
+        x.status.category === 'WORKEND' || 
+        x.status.category === 'SURVEYDONE' || 
+        x.status.category === 'WORKENDSTEPONE' || 
+        x.status.category === 'WORKENDSTEPTWO' || 
+        x.status.category === 'QUOTEIN' || 
+        x.status.category === 'QUOTEOUT' || 
+        (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK' && x.payment_type === 'survey')
       ).length;
 
       const currentDate = new Date(date_from);
@@ -2042,11 +2040,15 @@ export class ReportsService {
 
       const orderPending = data.filter((x) =>
         (
-          x.status.category === 'WORKREQ' ||
+          // x.status.category === 'WORKREQ' ||
+          // x.status.category === 'SURVEYREQ' ||
+          // x.status.category === 'WORKREQSTEPONE' ||
+          // x.status.category === 'WORKREQSTEPTWO' ||
+          // x.status.category === 'WORKREQSTEPTHREE'
+          x.status.category === 'SURVEYSTART' ||
+          x.status.category === 'TUKANGSURVEY' ||
           x.status.category === 'SURVEYREQ' ||
-          x.status.category === 'WORKREQSTEPONE' ||
-          x.status.category === 'WORKREQSTEPTWO' ||
-          x.status.category === 'WORKREQSTEPTHREE'
+          (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK' && x.payment_type === 'gratis' || x.payment_type === 'pemasangan_tanpa_survey')
         ) &&
         (
           (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
@@ -2071,7 +2073,9 @@ export class ReportsService {
         'WORKENDSTEPONE',
         'WORKENDSTEPTWO',
         'WORKENDSTEPTHREE',
-        'QUOTEIN'
+        'QUOTEIN',
+        'QUOTEOUT',
+        'SURVEYDONE',
       ];
 
       const orderProgress = data.filter((x) =>
@@ -2084,7 +2088,7 @@ export class ReportsService {
         x.payment_type === 'survey'
       ).length;
 
-      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
+      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey' && x?.status.category === 'QUOTEIN' || x?.status.category === 'QUOTEOUT').length;
       const quotationPaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
@@ -2100,13 +2104,13 @@ export class ReportsService {
         x.payment_type === 'survey'
       ).length;
       const quotationUnpaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey')
+        .filter((x) => x?.quotation[0]?.receipt_quotation === null || (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0) && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
         }, 0);
 
-      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'TUKANGWORK', 'INVESTIGATED'];
+      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'INVESTIGATED', 'RESURVEY', 'BOOKED', 'BOOK'];
 
       const orderSurveyOnGoing = data.filter(
         x => ongoingSurveyCategories.includes(x.status.category) && x.payment_type === 'survey'
@@ -2208,7 +2212,7 @@ export class ReportsService {
 
         const item = allItems[i] || {} as Item;
         const itemName = item.itemName && item.orderCount
-          ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY'}${item.itemName}: ${item.orderCount}`
+          ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY '}${item.itemName}: ${item.orderCount}`
           : '';
         const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
@@ -2238,7 +2242,7 @@ export class ReportsService {
       worksheet.getColumn(2).width = 15;
       worksheet.getColumn(3).width = 45;
       worksheet.getColumn(4).width = 15;
-      worksheet.getColumn(5).width = 50;
+      worksheet.getColumn(5).width = 70;
       worksheet.getColumn(6).width = 25;
 
       worksheet.eachRow((row) => {
