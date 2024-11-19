@@ -1959,7 +1959,7 @@ export class ReportsService {
             const fullName = detail.item.item_name;
             const quantity = detail?.quantity || 0;
             const type = detail.item.type;
-      
+
             let baseName;
             if (type === 1) {
               baseName = fullName;
@@ -1967,10 +1967,10 @@ export class ReportsService {
               const words = fullName.split(" ");
               baseName = words.length >= 2 ? `${words[0]} ${words[1]}` : fullName;
             }
-      
+
             if (baseName) {
               const key = `${baseName}_${type}`;
-      
+
               if (itemMap.has(key)) {
                 const itemData = itemMap.get(key);
                 itemData.quantity += quantity;
@@ -1988,7 +1988,7 @@ export class ReportsService {
           }
         });
       });
-      
+
 
       interface Item {
         itemName: string;
@@ -2014,16 +2014,25 @@ export class ReportsService {
       const bookReceived = data.filter((x) =>
         x.status.category != 'PICKLIST'
       ).length;
+      console.log("BOOK RECEIVED", bookReceived);
 
-      const orderDone = data.filter((x) =>
-        x.status.category === 'WORKEND' || 
-        x.status.category === 'SURVEYDONE' || 
-        x.status.category === 'WORKENDSTEPONE' || 
-        x.status.category === 'WORKENDSTEPTWO' || 
-        x.status.category === 'QUOTEIN' || 
-        x.status.category === 'QUOTEOUT' || 
-        (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK' && x.payment_type === 'survey')
+      const validCategories = [
+        'WORKEND',
+        'SURVEYDONE',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'QUOTEIN',
+        'QUOTEOUT'
+      ];
+
+      const orderDone = data.filter(x =>
+        validCategories.includes(x.status.category) ||
+        (
+          (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK') &&
+          x.payment_type === 'survey'
+        )
       ).length;
+      console.log("ORDER DONE", orderDone);
 
       const currentDate = new Date(date_from);
 
@@ -2038,23 +2047,21 @@ export class ReportsService {
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
 
-      const orderPending = data.filter((x) =>
+      const orderPending = data.filter(x => 
         (
-          // x.status.category === 'WORKREQ' ||
-          // x.status.category === 'SURVEYREQ' ||
-          // x.status.category === 'WORKREQSTEPONE' ||
-          // x.status.category === 'WORKREQSTEPTWO' ||
-          // x.status.category === 'WORKREQSTEPTHREE'
-          x.status.category === 'SURVEYSTART' ||
-          x.status.category === 'TUKANGSURVEY' ||
-          x.status.category === 'SURVEYREQ' ||
-          (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK' && x.payment_type === 'gratis' || x.payment_type === 'pemasangan_tanpa_survey')
+            ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'].includes(x.status.category) ||
+            (
+                ['WORKREQ', 'TUKANGWORK'].includes(x.status.category) && 
+                ['gratis', 'pemasangan_tanpa_survey'].includes(x.payment_type)
+            )
         ) &&
         (
-          (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
-          (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
+            (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
+            (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
         )
-      ).length;
+    ).length;
+      console.log("ORDER PENDING", orderPending);
+
 
       const orderRefund = data.filter((x) =>
         x.refund.length > 0
@@ -2088,7 +2095,8 @@ export class ReportsService {
         x.payment_type === 'survey'
       ).length;
 
-      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey' && x?.status.category === 'QUOTEIN' || x?.status.category === 'QUOTEOUT').length;
+      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
+      console.log("QUOTATION PAID", quotationPaid);
       const quotationPaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
@@ -2115,6 +2123,7 @@ export class ReportsService {
       const orderSurveyOnGoing = data.filter(
         x => ongoingSurveyCategories.includes(x.status.category) && x.payment_type === 'survey'
       ).length;
+      console.log("ORDER SURVEY ON GOING", orderSurveyOnGoing);
       const orderSurveyNoQuotation = data.filter((x) =>
         x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYDONE'
       ).length;
