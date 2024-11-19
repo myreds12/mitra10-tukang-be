@@ -2404,7 +2404,6 @@ export class OrderService {
                 quotation_details: {
                   include: {
                     item: true,
-                    category: true
                   },
                 },
                 quotation_files: true,
@@ -2523,227 +2522,131 @@ export class OrderService {
       let totalGrandTotalValue = 0;
 
       dataExcel.forEach((order) => {
-        let grandTotalValue = 0;
-        let grandTotalSurveyValue = 0;
-        let quotationGrandTotalValue = 0;
-      
-        const formattedDateTime = (dateTime) =>
-          `${new Date(dateTime).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`;
-      
-        if (order.quotation && order.quotation.length > 0 && order.quotation[0]?.quotation_details) {
-          let isFirstDetail = true; 
-      
-          order.quotation[0].quotation_details
-            .filter((quotationDetail) => quotationDetail.item_type === 2) 
-            .forEach((quotationDetail) => {
-              const itemName = quotationDetail.name || 'Item belum ditentukan';
-              const quantity = quotationDetail.quantity || 'Quantity Belum ditentukan';
-              const categoryName = quotationDetail?.category?.category_name || 'Kategori tidak ditentukan';
-      
-              const grandTotal = Number(order.grand_total);
-              const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
-              grandTotalValue = formattedGrandTotal;
-      
-              grandTotalSurveyValue = 0;
-              quotationGrandTotalValue = 0;
-      
-              // Hanya lakukan perhitungan jika payment_type adalah 'survey'
-              if (order.payment_type === 'survey') {
-                const grandTotalSurvey = Number(order.grand_total);
-                const quotationGrandTotal =
-                  order && order.quotation && order.quotation.length > 0
-                    ? Math.ceil(Number(order.quotation[0]?.quotation_grand_total || 0))
-                    : 0;
-      
-                if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
-                  if (isFirstDetail) {
-                    grandTotalSurveyValue = grandTotalSurvey;
-                    quotationGrandTotalValue = quotationGrandTotal;
-                    totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;  // Tambahkan hanya sekali pada detail pertama
-                    grandTotalValue = grandTotalSurvey + quotationGrandTotal;  // Perbarui grandTotalValue pada detail pertama
-                    isFirstDetail = false;  // Set isFirstDetail menjadi false setelah baris pertama
-                  } else {
-                    grandTotalSurveyValue = 0;
-                    quotationGrandTotalValue = 0;
-                  }
-                } else {
-                  grandTotalValue = 0;  // Set grandTotalValue menjadi 0 jika perhitungan tidak valid
-                }
-              }
-      
-              if (order.payment_type !== 'survey') {
-                totalGrandTotalValue += !isNaN(grandTotal) ? grandTotal : 0;
-              }
-      
-              // Tambahkan row ke worksheet
-              const row = worksheet.addRow({
-                id: order.id,
-                store_name: order.store ? order.store.store_name : 'N/a',
-                created_at: formattedDateTime(order.created_at),
-                request_survey: order.request_survey
-                  ? formattedDateTime(order.request_survey)
-                  : 'N/a',
-                full_name: order.members ? order.members.full_name : 'N/a',
-                phone_number:
-                  order?.members?.phone_number ?? order?.members?.whatsapp_number ?? 'N/a',
-                item_name: itemName,
-                category_name: categoryName,
-                quantity: quantity,
-                payment_type:
-                  order.payment_type === 'pemasangan_tanpa_survey'
-                    ? 'Pemasangan Tanpa Survey'
-                    : order.payment_type === 'survey'
-                      ? 'Survey'
-                      : order.payment_type === 'gratis'
-                        ? 'Gratis'
-                        : 'N/a',
-                receipt_number: order.receipt_number
-                  ? order.receipt_number
-                  : 'Receipt belum terbit',
-                receipt_quotation:
-                  order.payment_type === 'survey' && order?.quotation[0]?.receipt_quotation
-                    ? order?.quotation[0]?.receipt_quotation
-                    : 'Receipt Quotation tidak ada',
-                status_order:
-                  order?.status?.description ?? 'Order Tidak Memiliki Status',
-                survey_date: order?.work_orders?.survey_date
-                  ? formattedDateTime(order.work_orders.survey_date)
-                  : 'Order Tidak Ada Tanggal Survey',
-                work_date:
-                  order?.work_orders?.work_start_date && order?.work_orders?.work_end_date
-                    ? `${formattedDateTime(order.work_orders.work_start_date)} - ${formattedDateTime(order.work_orders.work_end_date)}`
-                    : 'Order Tidak Ada Tanggal Pengerjaan',
-                company_name: order.vendor ? order.vendor.company_name : 'Vendor Belum Ditentukan',
-                sales_name: order.sales ? order.sales.full_name : '',
-                tukang_name: 'Tukang belum ditentukan',
-                grand_total_survey: grandTotalSurveyValue,
-                quotation_grand_total: quotationGrandTotalValue,
-                grand_total: grandTotalValue,
-              });
-      
-              row.eachCell((cell) => {
-                cell.alignment = { vertical: 'middle', horizontal: 'left' };
-                cell.border = {
-                  top: { style: 'thin' },
-                  left: { style: 'thin' },
-                  bottom: { style: 'thin' },
-                  right: { style: 'thin' },
-                };
-              });
-            });
-        } else {
-          // Jika tidak memiliki quotation, iterasi order details
-          let isFirstDetail = true; // Reset isFirstDetail untuk setiap order tanpa quotation
-      
-          order.m_order_details.forEach((detail) => {
-            const itemName = detail.item_name || 'Item belum ditentukan';
-            const categoryName = detail?.item?.category?.category_name ?? '';
-            const quantity = detail?.quantity || 'Quantity Belum ditentukan';
-      
-            const grandTotal = Number(order.grand_total);
-            const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
-            grandTotalValue = formattedGrandTotal;
-      
-            grandTotalSurveyValue = 0;
-            quotationGrandTotalValue = 0;
-      
-            // Hanya lakukan perhitungan jika payment_type adalah 'survey'
-            if (order.payment_type === 'survey') {
-              const grandTotalSurvey = Number(order.grand_total);
-              const quotationGrandTotal =
-                order && order.quotation && order.quotation.length > 0
-                  ? Math.ceil(Number(order.quotation[0]?.quotation_grand_total || 0))
-                  : 0;
-      
-              if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
-                if (isFirstDetail) {
-                  grandTotalSurveyValue = grandTotalSurvey;
-                  quotationGrandTotalValue = quotationGrandTotal;
-                  totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;  // Tambahkan hanya sekali pada detail pertama
-                  grandTotalValue = grandTotalSurvey + quotationGrandTotal;  // Perbarui grandTotalValue pada detail pertama
-                  isFirstDetail = false;  // Set isFirstDetail menjadi false setelah baris pertama
-                } else {
-                  grandTotalSurveyValue = 0;
-                  quotationGrandTotalValue = 0;
-                }
+        let isFirstDetail = true;
+
+        order.m_order_details.forEach((detail) => {
+          const itemName = detail.item_name || 'Item belum ditentukan';
+          const categoryName =
+            detail?.item?.category?.category_name ?? '';
+          const quantity = detail?.quantity || 'Quantity Belum ditentukan';
+          const tukangName = order?.work_orders?.work_order_tukang
+            ? [
+              ...new Set(
+                order.work_orders.work_order_tukang.map(
+                  (item) => item?.tukang?.full_name,
+                ),
+              ),
+            ].join(', ')
+            : 'Tukang belum ditugaskan';
+          const formattedDateTime = (dateTime) =>
+            `${new Date(dateTime).toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`;
+          const grandTotal = Number(order.grand_total);
+          const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
+          let grandTotalValue = formattedGrandTotal;
+
+          let grandTotalSurveyValue = 0;
+          let quotationGrandTotalValue = 0;
+
+          if (order.payment_type === 'survey') {
+            const grandTotalSurvey = Number(order.grand_total);
+            const quotationGrandTotal =
+              order && order.quotation && order.quotation.length > 0
+                ? Math.ceil(
+                  Number(order.quotation[0]?.quotation_grand_total || 0),
+                )
+                : 0;
+
+            if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
+              if (isFirstDetail) {
+                grandTotalSurveyValue = grandTotalSurvey;
+                quotationGrandTotalValue = quotationGrandTotal;
+                totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;
+                grandTotalValue = grandTotalSurvey + quotationGrandTotal;
               } else {
-                grandTotalValue = 0;  // Set grandTotalValue menjadi 0 jika perhitungan tidak valid
+                grandTotalSurveyValue = 0;
+                quotationGrandTotalValue = 0;
               }
+            } else {
+              grandTotalValue = 0;
             }
-      
-            // Penjumlahan grand total untuk non-'survey' payment type
-            if (order.payment_type !== 'survey') {
-              totalGrandTotalValue += !isNaN(grandTotal) ? grandTotal : 0;
-            }
-      
-            // Tambahkan row ke worksheet
-            const row = worksheet.addRow({
-              id: order.id,
-              store_name: order.store ? order.store.store_name : 'N/a',
-              created_at: formattedDateTime(order.created_at),
-              request_survey: order.request_survey
-                ? formattedDateTime(order.request_survey)
-                : 'N/a',
-              full_name: order.members ? order.members.full_name : 'N/a',
-              phone_number:
-                order?.members?.phone_number ?? order?.members?.whatsapp_number ?? 'N/a',
-              item_name: itemName,
-              category_name: categoryName,
-              quantity: quantity,
-              payment_type:
-                order.payment_type === 'pemasangan_tanpa_survey'
-                  ? 'Pemasangan Tanpa Survey'
-                  : order.payment_type === 'survey'
-                    ? 'Survey'
-                    : order.payment_type === 'gratis'
-                      ? 'Gratis'
-                      : 'N/a',
-              receipt_number: order.receipt_number
-                ? order.receipt_number
-                : 'Receipt belum terbit',
-              receipt_quotation:
-                order.payment_type === 'survey' && order?.quotation[0]?.receipt_quotation
-                  ? order?.quotation[0]?.receipt_quotation
-                  : 'Receipt Quotation tidak ada',
-              status_order:
-                order?.status?.description ?? 'Order Tidak Memiliki Status',
-              survey_date: order?.work_orders?.survey_date
-                ? formattedDateTime(order.work_orders.survey_date)
-                : 'Order Tidak Ada Tanggal Survey',
-              work_date:
-                order?.work_orders?.work_start_date && order?.work_orders?.work_end_date
-                  ? `${formattedDateTime(order.work_orders.work_start_date)} - ${formattedDateTime(order.work_orders.work_end_date)}`
-                  : 'Order Tidak Ada Tanggal Pengerjaan',
-              company_name: order.vendor ? order.vendor.company_name : 'Vendor Belum Ditentukan',
-              sales_name: order.sales ? order.sales.full_name : '',
-              tukang_name: 'Tukang belum ditentukan',
-              grand_total_survey: 0,
-              quotation_grand_total: 0,
-              grand_total: grandTotalValue,
-            });
-      
-            row.eachCell((cell) => {
-              cell.alignment = { vertical: 'middle', horizontal: 'left' };
-              cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' },
-              };
-            });
+          }
+
+          totalGrandTotalValue +=
+            !isNaN(Number()) && order.payment_type != 'survey'
+              ? Number(grandTotal)
+              : 0;
+
+          const row = worksheet.addRow({
+            id: order.id,
+            store_name: order.store ? order.store.store_name : 'N/a',
+            created_at: formattedDateTime(order.created_at),
+            request_survey: order.request_survey
+              ? formattedDateTime(order.request_survey)
+              : 'N/a',
+            full_name: order.members ? order.members.full_name : 'N/a',
+            phone_number:
+              order?.members?.phone_number ??
+              order?.members?.whatsapp_number ??
+              'N/a',
+            item_name: itemName,
+            category_name: categoryName,
+            quantity: quantity,
+            payment_type:
+              order.payment_type === 'pemasangan_tanpa_survey'
+                ? 'Pemasangan Tanpa Survey'
+                : order.payment_type === 'survey'
+                  ? 'Survey'
+                  : order.payment_type === 'gratis'
+                    ? 'Gratis'
+                    : 'N/a',
+            receipt_number: order.receipt_number
+              ? order.receipt_number
+              : 'Receipt belum terbit',
+            receipt_quotation:
+              order.payment_type === 'survey' &&
+                order?.quotation[0]?.receipt_quotation
+                ? order?.quotation[0]?.receipt_quotation
+                : 'Receipt Quotation tidak ada',
+            status_order:
+              order?.status?.description ?? 'Order Tidak Memiliki Status',
+            survey_date: order?.work_orders?.survey_date
+              ? formattedDateTime(order.work_orders.survey_date)
+              : 'Order Tidak Ada Tanggal Survey',
+            work_date:
+              order?.work_orders?.work_start_date &&
+                order?.work_orders?.work_end_date
+                ? `${formattedDateTime(
+                  order.work_orders.work_start_date,
+                )} - ${formattedDateTime(order.work_orders.work_end_date)}`
+                : 'Order Tidak Ada Tanggal Pengerjaan',
+            company_name: order.vendor ? order.vendor.company_name : 'Vendor Belum Ditentukan',
+            sales_name: order.sales ? order.sales.full_name : '',
+            tukang_name: tukangName,
+            grand_total_survey: grandTotalSurveyValue,
+            quotation_grand_total: quotationGrandTotalValue,
+            grand_total: grandTotalValue,
           });
-        }
+
+          row.eachCell((cell) => {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' },
+            };
+          });
+
+          isFirstDetail = false;
+        });
       });
-      
-
-
 
       const totalRow = worksheet.addRow({
         id: 'Total',

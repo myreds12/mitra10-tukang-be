@@ -12,7 +12,21 @@ export class PdfService {
       });
 
 
-      create(html, { timeout: 60000 }).toBuffer((err, buffer) => {
+      create(html, { format: 'A4',
+        border: {
+          top: "0.5in",
+          right: "0.5in",
+          bottom: "0",
+          left: "0.5in"
+        },
+        header: {
+          height: "10mm",
+        },
+        footer: {
+          height: "5mm",
+        },
+        timeout: 60000,
+        orientation: 'landscape' }).toBuffer((err, buffer) => {
         if (err) {
           reject(err);
         } else {
