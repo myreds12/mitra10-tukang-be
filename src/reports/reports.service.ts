@@ -2022,7 +2022,11 @@ export class ReportsService {
         'WORKENDSTEPONE',
         'WORKENDSTEPTWO',
         'QUOTEIN',
-        'QUOTEOUT'
+        'QUOTEOUT',
+        'QUOTATIONPAID',
+        'QUOTATIONPAIDSTEPONE',
+        'QUOTATIONPAIDSTEPTWO',
+        'QUOTATIONPAIDSTEPTHREE',
       ];
 
       const orderDone = data.filter(x =>
@@ -2046,21 +2050,21 @@ export class ReportsService {
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
+      const statusPending = ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'];
 
-      const orderPending = data.filter(x => 
+      const orderPending = data.filter(x =>
         (
-            ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'].includes(x.status.category) ||
-            (
-                ['WORKREQ', 'TUKANGWORK'].includes(x.status.category) && 
-                ['gratis', 'pemasangan_tanpa_survey'].includes(x.payment_type)
-            )
+          statusPending.includes(x.status.category) ||
+          (
+            (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK') &&
+            (x.payment_type === 'gratis' || x.payment_type === 'pemasangan_tanpa_survey')
+          )
         ) &&
         (
-            (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
-            (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
+          (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
+          (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
         )
-    ).length;
-      console.log("ORDER PENDING", orderPending);
+      ).length;
 
 
       const orderRefund = data.filter((x) =>

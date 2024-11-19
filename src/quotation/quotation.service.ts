@@ -43,6 +43,7 @@ export class QuotationService {
     try {
       const { id: user_id } = user;
       let grandTotal = 0;
+      let grandTotalNoPromotion = 0;
       let comission = 0;
 
       const order = await this.dbService.orders.findFirst({
@@ -108,6 +109,7 @@ export class QuotationService {
           }
 
           grandTotal += final_price ?? 0;
+          grandTotalNoPromotion += final_price ?? 0;
           return {
             category_id: item?.category_id,
             item_id: item?.item_id,
@@ -207,7 +209,7 @@ export class QuotationService {
         quotation_disc: createQuotationDto?.quotation_disc,
         quotation_promotion: createQuotationDto?.quotation_promotion,
         quotation_special: createQuotationDto.quotation_special,
-        quotation_no_promotion: grandTotal,
+        quotation_no_promotion: grandTotalNoPromotion,
         quotation_grand_total:
           grandTotal -
           (createQuotationDto.quotation_disc
@@ -713,6 +715,7 @@ export class QuotationService {
       }
 
       let grandTotal = 0;
+      let grandTotalNoPromotion = 0;
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
         (item) => {
           let price = 0;
@@ -730,6 +733,7 @@ export class QuotationService {
           }
 
           grandTotal += final_price;
+          grandTotalNoPromotion += final_price;
 
           return {
             where: {
@@ -902,7 +906,7 @@ export class QuotationService {
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
-            quotation_no_promotion: grandTotal,
+            quotation_no_promotion: ,
             quotation_grand_total:
               grandTotal -
               ((updateQuotationDto.quotation_disc
