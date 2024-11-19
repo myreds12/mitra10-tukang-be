@@ -407,6 +407,10 @@ export class QuotationService {
           },
           quotation_files: true,
           quotation_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null
+            },
             include: {
               category: true,
               work_order_items: true,
@@ -906,7 +910,7 @@ export class QuotationService {
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
-            quotation_no_promotion: ,
+            quotation_no_promotion: grandTotalNoPromotion,
             quotation_grand_total:
               grandTotal -
               ((updateQuotationDto.quotation_disc
