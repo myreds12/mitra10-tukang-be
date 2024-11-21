@@ -143,7 +143,7 @@ html(lang="en")
           tbody
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
               tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= #{item.name ? item.name : '-'}
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.name ? item.name : '-'}
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-' 
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
                 - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
