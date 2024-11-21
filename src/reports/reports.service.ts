@@ -2063,7 +2063,7 @@ export class ReportsService {
 
 
       const orderRefund = data.filter((x) =>
-        x.refund.length > 0 || x.status.category === 'CANCELREFUND'
+        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND'
       ).length;
 
       const orderCancel = data.filter((x) => x.status.category === 'CANCEL'
@@ -2132,7 +2132,7 @@ export class ReportsService {
         x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYDONE'
       ).length;
       const orderSurveyCancelRefund = data.filter((x) =>
-        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND'
+        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND' 
       ).length;
       console.log("ORDER SURVEY NO QUOTATION", orderSurveyNoQuotation);
 
