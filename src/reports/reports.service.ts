@@ -2051,9 +2051,7 @@ export class ReportsService {
         date && new Date(date) >= startOfMonth && new Date(date) <= endOfMonth;
 
       const orderPending1 = data.filter(({ status, payment_type, request_survey }) =>
-        (statusPending.includes(status.category) ||
-          (['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
-            ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
+        statusPending.includes(status.category ) &&
         (isWithinDateRange(request_survey))
       ).length;
 
