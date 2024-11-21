@@ -1,4 +1,3 @@
-PUG QUOTATION
 doctype html
 html(lang="en")
   head
@@ -6,11 +5,90 @@ html(lang="en")
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
     title Quotation Confirmation
     link(href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet")
+  style.
+    table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    }
+    table.table-responsive th {
+    max-width: 144px;
+    min-width: 144px;
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    }
+    table.table-responsive th,
+    td {
+    max-width: 144px;
+    min-width: 144px;
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    word-break: break-word;
+    font-size: 0.875rem;
+    }
+    table.table-responsive-header {
+    display: none;
+    }
+    table.table-desktop-header {
+    display: table;
+    }
+    .order-title {
+    display: none;
+    }
+    .ui-desktop {
+    display: block;
+    }
+    .ui-mobile {
+    display: none;
+    }
+    @media (max-width: 600px) {
+    h1 {
+    font-size: 18px;
+    }
+    p {
+    font-size: 12px;
+    }
+    li {
+    font-size: 12px;
+    }
+    th,
+    td {
+    font-size: 12px;
+    }
+    table.table-responsive-header {
+    display: table;
+    }
+    table.table-desktop-header {
+    display: none;
+    }
+    table.table-responsive th,
+    td {
+    max-width: fit-content;
+    min-width: fit-content;
+    }
+    .order-title {
+    display: block;
+    }
+    .ui-desktop {
+    display: none;
+    }
+    .ui-mobile {
+    display: block;
+    }
+    }
+    @media (max-width: 375px) {
+    table.table-responsive {
+    overflow-x: auto;
+    display: block;
+    width: 100%;
+    }
+    }
   body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
     .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
       .header
         img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? ${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path} : 'https://i.ibb.co.com/LhrxWt7/header-email-instalasi-01.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
-      
+
       .order-details(style="padding-left: 16px; padding-right: 16px;")
         table(style="width: 100%;")
           tr
@@ -24,12 +102,12 @@ html(lang="en")
                 p(style="font-size: 0.875rem; margin: 0 !important;") Order ID : #{data.quotation.order.id}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-      
+
       .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
         p(style="color: #4a5568;") #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
         p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
         p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
-      
+
       .order-info(style="padding: 20px;")
         h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Survei
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
@@ -47,7 +125,7 @@ html(lang="en")
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item ? item.item.service_name || '' : item.item_name || ''}
                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || '0'}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
               - var formattedSurveyPrice = 'Rp. ' + data.quotation.order.grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedSurveyPrice}
 
@@ -66,8 +144,8 @@ html(lang="en")
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
               tr
                 td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= #{item.name ? item.name : '-'}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-'	
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-' 
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
                 - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
 
@@ -82,12 +160,12 @@ html(lang="en")
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
               tr
                 td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-'	
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-'
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-' 
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-' 
                 - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Total
               - var reducedTotal = 0
               - data.quotation.quotation_details.forEach(detail => {
               -   var reducedPrice = parseFloat(detail.final_price) 
@@ -96,37 +174,128 @@ html(lang="en")
               - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Promosi
               - var formattedQuotationPromotion = data.quotation.quotation_promotion ? 'Rp. ' + data.quotation.quotation_promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
               - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Grand Total
               - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-      
-      .customer-info(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Pelanggan
-        p(style="color: #4a5568;") 
-          strong Nama:
-          |  #{data.quotation.order.members.full_name}
-        p(style="color: #4a5568;") 
-          strong Email:
-          |  #{data.quotation.order.project_number}
-        p(style="color: #4a5568;") 
-          strong Nomor Telepon:
-          |  #{data.quotation.order.project_address}
-        p(style="color: #4a5568;") 
-          strong Alamat:
-          |  #{data.quotation.order.project_address}
+
+      .customer-info.ui-mobile(style='padding: 20px')
+        h2(style='\
+        font-size: 1.25rem;\
+        font-weight: 600;\
+        margin-bottom: 16px;\
+        ')
+          | Informasi Pelanggan
+        table.table-responsive(style='\
+        width: 100%;\
+        text-align: left;\
+        border-collapse: collapse;\
+        margin-bottom: 24px;\
+        ')
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Nama
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.members.full_name}
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Email
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.members.email}
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Nomor Telepon
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.project_number}
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Alamat
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.project_address}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-      
+
       .payment-instructions(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
         p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
@@ -168,10 +337,10 @@ html(lang="en")
         p(style="margin-bottom: 8px; color: #4a5568;") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
         p(style="margin-bottom: 8px; color: #4a5568;") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
         p(style="margin-bottom: 8px; color: #4a5568;") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
- 
+
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-    
+
       .footer-notes(style="padding: 20px;")
         p(style="color: #4a5568; font-weight: 600; margin-top: 0; margin-bottom: 0;") #{data.message.footer}
         p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.

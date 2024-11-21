@@ -2024,19 +2024,17 @@ export class ReportsService {
         'QUOTEIN',
         'QUOTEOUT',
         'QUOTATIONPAID',
+        'DRAFTQUOTATION',
         'QUOTATIONPAIDSTEPONE',
         'QUOTATIONPAIDSTEPTWO',
         'QUOTATIONPAIDSTEPTHREE',
       ];
-
-      const orderDone = data.filter(x =>
-        validCategories.includes(x.status.category) ||
-        (
-          (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK') &&
-          x.payment_type === 'survey'
-        )
+      
+      const orderDone = data.filter(({ status, payment_type }) =>
+        validCategories.includes(status.category) ||
+        (['WORKREQ', 'TUKANGWORK'].includes(status.category) && payment_type === 'survey')
       ).length;
-      console.log("ORDER DONE", orderDone);
+      
 
       const currentDate = new Date(date_from);
 
@@ -2052,28 +2050,25 @@ export class ReportsService {
       endOfNextMonth.setHours(0, 0, 0, 0);
       const statusPending = ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'];
 
-      const orderPending = data.filter(x =>
-        (
-          statusPending.includes(x.status.category) ||
-          (
-            (x.status.category === 'WORKREQ' || x.status.category === 'TUKANGWORK') &&
-            (x.payment_type === 'gratis' || x.payment_type === 'pemasangan_tanpa_survey')
-          )
-        ) &&
-        (
-          (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
-          (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
-        )
+
+      const isWithinDateRange = (date) =>
+        date && new Date(date) >= startOfMonth && new Date(date) <= endOfMonth;
+
+      const orderPending = data.filter(({ status, payment_type, request_survey, request_work }) =>
+        (statusPending.includes(status.category) ||
+          (['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
+            ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
+        (isWithinDateRange(request_survey))
       ).length;
 
 
       const orderRefund = data.filter((x) =>
-        x.refund.length > 0
+        x.refund.length > 0 || x.status.category === 'CANCELREFUND'
       ).length;
 
-      const orderCancel = data.filter((x) =>
-        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'CANCEL'
+      const orderCancel = data.filter((x) => x.status.category === 'CANCEL'
       ).length;
+      console.log("ORDER CANCEL", orderCancel);
 
 
       const totalProgressOrder = [
@@ -2088,16 +2083,21 @@ export class ReportsService {
         'QUOTEOUT',
         'SURVEYDONE',
       ];
-
-      const orderProgress = data.filter((x) =>
-        !totalProgressOrder.includes(x.status.category) && new Date(x.request_survey) >= nextMonth &&
-        new Date(x.request_survey) <= endOfNextMonth || new Date(x.request_work) >= nextMonth &&
-        new Date(x.request_work) <= endOfNextMonth
+      
+      const isWithinNextMonth = (date) =>
+        date && new Date(date) >= nextMonth && new Date(date) <= endOfNextMonth;
+      
+      const orderProgress = data.filter(({ status, request_survey, request_work }) =>
+        !totalProgressOrder.includes(status.category) &&
+        (isWithinNextMonth(request_survey))
       ).length;
+      
+      console.log("ORDER PROGRESS", orderProgress);
 
       const orderSurvey = data.filter((x) =>
         x.payment_type === 'survey'
       ).length;
+      console.log("ORDER SURVEY", orderSurvey);
 
       const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
       console.log("QUOTATION PAID", quotationPaid);
@@ -2115,6 +2115,7 @@ export class ReportsService {
         ) &&
         x.payment_type === 'survey'
       ).length;
+      console.log("QUOTATION UNPAID", quotationUnpaid);
       const quotationUnpaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation === null || (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0) && x.payment_type === 'survey')
         .reduce((total, order) => {
@@ -2134,6 +2135,7 @@ export class ReportsService {
       const orderSurveyCancelRefund = data.filter((x) =>
         x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND'
       ).length;
+      console.log("ORDER SURVEY NO QUOTATION", orderSurveyNoQuotation);
 
       const dateFrom = new Date(date_from);
       const dateTo = new Date(date_to);
