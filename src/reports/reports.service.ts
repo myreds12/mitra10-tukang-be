@@ -2004,13 +2004,6 @@ export class ReportsService {
         type: data.type
       }));
 
-      console.log("Grouped Items:", allItems);
-
-
-
-
-      console.log(allItems);
-
       const bookReceived = data.filter((x) =>
         x.status.category != 'PICKLIST'
       ).length;
@@ -2024,17 +2017,20 @@ export class ReportsService {
         'QUOTEIN',
         'QUOTEOUT',
         'QUOTATIONPAID',
-        'DRAFTQUOTATION',
+        'QUOTATIONDRAFT',
         'QUOTATIONPAIDSTEPONE',
         'QUOTATIONPAIDSTEPTWO',
         'QUOTATIONPAIDSTEPTHREE',
       ];
-      
-      const orderDone = data.filter(({ status, payment_type }) =>
-        validCategories.includes(status.category) ||
-        (['WORKREQ', 'TUKANGWORK'].includes(status.category) && payment_type === 'survey')
+
+      const orderDone1 = data.filter(({ status }) =>
+        validCategories.includes(status.category)
       ).length;
-      
+
+      const orderDone2 = data.filter(({ status, payment_type }) =>
+        ['WORKREQ', 'TUKANGWORK'].includes(status.category) && payment_type === 'survey'
+      ).length;
+
 
       const currentDate = new Date(date_from);
 
@@ -2054,10 +2050,16 @@ export class ReportsService {
       const isWithinDateRange = (date) =>
         date && new Date(date) >= startOfMonth && new Date(date) <= endOfMonth;
 
-      const orderPending = data.filter(({ status, payment_type, request_survey, request_work }) =>
+      const orderPending1 = data.filter(({ status, payment_type, request_survey }) =>
         (statusPending.includes(status.category) ||
           (['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
             ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
+        (isWithinDateRange(request_survey))
+      ).length;
+
+      const orderPending2 = data.filter(({ status, payment_type, request_survey }) =>
+        ((['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
+          ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
         (isWithinDateRange(request_survey))
       ).length;
 
@@ -2083,15 +2085,15 @@ export class ReportsService {
         'QUOTEOUT',
         'SURVEYDONE',
       ];
-      
+
       const isWithinNextMonth = (date) =>
         date && new Date(date) >= nextMonth && new Date(date) <= endOfNextMonth;
-      
-      const orderProgress = data.filter(({ status, request_survey, request_work }) =>
+
+      const orderProgress = data.filter(({ status, request_survey }) =>
         !totalProgressOrder.includes(status.category) &&
         (isWithinNextMonth(request_survey))
       ).length;
-      
+
       console.log("ORDER PROGRESS", orderProgress);
 
       const orderSurvey = data.filter((x) =>
@@ -2115,7 +2117,6 @@ export class ReportsService {
         ) &&
         x.payment_type === 'survey'
       ).length;
-      console.log("QUOTATION UNPAID", quotationUnpaid);
       const quotationUnpaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation === null || (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0) && x.payment_type === 'survey')
         .reduce((total, order) => {
@@ -2157,7 +2158,7 @@ export class ReportsService {
       worksheet.mergeCells('A1:F1');
 
 
-      worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone}`]);
+      worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone1 + orderDone2}`]);
 
       const headerRow = worksheet.getRow(2);
       headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -2204,8 +2205,8 @@ export class ReportsService {
 
       // Data untuk entri default di statuses
       const statuses: Status[] = [
-        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
-        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
+        { label: 'Done', value: orderDone1 + orderDone2, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
+        { label: `Pending (Req Date ${currentMonth})`, value: orderPending1 + orderPending2, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
         { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
         { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
         { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
