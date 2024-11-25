@@ -523,39 +523,18 @@ async handleOrderTriggers(template_id: number, status_id: number) {
     const quotations = await this.dbService.quotation.findMany({
       where: {
         quotation_status: status_id,
-        readiness: {
-          in: [1, 4],
-        },
         deleted_at: null,
         deleted_by: null,
       },
     });
 
     if (quotations.length) {
-      // const jobsToRemove = await this.emailQueue.getJobs([
-      //   'active',
-      //   'waiting',
-      //   'delayed',
-      //   'completed',
-      //   'failed',
-      // ]);
-      // const jobsToRemovePrefix = 'send-quotation-mail';
-
-      // Remove existing jobs with the specified prefix
-      // for (const job of jobsToRemove) {
-      //   const jobId = job.id.toString(); // Convert job ID to string
-      //   if (jobId.startsWith(jobsToRemovePrefix)) {
-      //     await job.remove();
-      //     // console.log(`Removed job with ID: ${job.id}`);
-      //   }
-      // }
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];
-        // console.log('Quotation ID:', quotation.id);
         const countSendedEmail = await this.countMailLogs(
           quotation.order_id,
           template_id,

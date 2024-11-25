@@ -43,6 +43,7 @@ export class QuotationService {
     try {
       const { id: user_id } = user;
       let grandTotal = 0;
+      let grandTotalNoPromotion = 0;
       let comission = 0;
 
       const order = await this.dbService.orders.findFirst({
@@ -108,6 +109,7 @@ export class QuotationService {
           }
 
           grandTotal += final_price ?? 0;
+          grandTotalNoPromotion += final_price ?? 0;
           return {
             category_id: item?.category_id,
             item_id: item?.item_id,
@@ -207,7 +209,7 @@ export class QuotationService {
         quotation_disc: createQuotationDto?.quotation_disc,
         quotation_promotion: createQuotationDto?.quotation_promotion,
         quotation_special: createQuotationDto.quotation_special,
-        quotation_no_promotion: grandTotal,
+        quotation_no_promotion: grandTotalNoPromotion,
         quotation_grand_total:
           grandTotal -
           (createQuotationDto.quotation_disc
@@ -405,6 +407,10 @@ export class QuotationService {
           },
           quotation_files: true,
           quotation_details: {
+            where: {
+              deleted_at: null,
+              deleted_by: null
+            },
             include: {
               category: true,
               work_order_items: true,
@@ -673,10 +679,10 @@ export class QuotationService {
       if (updateQuotationDto.receipts_quotation && updateQuotationDto.receipts_quotation.length > 0) {
         const receiptNumbers = updateQuotationDto.receipts_quotation
           .map((item) => item.receipt_quotation)
-          .filter((item) => item !== undefined); 
+          .filter((item) => item !== undefined);
 
         console.log(receiptNumbers);
-        
+
         const duplicates = receiptNumbers.filter((item, index) => receiptNumbers.indexOf(item) !== index);
 
         if (duplicates.length > 0) {
@@ -713,6 +719,7 @@ export class QuotationService {
       }
 
       let grandTotal = 0;
+      let grandTotalNoPromotion = 0;
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
         (item) => {
           let price = 0;
@@ -730,6 +737,7 @@ export class QuotationService {
           }
 
           grandTotal += final_price;
+          grandTotalNoPromotion += final_price;
 
           return {
             where: {
@@ -888,7 +896,7 @@ export class QuotationService {
               updateQuotationDto?.receipt_quotation,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
-            quotation_special: updateQuotationDto?.quotation_special ?? undefined, 
+            quotation_special: updateQuotationDto?.quotation_special ?? undefined,
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
@@ -902,7 +910,7 @@ export class QuotationService {
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
-            quotation_no_promotion: grandTotal,
+            quotation_no_promotion: grandTotalNoPromotion,
             quotation_grand_total:
               grandTotal -
               ((updateQuotationDto.quotation_disc
@@ -970,8 +978,10 @@ export class QuotationService {
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
         where: { quotation_id: id },
       });
+      console.log(quotation, "QUOTATION");
 
-      if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || 'QUOTATIONPAIDSTEPTHREE') {
+
+      if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || quotation.status.category === 'QUOTATIONPAIDSTEPTHREE') {
         console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
@@ -1063,6 +1073,56 @@ export class QuotationService {
     });
 
     return quotation;
+  }
+
+  async incentiveDuplicate(id: number) {
+    try {
+      const incentives = await this.dbService.sales_incentive.findMany({
+        where: { quotation_id: id },
+        orderBy: { created_at: 'desc' },
+        include: {
+          incentive: true,
+          quotation: true
+        }
+      });
+
+      if (incentives.length > 1) {
+        const incentiveToKeep = incentives[0];
+        let comission: number = 0;
+        if (incentiveToKeep.incentive.type === 1) {
+          comission += Number(incentiveToKeep.quotation.quotation_grand_total) * (Number(incentiveToKeep.incentive.incentive) / 100);
+        } else if (incentiveToKeep.incentive.type === 2) {
+          comission += Number(incentiveToKeep.incentive.incentive);
+        }
+
+
+        const idsToDelete = incentives
+          .filter(incentive => incentive.id !== incentiveToKeep.id)
+          .map(incentive => incentive.id);
+
+        await this.dbService.sales_incentive.deleteMany({
+          where: { id: { in: idsToDelete } },
+        });
+        console.log(comission);
+        
+        await this.dbService.sales_incentive.update({
+          where: { id: incentiveToKeep.id },
+          data: {
+            nominal: comission
+          }
+        })
+
+        console.log(`Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`);
+      } else if (incentives.length === 1) {
+        console.log('Only one incentive exists, nothing to delete.');
+      } else {
+        console.log('No incentives found for the given quotation_id.');
+      }
+    } catch (error) {
+      console.log(error);
+      
+      throw error;
+    }
   }
 
   // @Cron(CronExpression.EVERY_10_SECONDS)

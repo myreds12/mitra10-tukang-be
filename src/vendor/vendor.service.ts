@@ -75,7 +75,7 @@ export class VendorService {
       const formattedUsername =
         createVendorDto?.default_username.replace(/ /g, '_') ?? createVendorDto.pic_name.replace(/ /g, '_');
 
-      
+
 
       const username = createVendorDto.default_username
         ? formattedUsername
@@ -272,6 +272,14 @@ export class VendorService {
             },
             orderBy: {
               created_at: 'desc'
+            },
+            include: {
+              status: true,
+              quotation: {
+                where: {
+                  deleted_at: null
+                }
+              }
             }
           },
           tukang: {
@@ -451,10 +459,33 @@ export class VendorService {
 
         const totalOrder = item.orders.length;
 
+        const totalUnpaid = item.orders
+          .filter((order) =>
+            [
+              'cancel',
+              'cancelrefund',
+              'refundapprovedbyho',
+              'refundrejectedbyho',
+            ].includes(order.status.category.toLowerCase()),
+          )
+          .reduce((total, order) => total + Number(order?.quotation[0]?.quotation_grand_total ?? order.grand_total), 0);
 
+        const totalPaid = item.orders
+          .filter(
+            (order) =>
+              ![
+                'cancel',
+                'cancelrefund',
+                'refundapprovedbyho',
+                'refundrejectedbyho',
+              ].includes(order.status.category.toLowerCase()),
+          )
+          .reduce((total, order) => total + Number(order?.quotation[0]?.quotation_grand_total ?? order.grand_total), 0);
         return {
           ...item,
           total_order: totalOrder,
+          total_paid_order: totalPaid,
+          total_unpaid_order: totalUnpaid,
         };
       });
 
@@ -712,7 +743,7 @@ export class VendorService {
       const formattedUsername =
         updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
 
-      
+
 
       const vendorData: Prisma.vendorUpdateInput = {
         type: updateVendorDto?.vendor_type,
@@ -790,10 +821,10 @@ export class VendorService {
             where: {
               vendor_id: id,
               ...updateVendorDto.vendor_store ? {
-              NOT:updateVendorDto.vendor_store.map((item) => {
-                return {
-                  id: item?.id,
-                  store_id: item.store_id,
+                NOT: updateVendorDto.vendor_store.map((item) => {
+                  return {
+                    id: item?.id,
+                    store_id: item.store_id,
                   };
                 })
               } : undefined

@@ -147,7 +147,7 @@ export class ReportsService {
 
       return {
         data: salesIncetive,
-        meta: { totalIncentive, page, take, total: count },
+        meta: { totalIncentive, page, take, total: count, takeTotal: salesIncetive.length },
       };
     } catch (error) {
       console.error(error);
@@ -1953,50 +1953,42 @@ export class ReportsService {
 
       const itemMap = new Map();
 
-      // Iterate over each order in the data
       data.forEach(order => {
         order.m_order_details.forEach(detail => {
-          // Check if the item type is 1 or 2
           if (detail?.item?.type === 1 || detail?.item?.type === 2) {
             const fullName = detail.item.item_name;
             const quantity = detail?.quantity || 0;
             const type = detail.item.type;
 
-            // Split the item name into words
-            const words = fullName.split(" ");
-            console.log("WORDS:", words);
+            let baseName;
+            if (type === 1) {
+              baseName = fullName;
+            } else if (type === 2) {
+              const words = fullName.split(" ");
+              baseName = words.length >= 2 ? `${words[0]} ${words[1]}` : fullName;
+            }
 
-            // Ensure the item name has at least two words
-            if (words.length >= 2) {
-              // Use the first two words for grouping
-              const baseName = `${words[0]} ${words[1]}`; // First two words
-              console.log("BASE NAME (first 2 words):", baseName);
+            if (baseName) {
+              const key = `${baseName}_${type}`;
 
-              // Check if the base name is valid
-              if (baseName) {
-                // Create a unique key based on the base name (first two words) and type
-                const key = `${baseName}_${type}`;
-
-                // If the key already exists in the map, update the quantities
-                if (itemMap.has(key)) {
-                  const itemData = itemMap.get(key);
-                  itemData.quantity += quantity; // Add the quantity
-                  itemData.orderCount += 1; // Increment the order count
-                  itemMap.set(key, itemData); // Set updated data
-                } else {
-                  // If the key doesn't exist, add a new entry with just the baseName
-                  itemMap.set(key, {
-                    itemName: baseName, // Use only the first two words as the item name
-                    quantity: quantity,
-                    orderCount: 1,
-                    type: type
-                  });
-                }
+              if (itemMap.has(key)) {
+                const itemData = itemMap.get(key);
+                itemData.quantity += quantity;
+                itemData.orderCount += 1;
+                itemMap.set(key, itemData);
+              } else {
+                itemMap.set(key, {
+                  itemName: baseName,
+                  quantity: quantity,
+                  orderCount: 1,
+                  type: type
+                });
               }
             }
           }
         });
       });
+
 
       interface Item {
         itemName: string;
@@ -2006,26 +1998,39 @@ export class ReportsService {
       }
 
       const allItems: Item[] = [...itemMap.entries()].map(([_, data]) => ({
-        itemName: data.itemName, // The itemName is now just the first two words
+        itemName: data.itemName,
         quantity: data.quantity,
         orderCount: data.orderCount,
         type: data.type
       }));
 
-      console.log("Grouped Items:", allItems);
-
-
-
-
-      console.log(allItems);
-
       const bookReceived = data.filter((x) =>
         x.status.category != 'PICKLIST'
       ).length;
+      console.log("BOOK RECEIVED", bookReceived);
 
-      const orderDone = data.filter((x) =>
-        x.status.category === 'WORKEND' || x.status.category === 'SURVEYDONE' || x.status.category === 'WORKENDSTEPONE' || x.status.category === 'WORKENDSTEPTWO' || x.status.category === 'WORKENDSTEPTHREE'
+      const validCategories = [
+        'WORKEND',
+        'SURVEYDONE',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'QUOTEIN',
+        'QUOTEOUT',
+        'QUOTATIONPAID',
+        'QUOTATIONDRAFT',
+        'QUOTATIONPAIDSTEPONE',
+        'QUOTATIONPAIDSTEPTWO',
+        'QUOTATIONPAIDSTEPTHREE',
+      ];
+
+      const orderDone1 = data.filter(({ status }) =>
+        validCategories.includes(status.category)
       ).length;
+
+      const orderDone2 = data.filter(({ status, payment_type }) =>
+        ['WORKREQ', 'TUKANGWORK'].includes(status.category) && payment_type === 'survey'
+      ).length;
+
 
       const currentDate = new Date(date_from);
 
@@ -2039,28 +2044,31 @@ export class ReportsService {
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
+      const statusPending = ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'];
 
-      const orderPending = data.filter((x) =>
-        (
-          x.status.category === 'WORKREQ' ||
-          x.status.category === 'SURVEYREQ' ||
-          x.status.category === 'WORKREQSTEPONE' ||
-          x.status.category === 'WORKREQSTEPTWO' ||
-          x.status.category === 'WORKREQSTEPTHREE'
-        ) &&
-        (
-          (new Date(x.request_survey) >= startOfMonth && new Date(x.request_survey) <= endOfMonth) ||
-          (new Date(x.request_work) >= startOfMonth && new Date(x.request_work) <= endOfMonth)
-        )
+
+      const isWithinDateRange = (date) =>
+        date && new Date(date) >= startOfMonth && new Date(date) <= endOfMonth;
+
+      const orderPending1 = data.filter(({ status, payment_type, request_survey }) =>
+        statusPending.includes(status.category ) &&
+        (isWithinDateRange(request_survey))
       ).length;
+
+      const orderPending2 = data.filter(({ status, payment_type, request_survey }) =>
+        ((['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
+          ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
+        (isWithinDateRange(request_survey))
+      ).length;
+
 
       const orderRefund = data.filter((x) =>
-        x.refund.length > 0
+        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND'
       ).length;
 
-      const orderCancel = data.filter((x) =>
-        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'CANCEL'
+      const orderCancel = data.filter((x) => x.status.category === 'CANCEL'
       ).length;
+      console.log("ORDER CANCEL", orderCancel);
 
 
       const totalProgressOrder = [
@@ -2071,20 +2079,28 @@ export class ReportsService {
         'WORKENDSTEPONE',
         'WORKENDSTEPTWO',
         'WORKENDSTEPTHREE',
-        'QUOTEIN'
+        'QUOTEIN',
+        'QUOTEOUT',
+        'SURVEYDONE',
       ];
 
-      const orderProgress = data.filter((x) =>
-        !totalProgressOrder.includes(x.status.category) && new Date(x.request_survey) >= nextMonth &&
-        new Date(x.request_survey) <= endOfNextMonth || new Date(x.request_work) >= nextMonth &&
-        new Date(x.request_work) <= endOfNextMonth
+      const isWithinNextMonth = (date) =>
+        date && new Date(date) >= nextMonth && new Date(date) <= endOfNextMonth;
+
+      const orderProgress = data.filter(({ status, request_survey }) =>
+        !totalProgressOrder.includes(status.category) &&
+        (isWithinNextMonth(request_survey))
       ).length;
+
+      console.log("ORDER PROGRESS", orderProgress);
 
       const orderSurvey = data.filter((x) =>
         x.payment_type === 'survey'
       ).length;
+      console.log("ORDER SURVEY", orderSurvey);
 
       const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
+      console.log("QUOTATION PAID", quotationPaid);
       const quotationPaidValue = data
         .filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey')
         .reduce((total, order) => {
@@ -2100,23 +2116,25 @@ export class ReportsService {
         x.payment_type === 'survey'
       ).length;
       const quotationUnpaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation === null || x?.quotation[0]?.quotation_receipt.length === 0 && x.payment_type === 'survey')
+        .filter((x) => x?.quotation[0]?.receipt_quotation === null || (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0) && x.payment_type === 'survey')
         .reduce((total, order) => {
           const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
           return total + grandTotal;
         }, 0);
 
-      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'TUKANGWORK', 'INVESTIGATED'];
+      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'INVESTIGATED', 'RESURVEY', 'BOOKED', 'BOOK'];
 
       const orderSurveyOnGoing = data.filter(
         x => ongoingSurveyCategories.includes(x.status.category) && x.payment_type === 'survey'
       ).length;
+      console.log("ORDER SURVEY ON GOING", orderSurveyOnGoing);
       const orderSurveyNoQuotation = data.filter((x) =>
         x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYDONE'
       ).length;
       const orderSurveyCancelRefund = data.filter((x) =>
-        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND'
+        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND' 
       ).length;
+      console.log("ORDER SURVEY NO QUOTATION", orderSurveyNoQuotation);
 
       const dateFrom = new Date(date_from);
       const dateTo = new Date(date_to);
@@ -2138,7 +2156,7 @@ export class ReportsService {
       worksheet.mergeCells('A1:F1');
 
 
-      worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone}`]);
+      worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone1 + orderDone2}`]);
 
       const headerRow = worksheet.getRow(2);
       headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -2185,8 +2203,8 @@ export class ReportsService {
 
       // Data untuk entri default di statuses
       const statuses: Status[] = [
-        { label: 'Done', value: orderDone, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
-        { label: `Pending (Req Date ${currentMonth})`, value: orderPending, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
+        { label: 'Done', value: orderDone1 + orderDone2, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
+        { label: `Pending (Req Date ${currentMonth})`, value: orderPending1 + orderPending2, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
         { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
         { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
         { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
@@ -2208,7 +2226,7 @@ export class ReportsService {
 
         const item = allItems[i] || {} as Item;
         const itemName = item.itemName && item.orderCount
-          ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY'}${item.itemName}: ${item.orderCount}`
+          ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY '}${item.itemName}: ${item.orderCount}`
           : '';
         const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
@@ -2238,7 +2256,7 @@ export class ReportsService {
       worksheet.getColumn(2).width = 15;
       worksheet.getColumn(3).width = 45;
       worksheet.getColumn(4).width = 15;
-      worksheet.getColumn(5).width = 50;
+      worksheet.getColumn(5).width = 70;
       worksheet.getColumn(6).width = 25;
 
       worksheet.eachRow((row) => {

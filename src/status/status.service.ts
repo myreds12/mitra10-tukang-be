@@ -14,6 +14,7 @@ export class StatusService {
         data: {
           description: createStatusDto.description,
           category: createStatusDto.category,
+          status_urgency: createStatusDto.status_urgency
         },
       });
 

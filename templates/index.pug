@@ -1,388 +1,277 @@
 doctype html
-head
-  meta(charset='UTF-8')
-  meta(name='viewport', content='width=device-width, initial-scale=1.0')
-  title Order Confirmation
-  link(href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap', rel='stylesheet')
-style.
-  table {
-  width: 100%;
-  text-align: left;
-  border-collapse: collapse;
-  margin-bottom: 24px;
-  }
-  table.table-responsive th {
-  max-width: 144px;
-  min-width: 144px;
-  border: 1px solid #e2e8f0;
-  padding: 8px;
-  }
-  table.table-responsive th,
-  td {
-  max-width: 144px;
-  min-width: 144px;
-  border: 1px solid #e2e8f0;
-  padding: 8px;
-  word-break: break-word;
-  font-size: 0.875rem;
-  }
-  table.table-responsive-header {
-  display: none;
-  }
-  table.table-desktop-header {
-  display: table;
-  }
-  .order-title {
-  display: none;
-  }
-  .ui-desktop {
-  display: block;
-  }
-  .ui-mobile {
-  display: none;
-  }
-  @media (max-width: 600px) {
-  h1 {
-  font-size: 18px;
-  }
-  p {
-  font-size: 12px;
-  }
-  li {
-  font-size: 12px;
-  }
-  th,
-  td {
-  font-size: 12px;
-  }
-  table.table-responsive-header {
-  display: table;
-  }
-  table.table-desktop-header {
-  display: none;
-  }
-  table.table-responsive th,
-  td {
-  max-width: fit-content;
-  min-width: fit-content;
-  }
-  .order-title {
-  display: block;
-  }
-  .ui-desktop {
-  display: none;
-  }
-  .ui-mobile {
-  display: block;
-  }
-  }
-  @media (max-width: 375px) {
-  table.table-responsive {
-  overflow-x: auto;
-  display: block;
-  width: 100%;
-  }
-  }
-body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
-  .container(style='\
-  max-width: 768px;\
-  margin: 0 auto;\
-  background-color: #ffffff;\
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\
-  border-radius: 0.5rem;\
-  overflow: hidden;\
-  ')
-    .header
-      img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co/LhrxWt7/header-email-instalasi-01.jpg'}`, alt="Banner Image", style="width: 100%; height: auto;")
-    .order-details(style='padding-left: 16px; padding-right: 16px')
-      table.table-responsive-header(style='width: 100%; border-collapse: collapse')
-        tr
-          td
-            table(style='\
-            width: 100%;\
-            border-collapse: collapse;\
-            margin-bottom: 0;\
-            ')
-              tr
-                td(style='\
-                padding: 10px 0;\
-                text-align: left;\
-                ')
-                  img(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png', alt='Mitra 10 Logo', style='\
-                  height: 48px;\
-                  max-width: 100%;\
-                  ')
-              tr
-                td(style='\
-                padding: 10px 0;\
-                text-align: center;\
-                ')
-                  p(style='\
-                  font-size: 18px;\
-                  font-weight: 600;\
-                  margin: 0;\
-                  ')
-                    | Instalasi &amp; Service Mitra 10
-      table.table-desktop-header(style='width: 100%; border-collapse: collapse')
-        tr
-          td(style='text-align: left')
-            img(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png', alt='Mitra 10 Logo', style='height: 48px')
-          td(style='text-align: center')
-            p(style='font-size: 1.25rem; font-weight: 600')
-              | Instalasi &amp; Service Mitra 10
-          td(style='text-align: right')
-            .order-id
-              p(style='\
-              font-size: 1.125rem;\
-              font-weight: 600;\
-              margin: 0 !important;\
-              ')
-                | ORDER ID: #{data.order.id}
-              p(style='\
-              font-size: 0.875rem;\
-              margin: 0 !important;\
-              ')
-                | Tanggal Order :  #{new Date(data.order.created_at).getDate()}/#{new Date(data.order.created_at).getMonth() + 1}/#{new Date(data.order.created_at).getFullYear()}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .content(style='\
-    padding-top: 16px;\
-    padding-left: 24px;\
-    padding-right: 24px;\
-    ')
-      p(style='color: #4a5568') #{data.message.welcome_header}, #{data.order.members.full_name}. #{data.message.greetings}
-      p(style='\
-      color: #4a5568;\
-      font-weight: 600;\
-      margin: 0 !important;\
-      ')
-        | Terima kasih telah melakukan order Layanan Jasa Instalasi &amp;
-        | Service Mitra10
-    .customer-info.ui-mobile(style='padding: 20px')
-      h2(style='\
-      font-size: 1.25rem;\
-      font-weight: 600;\
-      margin-bottom: 16px;\
-      ')
-        | Informasi Pelanggan
-      table.table-responsive(style='\
-      width: 100%;\
-      text-align: left;\
-      border-collapse: collapse;\
-      margin-bottom: 24px;\
-      ')
-        tr(style='\
-        min-width: 144px;\
-        max-width: 144px;\
-        border: 1px solid #e2e8f0;\
-        padding: 8px;\
-        ')
-          th(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          background-color: #eef1f5b0;\
-          ')
-            | Nama
-          td(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          word-break: break-word;\
-          font-size: 0.875rem;\
-          ')
-            | #{data.order.members.full_name}
-        tr(style='\
-        min-width: 144px;\
-        max-width: 144px;\
-        border: 1px solid #e2e8f0;\
-        padding: 8px;\
-        ')
-          th(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          background-color: #eef1f5b0;\
-          ')
-            | Email
-          td(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          word-break: break-word;\
-          font-size: 0.875rem;\
-          ')
-            | #{data.order.members.email}
-        tr(style='\
-        min-width: 144px;\
-        max-width: 144px;\
-        border: 1px solid #e2e8f0;\
-        padding: 8px;\
-        ')
-          th(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          background-color: #eef1f5b0;\
-          ')
-            | Nomor Telepon
-          td(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          word-break: break-word;\
-          font-size: 0.875rem;\
-          ')
-            | #{data.order.project_number}
-        tr(style='\
-        min-width: 144px;\
-        max-width: 144px;\
-        border: 1px solid #e2e8f0;\
-        padding: 8px;\
-        ')
-          th(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          background-color: #eef1f5b0;\
-          ')
-            | Alamat
-          td(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          word-break: break-word;\
-          font-size: 0.875rem;\
-          ')
-            | #{data.order.project_address}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .order-info(style='padding: 20px')
-      h1(style='\
-      font-size: 1.25rem;\
-      font-weight: 600;\
-      margin-bottom: 16px;\
-      ')
-        | Informasi Survei
-      .order-title
-        p(style='font-size: 14px; margin: 0') Order ID: #{data.order.id}
-      table.table-responsive
-        thead
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title Order Confirmation
+    link(href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet")
+  style.
+    table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    }
+    table.table-responsive th {
+    max-width: 144px;
+    min-width: 144px;
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    }
+    table.table-responsive th,
+    td {
+    max-width: 144px;
+    min-width: 144px;
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    word-break: break-word;
+    font-size: 0.875rem;
+    }
+    table.table-responsive-header {
+    display: none;
+    }
+    table.table-desktop-header {
+    display: table;
+    }
+    .order-title {
+    display: none;
+    }
+    .ui-desktop {
+    display: block;
+    }
+    .ui-mobile {
+    display: none;
+    }
+    @media (max-width: 600px) {
+    h1 {
+    font-size: 18px;
+    }
+    p {
+    font-size: 12px;
+    }
+    li {
+    font-size: 12px;
+    }
+    th,
+    td {
+    font-size: 12px;
+    }
+    table.table-responsive-header {
+    display: table;
+    }
+    table.table-desktop-header {
+    display: none;
+    }
+    table.table-responsive th,
+    td {
+    max-width: fit-content;
+    min-width: fit-content;
+    }
+    .order-title {
+    display: block;
+    }
+    .ui-desktop {
+    display: none;
+    }
+    .ui-mobile {
+    display: block;
+    }
+    }
+    @media (max-width: 375px) {
+    table.table-responsive {
+    overflow-x: auto;
+    display: block;
+    width: 100%;
+    }
+    }
+  body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
+    .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
+      .header
+        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co/LhrxWt7/header-email-instalasi-01.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
+
+      .order-details(style="padding-left: 16px; padding-right: 16px;")
+        table(style="width: 100%;")
           tr
-            th Kode Item
-            th Nama Item
-            th Nama Jasa
-            th QTY
-        tbody
-          each item, index in data.order.order_details
+            td(style="text-align: left;")
+              img(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png" alt="Mitra 10 Logo" style="height: 48px;")
+            td(style="text-align: center;")
+              p(style="font-size: 1.25rem; font-weight: 600;") Instalasi & Service Mitra 10
+            td(style="text-align: right;")
+              .order-id
+                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Order ID: #{data.order.id}
+                p(style="font-size: 0.875rem; margin: 0 !important;") Tanggal Order: #{new Date(data.order.created_at).toLocaleDateString('id-ID', {  day: 'numeric',  month: 'long',  year: 'numeric'})}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
+        p(style="color: #4a5568;") #{data.message.welcome_header}, #{data.order.members.full_name}. #{data.message.greetings}
+        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") #{data.message.greetings}
+        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
+
+      .order-info(style="padding: 20px;")
+        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Order
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+          thead
             tr
-              td #{item.item_code === 'null' ? '-' : (item.item_code || '-')}
-              td #{item.item_name === 'null' ? '-' : (item.item_name || '-')}
-              td #{item.service_name || '-'}
-              td #{item.quantity || 0}
-          tr
-            td(colspan='3') Biaya Survey
-            td #{Number(data.order.grand_total).toLocaleString('id')}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .customer-info.ui-desktop(style='padding: 20px')
-      h2(style='\
-      font-size: 1.25rem;\
-      font-weight: 600;\
-      margin-bottom: 16px;\
-      ')
-        | Informasi Pelanggan
-      p(style='color: #4a5568')
-        strong Nama:
-        |  #{data.order.members.full_name}
-      p(style='color: #4a5568')
-        strong Email:
-        |  #{data.order.members.email}
-      p(style='color: #4a5568')
-        strong Nomor Telepon:
-        |  #{data.order.project_number}
-      p(style='color: #4a5568')
-        strong Alamat:
-        |  #{data.order.project_address}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .payment-instructions(style='padding: 20px')
-      h2(style='\
-      font-size: 1.25rem;\
-      font-weight: 600;\
-      margin-bottom: 16px;\
-      ')
-        | Intruksi Pembayaran
-      p(style='margin-bottom: 8px; color: #4a5568; font-weight: 600')
-        | 1. Silahkan melakukan pembayaran di account di bawah ini:
-      ul(style='list-style-type: disc; margin-left: 5px')
-        li(style='color: #4a5568') Bank: #{data.order.store.bank_name}
-        li(style='color: #4a5568') Nomor Akun: #{data.order.store.bank_number}
-        li(style='color: #4a5568')
-          | Nama Akun: #{data.order.store.bank_account}
-      p(style='margin-bottom: 8px; color: #4a5568; font-weight: 600')
-        | 2. Silahkan kirim bukti bayar anda melalui:
-      ul(style='list-style-type: disc; margin-left: 5px')
-        li(style='color: #4a5568') Email: #{data.order.store.email ? data.order.store.email : 'Email belum tersedia'}
-        li(style='color: #4a5568') Whatsapp: #{data.order.store.phone_number_1 ? data.order.store.phone_number_1 : data.order.store.phone_number_2}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .information(style='padding: 20px')
-      h2(style='\
-      font-size: 1.25rem;\
-      font-weight: 600;\
-      margin-bottom: 16px;\
-      ')
-        | Informasi
-      each item, index in data.message.information_detail
-        p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .terms-conditions(style='padding: 20px')
-      h2(style='\
-      font-size: 1.25rem;\
-      font-weight: 600;\
-      margin-bottom: 16px;\
-      ')
-        | Syarat dan Ketentuan
-      each item, index in data.message.terms_detail
-        p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
-    .divider(style='border-top: 1px solid #e5e7eb')
-    .footer-notes(style='padding: 20px')
-      p(style='\
-      color: #4a5568;\
-      font-weight: 600;\
-      margin-top: 0;\
-      margin-bottom: 0;\
-      ')
-        | #{data.message.footer}
-      p(style='\
-      color: #4a5568;\
-      font-weight: 600;\
-      margin: 0 !important;\
-      ')
-        | Ini adalah email yang dikirimkan oleh sistem. Mohon untuk
-        | tidak membalas email ini.
-    .footer(style='\
-    background-color: #edf2f7;\
-    padding: 20px;\
-    text-align: center;\
-    ')
-      p(style='\
-      font-size: 0.875rem;\
-      font-weight: 600;\
-      margin: 0 !important;\
-      ')
-        | Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi
-        | kami di customer.relation@mitra10.com
-      p(style='\
-      font-size: 0.875rem;\
-      font-weight: 600;\
-      margin: 0 !important;\
-      ')
-        | &copy; 2024 Mitra10. All rights reserved.
-    .footer-banner
-      img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
-  
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
+              th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
+          tbody
+            each item, index in data.order.order_details
+              tr
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.item_code === 'null' ? '-' : (item.item_code || '-')}
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item_name === 'null' ? '-' : (item.item_name || '-')}
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.service_name || '-'}
+                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || 0}
+            tr
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
+              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{Number(data.order.grand_total).toLocaleString('id')}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .customer-info.ui-mobile(style='padding: 20px')
+        h2(style='\
+        font-size: 1.25rem;\
+        font-weight: 600;\
+        margin-bottom: 16px;\
+        ')
+          | Informasi Pelanggan
+        table.table-responsive(style='\
+        width: 100%;\
+        text-align: left;\
+        border-collapse: collapse;\
+        margin-bottom: 24px;\
+        ')
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Nama
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.members.full_name}
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Email
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.members.email}
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Nomor Telepon
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.project_number}
+          tr(style='\
+          min-width: 144px;\
+          max-width: 144px;\
+          border: 1px solid #e2e8f0;\
+          padding: 8px;\
+          ')
+            th(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            background-color: #eef1f5b0;\
+            ')
+              | Alamat
+            td(style='\
+            min-width: 144px;\
+            max-width: 144px;\
+            border: 1px solid #e2e8f0;\
+            padding: 8px;\
+            word-break: break-word;\
+            font-size: 0.875rem;\
+            ')
+              | #{data.order.project_address}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .payment-instructions(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
+        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
+        ul(style="list-style-type: disc; margin-left: 5px;")
+          li(style="color: #4a5568;") Bank: #{data.order.store.bank_name}
+          li(style="color: #4a5568;") Nomor Akun: #{data.order.store.bank_number}
+          li(style="color: #4a5568;") Nama Akun: #{data.order.store.bank_account}
+        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
+        ul(style="list-style-type: disc; margin-left: 5px;")
+          li(style="color: #4a5568;") Email: #{data.order.store.email ? data.order.store.email : 'Email belum tersedia'}
+          li(style="color: #4a5568;") Whatsapp: #{data.order.store.phone_number_1 ? data.order.store.phone_number_1 : data.order.store.phone_number_2}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .information(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
+        each item, index in data.message.information_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .terms-conditions(style="padding: 20px;")
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
+        each item, index in data.message.terms_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
+      .divider(style="border-top: 1px solid #e5e7eb;")
+
+      .notes(style="padding: 20px;")
+        p(style="color: #4a5568; font-weight: 600; margin-top: 10px; margin-bottom: 0px;") #{data.message.footer}
+        p(style="color: #4a5568; margin: 0 !important;") Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
+
+      .footer(style="background-color: #edf2f7; padding: 20px; text-align: center;")
+        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
+        p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
+      .footer-banner
+        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
+

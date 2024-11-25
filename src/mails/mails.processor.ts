@@ -236,15 +236,15 @@ export class EmailProcessor {
         from: 'noreply@mitra10.com',
         subject: message.title,
         template: 'index',
-        bcc: '',
+        bcc,
         context: { data },
       };
 
-      // if (uniqueBcc.length > 0) {
-      //   mailOptions.bcc = uniqueBcc.join(',');
-      // } else {
-      //   mailOptions.bcc = '';
-      // }
+      if (uniqueBcc.length > 0) {
+        mailOptions.bcc = uniqueBcc.join(',');
+      } else {
+        mailOptions.bcc = '';
+      }
 
       if (order.members.email) {
         await this.mailerService.sendMail(mailOptions);
