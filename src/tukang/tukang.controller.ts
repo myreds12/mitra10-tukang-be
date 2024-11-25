@@ -119,8 +119,8 @@ export class TukangController {
   }
 
   @Delete('/:id')
-  remove(@Param('id') id: string, @Request() req: RequestWithUser) {
+  async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     const user_id = req.user.id;
-    return this.tukangService.remove(+id, user_id);
+    return await this.tukangService.remove(+id, user_id);
   }
 }

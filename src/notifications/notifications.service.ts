@@ -177,7 +177,7 @@ export class NotificationsService {
                   module_type: { notIn: [moduleTypeNotification.INVOICE, moduleTypeNotification.INCENTIVE, moduleTypeNotification.QUOTATION_PROMOTION] },
                   status: { in: status },
                 },
-                { module_type: { in: [moduleTypeNotification.INVOICE, moduleTypeNotification.INCENTIVE, moduleTypeNotification.QUOTATION_PROMOTION] } },
+                // { module_type: { in: [moduleTypeNotification.INVOICE, moduleTypeNotification.INCENTIVE, moduleTypeNotification.QUOTATION_PROMOTION] } },
               ],
             }
           : undefined),

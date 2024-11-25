@@ -39,6 +39,12 @@ import { MailType } from 'src/mails/enum/mail_type.enum';
 export class QuotationController {
   constructor(private readonly quotationService: QuotationService, @InjectQueue('email') private emailQueue: Queue, private readonly dbService: PrismaService) {}
 
+  @Post('/duplicate-incentive/:id')
+  @UseGuards(JwtAuthGuard)
+  async duplicatesIncentive(@Param('id') id: string){
+    return await this.quotationService.incentiveDuplicate(+id);
+  }
+
   @Get('/export-excel-follow-up')
   @UseGuards(JwtAuthGuard)
   async quotationExportExcelFollowUp(

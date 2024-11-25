@@ -147,7 +147,7 @@ export class ReportsService {
 
       return {
         data: salesIncetive,
-        meta: { totalIncentive, page, take, total: count },
+        meta: { totalIncentive, page, take, total: count, takeTotal: salesIncetive.length },
       };
     } catch (error) {
       console.error(error);
