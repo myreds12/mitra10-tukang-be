@@ -241,7 +241,6 @@ export class AuthService {
           username: {
             equals: dto.username,
           },
-          
         },
         include: {
           tukang: true,

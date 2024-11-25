@@ -298,15 +298,15 @@ html(lang="en")
 
       .payment-instructions(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Bank:  #{data.quotation.store.bank_name}
-          li(style="color: #4a5568;") Nomor Akun: #{data.quotation.store.bank_number}
-          li(style="color: #4a5568;") Nama Akun: #{data.quotation.store.bank_account}
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
-          li(style="color: #4a5568;") Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
+          p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
+          ul(style="list-style-type: disc; margin-left: 5px;")
+            li(style="color: #4a5568;") Bank:  #{data.quotation.store.bank_name}
+            li(style="color: #4a5568;") Nomor Akun: #{data.quotation.store.bank_number}
+            li(style="color: #4a5568;") Nama Akun: #{data.quotation.store.bank_account}
+          p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
+          ul(style="list-style-type: disc; margin-left: 5px;")
+            li(style="color: #4a5568;") Email: #{data.quotation.store.email ? data.quotation.store.email : 'Email belum tersedia'}
+            li(style="color: #4a5568;") Whatsapp: #{data.quotation.store.phone_number_1 ? data.quotation.store.phone_number_1 : data.quotation.store.phone_number_2}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 

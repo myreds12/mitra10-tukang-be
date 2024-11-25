@@ -679,10 +679,10 @@ export class QuotationService {
       if (updateQuotationDto.receipts_quotation && updateQuotationDto.receipts_quotation.length > 0) {
         const receiptNumbers = updateQuotationDto.receipts_quotation
           .map((item) => item.receipt_quotation)
-          .filter((item) => item !== undefined); 
+          .filter((item) => item !== undefined);
 
         console.log(receiptNumbers);
-        
+
         const duplicates = receiptNumbers.filter((item, index) => receiptNumbers.indexOf(item) !== index);
 
         if (duplicates.length > 0) {
@@ -896,7 +896,7 @@ export class QuotationService {
               updateQuotationDto?.receipt_quotation,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
-            quotation_special: updateQuotationDto?.quotation_special ?? undefined, 
+            quotation_special: updateQuotationDto?.quotation_special ?? undefined,
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
@@ -979,7 +979,7 @@ export class QuotationService {
         where: { quotation_id: id },
       });
       console.log(quotation, "QUOTATION");
-      
+
 
       if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || quotation.status.category === 'QUOTATIONPAIDSTEPTHREE') {
         console.log('INCENTIVE[START]');
@@ -1073,6 +1073,56 @@ export class QuotationService {
     });
 
     return quotation;
+  }
+
+  async incentiveDuplicate(id: number) {
+    try {
+      const incentives = await this.dbService.sales_incentive.findMany({
+        where: { quotation_id: id },
+        orderBy: { created_at: 'desc' },
+        include: {
+          incentive: true,
+          quotation: true
+        }
+      });
+
+      if (incentives.length > 1) {
+        const incentiveToKeep = incentives[0];
+        let comission: number = 0;
+        if (incentiveToKeep.incentive.type === 1) {
+          comission += Number(incentiveToKeep.quotation.quotation_grand_total) * (Number(incentiveToKeep.incentive.incentive) / 100);
+        } else if (incentiveToKeep.incentive.type === 2) {
+          comission += Number(incentiveToKeep.incentive.incentive);
+        }
+
+
+        const idsToDelete = incentives
+          .filter(incentive => incentive.id !== incentiveToKeep.id)
+          .map(incentive => incentive.id);
+
+        await this.dbService.sales_incentive.deleteMany({
+          where: { id: { in: idsToDelete } },
+        });
+        console.log(comission);
+        
+        await this.dbService.sales_incentive.update({
+          where: { id: incentiveToKeep.id },
+          data: {
+            nominal: comission
+          }
+        })
+
+        console.log(`Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`);
+      } else if (incentives.length === 1) {
+        console.log('Only one incentive exists, nothing to delete.');
+      } else {
+        console.log('No incentives found for the given quotation_id.');
+      }
+    } catch (error) {
+      console.log(error);
+      
+      throw error;
+    }
   }
 
   // @Cron(CronExpression.EVERY_10_SECONDS)

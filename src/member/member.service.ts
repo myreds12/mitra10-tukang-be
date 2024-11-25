@@ -216,8 +216,6 @@ export class MemberService {
           ...item,
           total_order: totalOrder,
           total_unpaid: totalUnpaid,
-          // order_one: orderMemberOne,
-          // order_many: orderMemberMany,
           total_paid: totalPaid,
         };
       });

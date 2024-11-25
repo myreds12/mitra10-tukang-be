@@ -607,7 +607,7 @@ export class TukangService {
 
   async remove(id: number, user_id: number) {
     try {
-      await this.dbService.tukang.update({
+      const tukang = await this.dbService.tukang.update({
         where: {
           id,
         },
@@ -615,8 +615,15 @@ export class TukangService {
           is_active: false,
           deleted_at: new Date(),
           deleted_by: user_id,
+          users: {
+            update: {
+              deleted_at: new Date(),
+              deleted_by: user_id,
+            }
+          }
         },
       });
+      return tukang;
     } catch (error) {
       console.error(error);
       throw error;

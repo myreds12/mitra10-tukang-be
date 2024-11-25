@@ -94,6 +94,7 @@ export class StoreService {
       order_by,
       area_id,
       store_group_id,
+      top_best
     } = query;
 
     const skip = page * take - take;
@@ -135,14 +136,57 @@ export class StoreService {
       deleted_at: null,
     };
 
-    const store = await this.dbService.store.findMany({
+    let store = await this.dbService.store.findMany({
       where,
       skip,
       take: take <= 0 ? undefined : take,
       include: {
         area: true,
         users: true,
+        orders: {
+          include: {
+            status: true,
+            quotation: true
+          }
+        }
       },
+    });
+
+    if (Boolean(top_best)) {
+      store = store.sort((a, b) => b.orders.length - a.orders.length);
+    }
+
+    const dataStore = store.map((item) => {
+      const totalOrder = item.orders.length;
+      const totalUnpaid = item.orders
+        .filter((order) =>
+          [
+            'cancel',
+            'cancelrefund',
+            'refundapprovedbyho',
+            'refundrejectedbyho',
+          ].includes(order.status.category.toLowerCase()),
+        )
+        .reduce((total, order) => total + Number(order?.quotation[0]?.quotation_grand_total ?? order.grand_total), 0);
+
+      const totalPaid = item.orders
+        .filter(
+          (order) =>
+            ![
+              'cancel',
+              'cancelrefund',
+              'refundapprovedbyho',
+              'refundrejectedbyho',
+            ].includes(order.status.category.toLowerCase()),
+        )
+        .reduce((total, order) => total + Number(order.grand_total), 0);
+
+      return {
+        ...item,
+        total_order: totalOrder,
+        total_unpaid: totalUnpaid,
+        total_paid: totalPaid,
+      };
     });
 
     const total = await this.dbService.store.count({
@@ -150,7 +194,7 @@ export class StoreService {
     });
 
     return {
-      data: store,
+      data: dataStore,
       meta: {
         total,
         skip,
