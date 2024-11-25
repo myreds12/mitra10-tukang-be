@@ -91,7 +91,7 @@ export class QuotationService {
       let quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
           const prices = Number(item.is_customer ? 0 : item?.price ?? 0);
-          const quantity = item.is_customer ? 0 : item.quantity;
+          const quantity = item.quantity;
           const margin =
             item.margin_type === MarginType.PERCENTAGE
               ? +item.margin >= 1 && +item.margin <= 100
@@ -723,12 +723,11 @@ export class QuotationService {
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
         (item) => {
           let price = 0;
-          let quantity = 0;
+          let quantity = item.quantity ? Number(item.quantity) : 0;
           let final_price = 0;
 
           if (!item.is_customer) {
             price = Number(item.price);
-            quantity = Number(item.quantity);
             final_price =
               price * quantity +
               (item.margin_type === MarginType.PERCENTAGE
