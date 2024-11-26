@@ -464,7 +464,7 @@ export class RescheduleService {
     }
 
     const status = await this.dbService.status.findFirst({
-      where: { id: updateRescheduleDto.status_id },
+      where: { id: updateRescheduleDto.reschedule_status.status_id },
     });
 
     const statusRetukangSurvey = await this.dbService.status.findFirst({
@@ -565,7 +565,7 @@ export class RescheduleService {
         }),
         this.dbService.reschedule_tukang.updateMany({
           where: {
-            ...(updateRescheduleDto?.reschedule_tukang?.length > 0 ? { id: { notIn: updateRescheduleDto.reschedule_tukang.map((item) => item.id) } } : {}),
+            ...(updateRescheduleDto?.reschedule_tukang?.length > 0 ? { id: { notIn: updateRescheduleDto.reschedule_tukang.map((item) => item.id) }, tukang_id: { notIn: updateRescheduleDto.reschedule_tukang.map((item) => item.tukang_id) } } : {}),
             reschedule_id: id,
           },
           data: { deleted_at: new Date(), deleted_by: userId },
