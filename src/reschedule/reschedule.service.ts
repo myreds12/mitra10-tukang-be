@@ -587,7 +587,7 @@ export class RescheduleService {
       );
     }
 
-    if (status.category.toLowerCase().includes('rescheduleapprovedbyho') && order.order_history[0].status.category === 'TUKANGSURVEY' || order.order_history[0].status.category === 'SURVEYREQ') {
+    if (status.category.toLowerCase().includes('rescheduleapprovedbyvendor') && order.order_history[0].status.category === 'TUKANGSURVEY' || order.order_history[0].status.category === 'SURVEYREQ') {
       console.log("MASUK");
       
       await this.orderService.setStatus(order.id, statusRetukangSurvey.id, user);
@@ -599,7 +599,7 @@ export class RescheduleService {
           status_id: statusRetukangSurvey.id
         }
       });
-    } else if (status.category.toLowerCase().includes('rescheduleapprovedbyho') && order.order_history[0].status.category === 'TUKANGWORK' || order.order_history[0].status.category === 'WORKREQ' || order.order_history[0].status.category === 'WORKSTART' || order.order_history[0].status.category === 'TUKANGWORKSTEPONE' || order.order_history[0].status.category === 'TUKANGWORKSTEPTWO' || order.order_history[0].status.category === 'TUKANGWORKSTEPTHREE') {
+    } else if (status.category.toLowerCase().includes('rescheduleapprovedbyvendor') && order.order_history[0].status.category === 'TUKANGWORK' || order.order_history[0].status.category === 'WORKREQ' || order.order_history[0].status.category === 'WORKSTART' || order.order_history[0].status.category === 'TUKANGWORKSTEPONE' || order.order_history[0].status.category === 'TUKANGWORKSTEPTWO' || order.order_history[0].status.category === 'TUKANGWORKSTEPTHREE') {
       console.log("MASUK");
       await this.orderService.setStatus(order.id, statusRetukangWork.id, user);
       await this.dbService.work_orders.update({
