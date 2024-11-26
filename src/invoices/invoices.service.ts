@@ -1477,6 +1477,7 @@ export class InvoicesService {
                 where: { deleted_at: null },
                 include: { quotation_receipt: true },
               },
+              store: true,
               sales: true,
               members: true,
               m_order_details: {
@@ -1519,6 +1520,7 @@ export class InvoicesService {
       worksheet.columns = [
         { header: 'No', key: 'no', width: 10 },
         { header: 'Order Id', key: 'order_id', width: 10 },
+        { header: 'Nama Toko', key: 'store_name', width: 30 },
         { header: 'Nama Customer', key: 'member_name', width: 30 },
         { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
         { header: 'Tanggal \n Survey/Pengerjaan', key: 'survey_date', width: 20 },
@@ -1592,6 +1594,7 @@ export class InvoicesService {
         const row = worksheet.addRow({
           no: index + 1,
           order_id: order.order_id,
+          store_name: order.order.store.store_name,
           member_name: order.order.members.full_name,
           item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
           survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',

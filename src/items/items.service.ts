@@ -169,6 +169,8 @@ export class ItemsService {
                 prices: {
                   some: {
                     deleted_at: null,
+                    periodic_start: { lte: new Date() },
+                    periodic_end: { gte: new Date() }
                   },
                 },
               },
@@ -179,6 +181,7 @@ export class ItemsService {
               prices: {
                 some: {
                   deleted_at: null,
+                  is_active: true,
                   price_stores: {
                     some: {
                       deleted_at: null,
@@ -242,6 +245,8 @@ export class ItemsService {
           //   deleted_at: null,
           // },
         ].filter(Boolean),
+        deleted_at: null,
+        deleted_by: null,
       };
 
       // console.log('Generated WHERE clause:', JSON.stringify(where, null, 2));
@@ -297,6 +302,7 @@ export class ItemsService {
           page,
           take,
           total,
+          takeTotal: items.length
         },
       };
     } catch (error) {
@@ -538,6 +544,7 @@ export class ItemsService {
           id,
         },
         data: {
+          is_active: false,
           deleted_at: new Date(),
           deleted_by: user_id
         },
