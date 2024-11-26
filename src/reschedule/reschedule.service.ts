@@ -109,6 +109,11 @@ export class RescheduleService {
           },
         },
       },
+      include: {
+        reschedule_status: true,
+        reschedule_evidences: true,
+        reschedule_tukang: true
+      }
     });
 
     if (reschedule) {
@@ -536,9 +541,14 @@ export class RescheduleService {
         updated_by: userId,
         updated_at: new Date(),
         reschedule_status: { upsert: rescheduleStatus },
-        // reschedule_tukang: { upsert: rescheduleTukang },
+        reschedule_tukang: { upsert: rescheduleTukang },
         reschedule_evidences: { createMany: { data: rescheduleEvidenceData } },
       },
+      include: {
+        reschedule_status: true,
+        reschedule_tukang: true,
+        reschedule_evidences: true,
+      }
     };
 
     console.log('RESCHEDULE DATA:', rescheduleData);
@@ -577,11 +587,29 @@ export class RescheduleService {
       );
     }
 
-
-    if (status.category.toLowerCase().includes('rescheduleapprovedbyho') && order.order_history[0].status.category === 'TUKANGSURVEY' || order.order_history[0].status.category === 'SURVEYREQ' || order.order_history[0].status.category === 'SURVEYSTART') {
+    if (status.category.toLowerCase().includes('rescheduleapprovedbyho') && order.order_history[0].status.category === 'TUKANGSURVEY' || order.order_history[0].status.category === 'SURVEYREQ') {
+      console.log("MASUK");
+      
       await this.orderService.setStatus(order.id, statusRetukangSurvey.id, user);
-    } else if (status.category.toLowerCase().includes('rescheduleapprovedbyho') && order.order_history[0].status.category === 'TUKANGWORK' || order.order_history[0].status.category === 'WORKREQ' || order.order_history[0].status.category === 'WORKSTART') {
+      await this.dbService.work_orders.update({
+        where: {
+          order_id: order.id
+        },
+        data: {
+          status_id: statusRetukangSurvey.id
+        }
+      });
+    } else if (status.category.toLowerCase().includes('rescheduleapprovedbyho') && order.order_history[0].status.category === 'TUKANGWORK' || order.order_history[0].status.category === 'WORKREQ' || order.order_history[0].status.category === 'WORKSTART' || order.order_history[0].status.category === 'TUKANGWORKSTEPONE' || order.order_history[0].status.category === 'TUKANGWORKSTEPTWO' || order.order_history[0].status.category === 'TUKANGWORKSTEPTHREE') {
+      console.log("MASUK");
       await this.orderService.setStatus(order.id, statusRetukangWork.id, user);
+      await this.dbService.work_orders.update({
+        where: {
+          order_id: order.id
+        },
+        data: {
+          status_id: statusRetukangWork.id
+        }
+      });
     }
 
     return updatedReschedule;
