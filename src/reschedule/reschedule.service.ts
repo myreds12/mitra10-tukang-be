@@ -325,7 +325,11 @@ export class RescheduleService {
             status: true,
           },
         },
-        reschedule_evidences: true,
+        reschedule_evidences: {
+          where:{
+            deleted_at: null,
+          }
+        },
         order: {
           include: {
             quotation: {
@@ -561,11 +565,7 @@ export class RescheduleService {
         }),
         this.dbService.reschedule_tukang.updateMany({
           where: {
-            id: {
-              notIn: updateRescheduleDto.reschedule_tukang.map(
-                (item) => item.id,
-              ),
-            },
+            ...(updateRescheduleDto?.reschedule_tukang?.length > 0 ? { id: { notIn: updateRescheduleDto.reschedule_tukang.map((item) => item.id) } } : {}),
             reschedule_id: id,
           },
           data: { deleted_at: new Date(), deleted_by: userId },

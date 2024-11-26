@@ -591,7 +591,26 @@ export class OrderService {
               deleted_at: null,
             },
             include: {
-              reschedule_evidences: true,
+              reschedule_tukang: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                include: {
+                  tukang: true,
+                },
+              },
+              status: true,
+              reschedule_status: {
+                include: {
+                  status: true,
+                },
+              },
+              reschedule_evidences: {
+                where: {
+                  deleted_at: null,
+                }
+              },
             },
           },
           invoice_details: {
@@ -1067,7 +1086,26 @@ export class OrderService {
               deleted_at: null,
             },
             include: {
-              reschedule_evidences: true,
+              reschedule_tukang: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                include: {
+                  tukang: true,
+                },
+              },
+              status: true,
+              reschedule_status: {
+                include: {
+                  status: true,
+                },
+              },
+              reschedule_evidences: {
+                where: {
+                  deleted_at: null,
+                }
+              },
             },
           },
           invoice_details: {
