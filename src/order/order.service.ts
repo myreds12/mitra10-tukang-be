@@ -838,7 +838,40 @@ export class OrderService {
           quotation: true,
         },
       });
+
+      const orderPaidGrandTotalData = await this.dbService.orders.findMany({
+        where: {
+          quotation: {
+            some: {
+              receipt_quotation: {
+                not: null,
+              },
+            },
+          }
+        },
+        include: {
+          quotation: true,
+        },
+      });
+
       const orderGrandTotal = orderGrandTotalData.reduce((total, order) => {
+        let grandTotal = Number(order.grand_total) || 0;
+
+        if (order.payment_type === 'survey' && order.quotation) {
+          const quotationGrandTotal = order.quotation.reduce(
+            (qTotal, quotation) => {
+              return qTotal + Number(quotation.quotation_grand_total);
+            },
+            0,
+          );
+
+          grandTotal += quotationGrandTotal;
+        }
+
+        return total + grandTotal;
+      }, 0);
+
+      const orderPaidGrandTotal = orderPaidGrandTotalData.reduce((total, order) => {
         let grandTotal = Number(order.grand_total) || 0;
 
         if (order.payment_type === 'survey' && order.quotation) {
@@ -860,6 +893,7 @@ export class OrderService {
         meta: {
           total: count,
           orderGrandTotal,
+          orderPaidGrandTotal,
           page,
           take,
           takeTotal: orders.length,

@@ -76,7 +76,7 @@ export class RefundService {
         notes: createRefundDto.notes,
         reason: createRefundDto.reason,
         approval_number: createRefundDto?.approval_number ?? undefined,
-        penalty_nominal: order.grand_total,
+        penalty_nominal: createRefundDto?.penalty_nominal ?? undefined,
         voucher: createRefundDto.voucher ? createRefundDto.voucher : null,
         created_by: user_id,
       };
