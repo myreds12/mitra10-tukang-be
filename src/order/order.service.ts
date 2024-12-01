@@ -5547,6 +5547,7 @@ export class OrderService {
                 address: true,
               },
             },
+            receipt_number: true,
             project_address: true,
             project_number: true,
             m_order_details: {

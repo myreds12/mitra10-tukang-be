@@ -1077,6 +1077,12 @@ export class SalesService {
               },
             },
             users: true,
+            orders: {
+              take: 5,
+              orderBy: {
+                created_at: 'desc'
+              }
+            }
           },
         });
         dataExcel = [...dataExcel, ...data];
@@ -1117,6 +1123,8 @@ export class SalesService {
         { header: 'Sales Category', key: 'sales_categories', width: 50 },
         { header: 'Username Sales', key: 'username', width: 40 },
         { header: 'Sales Dibuat', key: 'created_at', width: 35 },
+        { header: 'Tanggal Terakhir Order', key: 'order_date', width: 55 },
+        { header: 'Selisih', key: 'date_diff', width: 35 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -1141,8 +1149,7 @@ export class SalesService {
               .map((category) => category.categories.category_name)
               .join(',')
           : '';
-        const dateTime = new Date(sales.created_at);
-        const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
+        const formattedDateTime = (dateTime) => `${dateTime.toLocaleDateString('id-ID', {
           day: 'numeric',
           month: 'long',
           year: 'numeric',
@@ -1150,6 +1157,10 @@ export class SalesService {
           hour: '2-digit',
           minute: '2-digit',
         })}`;
+        const currentMonth = new Date();
+        const orderDate = sales.order ? new Date(sales.order[0].created_at) : sales.created_at;
+        const monthDifference = (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 + currentMonth.getMonth() - orderDate.getMonth();
+
         const row = worksheet.addRow({
           id: sales.id,
           store_name: sales.store ? sales.store.store_name : '',
@@ -1162,7 +1173,9 @@ export class SalesService {
           order_total: sales.order_total ? sales.order_total : '',
           sales_categories: salesCategories,
           username: sales.users ? sales.users.username : '',
-          created_at: formattedDateTime,
+          created_at: formattedDateTime(sales.created_at),
+          order_date: sales.order ? formattedDateTime(sales.order[0].created_at) : '',
+          date_diff: monthDifference,
         });
 
         row.eachCell((cell) => {
