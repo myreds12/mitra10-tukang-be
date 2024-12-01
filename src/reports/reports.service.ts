@@ -2021,6 +2021,10 @@ export class ReportsService {
         'QUOTATIONPAIDSTEPONE',
         'QUOTATIONPAIDSTEPTWO',
         'QUOTATIONPAIDSTEPTHREE',
+        'APPROVED',
+        'REJECTED',
+        'PAID',
+        'DONE'
       ];
 
       const orderDone1 = data.filter(({ status }) =>
@@ -2044,7 +2048,7 @@ export class ReportsService {
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
-      const statusPending = ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'];
+      const statusPending = ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ', 'RESCHEDULE', 'RETUKANGSURVEY', 'INVESTIGATE', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'REWORKREQ', 'REWORKSTART', 'RESURVEYDONE','COMPLAINTREJECTEDBYHO', 'COMPLAINTREJECTEDBYVENDOR', 'RESCHEDULEAPPROVEDBYHO', 'RESCHEDULEAPPROVEDBYVENDOR', 'RESCHEDULEREJECTEDBYVENDOR', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO'];
 
 
       const isWithinDateRange = (date) =>
@@ -2056,19 +2060,18 @@ export class ReportsService {
       ).length;
 
       const orderPending2 = data.filter(({ status, payment_type, request_survey }) =>
-        ((['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
+        ((['WORKREQ', 'TUKANGWORK', 'COMPLAINTREJECTEDBYHO', 'COMPLAINTREJECTEDBYVENDOR', 'RESCHEDULEAPPROVEDBYHO', 'RESCHEDULEAPPROVEDBYVENDOR', 'RESCHEDULEREJECTEDBYVENDOR', 'REFUNDAPPROVEDBYHO', 'REFUNDREJECTEDBYHO', 'WORKREQSTEPTWO', 'WORKREQSTEPONE', 'WORKSTARTSTEPONE', 'WORKENDSTEPONE', 'WORKENDSTEPTHREE', 'WORKSTARTSTEPTHREE', 'WORKENDSTEPTWO', 'RETUKANGWORK', 'REWORK', 'RETUKANGWORKSTEPTWO', 'RETUKANGWORKSTEPONE', 'TUKANGWORKSTEPONE',  'TUKANGWORKSTEPTWO', 'TUKANGWORKSTEPTHREE'] .includes(status.category) &&
           ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
         (isWithinDateRange(request_survey))
       ).length;
 
 
       const orderRefund = data.filter((x) =>
-        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND'
+        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND' || x.refund.length > 0
       ).length;
 
       const orderCancel = data.filter((x) => x.status.category === 'CANCEL'
       ).length;
-      console.log("ORDER CANCEL", orderCancel);
 
 
       const totalProgressOrder = [
@@ -2122,7 +2125,7 @@ export class ReportsService {
           return total + grandTotal;
         }, 0);
 
-      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'INVESTIGATED', 'RESURVEY', 'BOOKED', 'BOOK'];
+      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'INVESTIGATED', 'RESURVEY', 'BOOKED', 'BOOK', 'REWORK', 'INVESTIGATE', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'REWORKREQ', 'REWORKSTART', 'RESURVEYDONE'];
 
       const orderSurveyOnGoing = data.filter(
         x => ongoingSurveyCategories.includes(x.status.category) && x.payment_type === 'survey'

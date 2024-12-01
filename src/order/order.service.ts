@@ -26,7 +26,7 @@ export class OrderService {
     private readonly dbService: PrismaService,
     private pdfService: PdfService,
     private notifService: NotificationsService,
-  ) { }
+  ) {}
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -73,10 +73,10 @@ export class OrderService {
             NOT: {
               status: {
                 category: {
-                  in: ['CANCELREFUND', 'CANCEL']
-                }
-              }
-            }
+                  in: ['CANCELREFUND', 'CANCEL'],
+                },
+              },
+            },
           },
         });
 
@@ -86,7 +86,6 @@ export class OrderService {
           );
         }
       }
-
 
       const orderDetailItems = await this.dbService.items.findMany({
         where: {
@@ -189,16 +188,16 @@ export class OrderService {
         receipt_number: createOrderDto.receipt_number,
         ...(createOrderDto.request_work
           ? {
-            request_work: new Date(createOrderDto.request_work),
-          }
+              request_work: new Date(createOrderDto.request_work),
+            }
           : undefined),
         grand_total: grand_total.toFixed(2),
         grand_total_comission: grand_total_comission.toFixed(2),
         is_overdistance: createOrderDto.is_overdistance,
         ...(createOrderDto.is_overdistance === 1
           ? {
-            additional_fee: 25000,
-          }
+              additional_fee: 25000,
+            }
           : undefined),
         created_by: user_id,
         payment_type: createOrderDto.payment_type,
@@ -305,100 +304,100 @@ export class OrderService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                  {
-                    vendor: {
-                      company_name: {
-                        contains: search,
+                    {
+                      vendor: {
+                        company_name: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                    {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                    {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(history_status
             ? [
-              {
-                order_history: {
-                  some: {
-                    status_id: {
-                      in: history_status,
+                {
+                  order_history: {
+                    some: {
+                      status_id: {
+                        in: history_status,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_promotion
             ? [
-              {
-                OR: [
-                  {
-                    AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
                         },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
                             },
                           },
                         },
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
                         },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
+                      ],
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -408,134 +407,134 @@ export class OrderService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(tukang_id
             ? [
-              {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_invoice)
             ? [
-              {
-                invoice_details: {
-                  none: {
-                    deleted_at: null,
-                  },
-                },
-              },
-            ]
-            : []),
-          ...(Boolean(is_active_warranty)
-            ? [
-              {
-                work_orders: {
-                  work_order_status: {
-                    some: {
-                      status: {
-                        category: 'WORKEND',
-                      },
-                      created_at: {
-                        gte: sevenDaysAgo,
-                      },
+                {
+                  invoice_details: {
+                    none: {
+                      deleted_at: null,
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
-          ...(Boolean(is_expired_warranty)
+          ...(Boolean(is_active_warranty)
             ? [
-              {
-                OR: [
-                  {
-                    work_orders: {
-                      work_order_status: {
-                        some: {
-                          status: {
-                            category: 'WORKEND',
-                          },
-                          created_at: {
-                            lt: sevenDaysAgo,
-                          },
+                {
+                  work_orders: {
+                    work_order_status: {
+                      some: {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                        created_at: {
+                          gte: sevenDaysAgo,
                         },
                       },
                     },
                   },
-                  {
-                    complaints: {
-                      some: {
-                        deleted_at: null,
+                },
+              ]
+            : []),
+          ...(Boolean(is_expired_warranty)
+            ? [
+                {
+                  OR: [
+                    {
+                      work_orders: {
+                        work_order_status: {
+                          some: {
+                            status: {
+                              category: 'WORKEND',
+                            },
+                            created_at: {
+                              lt: sevenDaysAgo,
+                            },
+                          },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                    {
+                      complaints: {
+                        some: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(Boolean(is_receipt)
             ? [
-              {
-                receipt_number: {
-                  not: null,
+                {
+                  receipt_number: {
+                    not: null,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_receipt_quotation
             ? [
-              {
-                quotation: {
-                  some: {
-                    receipt_quotation: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      receipt_quotation: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(promotion)
             ? [
-              {
-                quotation: {
-                  some: {
-                    promotion_id: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
@@ -609,7 +608,7 @@ export class OrderService {
               reschedule_evidences: {
                 where: {
                   deleted_at: null,
-                }
+                },
               },
             },
           },
@@ -706,12 +705,12 @@ export class OrderService {
           order_history: {
             ...(history_status
               ? {
-                where: {
-                  status_id: {
-                    in: history_status,
+                  where: {
+                    status_id: {
+                      in: history_status,
+                    },
                   },
-                },
-              }
+                }
               : undefined),
             select: {
               order_id: true,
@@ -860,13 +859,87 @@ export class OrderService {
 
       const orderPaidGrandTotalData = await this.dbService.orders.findMany({
         where: {
+          AND: [
+            ...(search
+              ? [
+                  {
+                    OR: [
+                      { receipt_number: { contains: search } },
+                      {
+                        id: !isNaN(+search) ? +search : undefined,
+                      },
+                      { members: { full_name: { contains: search } } },
+                      {
+                        store: {
+                          store_name: {
+                            contains: search,
+                          },
+                        },
+                      },
+                      {
+                        project_number: {
+                          contains: search,
+                        },
+                      },
+                      {
+                        vendor: {
+                          company_name: {
+                            contains: search,
+                          },
+                        },
+                      },
+                      {
+                        members: {
+                          phone_number: {
+                            contains: search,
+                          },
+                        },
+                      },
+                      {
+                        members: {
+                          whatsapp_number: {
+                            contains: search,
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : []),
+            store_id
+              ? {
+                  store_id: {
+                    in: store_id,
+                  },
+                }
+              : undefined,
+            vendor_id
+              ? {
+                  vendor: {
+                    id: vendor_id,
+                    deleted_at: null,
+                  },
+                }
+              : undefined,
+            ...(date_from && date_to
+              ? [
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
+                  },
+                ]
+              : []),
+          ].filter(Boolean),
+          deleted_at: null,
           quotation: {
             some: {
               receipt_quotation: {
                 not: null,
               },
             },
-          }
+          },
         },
         include: {
           quotation: true,
@@ -890,22 +963,25 @@ export class OrderService {
         return total + grandTotal;
       }, 0);
 
-      const orderPaidGrandTotal = orderPaidGrandTotalData.reduce((total, order) => {
-        let grandTotal = Number(order.grand_total) || 0;
+      const orderPaidGrandTotal = orderPaidGrandTotalData.reduce(
+        (total, order) => {
+          let grandTotal = Number(order.grand_total) || 0;
 
-        if (order.payment_type === 'survey' && order.quotation) {
-          const quotationGrandTotal = order.quotation.reduce(
-            (qTotal, quotation) => {
-              return qTotal + Number(quotation.quotation_grand_total);
-            },
-            0,
-          );
+          if (order.payment_type === 'survey' && order.quotation) {
+            const quotationGrandTotal = order.quotation.reduce(
+              (qTotal, quotation) => {
+                return qTotal + Number(quotation.quotation_grand_total);
+              },
+              0,
+            );
 
-          grandTotal += quotationGrandTotal;
-        }
+            grandTotal += quotationGrandTotal;
+          }
 
-        return total + grandTotal;
-      }, 0);
+          return total + grandTotal;
+        },
+        0,
+      );
 
       return {
         data: ordersWithUser,
@@ -1104,7 +1180,7 @@ export class OrderService {
               reschedule_evidences: {
                 where: {
                   deleted_at: null,
-                }
+                },
               },
             },
           },
@@ -1230,14 +1306,15 @@ export class OrderService {
       if (updateOrderDto.receipt_number) {
         const existingOrder = await this.dbService.orders.findFirst({
           where: {
-            id: { not: id }, receipt_number: updateOrderDto.receipt_number,
+            id: { not: id },
+            receipt_number: updateOrderDto.receipt_number,
             NOT: {
               status: {
                 category: {
-                  in: ['CANCELREFUND', 'CANCEL']
-                }
-              }
-            }
+                  in: ['CANCELREFUND', 'CANCEL'],
+                },
+              },
+            },
           },
         });
 
@@ -1261,8 +1338,8 @@ export class OrderService {
 
       const orderdetailsIds = updateOrderDto.order_details
         ? updateOrderDto.order_details
-          .filter((x) => Boolean(x.id))
-          .map((x) => x.id)
+            .filter((x) => Boolean(x.id))
+            .map((x) => x.id)
         : undefined;
 
       const orderDetail = await this.dbService.m_order_details.findMany({
@@ -1288,12 +1365,12 @@ export class OrderService {
 
       const whereItems = updateOrderDto.order_details
         ? {
-          id: {
-            in: updateOrderDto.order_details
-              .filter((x) => Boolean(x.item_id))
-              .map((x) => x.item_id),
-          },
-        }
+            id: {
+              in: updateOrderDto.order_details
+                .filter((x) => Boolean(x.item_id))
+                .map((x) => x.item_id),
+            },
+          }
         : undefined;
 
       const items = await this.dbService.items.findMany({
@@ -1327,10 +1404,10 @@ export class OrderService {
 
       const searchStatusInput = updateOrderDto.project_status_id
         ? await this.dbService.status.findFirst({
-          where: {
-            id: updateOrderDto.project_status_id,
-          },
-        })
+            where: {
+              id: updateOrderDto.project_status_id,
+            },
+          })
         : null;
 
       let projectStatusDefault = order.status;
@@ -1391,8 +1468,8 @@ export class OrderService {
           (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
             ? Number(updateOrderDto.additional_fee) - +order.additional_fee
             : updateOrderDto.is_overdistance === 0
-              ? +order.additional_fee
-              : 0);
+            ? +order.additional_fee
+            : 0);
       } else {
         grand_total +=
           updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
@@ -1403,89 +1480,89 @@ export class OrderService {
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
         updateOrderDto.order_details
           ? updateOrderDto.order_details.map((item) => {
-            let total = 0;
-            const currentItem = items?.find(({ id }) => id === item?.item_id);
+              let total = 0;
+              const currentItem = items?.find(({ id }) => id === item?.item_id);
 
-            const itemPrice =
-              currentItem?.prices.filter(
-                (x) => item.quantity >= x.min_order,
-              )?.[0]?.price ??
-              currentItem?.default_price ??
-              0;
+              const itemPrice =
+                currentItem?.prices.filter(
+                  (x) => item.quantity >= x.min_order,
+                )?.[0]?.price ??
+                currentItem?.default_price ??
+                0;
 
-            // console.log(currentItem.default_price);
+              // console.log(currentItem.default_price);
 
-            // const comission = Number(
-            //   salesUser?.sales_categories?.find(
-            //     ({ category_id }) => currentItem?.category_id === category_id,
-            //   )?.commission ?? salesUser?.sales_categories?.find(
-            //     ({ category_id }) => item.category_id === category_id,
-            //   )?.commission,
-            // );
+              // const comission = Number(
+              //   salesUser?.sales_categories?.find(
+              //     ({ category_id }) => currentItem?.category_id === category_id,
+              //   )?.commission ?? salesUser?.sales_categories?.find(
+              //     ({ category_id }) => item.category_id === category_id,
+              //   )?.commission,
+              // );
 
-            const comission = Number(
-              salesUser?.sales_categories?.find(
-                ({ category_id }) => currentItem?.category_id === category_id,
-              )?.commission ?? 0,
-            );
+              const comission = Number(
+                salesUser?.sales_categories?.find(
+                  ({ category_id }) => currentItem?.category_id === category_id,
+                )?.commission ?? 0,
+              );
 
-            if (
-              [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
-                updateOrderDto.payment_type,
-              )
-            ) {
-              total = Number(itemPrice) * item.quantity;
-              grand_total +=
-                total +
-                (updateOrderDto.additional_fee &&
+              if (
+                [PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
+                  updateOrderDto.payment_type,
+                )
+              ) {
+                total = Number(itemPrice) * item.quantity;
+                grand_total +=
+                  total +
+                  (updateOrderDto.additional_fee &&
                   updateOrderDto.is_overdistance === 1
-                  ? Number(updateOrderDto.additional_fee) -
-                  +order.additional_fee
-                  : updateOrderDto.is_overdistance === 0
+                    ? Number(updateOrderDto.additional_fee) -
+                      +order.additional_fee
+                    : updateOrderDto.is_overdistance === 0
                     ? +order.additional_fee
                     : 0);
-              grand_total_comission += comission;
-            }
+                grand_total_comission += comission;
+              }
 
-            return {
-              where: { id: item?.id ?? 0, order_id: id },
-              update: {
-                item_notes: item?.item_notes,
-                item_name: item?.item_name ?? '',
-                item_code: item?.item_code ?? '',
-                item_id: item?.item_id ?? undefined,
-                quantity: item?.quantity,
-                unit_price: itemPrice,
-                total,
-                comission,
-                updated_by: user_id,
-                updated_at: new Date(),
-              },
-              create: {
-                item_notes: item?.item_notes,
-                ...(item.item_id
-                  ? {
-                    item: {
-                      connect: {
-                        id: item.item_id,
-                      },
-                    },
-                  }
-                  : undefined),
-                sales: {
-                  connect: { id: updateOrderDto.sales_id ?? order.sales_id },
+              return {
+                where: { id: item?.id ?? 0, order_id: id },
+                update: {
+                  item_notes: item?.item_notes,
+                  item_name: item?.item_name ?? '',
+                  item_code: item?.item_code ?? '',
+                  item_id: item?.item_id ?? undefined,
+                  quantity: item?.quantity,
+                  unit_price: itemPrice,
+                  total,
+                  comission,
+                  updated_by: user_id,
+                  updated_at: new Date(),
                 },
-                item_name: item?.item_name ?? '',
-                item_code: item?.item_code ?? '',
-                quantity: item?.quantity,
-                unit_price: itemPrice,
-                total,
-                comission,
-                created_by: user_id,
-                created_at: new Date(),
-              },
-            };
-          })
+                create: {
+                  item_notes: item?.item_notes,
+                  ...(item.item_id
+                    ? {
+                        item: {
+                          connect: {
+                            id: item.item_id,
+                          },
+                        },
+                      }
+                    : undefined),
+                  sales: {
+                    connect: { id: updateOrderDto.sales_id ?? order.sales_id },
+                  },
+                  item_name: item?.item_name ?? '',
+                  item_code: item?.item_code ?? '',
+                  quantity: item?.quantity,
+                  unit_price: itemPrice,
+                  total,
+                  comission,
+                  created_by: user_id,
+                  created_at: new Date(),
+                },
+              };
+            })
           : undefined;
 
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
@@ -1493,8 +1570,8 @@ export class OrderService {
         is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
         ...(updateOrderDto?.is_overdistance === 1
           ? {
-            additional_fee: 25000 ?? undefined,
-          }
+              additional_fee: 25000,
+            }
           : { additional_fee: 0 }),
         member_id: updateOrderDto?.member_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
@@ -1523,17 +1600,17 @@ export class OrderService {
 
       const deletedDetailsId = updateOrderDto.order_details
         ? updateOrderDto.order_details
-          .filter((x) => Boolean(x?.id))
-          .map((item) => {
-            return item.id;
-          })
+            .filter((x) => Boolean(x?.id))
+            .map((item) => {
+              return item.id;
+            })
         : undefined;
       const deletedOrderFile = updateOrderDto.existing_order_files
         ? updateOrderDto?.existing_order_files
-          .filter((x) => Boolean(x?.order_file_id))
-          .map((item) => {
-            return Number(item.order_file_id);
-          })
+            .filter((x) => Boolean(x?.order_file_id))
+            .map((item) => {
+              return Number(item.order_file_id);
+            })
         : undefined;
 
       const [syncDetails, syncFiles, orderQuery] =
@@ -1543,10 +1620,10 @@ export class OrderService {
               order_id: id,
               ...(deletedDetailsId && deletedDetailsId.length
                 ? {
-                  id: {
-                    notIn: deletedDetailsId,
-                  },
-                }
+                    id: {
+                      notIn: deletedDetailsId,
+                    },
+                  }
                 : undefined),
             },
             data: {
@@ -1558,10 +1635,10 @@ export class OrderService {
             where: {
               ...(deletedOrderFile
                 ? {
-                  id: {
-                    notIn: deletedOrderFile,
-                  },
-                }
+                    id: {
+                      notIn: deletedOrderFile,
+                    },
+                  }
                 : undefined),
               order_id: id,
             },
@@ -1578,10 +1655,10 @@ export class OrderService {
               ...orderUpdateData,
               ...(updateOrderDto.order_details
                 ? {
-                  m_order_details: {
-                    upsert: orderDetailUpsert,
-                  },
-                }
+                    m_order_details: {
+                      upsert: orderDetailUpsert,
+                    },
+                  }
                 : undefined),
             },
             include: {
@@ -1859,31 +1936,31 @@ export class OrderService {
         OR: [
           ...(email_member
             ? [
-              {
-                members: {
-                  email: email_member,
+                {
+                  members: {
+                    email: email_member,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(member_number
             ? [
-              {
-                members: {
-                  member_number: member_number,
+                {
+                  members: {
+                    member_number: member_number,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(phone_number
             ? [
-              {
-                members: {
-                  member_number: phone_number,
-                  // phone_number: phone_number,
+                {
+                  members: {
+                    member_number: phone_number,
+                    // phone_number: phone_number,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -1998,10 +2075,13 @@ export class OrderService {
 
       if (!order) throw new NotFoundException('Order not found!');
 
-      const redirect_url = `${process.env.FE_URL
-        }/detail-order?order_id=${order_id}${phone_number ? `&phone_number=${phone_number}` : ''
-        }${email_member ? `&email_member=${email_member}` : ''}${member_number ? `&member_number=${member_number}` : ''
-        }`;
+      const redirect_url = `${
+        process.env.FE_URL
+      }/detail-order?order_id=${order_id}${
+        phone_number ? `&phone_number=${phone_number}` : ''
+      }${email_member ? `&email_member=${email_member}` : ''}${
+        member_number ? `&member_number=${member_number}` : ''
+      }`;
 
       return {
         data: order,
@@ -2039,25 +2119,25 @@ export class OrderService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -2067,66 +2147,66 @@ export class OrderService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_promotion
             ? [
-              {
-                OR: [
-                  {
-                    AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
                         },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
                             },
                           },
                         },
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
                         },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
+                      ],
+                    },
+                  ],
+                },
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -2598,17 +2678,16 @@ export class OrderService {
 
         order.m_order_details.forEach((detail) => {
           const itemName = detail.item_name || 'Item belum ditentukan';
-          const categoryName =
-            detail?.item?.category?.category_name ?? '';
+          const categoryName = detail?.item?.category?.category_name ?? '';
           const quantity = detail?.quantity || 'Quantity Belum ditentukan';
           const tukangName = order?.work_orders?.work_order_tukang
             ? [
-              ...new Set(
-                order.work_orders.work_order_tukang.map(
-                  (item) => item?.tukang?.full_name,
+                ...new Set(
+                  order.work_orders.work_order_tukang.map(
+                    (item) => item?.tukang?.full_name,
+                  ),
                 ),
-              ),
-            ].join(', ')
+              ].join(', ')
             : 'Tukang belum ditugaskan';
           const formattedDateTime = (dateTime) =>
             `${new Date(dateTime).toLocaleDateString('id-ID', {
@@ -2631,8 +2710,8 @@ export class OrderService {
             const quotationGrandTotal =
               order && order.quotation && order.quotation.length > 0
                 ? Math.ceil(
-                  Number(order.quotation[0]?.quotation_grand_total || 0),
-                )
+                    Number(order.quotation[0]?.quotation_grand_total || 0),
+                  )
                 : 0;
 
             if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
@@ -2674,16 +2753,16 @@ export class OrderService {
               order.payment_type === 'pemasangan_tanpa_survey'
                 ? 'Pemasangan Tanpa Survey'
                 : order.payment_type === 'survey'
-                  ? 'Survey'
-                  : order.payment_type === 'gratis'
-                    ? 'Gratis'
-                    : 'N/a',
+                ? 'Survey'
+                : order.payment_type === 'gratis'
+                ? 'Gratis'
+                : 'N/a',
             receipt_number: order.receipt_number
               ? order.receipt_number
               : 'Receipt belum terbit',
             receipt_quotation:
               order.payment_type === 'survey' &&
-                order?.quotation[0]?.receipt_quotation
+              order?.quotation[0]?.receipt_quotation
                 ? order?.quotation[0]?.receipt_quotation
                 : 'Receipt Quotation tidak ada',
             status_order:
@@ -2693,12 +2772,14 @@ export class OrderService {
               : 'Order Tidak Ada Tanggal Survey',
             work_date:
               order?.work_orders?.work_start_date &&
-                order?.work_orders?.work_end_date
+              order?.work_orders?.work_end_date
                 ? `${formattedDateTime(
-                  order.work_orders.work_start_date,
-                )} - ${formattedDateTime(order.work_orders.work_end_date)}`
+                    order.work_orders.work_start_date,
+                  )} - ${formattedDateTime(order.work_orders.work_end_date)}`
                 : 'Order Tidak Ada Tanggal Pengerjaan',
-            company_name: order.vendor ? order.vendor.company_name : 'Vendor Belum Ditentukan',
+            company_name: order.vendor
+              ? order.vendor.company_name
+              : 'Vendor Belum Ditentukan',
             sales_name: order.sales ? order.sales.full_name : '',
             tukang_name: tukangName,
             grand_total_survey: grandTotalSurveyValue,
@@ -2835,25 +2916,25 @@ export class OrderService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -2863,86 +2944,86 @@ export class OrderService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor
             ? {
-              vendor: {
-                id: {
-                  in: vendor,
+                vendor: {
+                  id: {
+                    in: vendor,
+                  },
+                  deleted_at: null,
                 },
-                deleted_at: null,
-              },
-            }
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                OR: [
-                  {
-                    AND: [
-                      {
-                        work_orders: null,
-                      },
-                      {
-                        request_survey: {
-                          gte: new Date(date_from),
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          work_orders: null,
                         },
-                      },
-                      {
-                        request_survey: {
-                          lte: new Date(`${date_to}T23:59:59.000Z`),
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        work_orders: {
-                          survey_date: {
+                        {
+                          request_survey: {
                             gte: new Date(date_from),
                           },
                         },
-                      },
-                      {
-                        work_orders: {
-                          survey_date: {
+                        {
+                          request_survey: {
                             lte: new Date(`${date_to}T23:59:59.000Z`),
                           },
                         },
-                      },
-                      {
-                        work_orders: {
-                          work_start_date: null,
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        work_orders: {
-                          work_start_date: {
-                            gte: new Date(date_from),
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          work_orders: {
+                            survey_date: {
+                              gte: new Date(date_from),
+                            },
                           },
                         },
-                      },
-                      {
-                        work_orders: {
-                          work_end_date: {
-                            lte: new Date(`${date_to}T23:59:59.000Z`),
+                        {
+                          work_orders: {
+                            survey_date: {
+                              lte: new Date(`${date_to}T23:59:59.000Z`),
+                            },
                           },
                         },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
+                        {
+                          work_orders: {
+                            work_start_date: null,
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          work_orders: {
+                            work_start_date: {
+                              gte: new Date(date_from),
+                            },
+                          },
+                        },
+                        {
+                          work_orders: {
+                            work_end_date: {
+                              lte: new Date(`${date_to}T23:59:59.000Z`),
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -3202,25 +3283,25 @@ export class OrderService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -3230,28 +3311,28 @@ export class OrderService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -3778,8 +3859,8 @@ export class OrderService {
       dataExcel.forEach((order) => {
         const tukangName = order.work_orders
           ? order.work_orders.work_order_tukang
-            .map((item) => item?.tukang?.full_name)
-            .join(', ')
+              .map((item) => item?.tukang?.full_name)
+              .join(', ')
           : 'N/a';
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
@@ -3806,10 +3887,10 @@ export class OrderService {
             order.payment_type === 'pemasangan_tanpa_survey'
               ? 'Pemasangan Tanpa Survey'
               : order.payment_type === 'survey'
-                ? 'Survey'
-                : order.payment_type === 'gratis'
-                  ? 'Gratis'
-                  : 'N/a',
+              ? 'Survey'
+              : order.payment_type === 'gratis'
+              ? 'Gratis'
+              : 'N/a',
           tukang_name: tukangName,
           created_at: formattedDateTime(order.created_at),
           request_survey: order.request_survey
@@ -3819,55 +3900,55 @@ export class OrderService {
             i.status.category.toLowerCase().includes('surveyreq'),
           )
             ? formattedDateTime(
-              order.order_history.find((i) =>
-                i.status.category.toLowerCase().includes('surveyreq'),
-              ).created_at,
-            )
+                order.order_history.find((i) =>
+                  i.status.category.toLowerCase().includes('surveyreq'),
+                ).created_at,
+              )
             : 'N/a',
           surveystart_date: order.order_history.find((i) =>
             i.status.category.toLowerCase().includes('surveystart'),
           )
             ? formattedDateTime(
-              order.order_history.find((i) =>
-                i.status.category.toLowerCase().includes('surveystart'),
-              ).created_at,
-            )
+                order.order_history.find((i) =>
+                  i.status.category.toLowerCase().includes('surveystart'),
+                ).created_at,
+              )
             : 'N/a',
           surveyend_date: order.order_history.find((i) =>
             i.status.category.toLowerCase().includes('surveyend'),
           )
             ? formattedDateTime(
-              order.order_history.find((i) =>
-                i.status.category.toLowerCase().includes('surveyend'),
-              ).created_at,
-            )
+                order.order_history.find((i) =>
+                  i.status.category.toLowerCase().includes('surveyend'),
+                ).created_at,
+              )
             : 'N/a',
           workreq_date: order.order_history.find((i) =>
             i.status.category.toLowerCase().includes('workreq'),
           )
             ? formattedDateTime(
-              order.order_history.find((i) =>
-                i.status.category.toLowerCase().includes('workreq'),
-              ).created_at,
-            )
+                order.order_history.find((i) =>
+                  i.status.category.toLowerCase().includes('workreq'),
+                ).created_at,
+              )
             : 'N/a',
           workstart_date: order.order_history.find((i) =>
             i.status.category.toLowerCase().includes('workstart'),
           )
             ? formattedDateTime(
-              order.order_history.find((i) =>
-                i.status.category.toLowerCase().includes('workstart'),
-              ).created_at,
-            )
+                order.order_history.find((i) =>
+                  i.status.category.toLowerCase().includes('workstart'),
+                ).created_at,
+              )
             : 'N/a',
           workend_date: order.order_history.find((i) =>
             i.status.category.toLowerCase().includes('workend'),
           )
             ? formattedDateTime(
-              order.order_history.find((i) =>
-                i.status.category.toLowerCase().includes('workend'),
-              ).created_at,
-            )
+                order.order_history.find((i) =>
+                  i.status.category.toLowerCase().includes('workend'),
+                ).created_at,
+              )
             : 'N/a',
         });
 
@@ -3962,8 +4043,8 @@ export class OrderService {
                 deleted_at: null,
               },
               include: {
-                item: true
-              }
+                item: true,
+              },
             },
             members: true,
             vendor: true,
@@ -4152,87 +4233,87 @@ export class OrderService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                  {
-                    vendor: {
-                      company_name: {
-                        contains: search,
+                    {
+                      vendor: {
+                        company_name: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                    {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                    {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(is_promotion
             ? [
-              {
-                OR: [
-                  {
-                    AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
                         },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
                             },
                           },
                         },
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
                         },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
+                      ],
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -4242,134 +4323,134 @@ export class OrderService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(tukang_id
             ? [
-              {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_invoice)
             ? [
-              {
-                invoice_details: {
-                  none: {
-                    deleted_at: null,
-                  },
-                },
-              },
-            ]
-            : []),
-          ...(Boolean(is_active_warranty)
-            ? [
-              {
-                work_orders: {
-                  work_order_status: {
-                    some: {
-                      status: {
-                        category: 'WORKEND',
-                      },
-                      created_at: {
-                        gte: sevenDaysAgo,
-                      },
+                {
+                  invoice_details: {
+                    none: {
+                      deleted_at: null,
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
-          ...(Boolean(is_expired_warranty)
+          ...(Boolean(is_active_warranty)
             ? [
-              {
-                OR: [
-                  {
-                    work_orders: {
-                      work_order_status: {
-                        some: {
-                          status: {
-                            category: 'WORKEND',
-                          },
-                          created_at: {
-                            lt: sevenDaysAgo,
-                          },
+                {
+                  work_orders: {
+                    work_order_status: {
+                      some: {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                        created_at: {
+                          gte: sevenDaysAgo,
                         },
                       },
                     },
                   },
-                  {
-                    complaints: {
-                      some: {
-                        deleted_at: null,
+                },
+              ]
+            : []),
+          ...(Boolean(is_expired_warranty)
+            ? [
+                {
+                  OR: [
+                    {
+                      work_orders: {
+                        work_order_status: {
+                          some: {
+                            status: {
+                              category: 'WORKEND',
+                            },
+                            created_at: {
+                              lt: sevenDaysAgo,
+                            },
+                          },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                    {
+                      complaints: {
+                        some: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(Boolean(is_receipt)
             ? [
-              {
-                receipt_number: {
-                  not: null,
+                {
+                  receipt_number: {
+                    not: null,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_receipt_quotation
             ? [
-              {
-                quotation: {
-                  some: {
-                    receipt_quotation: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      receipt_quotation: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(promotion)
             ? [
-              {
-                quotation: {
-                  some: {
-                    promotion_id: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
@@ -4551,25 +4632,25 @@ export class OrderService {
       AND: [
         ...(search
           ? [
-            {
-              OR: [
-                { receipt_number: { contains: search } },
-                { members: { full_name: { contains: search } } },
-                {
-                  store: {
-                    store_name: {
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  { members: { full_name: { contains: search } } },
+                  {
+                    store: {
+                      store_name: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    project_number: {
                       contains: search,
                     },
                   },
-                },
-                {
-                  project_number: {
-                    contains: search,
-                  },
-                },
-              ],
-            },
-          ]
+                ],
+              },
+            ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -4579,66 +4660,66 @@ export class OrderService {
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
         store_id
           ? {
-            store_id: {
-              in: store_id,
-            },
-          }
+              store_id: {
+                in: store_id,
+              },
+            }
           : undefined,
         vendor_id
           ? {
-            vendor: {
-              id: vendor_id,
-              deleted_at: null,
-            },
-          }
+              vendor: {
+                id: vendor_id,
+                deleted_at: null,
+              },
+            }
           : undefined,
         ...(date_from && date_to
           ? [
-            {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
               },
-            },
-          ]
+            ]
           : []),
         ...(is_promotion
           ? [
-            {
-              OR: [
-                {
-                  AND: [
-                    {
-                      payment_type: 'gratis',
-                    },
-                    {
-                      status: {
-                        category: 'WORKEND',
+              {
+                OR: [
+                  {
+                    AND: [
+                      {
+                        payment_type: 'gratis',
                       },
-                    },
-                  ],
-                },
-                {
-                  AND: [
-                    {
-                      quotation: {
-                        some: {
-                          promotion_id: {
-                            not: null,
+                      {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    AND: [
+                      {
+                        quotation: {
+                          some: {
+                            promotion_id: {
+                              not: null,
+                            },
                           },
                         },
                       },
-                    },
-                    {
-                      status: {
-                        category: 'WORKEND',
+                      {
+                        status: {
+                          category: 'WORKEND',
+                        },
                       },
-                    },
-                  ],
-                },
-              ],
-            },
-          ]
+                    ],
+                  },
+                ],
+              },
+            ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -5221,37 +5302,37 @@ export class OrderService {
       const result = await this.dbService.$transaction([
         ...(receiptOrderFiles
           ? [
-            this.dbService.orders.update({
-              where: { id },
-              data: {
-                order_files:
-                  receiptOrderFiles.length > 0
-                    ? {
-                      createMany: { data: receiptOrderFiles },
-                    }
-                    : undefined,
-              },
-              include: {
-                quotation: true,
-              },
-            }),
-          ]
+              this.dbService.orders.update({
+                where: { id },
+                data: {
+                  order_files:
+                    receiptOrderFiles.length > 0
+                      ? {
+                          createMany: { data: receiptOrderFiles },
+                        }
+                      : undefined,
+                },
+                include: {
+                  quotation: true,
+                },
+              }),
+            ]
           : []),
         ...(receiptQuotationFileCustomer
           ? [
-            this.dbService.quotation.update({
-              where: {
-                id: order?.quotation[0]?.id,
-              },
-              data: {
-                quotation_files: {
-                  createMany: {
-                    data: receiptQuotationFileCustomer,
+              this.dbService.quotation.update({
+                where: {
+                  id: order?.quotation[0]?.id,
+                },
+                data: {
+                  quotation_files: {
+                    createMany: {
+                      data: receiptQuotationFileCustomer,
+                    },
                   },
                 },
-              },
-            }),
-          ]
+              }),
+            ]
           : []),
       ]);
 
@@ -5266,12 +5347,12 @@ export class OrderService {
     try {
       const history = await this.dbService.order_histories.delete({
         where: {
-          id: id
-        }
+          id: id,
+        },
       });
       return history;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 
@@ -5280,9 +5361,9 @@ export class OrderService {
       const store = await this.dbService.store.findFirst({
         where: {
           store_name: {
-            contains: dto.store_name
-          }
-        }
+            contains: dto.store_name,
+          },
+        },
       });
 
       const member = await this.dbService.members.findFirst({
@@ -5290,7 +5371,7 @@ export class OrderService {
           deleted_at: null,
           email: memberDto?.email ?? undefined,
           full_name: memberDto?.full_name ?? undefined,
-        }
+        },
       });
 
       let newMember;
@@ -5301,14 +5382,15 @@ export class OrderService {
             email: memberDto?.email ?? undefined,
             phone_number: memberDto?.phone_number ?? undefined,
             whatsapp_number: memberDto?.whatsapp_number ?? undefined,
-            member_number: memberDto?.phone_number ?? memberDto?.whatsapp_number,
+            member_number:
+              memberDto?.phone_number ?? memberDto?.whatsapp_number,
             address_1: memberDto?.address_1 ?? undefined,
             address_2: memberDto?.address_2 ?? undefined,
             area_id: memberDto?.area_id ?? undefined,
             zip_code: memberDto?.zip_code ?? undefined,
             join_date: new Date(),
             join_location: store?.id ?? undefined,
-          }
+          },
         });
       }
 
@@ -5317,7 +5399,7 @@ export class OrderService {
       const items = await this.dbService.items.findMany({
         where: {
           deleted_at: null,
-          item_code: { in: requestedItemCodes }
+          item_code: { in: requestedItemCodes },
         },
         include: {
           category: true,
@@ -5330,40 +5412,45 @@ export class OrderService {
         },
       });
 
-      const foundItemCodes = new Set(items.map(item => item.item_code));
-      const missingItems = requestedItemCodes.filter(code => !foundItemCodes.has(code));
+      const foundItemCodes = new Set(items.map((item) => item.item_code));
+      const missingItems = requestedItemCodes.filter(
+        (code) => !foundItemCodes.has(code),
+      );
 
       if (missingItems.length > 0) {
-        throw new NotFoundException(`Item tidak ditemukan: ${missingItems.join(', ')}`);
+        throw new NotFoundException(
+          `Item tidak ditemukan: ${missingItems.join(', ')}`,
+        );
       }
 
-      const itemTypes = new Set(items.map(item => item.type));
+      const itemTypes = new Set(items.map((item) => item.type));
       if (itemTypes.size > 1) {
-        throw new BadRequestException("Tipe item berbeda ditemukan dalam daftar item yang diminta.");
+        throw new BadRequestException(
+          'Tipe item berbeda ditemukan dalam daftar item yang diminta.',
+        );
       }
 
       const itemType = items[0]?.type;
       let payment_type;
       switch (itemType) {
         case 1:
-          payment_type = "gratis";
+          payment_type = 'gratis';
           break;
         case 2:
-          payment_type = "pemasangan_tanpa_survey";
+          payment_type = 'pemasangan_tanpa_survey';
           break;
         case 3:
-          payment_type = "survey";
+          payment_type = 'survey';
           break;
         default:
-          throw new BadRequestException("Tipe item tidak valid.");
+          throw new BadRequestException('Tipe item tidak valid.');
       }
 
       const bookedStatus = await this.dbService.status.findFirst({
         where: {
-          category: 'BOOKED'
-        }
+          category: 'BOOKED',
+        },
       });
-
 
       let grand_total = 0;
       if (payment_type === 'survey') grand_total += 99000;
@@ -5371,12 +5458,16 @@ export class OrderService {
       const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
         dto.order_details.map((item) => {
           let total = 0;
-          const currentItem = items.find(({ item_code }) => item_code === item?.item_code);
-          const itemPrice = currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]?.price
-            ?? currentItem?.default_price
-            ?? 0;
+          const currentItem = items.find(
+            ({ item_code }) => item_code === item?.item_code,
+          );
+          const itemPrice =
+            currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
+              ?.price ??
+            currentItem?.default_price ??
+            0;
 
-          if (payment_type === "pemasangan_tanpa_survey") {
+          if (payment_type === 'pemasangan_tanpa_survey') {
             total = Number(itemPrice) * item.quantity;
             grand_total += total;
           }
@@ -5393,7 +5484,6 @@ export class OrderService {
           };
         });
 
-
       const orderConnection = Object.fromEntries(
         Object.entries({
           members: { connect: { id: member ? member.id : newMember.id } },
@@ -5405,10 +5495,12 @@ export class OrderService {
       const orderData = {
         notes: dto?.notes ?? undefined,
         project_address: member ? member?.address_1 : newMember.address_1,
-        project_number: member ? member?.phone_number ?? member?.whatsapp_number : newMember?.phone_number ?? newMember?.whatsapp_number,
+        project_number: member
+          ? member?.phone_number ?? member?.whatsapp_number
+          : newMember?.phone_number ?? newMember?.whatsapp_number,
         receipt_number: dto?.receipt_number ?? undefined,
         grand_total: grand_total.toFixed(2),
-        payment_type,  // Menggunakan `payment_type` yang di-set berdasarkan tipe item
+        payment_type, // Menggunakan `payment_type` yang di-set berdasarkan tipe item
         print_counter: 0,
         request_survey: new Date(dto?.request_survey),
       };
@@ -5452,9 +5544,10 @@ export class OrderService {
               select: {
                 id: true,
                 store_name: true,
-                address: true
+                address: true,
               },
             },
+            receipt_number: true,
             project_address: true,
             project_number: true,
             m_order_details: {
@@ -5472,17 +5565,17 @@ export class OrderService {
                     prices: {
                       select: {
                         price: true,
-                        min_order: true
-                      }
-                    }
-                  }
+                        min_order: true,
+                      },
+                    },
+                  },
                 },
                 quantity: true,
                 item_notes: true,
                 unit_price: true,
                 comission: true,
                 total: true,
-              }
+              },
             },
             request_survey: true,
             grand_total: true,
@@ -5499,7 +5592,7 @@ export class OrderService {
               },
             },
             created_at: true,
-          }
+          },
         }),
       ]);
       return order;
@@ -5508,5 +5601,4 @@ export class OrderService {
       throw error;
     }
   }
-
 }

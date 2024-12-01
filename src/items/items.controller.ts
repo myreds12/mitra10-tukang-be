@@ -33,12 +33,8 @@ export class ItemsController {
   }
 
   @Get('/')
-  async findAll(
-    @Query() queryParamsDto: QueryParamsDto,
-    @Req() request: RequestWithUser,
-  ) {
-    const user = request.user;
-    return await this.itemsService.findAll(queryParamsDto, user);
+  async findAll(@Query() queryParamsDto: QueryParamsDto) {
+    return await this.itemsService.findAll(queryParamsDto);
   }
 
   @Get(':id')
