@@ -146,6 +146,21 @@ export class StoreService {
         area: true,
         users: true,
         orders: {
+          where: {
+            AND: [
+              ...(date_from && date_to
+                ? [
+                    {
+                      created_at: {
+                        gte: new Date(date_from),
+                        lte: new Date(`${date_to}T23:59:59.000Z`),
+                      },
+                    },
+                  ]
+                : []),
+            ],
+            deleted_at: null
+          },
           orderBy: {
             created_at: 'desc',
           },
