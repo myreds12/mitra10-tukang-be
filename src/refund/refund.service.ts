@@ -318,9 +318,33 @@ export class RefundService {
           orders: {
             include: {
               members: true,
+              sales: true,
               store: true,
               vendor: true,
-              work_orders: true,
+              quotation: {
+                where: {
+                  deleted_at: null,
+                },
+                include: {
+                  quotation_details: {
+                    where: {
+                      deleted_at: null,
+                    }
+                  }
+                }
+              },
+              work_orders: {
+                include: {
+                  work_order_status: {
+                    where: {
+                      deleted_at: null
+                    },
+                    include: {
+                      status: true
+                    }
+                  }
+                }
+              },
               status: true,
               m_order_details: {
                 where: {

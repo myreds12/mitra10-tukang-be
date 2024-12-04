@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { create } from 'html-pdf';
 import { join } from 'path';
@@ -25,7 +26,7 @@ export class PdfService {
         footer: {
           height: "5mm",
         },
-        timeout: 60000,
+        timeout: 100000,
         orientation: 'landscape' }).toBuffer((err, buffer) => {
         if (err) {
           reject(err);
