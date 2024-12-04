@@ -132,22 +132,6 @@ export class AuthService {
           ...(files ? {
             profile_picture: files.filename
           } : undefined),
-          employee: {
-            update: {
-              email: dto?.email ?? undefined,
-              full_name: dto?.pic_name ?? undefined,
-              nik: dto?.nik ?? undefined,
-              birth: dto?.birth ? new Date(dto.birth) : undefined,
-              phone_number: dto?.phone_number ?? undefined,
-              whatsapp_number: dto?.whatsapp_number ?? undefined,
-              store: dto?.store_id ? {
-                connect: {
-                  id: dto.store_id
-                }
-              } : undefined,
-              updated_at: new Date()
-            }
-          }
         },
       });
 
