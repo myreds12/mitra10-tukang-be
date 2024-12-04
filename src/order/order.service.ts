@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   BadRequestException,
   Injectable,
@@ -41,12 +42,6 @@ export class OrderService {
 
       const SALES_ROLES = ROLES.find(({ name }) =>
         name.toLowerCase().includes('sales'),
-      );
-      const STORE_ROLES = ROLES.find(({ name }) =>
-        name.toLowerCase().includes('store staff'),
-      );
-      const ADMIN_HO_ROLES = ROLES.find(({ name }) =>
-        name.toLowerCase().includes('admin ho'),
       );
 
       const salesUser = await this.dbService.users.findFirst({
@@ -1292,7 +1287,7 @@ export class OrderService {
     order_files?: Express.Multer.File[],
   ) {
     try {
-      const { id: user_id, role_id } = user;
+      const { id: user_id } = user;
       const currentUser = await this.dbService.users.findFirst({
         where: {
           id: user_id,
@@ -1757,7 +1752,7 @@ export class OrderService {
 
       const date = new Date();
       const thirdDateTime = new Date(date.setDate(date.getDate() - 3));
-      const orders = await this.dbService.orders.updateMany({
+      await this.dbService.orders.updateMany({
         where: {
           status: {
             id: status.id,
@@ -2098,8 +2093,6 @@ export class OrderService {
   async orderExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const {
-        take,
-        page,
         search,
         status,
         date_from,
@@ -2113,7 +2106,6 @@ export class OrderService {
         is_promotion,
       } = queryParams;
 
-      const skip = page * take - take;
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -3263,8 +3255,6 @@ export class OrderService {
   async orderExportExcelHO(res: Response, queryParams: QueryParamsDto) {
     try {
       const {
-        take,
-        page,
         search,
         status,
         date_from,
@@ -3277,7 +3267,6 @@ export class OrderService {
         work_order_status,
       } = queryParams;
 
-      const skip = page * take - take;
 
       const where: Prisma.ordersWhereInput = {
         AND: [
@@ -3871,8 +3860,6 @@ export class OrderService {
             hour: '2-digit',
             minute: '2-digit',
           })}`;
-        const grandTotal = Number(order.grand_total);
-        const formattedGrandTotal = !isNaN(grandTotal) ? Number(grandTotal) : 0;
         const row = worksheet.addRow({
           id: order.id,
           store_name: order.store ? order.store.store_name : 'N/a',
@@ -4613,8 +4600,6 @@ export class OrderService {
 
   async orderExportExcelFollowUp(res: Response, queryParams: QueryParamsDto) {
     const {
-      take,
-      page,
       search,
       status,
       date_from,
@@ -5193,7 +5178,6 @@ export class OrderService {
     });
 
     dataExcel.forEach((order: any, index: number) => {
-      const rowIndex = index + 2;
 
       worksheet.addRow({
         id: order.id,
@@ -5209,9 +5193,9 @@ export class OrderService {
           .join(', '),
         status_description: order.status.description,
         csi_survey:
-          order.order_follow_up[0]?.csi_survey === true ? 'YES' : 'NO' || '-',
+          order.order_follow_up[0]?.csi_survey === true ? 'YES' : 'NO',
         csi_work:
-          order.order_follow_up[0]?.csi_work === true ? 'YES' : 'NO' || '-',
+          order.order_follow_up[0]?.csi_work === true ? 'YES' : 'NO',
         notes: order.order_follow_up[0]?.description || '-',
       });
     });

@@ -1,7 +1,7 @@
+/* eslint-disable prettier/prettier */
 import {
   Injectable,
   HttpStatus,
-  NotFoundException,
   BadGatewayException,
 } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
@@ -88,13 +88,13 @@ export class StoreService {
       take,
       page,
       search,
-      status,
       date_from,
       date_to,
-      order_by,
       area_id,
       store_group_id,
       top_best,
+      order_date_from,
+      order_date_to,
     } = query;
 
     const skip = page * take - take;
@@ -134,7 +134,33 @@ export class StoreService {
               },
             ]
           : []),
+          ...(date_from && date_to
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              ]
+            : []),
+            ...(order_date_from && order_date_to
+              ? [
+                  {
+                    orders: {
+                      some: {
+                        created_at: {
+                          gte: new Date(order_date_from),
+                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                        },
+                      }
+                    },
+                  },
+                ]
+              : []),
       ],
+      
+      
       deleted_at: null,
     };
 
@@ -416,13 +442,15 @@ export class StoreService {
             minute: '2-digit',
           })}`;
         const currentMonth = new Date();
-        const orderDate = store.orders
-          ? new Date(store.orders[0].created_at)
+        const orderDate = store.orders[0]?.created_at
+          ? new Date(store?.orders[0]?.created_at)
           : store.created_at;
+          
         const monthDifference =
           (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 +
           currentMonth.getMonth() -
           orderDate.getMonth();
+          console.log("MONTH DIFFERENCE" ,monthDifference);
         const row = worksheet.addRow({
           id: store.id,
           store_name: store.store_name ? store.store_name : '',
@@ -435,7 +463,7 @@ export class StoreService {
           bank_number: store.bank_number ? store.bank_number : '',
           bank_account: store.bank_account ? store.bank_account : '',
           username: store.users ? store.users.username : '',
-          order_date: store.orders
+          order_date: store.orders[0]?.created_at
             ? formattedDateTime(store.orders[0].created_at)
             : '',
           date_diff: monthDifference,
