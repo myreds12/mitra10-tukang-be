@@ -1,5 +1,5 @@
+/* eslint-disable prettier/prettier */
 import {
-  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,19 +7,13 @@ import {
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, invoices, status, users } from '@prisma/client';
+import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-import { MulterError } from 'multer';
-import { throws } from 'assert';
-import { curry, difference } from 'lodash';
-import { objectEnumValues } from '@prisma/client/runtime/library';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { InvoiceStatus } from './dto/invoice-status.enum';
-import { MarginType } from 'src/quotation/dto/margin-type.enum';
-import { create } from 'html-pdf';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
@@ -27,7 +21,10 @@ import { PdfService } from 'src/common/service/pdf.service';
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly dbService: PrismaService, private notifService: NotificationsService, private pdfService: PdfService,
+  constructor(
+    private readonly dbService: PrismaService,
+    private notifService: NotificationsService,
+    private pdfService: PdfService,
   ) { }
   private readonly logger = new Logger(InvoicesService.name);
   async create(
@@ -38,7 +35,6 @@ export class InvoicesService {
     try {
       const { id: user_id } = user;
 
-
       // Prepare evidences if available
       const evidences = invoice_evidences?.length
         ? invoice_evidences.map((item) => ({
@@ -46,7 +42,6 @@ export class InvoicesService {
           created_by: user_id,
         }))
         : [];
-
 
       const vendor = await this.dbService.vendor.findFirst({
         where: {
@@ -86,7 +81,7 @@ export class InvoicesService {
         include: {
           m_order_details: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               item: true,
@@ -94,12 +89,12 @@ export class InvoicesService {
           },
           quotation: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               quotation_details: {
                 where: {
-                  deleted_at: null
+                  deleted_at: null,
                 },
               },
             },
@@ -112,20 +107,6 @@ export class InvoicesService {
           },
         },
       });
-
-
-      const refund = await this.dbService.refund.findMany({
-        where: {
-          orders: {
-            vendor_id: vendor.id,
-          },
-          paid_status: 0,
-          approval_number: {
-            not: null
-          }
-        },
-      });
-
 
 
       let totalGrandTotal = 0;
@@ -141,7 +122,9 @@ export class InvoicesService {
         createInvoiceDto.invoice_details?.forEach((detail) => {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
-              const totalMargin = vendor.nominal_survey ? Number(vendor.nominal_survey) : 75000 + Number(order.additional_fee);
+              const totalMargin = vendor.nominal_survey
+                ? Number(vendor.nominal_survey)
+                : 75000 + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -150,7 +133,23 @@ export class InvoicesService {
               });
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 2) {
-              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))) + Number(order.additional_fee));
+              const totalMargin =
+                vendor.margin_type === 1
+                  ? (+vendor.margin_nominal / 100) *
+                  Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  )
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -160,7 +159,25 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 3) {
-              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))) + Number(order.additional_fee));
+              const totalMargin =
+                vendor.margin_type === 1
+                  ? ((+vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -170,7 +187,25 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 4) {
-              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 50 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))) + Number(order.additional_fee));
+              const totalMargin =
+                vendor.margin_type === 1
+                  ? ((+vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    50) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -180,7 +215,25 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'survey' && detail.type === 5) {
-              const totalMargin = (vendor.margin_type === 1 ? (((+vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+vendor.margin_nominal))) + Number(order.additional_fee));
+              const totalMargin =
+                vendor.margin_type === 1
+                  ? ((+vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -191,13 +244,27 @@ export class InvoicesService {
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
               const totalMargin =
-                (vendor.margin_type === 1 ? (order.m_order_details
-                  .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * order.m_order_details
+                (vendor.margin_type === 1
+                  ? order.m_order_details
                     .filter((i) => i.item.type === 2)
-                    .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) * (+vendor.margin_nominal / 100) : (+vendor.margin_nominal * order.m_order_details
-                      .filter((i) => i.item.type === 2)
-                      .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
+                    .reduce(
+                      (acc, curr) =>
+                        acc + Number(curr?.item?.invoice_nominal || 0),
+                      0,
+                    ) *
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )
+                  : +vendor.margin_nominal *
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -206,9 +273,18 @@ export class InvoicesService {
               });
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'gratis') {
-              const totalMargin = order.m_order_details
-                .filter((i) => i.item.type === 1)
-                .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0) + Number(order.additional_fee);
+              const totalMargin =
+                (order.m_order_details
+                  .filter((i) => i.item.type === 1)
+                  .reduce(
+                    (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                    0,
+                  ) * order.m_order_details
+                    .filter((i) => i.item.type === 1)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -223,14 +299,17 @@ export class InvoicesService {
 
       console.log('Invoice Details: ', invoiceDetails);
 
-      const pkpNominal = vendor.type === 1
-        ? (totalGrandTotal * (+vendor.pkp_nominal / 100))
+      const pkpNominal =
+        vendor.type === 1 ? totalGrandTotal * (+vendor.pkp_nominal / 100) : 0;
+      const pphNominal = createInvoiceDto.pph_nominal
+        ? totalGrandTotal * (+createInvoiceDto.pph_nominal / 100)
         : 0;
-      const pphNominal = createInvoiceDto.pph_nominal ? totalGrandTotal * (+createInvoiceDto.pph_nominal / 100) : 0;
-      const ppnNominal = createInvoiceDto.ppn_nominal ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100) : 0;
+      const ppnNominal = createInvoiceDto.ppn_nominal
+        ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100)
+        : 0;
 
-
-      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal);
+      const totalAmount =
+        totalGrandTotal + pkpNominal + pphNominal + ppnNominal;
       console.log('TOTAL AMOUNT: ', totalAmount);
 
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
@@ -270,10 +349,16 @@ export class InvoicesService {
 
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
-
       ]);
       if (invoices) {
-        await this.notifService.create({ invoices: invoices }, "CREATE", invoices.created_by, moduleTypeNotification.INVOICE, invoices.id, invoices.status);
+        await this.notifService.create(
+          { invoices: invoices },
+          'CREATE',
+          invoices.created_by,
+          moduleTypeNotification.INVOICE,
+          invoices.id,
+          invoices.status,
+        );
       }
 
       await this.invoiceLogs(invoices.id, invoices);
@@ -297,7 +382,6 @@ export class InvoicesService {
         vendor_id,
         monthly,
         status,
-        invoice_status,
       } = query;
       const skip = page * take - take;
       const now = new Date();
@@ -342,7 +426,7 @@ export class InvoicesService {
             ? [
               {
                 status: {
-                  in: status
+                  in: status,
                 },
               },
             ]
@@ -509,7 +593,6 @@ export class InvoicesService {
         },
       });
 
-
       if (!invoice) {
         throw new NotFoundException(`Invoice not found with id ${id}`);
       }
@@ -549,84 +632,197 @@ export class InvoicesService {
           },
           paid_status: 0,
           approval_number: {
-            not: null
-          }
+            not: null,
+          },
         },
       });
 
-      console.log("REFUNDS", refund)
+      console.log('REFUNDS', refund);
 
-      const penaltyNominal = refund?.reduce((acc, curr) => acc + Number(curr?.penalty_nominal), 0);
+      const penaltyNominal = refund?.reduce(
+        (acc, curr) => acc + Number(curr?.penalty_nominal),
+        0,
+      );
 
       let totalGrandTotal = invoice.invoice_details.reduce((acc, curr) => {
         return acc + Number(curr.total);
       }, 0);
 
-      const invoiceDetails = updateInvoiceDto?.invoice_details ? updateInvoiceDto?.invoice_details.map((item) => {
-        const order = orders.find((order) => order.id === item.order_id);
-        let total = 0;
+      const invoiceDetails = updateInvoiceDto?.invoice_details
+        ? updateInvoiceDto?.invoice_details.map((item) => {
+          const order = orders.find((order) => order.id === item.order_id);
+          let total = 0;
 
-        if (order) {
-          if (order.payment_type === 'survey' && item.type === 1) {
-            total = invoice.vendor.nominal_survey ? Number(invoice.vendor.nominal_survey) : 75000 + Number(order.additional_fee);
-          } else if (order.payment_type === 'survey' && item.type === 2) {
-            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) - (+invoice.vendor.margin_nominal)))) + Number(order.additional_fee);
-          } else if (order.payment_type === 'survey' && item.type === 3) {
-            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal)))) + Number(order.additional_fee);
-          } else if (order.payment_type === 'survey' && item.type === 4) {
-            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 50 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal)))) + Number(order.additional_fee);
-          } else if (order.payment_type === 'survey' && item.type === 5) {
-            total = (invoice.vendor.margin_type === 1 ? (((+invoice.vendor.margin_nominal) / 100) * (Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0))) * 25 / 100) : ((Number(order?.quotation[0]?.quotation_details.reduce((acc, curr) => acc + Number(curr.final_price), 0)) + (+invoice.vendor.margin_nominal)))) + Number(order.additional_fee);
-          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-            total =
-              (invoice.vendor.margin_type === 1 ? (order.m_order_details
-                .filter((i) => i.item.type === 2)
-                .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0), 0) * order.m_order_details
-                  .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) * (+invoice.vendor.margin_nominal / 100) : (+invoice.vendor.margin_nominal * order.m_order_details
-                  .filter((i) => i.item.type === 2)
-                  .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0))) + Number(order.additional_fee);
-          } else if (order.payment_type === 'gratis') {
-            total = order.m_order_details
-              .filter((i) => i.item.type === 1)
-              .reduce((acc, curr) => acc + Number(curr.item.invoice_nominal), 0) + Number(order.additional_fee);
+          if (order) {
+            if (order.payment_type === 'survey' && item.type === 1) {
+              total = invoice.vendor.nominal_survey
+                ? Number(invoice.vendor.nominal_survey)
+                : 75000 + Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 2) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? (+invoice.vendor.margin_nominal / 100) *
+                  Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  )
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) - +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 3) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? ((+invoice.vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) + +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 4) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? ((+invoice.vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    50) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) + +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 5) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? ((+invoice.vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) + +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) =>
+                        acc + Number(curr?.item?.invoice_nominal || 0),
+                      0,
+                    ) *
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )
+                  : +invoice.vendor.margin_nominal *
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
+            } else if (order.payment_type === 'gratis') {
+              total =
+                (order.m_order_details
+                  .filter((i) => i.item.type === 1)
+                  .reduce(
+                    (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                    0,
+                  ) * order.m_order_details
+                    .filter((i) => i.item.type === 1)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
+            }
+            totalGrandTotal += total || 0;
           }
-          totalGrandTotal += total || 0;
-        }
 
-        return {
-          where: { id: item.id ?? 0 },
-          create: {
-            order: { connect: { id: item.order_id } },
-            total,
-            type: item.type,
-            created_by: user_id,
-          },
-          update: {
-            order_id: item.order_id,
-            total,
-            updated_at: new Date(),
-            updated_by: user_id,
-          },
-        };
-      }) : undefined;
+          return {
+            where: { id: item.id ?? 0 },
+            create: {
+              order: { connect: { id: item.order_id } },
+              total,
+              type: item.type,
+              created_by: user_id,
+            },
+            update: {
+              order_id: item.order_id,
+              total,
+              updated_at: new Date(),
+              updated_by: user_id,
+            },
+          };
+        })
+        : undefined;
 
-      const pkpNominal = invoice.vendor.type === 1
-        ? (totalGrandTotal * (+invoice.vendor.pkp_nominal / 100))
-        : 0;
+      const pkpNominal =
+        invoice.vendor.type === 1
+          ? totalGrandTotal * (+invoice.vendor.pkp_nominal / 100)
+          : 0;
 
-      const pphNominal = updateInvoiceDto.pph_nominal ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100) : +invoice.pph_nominal;
-      const ppnNominal = updateInvoiceDto.ppn_nominal ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100) : +invoice.ppn_nominal;
+      const pphNominal = updateInvoiceDto.pph_nominal
+        ? totalGrandTotal * (+updateInvoiceDto.pph_nominal / 100)
+        : +invoice.pph_nominal;
+      const ppnNominal = updateInvoiceDto.ppn_nominal
+        ? totalGrandTotal * (+updateInvoiceDto.ppn_nominal / 100)
+        : +invoice.ppn_nominal;
 
+      const totalAmount =
+        totalGrandTotal +
+        pkpNominal +
+        pphNominal +
+        ppnNominal -
+        (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI &&
+          penaltyNominal != 0
+          ? penaltyNominal
+          : Number(invoice.penalty_nominal));
 
-      const totalAmount = totalGrandTotal + (pkpNominal) + (pphNominal) + (ppnNominal) - (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI && penaltyNominal != 0 ? penaltyNominal : Number(invoice.penalty_nominal));
-
-      const statusInvoice = totalAmount >= 5000000 && invoice.status === 1 ? 4 : updateInvoiceDto.status;
+      const statusInvoice =
+        totalAmount >= 5000000 && invoice.status === 1
+          ? 4
+          : updateInvoiceDto.status;
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
-        ...(updateInvoiceDto.status === 5 ? {
-          invoice_to_finance_date: new Date()
-        } : undefined),
+        ...(updateInvoiceDto.status === 5
+          ? {
+            invoice_to_finance_date: new Date(),
+          }
+          : undefined),
         status: statusInvoice,
         description: updateInvoiceDto?.description ?? undefined,
         notes: updateInvoiceDto?.notes ?? undefined,
@@ -645,22 +841,26 @@ export class InvoicesService {
           .map((item) => item?.id)
         : undefined;
 
-      const updatedInvoice =
-        await this.dbService.$transaction([
-          this.dbService.invoices.update({
-            where: { id: invoice.id },
-            data: invoiceData,
-          }),
-          ...(invoice_evidences ? [this.dbService.invoice_evidence.updateMany({
-            where: {
-              invoice_id: invoice.id,
-            },
-            data: {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            },
-          })] : []),
-          ...(updateInvoiceDto.invoice_details ? [
+      const updatedInvoice = await this.dbService.$transaction([
+        this.dbService.invoices.update({
+          where: { id: invoice.id },
+          data: invoiceData,
+        }),
+        ...(invoice_evidences
+          ? [
+            this.dbService.invoice_evidence.updateMany({
+              where: {
+                invoice_id: invoice.id,
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            }),
+          ]
+          : []),
+        ...(updateInvoiceDto.invoice_details
+          ? [
             this.dbService.invoice_details.updateMany({
               where: {
                 ...(detailsIds && detailsIds.length
@@ -677,28 +877,35 @@ export class InvoicesService {
                 deleted_by: user_id,
               },
             }),
-          ] : []),
-          ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI ? [
+          ]
+          : []),
+        ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI
+          ? [
             this.dbService.refund.updateMany({
               where: {
                 orders: {
                   vendor_id: invoice.vendor.id,
                 },
-                paid_status: 0
+                paid_status: 0,
               },
               data: {
-                paid_status: 1
-              }
-            })
-          ] : [])
-
-
-        ]);
+                paid_status: 1,
+              },
+            }),
+          ]
+          : []),
+      ]);
 
       if (updatedInvoice) {
-        await this.notifService.create({ invoices: updatedInvoice[0] }, "UPDATE", updatedInvoice[0].created_by, moduleTypeNotification.INVOICE, updatedInvoice[0].id, updatedInvoice[0].status);
+        await this.notifService.create(
+          { invoices: updatedInvoice[0] },
+          'UPDATE',
+          updatedInvoice[0].created_by,
+          moduleTypeNotification.INVOICE,
+          updatedInvoice[0].id,
+          updatedInvoice[0].status,
+        );
       }
-
 
       await this.invoiceLogs(invoice.id, updatedInvoice);
       return updatedInvoice[0];
@@ -788,18 +995,13 @@ export class InvoicesService {
   async invoiceExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const {
-        page,
-        take,
         search,
         date_from,
         date_to,
-        order_by,
         vendor_id,
         monthly,
         status,
-        invoice_status,
       } = queryParams;
-      const skip = page * take - take;
       const now = new Date();
       if (monthly) now.setFullYear(monthly);
       const where: Prisma.invoicesWhereInput = {
@@ -842,7 +1044,7 @@ export class InvoicesService {
             ? [
               {
                 status: {
-                  in: status
+                  in: status,
                 },
               },
             ]
@@ -884,12 +1086,12 @@ export class InvoicesService {
                 include: {
                   members: true,
                   quotation: true,
-                  store: true
-                }
-              }
-            }
+                  store: true,
+                },
+              },
+            },
           },
-        }
+        },
       });
 
       const workbook = new exceljs.Workbook();
@@ -974,7 +1176,10 @@ export class InvoicesService {
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:D${totalsRow.number}`);
-      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -984,7 +1189,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1094,15 +1299,22 @@ export class InvoicesService {
         },
       });
 
-
       worksheet.mergeCells('A2: N3');
 
-      worksheet.getCell('A2').value = `DATA INVOICE ${data[0].invoices.vendor.company_name}`;
+      worksheet.getCell(
+        'A2',
+      ).value = `DATA INVOICE ${data[0].invoices.vendor.company_name}`;
       worksheet.getCell('A2').font = { size: 16, bold: true };
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       // Cek nilai setelah diatur
-      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+      console.log(
+        'Setelah pengaturan, nilai A1: ',
+        worksheet.getCell('A2').value,
+      );
 
       // Definisikan kolom
       worksheet.columns = [
@@ -1115,7 +1327,9 @@ export class InvoicesService {
         { header: 'Total Harga', key: 'total', width: 20 },
       ];
 
-      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      const headerRow = worksheet.addRow(
+        worksheet.columns.map((col) => col.header),
+      );
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -1141,40 +1355,46 @@ export class InvoicesService {
 
       // Proses setiap order dalam data
       data.forEach((order, index) => {
+        const receipt_number = order.order.quotation[0]
+          ? order.order.quotation[0].receipt_quotation || '-'
+          : order.order.receipt_number || '-';
 
-        const receipt_number = order.order.quotation[0] ? order.order.quotation[0].receipt_quotation || '-' : order.order.receipt_number || '-';
-
-        console.log("Receipt Number:", order);
-
+        console.log('Receipt Number:', order);
 
         const row = worksheet.addRow({
           no: index + 1,
           order_id: order.order_id,
-          order_create: new Date(order.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
+          order_create: new Date(order.order.created_at).toLocaleDateString(
+            'id-ID',
+            { year: 'numeric', month: 'long', day: 'numeric' },
+          ),
           member_name: order.order.members.full_name,
           payment_type: order.order.payment_type,
           no_receipt: receipt_number,
           total: Number(order.total),
         });
 
-        row.eachCell((cell, colNumber) => {
+        row.eachCell((cell) => {
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
-          cell.alignment = { horizontal: 'left' }
+          cell.alignment = { horizontal: 'left' };
         });
       });
 
       const totalsRow = worksheet.addRow({
         no: 'Total',
-        total: data.reduce((acc, curr) => acc + Number(curr.total), 0)
+        total: data.reduce((acc, curr) => acc + Number(curr.total), 0),
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:F${totalsRow.number}`);
-      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -1184,7 +1404,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1195,11 +1415,14 @@ export class InvoicesService {
 
       const totalPkp = worksheet.addRow({
         no: 'PPn (Vendor PKP)',
-        total: Number(data[0].invoices.pkp_nominal)
+        total: Number(data[0].invoices.pkp_nominal),
       });
 
       worksheet.mergeCells(`A${totalPkp.number}:F${totalPkp.number}`);
-      totalPkp.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalPkp.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalPkp.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -1209,7 +1432,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1220,11 +1443,14 @@ export class InvoicesService {
 
       const totalPph = worksheet.addRow({
         no: 'PPh',
-        total: Number(data[0].invoices.pph_nominal)
+        total: Number(data[0].invoices.pph_nominal),
       });
 
       worksheet.mergeCells(`A${totalPph.number}:F${totalPph.number}`);
-      totalPph.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalPph.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalPph.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -1234,7 +1460,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1245,11 +1471,14 @@ export class InvoicesService {
 
       const totalPenalty = worksheet.addRow({
         no: 'PPh',
-        total: Number(data[0].invoices.penalty_nominal)
+        total: Number(data[0].invoices.penalty_nominal),
       });
 
       worksheet.mergeCells(`A${totalPenalty.number}:F${totalPenalty.number}`);
-      totalPenalty.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalPenalty.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalPenalty.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -1259,7 +1488,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1270,11 +1499,14 @@ export class InvoicesService {
 
       const grand_total = worksheet.addRow({
         no: 'PPh',
-        total: Number(data[0].invoices.total_amount)
+        total: Number(data[0].invoices.total_amount),
       });
 
       worksheet.mergeCells(`A${grand_total.number}:F${grand_total.number}`);
-      grand_total.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      grand_total.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       grand_total.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -1284,7 +1516,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1293,11 +1525,12 @@ export class InvoicesService {
         }
       });
 
-
-
       const getFormattedDate = () => {
         const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       const createExcelFilePath = (baseName: string) => {
@@ -1315,8 +1548,14 @@ export class InvoicesService {
         res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
@@ -1331,7 +1570,7 @@ export class InvoicesService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 
@@ -1506,15 +1745,22 @@ export class InvoicesService {
         },
       });
 
-
       worksheet.mergeCells('A2: N3');
 
-      worksheet.getCell('A2').value = `DATA REKONSEL ${data[0].invoices.vendor.company_name}`;
+      worksheet.getCell(
+        'A2',
+      ).value = `DATA REKONSEL ${data[0].invoices.vendor.company_name}`;
       worksheet.getCell('A2').font = { size: 16, bold: true };
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       // Cek nilai setelah diatur
-      console.log("Setelah pengaturan, nilai A1: ", worksheet.getCell('A2').value);
+      console.log(
+        'Setelah pengaturan, nilai A1: ',
+        worksheet.getCell('A2').value,
+      );
 
       // Definisikan kolom
       worksheet.columns = [
@@ -1523,9 +1769,17 @@ export class InvoicesService {
         { header: 'Nama Toko', key: 'store_name', width: 30 },
         { header: 'Nama Customer', key: 'member_name', width: 30 },
         { header: 'Nama Pemasangan', key: 'item_name', width: 30 },
-        { header: 'Tanggal \n Survey/Pengerjaan', key: 'survey_date', width: 20 },
+        {
+          header: 'Tanggal \n Survey/Pengerjaan',
+          key: 'survey_date',
+          width: 20,
+        },
         { header: 'Tagihan', key: 'invoice_price', width: 15 },
-        { header: 'Transaksi \n Customer', key: 'customer_transaction', width: 20 },
+        {
+          header: 'Transaksi \n Customer',
+          key: 'customer_transaction',
+          width: 20,
+        },
         { header: 'Harga Jasa', key: 'instalation_price', width: 15 },
         { header: 'Selisih PPN', key: 'ppn_difference', width: 15 },
         { header: 'Margin PPN', key: 'margin_ppn', width: 15 },
@@ -1536,7 +1790,9 @@ export class InvoicesService {
         { header: 'Status \n Order', key: 'order_status', width: 30 },
       ];
 
-      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      const headerRow = worksheet.addRow(
+        worksheet.columns.map((col) => col.header),
+      );
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -1573,39 +1829,72 @@ export class InvoicesService {
 
       // Proses setiap order dalam data
       data.forEach((order, index) => {
-        const customer_transaction = order.order.payment_type !== PAYMENT_TYPE.SURVEY
-          ? order.order.grand_total
-          : (order.type === 2 && order.order.payment_type === PAYMENT_TYPE.SURVEY && order.order.quotation[0])
-            ? order.order.quotation[0].quotation_grand_total
-            : order.order.grand_total;
+        const customer_transaction =
+          order.order.payment_type !== PAYMENT_TYPE.SURVEY
+            ? order.order.grand_total
+            : order.type === 2 &&
+              order.order.payment_type === PAYMENT_TYPE.SURVEY &&
+              order.order.quotation[0]
+              ? order.order.quotation[0].quotation_grand_total
+              : order.order.grand_total;
 
         const invoice_price = order.total;
-        console.log("Invoice Price:", invoice_price);
+        console.log('Invoice Price:', invoice_price);
 
-
-        const instalation_price = order.order.payment_type === 'gratis' ? 0 : Math.floor(+customer_transaction / 1.11);
+        const instalation_price =
+          order.order.payment_type === 'gratis'
+            ? 0
+            : Math.floor(+customer_transaction / 1.11);
         const margin_ppn = instalation_price - invoice_price;
         const price_difference = +customer_transaction - invoice_price;
-        const receipt_number = order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type != 1 ? order.order.quotation[0].receipt_quotation || '-' : order.order.receipt_number;
-        console.log("Order ID:", order.order_id);
-        console.log("Receipt Number:", receipt_number);
-
+        const receipt_number =
+          order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type != 1
+            ? order.order.quotation[0].receipt_quotation || '-'
+            : order.order.receipt_number;
+        console.log('Order ID:', order.order_id);
+        console.log('Receipt Number:', receipt_number);
 
         const row = worksheet.addRow({
           no: index + 1,
           order_id: order.order_id,
           store_name: order.order.store.store_name,
           member_name: order.order.members.full_name,
-          item_name: order.order.m_order_details.map((x) => x.item_name || '-').join(', '),
-          survey_date: order.order.request_work ? order.order.request_work : order.order.request_survey || '-',
+          item_name: order.order.m_order_details
+            .map((x) => x.item_name || '-')
+            .join(', '),
+          survey_date: order.order.request_work
+            ? order.order.request_work
+            : order.order.request_survey || '-',
           invoice_price: invoice_price,
           customer_transaction: +customer_transaction,
           instalation_price: instalation_price,
           ppn_difference: margin_ppn,
-          margin_ppn: `${order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100))}%`,
+          margin_ppn: `${order.order.payment_type === 'gratis'
+              ? -100
+              : isNaN(margin_ppn / instalation_price)
+                ? 0
+                : Math.ceil((margin_ppn / instalation_price) * 100)
+            }%`,
           difference: price_difference,
-          margin_non_ppn: order.order.payment_type === 'gratis' ? -150000 : Math.ceil(price_difference / 1.11),
-          margin: `${order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100))}%`,
+          margin_non_ppn:
+            order.order.payment_type === 'gratis'
+              ? -150000
+              : Math.ceil(price_difference / 1.11),
+          margin: `${order.order.payment_type === 'gratis'
+              ? -100
+              : isNaN(
+                Math.ceil(
+                  (Math.ceil(price_difference / 1.11) /
+                    +customer_transaction) *
+                  100,
+                ),
+              )
+                ? 0
+                : Math.ceil(
+                  (Math.ceil(price_difference / 1.11) / +customer_transaction) *
+                  100,
+                )
+            }%`,
           receipt_number: receipt_number || '-',
           order_status: order.order.status.description,
         });
@@ -1616,7 +1905,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
 
           if (colNumber === 4) {
@@ -1626,16 +1915,35 @@ export class InvoicesService {
           }
         });
 
-
         totals.customer_transaction += +customer_transaction;
         totals.invoice_price += invoice_price;
         totals.instalation_price += instalation_price;
         totals.margin_ppn += isNaN(margin_ppn) ? 0 : Math.ceil(margin_ppn);
-        totals.margin_non_ppn += order.order.payment_type === 'gratis' ? -150000 : Math.ceil(price_difference / 1.11);
-        totals.margin += order.order.payment_type === 'gratis' ? -100 : (isNaN(Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100)) ? 0 : Math.ceil(((Math.ceil(price_difference / 1.11)) / +customer_transaction) * 100));
-        totals.ppn += order.order.payment_type === 'gratis' ? -100 : (isNaN(margin_ppn / instalation_price) ? 0 : Math.ceil((margin_ppn / instalation_price) * 100));
+        totals.margin_non_ppn +=
+          order.order.payment_type === 'gratis'
+            ? -150000
+            : Math.ceil(price_difference / 1.11);
+        totals.margin +=
+          order.order.payment_type === 'gratis'
+            ? -100
+            : isNaN(
+              Math.ceil(
+                (Math.ceil(price_difference / 1.11) / +customer_transaction) *
+                100,
+              ),
+            )
+              ? 0
+              : Math.ceil(
+                (Math.ceil(price_difference / 1.11) / +customer_transaction) *
+                100,
+              );
+        totals.ppn +=
+          order.order.payment_type === 'gratis'
+            ? -100
+            : isNaN(margin_ppn / instalation_price)
+              ? 0
+              : Math.ceil((margin_ppn / instalation_price) * 100);
         totals.price_difference += price_difference;
-
       });
 
       const totalsRow = worksheet.addRow({
@@ -1644,14 +1952,21 @@ export class InvoicesService {
         customer_transaction: totals.customer_transaction,
         instalation_price: totals.instalation_price,
         ppn_difference: totals.margin_ppn,
-        margin_ppn: `${Math.ceil((totals.margin_ppn / totals.instalation_price) * 100)}%`,
+        margin_ppn: `${Math.ceil(
+          (totals.margin_ppn / totals.instalation_price) * 100,
+        )}%`,
         difference: totals.price_difference,
         margin_non_ppn: totals.margin_non_ppn,
-        margin: `${Math.ceil((totals.margin_non_ppn / totals.customer_transaction) * 100)}%`,
+        margin: `${Math.ceil(
+          (totals.margin_non_ppn / totals.customer_transaction) * 100,
+        )}%`,
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
-      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -1661,7 +1976,7 @@ export class InvoicesService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -1673,7 +1988,10 @@ export class InvoicesService {
       // Fungsi untuk mendapatkan tanggal format saat ini
       const getFormattedDate = () => {
         const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       // Fungsi untuk membuat path file Excel
@@ -1693,8 +2011,14 @@ export class InvoicesService {
         res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
@@ -1711,7 +2035,7 @@ export class InvoicesService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 
@@ -1729,15 +2053,14 @@ export class InvoicesService {
               include: {
                 members: true,
                 store: true,
-                quotation: true
-              }
-            }
-          }
+                quotation: true,
+              },
+            },
+          },
         },
-        vendor: true
-      }
+        vendor: true,
+      },
     });
-
 
     if (!invoices) {
       console.error('Quotation not found!');
@@ -1768,16 +2091,15 @@ export class InvoicesService {
                 m_order_details: true,
                 members: true,
                 store: true,
-                quotation: true
-              }
-            }
-          }
+                quotation: true,
+              },
+            },
+          },
         },
-        vendor: true
-      }
+        vendor: true,
+      },
     });
-    console.log("INVOICE: ", invoices);
-
+    console.log('INVOICE: ', invoices);
 
     if (!invoices) {
       console.error('Invoices not found!');
@@ -1798,7 +2120,10 @@ export class InvoicesService {
     try {
       await this.dbService.invoices.update({
         where: { id: invoiceId },
-        data: { description: note, status: InvoiceStatus.INVOICE_SUDAH_DIBAYARKAN },
+        data: {
+          description: note,
+          status: InvoiceStatus.INVOICE_SUDAH_DIBAYARKAN,
+        },
       });
     } catch (error) {
       this.logger.error(

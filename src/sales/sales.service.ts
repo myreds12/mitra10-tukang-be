@@ -1,8 +1,14 @@
-import { Injectable, HttpStatus, HttpException, BadRequestException, NotFoundException } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import {
+  Injectable,
+  HttpStatus,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, roles, sales, users } from '@prisma/client';
+import { Prisma, roles, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { hash, hashSync } from 'bcrypt';
 import { AuthService } from 'src/auth/auth.service';
@@ -23,9 +29,9 @@ export class SalesService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly authService: AuthService,
-    private notifService : NotificationsService,
+    private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   async getCode() {
     try {
@@ -91,9 +97,9 @@ export class SalesService {
         12,
       );
 
-      const formattedUsername =  createSalesDto?.username.replace(/ /g, '_') ?? null;
+      const formattedUsername =
+        createSalesDto?.username.replace(/ /g, '_') ?? null;
 
-     
       const sales_data: Prisma.salesCreateInput = {
         full_name: createSalesDto.full_name,
         bank_branch: createSalesDto?.bank_branch,
@@ -110,38 +116,38 @@ export class SalesService {
         },
         bank: bank
           ? {
-              connect: {
-                id: createSalesDto.bank_id,
-              },
-            }
+            connect: {
+              id: createSalesDto.bank_id,
+            },
+          }
           : undefined,
         sales_categories: sales_categories?.length
           ? {
-              createMany: {
-                data: sales_categories,
-              },
-            }
+            createMany: {
+              data: sales_categories,
+            },
+          }
           : undefined,
         users: {
           connectOrCreate: {
             where: {
               username:
-              formattedUsername ??
+                formattedUsername ??
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                  .toLowerCase()
-                  .replace(/ /g, '_')}`,
+                    .toLowerCase()
+                    .replace(/ /g, '_')}`,
               id: 0,
             },
             create: {
               username:
-               formattedUsername ??
+                formattedUsername ??
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                  .toLowerCase()
-                  .replace(/ /g, '_')}`,
+                    .toLowerCase()
+                    .replace(/ /g, '_')}`,
               password: saltedPassword,
               role_id: SALES_ROLES.id,
             },
@@ -193,47 +199,47 @@ export class SalesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    { full_name: { contains: search } },
-                    { sales_brand: { contains: search } },
-                    { account_name: { contains: search } },
-                    { phone_number: { contains: search } },
-                    { account_number: { contains: search } },
-                    { nik: { contains: search } },
-                    { bank_branch: { contains: search } },
-                    {
-                      sales_categories: {
-                        some: {
-                          categories: { category_name: { contains: search } },
-                        },
+              {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { full_name: { contains: search } },
+                  { sales_brand: { contains: search } },
+                  { account_name: { contains: search } },
+                  { phone_number: { contains: search } },
+                  { account_number: { contains: search } },
+                  { nik: { contains: search } },
+                  { bank_branch: { contains: search } },
+                  {
+                    sales_categories: {
+                      some: {
+                        categories: { category_name: { contains: search } },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
+              {
+                store_id: {
+                  in: store_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(date_to),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -257,11 +263,11 @@ export class SalesService {
         orderBy: {
           ...(Boolean(top_best)
             ? {
-                order_total: 'desc',
-              }
+              order_total: 'desc',
+            }
             : {
-                created_at: order_by,
-              }),
+              created_at: order_by,
+            }),
         },
         include: {
           bank: true,
@@ -352,38 +358,40 @@ export class SalesService {
       const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
         updateSalesDto.sales_categories
           ? updateSalesDto.sales_categories.map(
-              ({ id, category_id, commission }) => ({
-                where: {
-                  id: id ?? 0,
-                  category_id,
-                },
-                update: {
-                  category_id,
-                  commission,
-                  updated_at: new Date(),
-                  updated_by: user_id,
-                },
-                create: {
-                  category_id,
-                  commission,
-                  created_at: new Date(),
-                  created_by: user_id,
-                },
-              }),
-            )
+            ({ id, category_id, commission }) => ({
+              where: {
+                id: id ?? 0,
+                category_id,
+              },
+              update: {
+                category_id,
+                commission,
+                updated_at: new Date(),
+                updated_by: user_id,
+              },
+              create: {
+                category_id,
+                commission,
+                created_at: new Date(),
+                created_by: user_id,
+              },
+            }),
+          )
           : undefined;
 
       const salesUsername = updateSalesDto.full_name
         ? `${updateSalesDto.full_name
-            .toLowerCase()
-            .replace(/ /g, '_')}_${sales.store.store_name
+          .toLowerCase()
+          .replace(/ /g, '_')}_${sales.store.store_name
             .toLowerCase()
             .replace(/ /g, '_')}`
         : sales?.users?.username;
       const salesPassword = updateSalesDto.password
         ? await hash(updateSalesDto.password, 12)
-        : sales?.users?.password ? sales.users.password : await hash('password', 12);
-        let usersConnectOrCreate:
+        : sales?.users?.password
+          ? sales.users.password
+          : await hash('password', 12);
+      let usersConnectOrCreate:
         | Prisma.usersCreateNestedOneWithoutSalesInput
         | undefined;
 
@@ -409,50 +417,52 @@ export class SalesService {
         // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
         ...(sales.users && updateSalesDto.username && updateSalesDto.password
           ? {
+            users: {
+              update: {
+                where: {
+                  id: sales?.user_id,
+                },
+                data: {
+                  username: updateSalesDto?.username ?? salesUsername,
+                  password: salesPassword,
+                  updated_at: new Date(),
+                  updated_by: user_id,
+                },
+              },
+            },
+          }
+          : updateSalesDto.username && updateSalesDto.password
+            ? {
               users: {
-                update: {
-                  where: {
-                    id: sales?.user_id,
-                  },
-                  data: {
-                    username: updateSalesDto?.username ?? salesUsername,
-                    password: salesPassword,
-                    updated_at: new Date(),
-                    updated_by: user_id,
-                  },
+                create: {
+                  username: updateSalesDto?.username
+                    ? updateSalesDto.username
+                    : salesUsername,
+                  password: salesPassword,
+                  created_by: user_id,
+                  created_at: new Date(),
+                  role_id: SALES_ROLES.id,
                 },
               },
             }
-          : updateSalesDto.username && updateSalesDto.password ? {
-            users: {
-              create: {
-                username: updateSalesDto?.username
-                ? updateSalesDto.username
-                : salesUsername,
-              password: salesPassword,
-              created_by: user_id,
-              created_at: new Date(),
-              role_id: SALES_ROLES.id,
-              }
-            }
-            } : undefined),
+            : undefined),
         ...(updateSalesDto.bank_id
           ? {
-              bank: {
-                connect: {
-                  id: updateSalesDto.bank_id,
-                },
+            bank: {
+              connect: {
+                id: updateSalesDto.bank_id,
               },
-            }
+            },
+          }
           : undefined),
         ...(updateSalesDto.store_id
           ? {
-              store: {
-                connect: {
-                  id: updateSalesDto.store_id,
-                },
+            store: {
+              connect: {
+                id: updateSalesDto.store_id,
               },
-            }
+            },
+          }
           : undefined),
         account_name: updateSalesDto.account_name,
         account_number: updateSalesDto.account_number,
@@ -481,21 +491,21 @@ export class SalesService {
         }),
         ...(updateSalesDto.sales_categories
           ? [
-              this.dbService.sales_categories.updateMany({
-                where: {
-                  sales_id: id,
-                  id: {
-                    notIn: updateSalesDto.sales_categories.map(
-                      ({ category_id }) => category_id,
-                    ),
-                  },
+            this.dbService.sales_categories.updateMany({
+              where: {
+                sales_id: id,
+                id: {
+                  notIn: updateSalesDto.sales_categories.map(
+                    ({ category_id }) => category_id,
+                  ),
                 },
-                data: {
-                  deleted_at: new Date(),
-                  deleted_by: user_id,
-                },
-              }),
-            ]
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            }),
+          ]
           : []),
       ]);
 
@@ -609,7 +619,6 @@ export class SalesService {
     }
   }
 
-  async generateSalesCommission(id?: number, quotationId?: number) {}
 
   async templateDefaultExcel(res: Response, query: QueryParamsDto) {
     try {
@@ -681,33 +690,33 @@ export class SalesService {
         AND: [
           ...(status
             ? [
-                {
-                  status: {
-                    in: status,
-                  },
+              {
+                status: {
+                  in: status,
                 },
-              ]
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  sales: {
-                    store_id: {
-                      in: store_id,
-                    },
+              {
+                sales: {
+                  store_id: {
+                    in: store_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(date_to),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -761,7 +770,7 @@ export class SalesService {
         },
       });
 
-      salesIncentives.forEach((incentive, index) => {
+      salesIncentives.forEach((incentive) => {
         const formattedDateTime = (dateTime) =>
           `${new Date(dateTime).toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -858,7 +867,7 @@ export class SalesService {
         const order_id = worksheet.getCell(`A${rowNumber}`).value as number;
         const incentive_id = worksheet.getCell(`L${rowNumber}`).value as number;
         const notes = worksheet.getCell(`P${rowNumber}`).value;
-        
+
         if (sales_id && order_id && incentive_id) {
           salesOrderPairs.push({
             sales_id,
@@ -869,7 +878,6 @@ export class SalesService {
         }
       }
 
-      
       await Promise.all(
         salesOrderPairs.map(async (pair) => {
           const order = await this.dbService.orders.findFirst({
@@ -933,11 +941,11 @@ export class SalesService {
               sales_incentive: updateSales,
               orders: order,
             },
-            "UPDATE",
+            'UPDATE',
             updateSales.updated_by,
             moduleTypeNotification.INCENTIVE,
             updateSales.id,
-            updateSales.status
+            updateSales.status,
           );
           updatedCount += 1;
         }),
@@ -954,8 +962,6 @@ export class SalesService {
     try {
       const {
         search,
-        take,
-        page,
         date_from,
         date_to,
         order_by,
@@ -967,39 +973,39 @@ export class SalesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { full_name: { contains: search } },
-                    { sales_brand: { contains: search } },
-                    {
-                      sales_categories: {
-                        some: {
-                          categories: { category_name: { contains: search } },
-                        },
+              {
+                OR: [
+                  { full_name: { contains: search } },
+                  { sales_brand: { contains: search } },
+                  {
+                    sales_categories: {
+                      some: {
+                        categories: { category_name: { contains: search } },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  store_id: {
-                    in: store_id,
-                  },
+              {
+                store_id: {
+                  in: store_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(date_to),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(date_to),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -1024,11 +1030,11 @@ export class SalesService {
           orderBy: {
             ...(Boolean(top_best)
               ? {
-                  order_total: 'desc',
-                }
+                order_total: 'desc',
+              }
               : {
-                  created_at: order_by,
-                }),
+                created_at: order_by,
+              }),
           },
           include: {
             bank: true,
@@ -1057,11 +1063,11 @@ export class SalesService {
           orderBy: {
             ...(Boolean(top_best)
               ? {
-                  order_total: 'desc',
-                }
+                order_total: 'desc',
+              }
               : {
-                  created_at: order_by,
-                }),
+                created_at: order_by,
+              }),
           },
           include: {
             bank: true,
@@ -1077,11 +1083,16 @@ export class SalesService {
               },
             },
             users: true,
+            orders: {
+              take: 5,
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
           },
         });
         dataExcel = [...dataExcel, ...data];
       }
-
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Profile Sales ', {
@@ -1117,6 +1128,8 @@ export class SalesService {
         { header: 'Sales Category', key: 'sales_categories', width: 50 },
         { header: 'Username Sales', key: 'username', width: 40 },
         { header: 'Sales Dibuat', key: 'created_at', width: 35 },
+        { header: 'Tanggal Terakhir Order', key: 'order_date', width: 55 },
+        { header: 'Selisih', key: 'date_diff', width: 35 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -1134,22 +1147,34 @@ export class SalesService {
           right: { style: 'thin' },
         };
       });
+      console.log("EXCEL DATA" ,dataExcel);
+      
 
       dataExcel.forEach((sales) => {
         const salesCategories = sales.sales_categories
           ? sales.sales_categories
-              .map((category) => category.categories.category_name)
-              .join(',')
+            .map((category) => category.categories.category_name)
+            .join(',')
           : '';
-        const dateTime = new Date(sales.created_at);
-        const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })}, ${dateTime.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`;
+        const formattedDateTime = (dateTime) =>
+          `${dateTime.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}, ${dateTime.toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+        const currentMonth = new Date();
+        const orderDate = sales.orders
+          ? new Date(sales.orders[0].created_at)
+          : sales.created_at;
+
+        const monthDifference =
+          (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 +
+          currentMonth.getMonth() -
+          orderDate.getMonth();
+
         const row = worksheet.addRow({
           id: sales.id,
           store_name: sales.store ? sales.store.store_name : '',
@@ -1162,7 +1187,11 @@ export class SalesService {
           order_total: sales.order_total ? sales.order_total : '',
           sales_categories: salesCategories,
           username: sales.users ? sales.users.username : '',
-          created_at: formattedDateTime,
+          created_at: formattedDateTime(sales.created_at),
+          order_date: sales.order
+            ? formattedDateTime(sales.order[0].created_at)
+            : '',
+          date_diff: monthDifference,
         });
 
         row.eachCell((cell) => {
@@ -1224,157 +1253,155 @@ export class SalesService {
   @Cron(CronExpression.EVERY_30_MINUTES)
   async deleteOrder() {
     try {
-      const updatedSalesIncentives = await this.dbService.sales_incentive.findMany({
-        where: {
-          status: IncentiveStatus.POTENTIAL_INCENTIVE,
-          quotation: {
-            order: {
-              status: {
-                category: 'WORKEND',
-              },
-            },
-          },
-        },
-        select: {
-          id: true,
-          updated_by: true,
-          status: true,
-          quotation: {
-            select: {
+      const updatedSalesIncentives =
+        await this.dbService.sales_incentive.findMany({
+          where: {
+            status: IncentiveStatus.POTENTIAL_INCENTIVE,
+            quotation: {
               order: {
-                select: {
-                  id: true,
-                  sales_id: true,
-                  store_id: true,
-                  vendor_id: true,
+                status: {
+                  category: 'WORKEND',
                 },
               },
             },
           },
-        },
-      });
-  
-  
+          select: {
+            id: true,
+            updated_by: true,
+            status: true,
+            quotation: {
+              select: {
+                order: {
+                  select: {
+                    id: true,
+                    sales_id: true,
+                    store_id: true,
+                    vendor_id: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
       await this.dbService.sales_incentive.updateMany({
         where: {
-          id: { in: updatedSalesIncentives.map(si => si.id) },
+          id: { in: updatedSalesIncentives.map((si) => si.id) },
         },
         data: {
           status: 2,
         },
       });
-  
+
       await Promise.all(
         updatedSalesIncentives.map(async (updateSales) => {
           const order = updateSales.quotation.order;
-  
+
           if (order) {
             await this.notifService.create(
               {
                 sales_incentive: updateSales,
                 orders: order,
               },
-              "UPDATE",
+              'UPDATE',
               updateSales.updated_by,
               moduleTypeNotification.INCENTIVE,
               updateSales.id,
-              updateSales.status
+              updateSales.status,
             );
           }
-        })
+        }),
       );
-  
-      return { message: `${updatedSalesIncentives.length} sales incentives updated and notifications created successfully.` };
+
+      return {
+        message: `${updatedSalesIncentives.length} sales incentives updated and notifications created successfully.`,
+      };
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-  
 
-
-  @Cron(CronExpression.EVERY_2ND_MONTH)
+  @Cron(CronExpression.EVERY_10_HOURS)
   async salesUserManagement() {
     try {
-
       const twoMonthsAgo = new Date();
       twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-     const salesIncentive = await this.dbService.sales.updateMany({
-      where: {
+      const salesIncentive = await this.dbService.sales.updateMany({
+        where: {
           orders: {
             some: {
               created_at: {
-                lt: twoMonthsAgo
-              }
-            }
-          }        
-      },
-      data: {
-        is_active: false,
-      }
-     });
+                lt: twoMonthsAgo,
+              },
+            },
+          },
+        },
+        data: {
+          is_active: false,
+        },
+      });
 
-     const users = await this.dbService.users.updateMany({
-      where: {
+      await this.dbService.users.updateMany({
+        where: {
           sales: {
             some: {
               created_at: {
-                lt: twoMonthsAgo
-              }
-            }
-          }        
-      },
-      data: {
-        is_active: false,
-      }
-     });
+                lt: twoMonthsAgo,
+              },
+            },
+          },
+        },
+        data: {
+          is_active: false,
+        },
+      });
 
-     return salesIncentive;
+      return salesIncentive;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
 
-  @Cron(CronExpression.EVERY_6_MONTHS)
+  @Cron(CronExpression.EVERY_10_HOURS)
   async managementSalesSixMonth() {
     try {
-
       const sixMonthAgo = new Date();
       sixMonthAgo.setMonth(sixMonthAgo.getMonth() - 6);
-     const salesIncentive = await this.dbService.sales.updateMany({
-      where: {
+      const salesIncentive = await this.dbService.sales.updateMany({
+        where: {
           orders: {
             some: {
               created_at: {
-                lt: sixMonthAgo
-              }
-            }
-          }        
-      },
-      data: {
-        is_active: false,
-        deleted_at: new Date()
-      }
-     });
+                lt: sixMonthAgo,
+              },
+            },
+          },
+        },
+        data: {
+          is_active: false,
+          deleted_at: new Date(),
+        },
+      });
 
-     const users = await this.dbService.users.updateMany({
-      where: {
+      await this.dbService.users.updateMany({
+        where: {
           sales: {
             some: {
               created_at: {
-                lt: sixMonthAgo
-              }
-            }
-          }        
-      },
-      data: {
-        is_active: false,
-        deleted_at: new Date()
-      }
-     });
+                lt: sixMonthAgo,
+              },
+            },
+          },
+        },
+        data: {
+          is_active: false,
+          deleted_at: new Date(),
+        },
+      });
 
-     return salesIncentive;
+      return salesIncentive;
     } catch (error) {
       console.error(error);
       throw error;

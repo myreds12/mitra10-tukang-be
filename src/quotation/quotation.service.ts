@@ -31,7 +31,7 @@ export class QuotationService {
     private readonly orderService: OrderService,
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
 
   private readonly logger = new Logger(QuotationService.name);
 
@@ -44,7 +44,6 @@ export class QuotationService {
       const { id: user_id } = user;
       let grandTotal = 0;
       let grandTotalNoPromotion = 0;
-      let comission = 0;
 
       const order = await this.dbService.orders.findFirst({
         where: {
@@ -61,32 +60,29 @@ export class QuotationService {
           `Order with id ${createQuotationDto.order_id} not found!`,
         );
 
-
       const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
         quotation_files
           ? quotation_files.map((item) => ({
-            path: item.filename,
-            created_by: user_id,
-          }))
+              path: item.filename,
+              created_by: user_id,
+            }))
           : undefined;
 
       const promotion = createQuotationDto.promotion_id
         ? await this.dbService.promotion.findFirst({
-          where: {
-            id: createQuotationDto.promotion_id,
-            deleted_at: null,
-          },
-          include: {
-            promotion_stores: {
-              include: {
-                store: true,
+            where: {
+              id: createQuotationDto.promotion_id,
+              deleted_at: null,
+            },
+            include: {
+              promotion_stores: {
+                include: {
+                  store: true,
+                },
               },
             },
-          },
-        })
+          })
         : undefined;
-
-
 
       let quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
@@ -186,12 +182,12 @@ export class QuotationService {
         },
         ...(promotion
           ? {
-            promotion: {
-              connect: {
-                id: promotion.id,
+              promotion: {
+                connect: {
+                  id: promotion.id,
+                },
               },
-            },
-          }
+            }
           : undefined),
         store: {
           connect: {
@@ -237,10 +233,10 @@ export class QuotationService {
             include: {
               work_orders: {
                 include: {
-                  work_order_tukang: true
-                }
-              }
-            }
+                  work_order_tukang: true,
+                },
+              },
+            },
           },
         },
       };
@@ -255,11 +251,11 @@ export class QuotationService {
             quotation: quotation,
             orders: order,
           },
-          "CREATE",
+          'CREATE',
           quotation.created_by,
           moduleTypeNotification.QUOTATION,
           quotation.id,
-          quotation.quotation_status
+          quotation.quotation_status,
         );
       }
 
@@ -268,7 +264,7 @@ export class QuotationService {
         quotation.quotation_status,
         user,
       );
-      return { quotation, sales_comission: comission ?? 0 };
+      return { quotation };
     } catch (error) {
       console.error(error);
       throw error;
@@ -296,86 +292,86 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    order_id: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    order: { vendor: { company_name: { contains: search } } },
-                  },
-                  {
-                    quotation_details: {
-                      some: {
-                        name: {
-                          contains: search,
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      order_id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      order: { vendor: { company_name: { contains: search } } },
+                    },
+                    {
+                      quotation_details: {
+                        some: {
+                          name: {
+                            contains: search,
+                          },
                         },
                       },
                     },
-                  },
-                  {
-                    order: {
-                      members: {
-                        full_name: {
-                          contains: search,
+                    {
+                      order: {
+                        members: {
+                          full_name: {
+                            contains: search,
+                          },
                         },
                       },
                     },
-                  },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+                    { store: { store_name: { contains: search } } },
+                    { quotation_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
           ...(is_free
             ? [
-              {
-                order: {
-                  m_order_details: {
-                    every: {
-                      item: {
-                        type: 1,
+                {
+                  order: {
+                    m_order_details: {
+                      every: {
+                        item: {
+                          type: 1,
+                        },
                       },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : null,
           vendor_id
             ? {
-              order: {
-                vendor_id: vendor_id,
-              },
-            }
+                order: {
+                  vendor_id: vendor_id,
+                },
+              }
             : undefined,
           Boolean(is_paid)
             ? {
-              receipt_quotation: {
-                not: null,
-              },
-            }
+                receipt_quotation: {
+                  not: null,
+                },
+              }
             : undefined,
           ...(Boolean(promotion)
             ? [
-              {
-                promotion_id: {
-                  not: null,
+                {
+                  promotion_id: {
+                    not: null,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -396,20 +392,20 @@ export class QuotationService {
               deleted_at: null,
             },
             orderBy: {
-              created_at: 'desc'
-            }
+              created_at: 'desc',
+            },
           },
           quotation_receipt: true,
           promotion: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
           },
           quotation_files: true,
           quotation_details: {
             where: {
               deleted_at: null,
-              deleted_by: null
+              deleted_by: null,
             },
             include: {
               category: true,
@@ -534,8 +530,8 @@ export class QuotationService {
               deleted_at: null,
             },
             orderBy: {
-              created_at: 'desc'
-            }
+              created_at: 'desc',
+            },
           },
           promotion: true,
           quotation_files: true,
@@ -622,15 +618,17 @@ export class QuotationService {
       });
 
       const promotion =
-        updateQuotationDto.promotion_id || quotationForUpdate.promotion_id && updateQuotationDto.promotion_id != 0
+        updateQuotationDto.promotion_id ||
+        (quotationForUpdate.promotion_id &&
+          updateQuotationDto.promotion_id != 0)
           ? await this.dbService.promotion.findFirstOrThrow({
-            where: {
-              id:
-                updateQuotationDto?.promotion_id ??
-                quotationForUpdate?.promotion?.id,
-            },
-            include: { promotion_stores: { include: { store: true } } },
-          })
+              where: {
+                id:
+                  updateQuotationDto?.promotion_id ??
+                  quotationForUpdate?.promotion?.id,
+              },
+              include: { promotion_stores: { include: { store: true } } },
+            })
           : undefined;
 
       const quotationfiles =
@@ -652,21 +650,27 @@ export class QuotationService {
       const quotationReceipts: Prisma.quotation_receiptUpsertWithWhereUniqueWithoutQuotationInput[] =
         updateQuotationDto.receipts_quotation
           ? updateQuotationDto.receipts_quotation.map((item) => ({
-            where: { id: item?.id ?? 0 },
-            update: {
-              receipt_quotation: item?.receipt_quotation ?? undefined,
-              quotation_step: item?.quotation_step ?? undefined,
-            },
-            create: {
-              receipt_quotation: item?.receipt_quotation,
-              quotation_step: item?.quotation_step,
-            },
-          }))
+              where: { id: item?.id ?? 0 },
+              update: {
+                receipt_quotation: item?.receipt_quotation ?? undefined,
+                quotation_step: item?.quotation_step ?? undefined,
+              },
+              create: {
+                receipt_quotation: item?.receipt_quotation,
+                quotation_step: item?.quotation_step,
+              },
+            }))
           : [];
 
-      if (updateQuotationDto.receipt_quotation && updateQuotationDto.receipt_quotation != "null") {
+      if (
+        updateQuotationDto.receipt_quotation &&
+        updateQuotationDto.receipt_quotation != 'null'
+      ) {
         const existingQuotation = await this.dbService.quotation.findFirst({
-          where: { id: { not: id }, receipt_quotation: updateQuotationDto.receipt_quotation },
+          where: {
+            id: { not: id },
+            receipt_quotation: updateQuotationDto.receipt_quotation,
+          },
         });
 
         if (existingQuotation) {
@@ -676,17 +680,24 @@ export class QuotationService {
         }
       }
 
-      if (updateQuotationDto.receipts_quotation && updateQuotationDto.receipts_quotation.length > 0) {
+      if (
+        updateQuotationDto.receipts_quotation &&
+        updateQuotationDto.receipts_quotation.length > 0
+      ) {
         const receiptNumbers = updateQuotationDto.receipts_quotation
           .map((item) => item.receipt_quotation)
           .filter((item) => item !== undefined);
 
         console.log(receiptNumbers);
 
-        const duplicates = receiptNumbers.filter((item, index) => receiptNumbers.indexOf(item) !== index);
+        const duplicates = receiptNumbers.filter(
+          (item, index) => receiptNumbers.indexOf(item) !== index,
+        );
 
         if (duplicates.length > 0) {
-          throw new BadRequestException(`Duplicate receipt number(s) found: ${duplicates.join(', ')}`);
+          throw new BadRequestException(
+            `Duplicate receipt number(s) found: ${duplicates.join(', ')}`,
+          );
         }
 
         const existingQuotation = await this.dbService.quotation.findMany({
@@ -694,25 +705,31 @@ export class QuotationService {
             id: { not: id },
             quotation_receipt: {
               some: {
-                receipt_quotation: { in: receiptNumbers }
-              }
-            }
+                receipt_quotation: { in: receiptNumbers },
+              },
+            },
           },
           include: {
-            quotation_receipt: true
-          }
+            quotation_receipt: true,
+          },
         });
 
         if (existingQuotation.length > 0) {
-          const existingReceipts = existingQuotation.map((quotation) =>
-            quotation.quotation_receipt.map((receipt) => receipt.receipt_quotation)
-          ).flat();
+          const existingReceipts = existingQuotation
+            .map((quotation) =>
+              quotation.quotation_receipt.map(
+                (receipt) => receipt.receipt_quotation,
+              ),
+            )
+            .flat();
 
-          const conflictReceipts = receiptNumbers.filter((receipt) => existingReceipts.includes(receipt));
+          const conflictReceipts = receiptNumbers.filter((receipt) =>
+            existingReceipts.includes(receipt),
+          );
 
           if (conflictReceipts.length > 0) {
             throw new BadRequestException(
-              `Receipt numbers ${conflictReceipts.join(', ')} already exist!`
+              `Receipt numbers ${conflictReceipts.join(', ')} already exist!`,
             );
           }
         }
@@ -723,7 +740,7 @@ export class QuotationService {
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
         (item) => {
           let price = 0;
-          let quantity = item.quantity ? Number(item.quantity) : 0;
+          const quantity = item.quantity ? Number(item.quantity) : 0;
           let final_price = 0;
 
           if (!item.is_customer) {
@@ -852,7 +869,7 @@ export class QuotationService {
       const quotePaid = await this.dbService.status.findMany({
         where: {
           category: {
-            in: ['QUOTATIONPAID', 'QUOTATIONPAIDSTEPTHREE']
+            in: ['QUOTATIONPAID', 'QUOTATIONPAIDSTEPTHREE'],
           },
         },
       });
@@ -875,37 +892,41 @@ export class QuotationService {
         this.dbService.quotation.update({
           where: { id },
           data: {
-            ...(promotion ? {
-              promotion: {
-                connect: {
-                  id:
-                    updateQuotationDto?.promotion_id ??
-                    quotationForUpdate.promotion_id,
-                },
-              },
-            } : updateQuotationDto.promotion_id === 0 ? {
-              promotion: {
-                disconnect: true
-              }
-            } : undefined),
+            ...(promotion
+              ? {
+                  promotion: {
+                    connect: {
+                      id:
+                        updateQuotationDto?.promotion_id ??
+                        quotationForUpdate.promotion_id,
+                    },
+                  },
+                }
+              : updateQuotationDto.promotion_id === 0
+              ? {
+                  promotion: {
+                    disconnect: true,
+                  },
+                }
+              : undefined),
             status: updateQuotationDto?.quotation_status && {
               connect: { id: updateQuotationDto.quotation_status },
             },
-            receipt_quotation:
-              updateQuotationDto?.receipt_quotation,
+            receipt_quotation: updateQuotationDto?.receipt_quotation,
             description: updateQuotationDto?.description ?? undefined,
             readiness: updateQuotationDto?.readiness ?? undefined,
-            quotation_special: updateQuotationDto?.quotation_special ?? undefined,
+            quotation_special:
+              updateQuotationDto?.quotation_special ?? undefined,
             quotation_number: updateQuotationDto?.quotation_number ?? undefined,
             quotation_date: updateQuotationDto?.quotation_date
               ? new Date(updateQuotationDto?.quotation_date)
               : undefined,
             ...(updateQuotationDto?.quotation_status === quoteOutStatus.id
               ? {
-                quotation_validity: new Date(
-                  Date.now() + 8 * 24 * 60 * 60 * 1000,
-                ),
-              }
+                  quotation_validity: new Date(
+                    Date.now() + 8 * 24 * 60 * 60 * 1000,
+                  ),
+                }
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
@@ -926,23 +947,27 @@ export class QuotationService {
             quotation_details: { upsert: updatedQuotationDetails },
             ...(quotationForUpdate.quotation_special === 1 &&
               quotationReceipts.length && {
-              quotation_receipt: { upsert: quotationReceipts },
-            }),
-            ...(updateQuotationDto?.quotation_status === quotePaid.find((x) => x.category === 'QUOTATIONPAIDSTEPTHREE' || 'QUOTATIONPAID').id && quotationForUpdate.quotation_follow_up.length
+                quotation_receipt: { upsert: quotationReceipts },
+              }),
+            ...(updateQuotationDto?.quotation_status ===
+              quotePaid.find(
+                (x) =>
+                  x.category === 'QUOTATIONPAIDSTEPTHREE' || 'QUOTATIONPAID',
+              ).id && quotationForUpdate.quotation_follow_up.length
               ? {
-                quotation_follow_up: {
-                  updateMany: {
-                    where: {
-                      quotation_id: id
+                  quotation_follow_up: {
+                    updateMany: {
+                      where: {
+                        quotation_id: id,
+                      },
+                      data: {
+                        is_done: true,
+                        updated_at: new Date(),
+                        updated_by: user_id,
+                      },
                     },
-                    data: {
-                      is_done: true,
-                      updated_at: new Date(),
-                      updated_by: user_id
-                    }
-                  }
+                  },
                 }
-              }
               : undefined),
           },
           include: {
@@ -951,10 +976,10 @@ export class QuotationService {
               include: {
                 work_orders: {
                   include: {
-                    work_order_tukang: true
-                  }
-                }
-              }
+                    work_order_tukang: true,
+                  },
+                },
+              },
             },
           },
         }),
@@ -966,21 +991,23 @@ export class QuotationService {
             quotation: quotation,
             orders: quotation.order,
           },
-          "UPDATE",
+          'UPDATE',
           quotation.updated_by,
           moduleTypeNotification.QUOTATION,
           quotation.id,
-          quotation.quotation_status
+          quotation.quotation_status,
         );
       }
 
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
         where: { quotation_id: id },
       });
-      console.log(quotation, "QUOTATION");
+      console.log(quotation, 'QUOTATION');
 
-
-      if (!existingIncentive && quotation.status.category === 'QUOTATIONPAID' || quotation.status.category === 'QUOTATIONPAIDSTEPTHREE') {
+      if (
+        (!existingIncentive && quotation.status.category === 'QUOTATIONPAID') ||
+        quotation.status.category === 'QUOTATIONPAIDSTEPTHREE'
+      ) {
         console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
@@ -1081,37 +1108,40 @@ export class QuotationService {
         orderBy: { created_at: 'desc' },
         include: {
           incentive: true,
-          quotation: true
-        }
+          quotation: true,
+        },
       });
 
       if (incentives.length > 1) {
         const incentiveToKeep = incentives[0];
-        let comission: number = 0;
+        let comission = 0;
         if (incentiveToKeep.incentive.type === 1) {
-          comission += Number(incentiveToKeep.quotation.quotation_grand_total) * (Number(incentiveToKeep.incentive.incentive) / 100);
+          comission +=
+            Number(incentiveToKeep.quotation.quotation_grand_total) *
+            (Number(incentiveToKeep.incentive.incentive) / 100);
         } else if (incentiveToKeep.incentive.type === 2) {
           comission += Number(incentiveToKeep.incentive.incentive);
         }
 
-
         const idsToDelete = incentives
-          .filter(incentive => incentive.id !== incentiveToKeep.id)
-          .map(incentive => incentive.id);
+          .filter((incentive) => incentive.id !== incentiveToKeep.id)
+          .map((incentive) => incentive.id);
 
         await this.dbService.sales_incentive.deleteMany({
           where: { id: { in: idsToDelete } },
         });
         console.log(comission);
-        
+
         await this.dbService.sales_incentive.update({
           where: { id: incentiveToKeep.id },
           data: {
-            nominal: comission
-          }
-        })
+            nominal: comission,
+          },
+        });
 
-        console.log(`Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`);
+        console.log(
+          `Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`,
+        );
       } else if (incentives.length === 1) {
         console.log('Only one incentive exists, nothing to delete.');
       } else {
@@ -1119,7 +1149,7 @@ export class QuotationService {
       }
     } catch (error) {
       console.log(error);
-      
+
       throw error;
     }
   }
@@ -1198,8 +1228,8 @@ export class QuotationService {
           },
         },
         include: {
-          order: true
-        }
+          order: true,
+        },
       });
 
       console.log(`Found ${quotations.length} quotations`);
@@ -1221,7 +1251,6 @@ export class QuotationService {
         },
       });
 
-
       await Promise.all(
         quotations.map(async (quotation) => {
           const { id } = quotation;
@@ -1242,30 +1271,32 @@ export class QuotationService {
               quotation: quotation,
               orders: quotation.order,
             },
-            "UPDATE",
+            'UPDATE',
             quotation.updated_by,
             moduleTypeNotification.QUOTATION,
             quotation.id,
-            quotation.quotation_status
+            quotation.quotation_status,
           );
 
           console.log(`Updating sales incentives for quotation ${id}`);
 
-          const salesIncentives = await this.dbService.sales_incentive.findMany({
-            where: {
-              quotation_id: id,
-              status: {
-                not: IncentiveStatus.LOST_INCENTIVE
-              }
+          const salesIncentives = await this.dbService.sales_incentive.findMany(
+            {
+              where: {
+                quotation_id: id,
+                status: {
+                  not: IncentiveStatus.LOST_INCENTIVE,
+                },
+              },
+              include: {
+                quotation: {
+                  include: {
+                    order: true,
+                  },
+                },
+              },
             },
-            include: {
-              quotation: {
-                include: {
-                  order: true
-                }
-              }
-            }
-          });
+          );
 
           await Promise.all(
             salesIncentives.map(async (salesIncentive) => {
@@ -1285,9 +1316,9 @@ export class QuotationService {
                 include: {
                   work_orders: {
                     include: {
-                      work_order_tukang: true
-                    }
-                  }
+                      work_order_tukang: true,
+                    },
+                  },
                 },
               });
 
@@ -1296,19 +1327,20 @@ export class QuotationService {
                   sales_incentive: salesIncentive,
                   orders: order,
                 },
-                "UPDATE",
+                'UPDATE',
                 salesIncentive.updated_by,
                 moduleTypeNotification.INCENTIVE,
                 salesIncentive.id,
-                salesIncentive.status
+                salesIncentive.status,
               );
 
-              console.log(`Notification created for sales incentive ${salesIncentive.id}`);
-            })
+              console.log(
+                `Notification created for sales incentive ${salesIncentive.id}`,
+              );
+            }),
           );
-        })
+        }),
       );
-
 
       console.log('Finished checkvalidity');
       return 1;
@@ -1332,9 +1364,11 @@ export class QuotationService {
 
     const { quotation_id } = quotationFollowUpDto.quotation_follow_up[0];
 
-    const existingFollowUps = await this.dbService.quotation_follow_up.findMany({
-      where: { quotation_id },
-    });
+    const existingFollowUps = await this.dbService.quotation_follow_up.findMany(
+      {
+        where: { quotation_id },
+      },
+    );
 
     const requestIds = new Set(
       quotationFollowUpDto.quotation_follow_up.map((item) => item.id),
@@ -1344,7 +1378,10 @@ export class QuotationService {
     const idsToDelete = [...existingIds].filter((id) => !requestIds.has(id));
 
     const deleteOperations = idsToDelete.map((id) =>
-      this.dbService.quotation_follow_up.update({ where: { id }, data: { deleted_at: new Date, deleted_by: user.id } }),
+      this.dbService.quotation_follow_up.update({
+        where: { id },
+        data: { deleted_at: new Date(), deleted_by: user.id },
+      }),
     );
 
     const upsertOperations = quotationFollowUpDto.quotation_follow_up.map(
@@ -1363,7 +1400,7 @@ export class QuotationService {
             follow_up_3: Boolean(item.follow_up_3),
             description: item.description,
             quotation: { connect: { id: item.quotation_id } },
-            created_by: user.id
+            created_by: user.id,
           },
           update: {
             follow_up_1: Boolean(item.follow_up_1),
@@ -1372,7 +1409,7 @@ export class QuotationService {
             description: item.description,
             quotation: { connect: { id: item.quotation_id } },
             updated_at: new Date(),
-            updated_by: user.id
+            updated_by: user.id,
           },
         });
       },
@@ -1404,48 +1441,48 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    order: { vendor: { company_name: { contains: search } } },
-                  },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    {
+                      order: { vendor: { company_name: { contains: search } } },
+                    },
+                    { store: { store_name: { contains: search } } },
+                    { quotation_number: { contains: search } },
+                  ],
+                },
+              ]
             : []),
           ...(is_free
             ? [
-              {
-                order: {
-                  m_order_details: {
-                    every: {
-                      item: {
-                        type: 1,
+                {
+                  order: {
+                    m_order_details: {
+                      every: {
+                        item: {
+                          type: 1,
+                        },
                       },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(promotion)
             ? [
-              {
-                promotion_id: {
-                  not: null,
+                {
+                  promotion_id: {
+                    not: null,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -1550,9 +1587,7 @@ export class QuotationService {
             },
             order: {
               include: {
-                order_history: {
-
-                },
+                order_history: {},
                 m_order_details: {
                   where: {
                     deleted_at: null,
@@ -1678,15 +1713,19 @@ export class QuotationService {
               : '';
 
           const specialStepDescription =
-            quotation.quotation_special === 1
-              ? stepDescription
-              : '';
+            quotation.quotation_special === 1 ? stepDescription : '';
 
-          const itemName = `${detail?.name ?? 'Item tidak ditulis'} ${stepDescription}`;
+          const itemName = `${
+            detail?.name ?? 'Item tidak ditulis'
+          } ${stepDescription}`;
 
-          const itemQuantity = `${detail?.quantity ?? '1'} ${specialStepDescription}`;
+          const itemQuantity = `${
+            detail?.quantity ?? '1'
+          } ${specialStepDescription}`;
 
-          const itemUnit = `${detail?.unit ?? 'Satuan tidak tersedia'} ${specialStepDescription}`;
+          const itemUnit = `${
+            detail?.unit ?? 'Satuan tidak tersedia'
+          } ${specialStepDescription}`;
 
           const statusPayment = quotation?.receipt_quotation
             ? 'Dibayar'
@@ -1694,12 +1733,12 @@ export class QuotationService {
 
           const tukangName = quotation?.order?.work_orders?.work_order_tukang
             ? Array.from(
-              new Set(
-                quotation.order.work_orders.work_order_tukang.map(
-                  (item) => item?.tukang?.full_name,
+                new Set(
+                  quotation.order.work_orders.work_order_tukang.map(
+                    (item) => item?.tukang?.full_name,
+                  ),
                 ),
-              ),
-            ).join(', ')
+              ).join(', ')
             : 'Tukang belum ditugaskan';
 
           const workOrderItems =
@@ -1741,7 +1780,9 @@ export class QuotationService {
             company_name: quotation?.order?.vendor
               ? quotation.order.vendor.company_name
               : 'N/a',
-            request_work: quotation.order.request_work ? formattedDateTime(quotation.order.request_work) : 'Tanggal Belum Ditentukan',
+            request_work: quotation.order.request_work
+              ? formattedDateTime(quotation.order.request_work)
+              : 'Tanggal Belum Ditentukan',
             item_type: detail.item_type === 2 ? 'JASA' : 'MATERIAL',
             item_name: itemName,
             item_quantity: itemQuantity,
@@ -1759,7 +1800,9 @@ export class QuotationService {
               ? quotation.order.sales.full_name
               : 'N/a',
             tukang_name: tukangName,
-            promotion_tier: quotation.promotion ? quotation.promotion.name : '-',
+            promotion_tier: quotation.promotion
+              ? quotation.promotion.name
+              : '-',
             promotion_nominal:
               quotation?.promotion?.promotion_type === 1
                 ? `${Number(quotation.promotion.promotion)}%`
@@ -1779,7 +1822,6 @@ export class QuotationService {
           isFirstDetail = false;
         });
       });
-
 
       const totalGrandTotal = dataExcel.reduce(
         (total, order) => total + Number(order.quotation_grand_total),
@@ -1908,11 +1950,11 @@ export class QuotationService {
     const closestIncentive =
       filteredIncentive.length > 0
         ? filteredIncentive.reduce((closest, current) =>
-          Math.abs(Number(current.min_order) - grandTotal) <
+            Math.abs(Number(current.min_order) - grandTotal) <
             Math.abs(Number(closest.min_order) - grandTotal)
-            ? current
-            : closest,
-        )
+              ? current
+              : closest,
+          )
         : null;
     if (!closestIncentive) {
       return null;
@@ -1951,14 +1993,24 @@ export class QuotationService {
       include: {
         quotation: {
           include: {
-            order: true
-          }
-        }
-      }
+            order: true,
+          },
+        },
+      },
     });
 
     if (salesIncentive) {
-      await this.notifService.create({ sales_incentive: salesIncentive, orders: salesIncentive.quotation.order }, "CREATE", salesIncentive.created_by, moduleTypeNotification.INCENTIVE, salesIncentive.id, salesIncentive.status);
+      await this.notifService.create(
+        {
+          sales_incentive: salesIncentive,
+          orders: salesIncentive.quotation.order,
+        },
+        'CREATE',
+        salesIncentive.created_by,
+        moduleTypeNotification.INCENTIVE,
+        salesIncentive.id,
+        salesIncentive.status,
+      );
     }
 
     await this.dbService.orders.update({
@@ -1967,7 +2019,10 @@ export class QuotationService {
     });
   }
 
-  async quotationExportExcelFollowUp(res: Response, queryParams: QueryParamsDto) {
+  async quotationExportExcelFollowUp(
+    res: Response,
+    queryParams: QueryParamsDto,
+  ) {
     const {
       take,
       page,
@@ -1984,48 +2039,48 @@ export class QuotationService {
         status ? { status: { id: { in: status } } } : null,
         ...(search
           ? [
-            {
-              OR: [
-                {
-                  order: { vendor: { company_name: { contains: search } } },
-                },
-                { store: { store_name: { contains: search } } },
-                { quotation_number: { contains: search } },
-              ],
-            },
-          ]
+              {
+                OR: [
+                  {
+                    order: { vendor: { company_name: { contains: search } } },
+                  },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
           : []),
         ...(is_free
           ? [
-            {
-              order: {
-                m_order_details: {
-                  every: {
-                    item: {
-                      type: 1,
+              {
+                order: {
+                  m_order_details: {
+                    every: {
+                      item: {
+                        type: 1,
+                      },
                     },
                   },
                 },
               },
-            },
-          ]
+            ]
           : []),
         ...(Boolean(promotion)
           ? [
-            {
-              promotion_id: {
-                not: null,
+              {
+                promotion_id: {
+                  not: null,
+                },
               },
-            },
-          ]
+            ]
           : []),
         date_from && date_to
           ? {
-            created_at: {
-              gte: new Date(`${date_from}T00:00:00.000Z`),
-              lte: new Date(`${date_to}T23:59:59.000Z`),
-            },
-          }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
           : null,
       ].filter((condition) => Boolean(condition)),
       deleted_at: null,
@@ -2034,9 +2089,9 @@ export class QuotationService {
       },
       quotation_follow_up: {
         every: {
-          is_done: false
-        }
-      }
+          is_done: false,
+        },
+      },
     };
     const count = await this.dbService.quotation.count({
       where,
@@ -2059,8 +2114,8 @@ export class QuotationService {
         include: {
           quotation_follow_up: {
             where: {
-              deleted_at: null
-            }
+              deleted_at: null,
+            },
           },
           promotion: true,
           quotation_files: true,
@@ -2128,8 +2183,8 @@ export class QuotationService {
         include: {
           quotation_follow_up: {
             where: {
-              deleted_at: null
-            }
+              deleted_at: null,
+            },
           },
           promotion: true,
           quotation_files: true,
@@ -2237,7 +2292,6 @@ export class QuotationService {
     });
 
     dataExcel.forEach((quotation: any, index: number) => {
-
       worksheet.addRow({
         id: quotation.id,
         order_id: quotation.order.id,
@@ -2253,13 +2307,20 @@ export class QuotationService {
           : 'N/a',
         status_description: quotation.status.description,
         grand_total: quotation.grand_total,
-        fu1: quotation.quotation_follow_up[0]?.follow_up_1 === true ? 'YES' : 'NO' || '-',
-        fu2: quotation.quotation_follow_up[0]?.follow_up_2 === true ? 'YES' : 'NO' || '-',
-        fu3: quotation.quotation_follow_up[0]?.follow_up_3 === true ? 'YES' : 'NO' || '-',
+        fu1:
+          quotation.quotation_follow_up[0]?.follow_up_1 === true
+            ? 'YES'
+            : 'NO' || '-',
+        fu2:
+          quotation.quotation_follow_up[0]?.follow_up_2 === true
+            ? 'YES'
+            : 'NO' || '-',
+        fu3:
+          quotation.quotation_follow_up[0]?.follow_up_3 === true
+            ? 'YES'
+            : 'NO' || '-',
       });
     });
-
-
 
     const getFormattedDate = () => {
       const now = new Date();

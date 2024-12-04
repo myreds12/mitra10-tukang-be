@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateReportDto } from './dto/create-report.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -8,16 +13,15 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
-import { MATCHES } from 'class-validator';
 
 @Injectable()
 export class ReportsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly httpService: HttpService,
-  ) { }
-  async create(createReportDto: CreateReportDto) { }
-  async findAll() { }
+  ) {}
+  async create(createReportDto: CreateReportDto) {}
+  async findAll() {}
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
@@ -36,65 +40,67 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [{
-                  quotation: {
-                    order_id: !isNaN(+search) ? +search : undefined,
-                  },
-                },
                 {
-                  quotation: {
-                    order: {
-                      members: {
+                  OR: [
+                    {
+                      quotation: {
+                        order_id: !isNaN(+search) ? +search : undefined,
+                      },
+                    },
+                    {
+                      quotation: {
+                        order: {
+                          members: {
+                            full_name: {
+                              contains: search,
+                            },
+                          },
+                        },
+                      },
+                    },
+                    {
+                      sales: {
                         full_name: {
                           contains: search,
                         },
                       },
                     },
-                  },
-                },
-                {
-                  sales: {
-                    full_name: {
-                      contains: search,
+                    {
+                      nominal: !isNaN(+search) ? +search : undefined,
                     },
-                  },
+                    {
+                      quotation: {
+                        quotation_grand_total: !isNaN(+search)
+                          ? +search
+                          : undefined,
+                      },
+                    },
+                  ],
                 },
-                {
-                  nominal: !isNaN(+search) ? +search : undefined,
-                },
-                {
-                  quotation: {
-                    quotation_grand_total: !isNaN(+search)
-                      ? +search
-                      : undefined,
-                  },
-                },]
-              }
-            ]
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                sales: {
-                  store_id: {
-                    in: store_id,
+                {
+                  sales: {
+                    store_id: {
+                      in: store_id,
+                    },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { in: status } }] : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         // comission_sales_incentive: {
@@ -116,7 +122,7 @@ export class ReportsService {
           sales: {
             include: {
               store: true,
-              bank: true
+              bank: true,
             },
           },
           incentive: true,
@@ -131,7 +137,7 @@ export class ReportsService {
               },
             },
           },
-          comission_sales_incentive: true
+          comission_sales_incentive: true,
         },
       });
       const totalIncentive = await this.dbService.sales_incentive.aggregate({
@@ -147,7 +153,13 @@ export class ReportsService {
 
       return {
         data: salesIncetive,
-        meta: { totalIncentive, page, take, total: count, takeTotal: salesIncetive.length },
+        meta: {
+          totalIncentive,
+          page,
+          take,
+          total: count,
+          takeTotal: salesIncetive.length,
+        },
       };
     } catch (error) {
       console.error(error);
@@ -319,8 +331,8 @@ export class ReportsService {
       const periods = isSameDay
         ? allHours
         : isSameMonth
-          ? allDaysInMonth
-          : allMonths;
+        ? allDaysInMonth
+        : allMonths;
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -371,24 +383,24 @@ export class ReportsService {
         AND: [
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { request_survey: { equals: new Date(search) } },
-                  { members: { full_name: { contains: search } } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { request_survey: { equals: new Date(search) } },
+                    { members: { full_name: { contains: search } } },
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(member_id ? [{ member_id: { equals: member_id } }] : []),
@@ -397,28 +409,28 @@ export class ReportsService {
           ...(store_id ? [{ store_id: { in: store_id } }] : []),
           ...(vendor_id
             ? [
-              {
-                vendor: {
-                  id: {
-                    equals: vendor_id,
+                {
+                  vendor: {
+                    id: {
+                      equals: vendor_id,
+                    },
+                    deleted_at: null,
                   },
-                  deleted_at: null,
                 },
-              },
-            ]
+              ]
             : []),
           ...(tukang_id
             ? [
-              {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -456,104 +468,6 @@ export class ReportsService {
       });
 
       // Fetch complaints, reschedules, and refunds data
-      const [complaints, reschedules, refunds] = await Promise.all([
-        this.dbService.complaints.findMany({
-          where: {
-            ...(date_from && date_to
-              ? {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
-              : undefined),
-            ...(store_id
-              ? {
-                orders: {
-                  store_id: { in: store_id },
-                },
-              }
-              : undefined),
-            ...(vendor_id
-              ? {
-                orders: {
-                  vendor_id: vendor_id,
-                },
-              }
-              : undefined),
-            status: {
-              category: {
-                contains: 'INVESTIGATED',
-              },
-            },
-            deleted_at: null,
-          },
-          include: {
-            status: true,
-          },
-        }),
-        this.dbService.reschedule.findMany({
-          where: {
-            ...(date_from && date_to
-              ? {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
-              : undefined),
-            ...(store_id
-              ? {
-                order: {
-                  store_id: { in: store_id },
-                },
-              }
-              : undefined),
-            ...(vendor_id
-              ? {
-                order: {
-                  vendor_id: vendor_id,
-                },
-              }
-              : undefined),
-            order: {
-              status: {
-                category: {
-                  contains: 'RESCHEDULE',
-                },
-              },
-            },
-            deleted_at: null,
-          },
-        }),
-        this.dbService.refund.findMany({
-          where: {
-            ...(date_from && date_to
-              ? {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
-              : undefined),
-            ...(store_id
-              ? {
-                orders: {
-                  store_id: { in: store_id },
-                },
-              }
-              : undefined),
-            ...(vendor_id
-              ? {
-                orders: {
-                  vendor_id: vendor_id,
-                },
-              }
-              : undefined),
-            deleted_at: null,
-          },
-        }),
-      ]);
 
       // Process data into summary
       const H_PLUS_7_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -561,18 +475,20 @@ export class ReportsService {
 
       orders.forEach((order) => {
         // Tambahkan 7 jam ke waktu UTC
-        const orderTimeInWIB = new Date(new Date(order.created_at).getTime() + 7 * 60 * 60 * 1000);
+        const orderTimeInWIB = new Date(
+          new Date(order.created_at).getTime() + 7 * 60 * 60 * 1000,
+        );
 
         const period = isSameDay
           ? orderTimeInWIB.toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-          })
+              hour: '2-digit',
+              hour12: false,
+            })
           : isSameMonth
-            ? orderTimeInWIB.toLocaleString('id-ID', {
+          ? orderTimeInWIB.toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : orderTimeInWIB.toLocaleString('id-ID', {
+          : orderTimeInWIB.toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -652,7 +568,6 @@ export class ReportsService {
         }
       });
 
-
       // Ensure all periods are accounted for, even if empty
       periods.forEach((period) => {
         if (!summary[period]) {
@@ -707,11 +622,8 @@ export class ReportsService {
         date_from,
         date_to,
         order_by,
-        sales_id,
-        payment_type,
         store_id,
         vendor_id,
-        member_id,
         tukang_id,
       } = query;
 
@@ -753,8 +665,8 @@ export class ReportsService {
       const periods = isSameDay
         ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
         : isSameMonth
-          ? allDaysInMonth
-          : Array.from({ length: 12 }, (_, i) =>
+        ? allDaysInMonth
+        : Array.from({ length: 12 }, (_, i) =>
             new Date(0, i).toLocaleString('id-ID', { month: 'long' }),
           );
 
@@ -768,108 +680,108 @@ export class ReportsService {
           status ? { status: { id: { in: status } } } : undefined,
           search
             ? {
-              OR: [
-                !isNaN(Number(search))
-                  ? {
-                    id: {
-                      equals: Number(search),
+                OR: [
+                  !isNaN(Number(search))
+                    ? {
+                        id: {
+                          equals: Number(search),
+                        },
+                      }
+                    : undefined,
+                  !isNaN(Number(search))
+                    ? {
+                        order_id: Number(search),
+                      }
+                    : undefined,
+                  {
+                    complaint_channels: {
+                      name: { contains: search },
                     },
-                  }
-                  : undefined,
-                !isNaN(Number(search))
-                  ? {
-                    order_id: Number(search),
-                  }
-                  : undefined,
-                {
-                  complaint_channels: {
-                    name: { contains: search },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      full_name: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    store: {
-                      store_name: search,
-                    },
-                  },
-                },
-                {
-                  orders: {
-                    sales: {
-                      full_name: {
-                        contains: search,
+                  {
+                    orders: {
+                      store: {
+                        store_name: search,
                       },
                     },
                   },
-                },
-              ],
-            }
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                ],
+              }
             : undefined,
           store_id
             ? {
-              orders: {
-                store_id: {
-                  in: store_id,
+                orders: {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           vendor_id
             ? {
-              orders: {
-                vendor_id: {
-                  equals: vendor_id,
+                orders: {
+                  vendor_id: {
+                    equals: vendor_id,
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           tukang_id
             ? {
-              orders: {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                orders: {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            }
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -891,18 +803,20 @@ export class ReportsService {
       });
 
       complaints.forEach((complaint) => {
-        const complaintWib = new Date(new Date(complaint.created_at).getTime() + 7 * 60 * 60 * 1000);
+        const complaintWib = new Date(
+          new Date(complaint.created_at).getTime() + 7 * 60 * 60 * 1000,
+        );
 
         const period = isSameDay
           ? complaintWib.toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-          })
+              hour: '2-digit',
+              hour12: false,
+            })
           : isSameMonth
-            ? complaintWib.toLocaleString('id-ID', {
+          ? complaintWib.toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : complaintWib.toLocaleString('id-ID', {
+          : complaintWib.toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -1069,8 +983,8 @@ export class ReportsService {
       const periods = isSameDay
         ? allHours
         : isSameMonth
-          ? allDaysInMonth
-          : allMonths;
+        ? allDaysInMonth
+        : allMonths;
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -1097,79 +1011,79 @@ export class ReportsService {
         AND: [
           search
             ? {
-              OR: [
-                ...(isNaN(Date.parse(search))
-                  ? []
-                  : [
-                    { request_work_time: { equals: new Date(search) } },
-                    { survey_date: { equals: new Date(search) } },
-                    { work_start_date: { equals: new Date(search) } },
-                    { work_end_date: { equals: new Date(search) } },
-                  ]),
-                {
-                  id: !isNaN(+search) ? +search : undefined,
-                },
-                {
-                  orders: {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                OR: [
+                  ...(isNaN(Date.parse(search))
+                    ? []
+                    : [
+                        { request_work_time: { equals: new Date(search) } },
+                        { survey_date: { equals: new Date(search) } },
+                        { work_start_date: { equals: new Date(search) } },
+                        { work_end_date: { equals: new Date(search) } },
+                      ]),
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  order: {
-                    members: {
-                      full_name: {
-                        contains: search,
+                  {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    sales: {
-                      full_name: {
-                        contains: search,
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-              ],
-            }
+                ],
+              }
             : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
-              vendor_id: vendor_id,
-            }
+                vendor_id: vendor_id,
+              }
             : undefined,
           tukang_id
             ? {
-              work_order_tukang: {
-                some: {
-                  tukang_id: tukang_id,
+                work_order_tukang: {
+                  some: {
+                    tukang_id: tukang_id,
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -1178,9 +1092,6 @@ export class ReportsService {
         },
       };
 
-      const total = await this.dbService.work_orders.count({
-        where,
-      });
 
       const work_orders = await this.dbService.work_orders.findMany({
         skip,
@@ -1261,14 +1172,14 @@ export class ReportsService {
       work_orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-          })
+              hour: '2-digit',
+              hour12: false,
+            })
           : isSameMonth
-            ? new Date(order.created_at).toLocaleString('id-ID', {
+          ? new Date(order.created_at).toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : new Date(order.created_at).toLocaleString('id-ID', {
+          : new Date(order.created_at).toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -1352,86 +1263,86 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    tukang_area: {
-                      some: {
-                        area: {
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      tukang_area: {
+                        some: {
                           area: {
-                            contains: search,
+                            area: {
+                              contains: search,
+                            },
                           },
                         },
                       },
                     },
-                  },
-                  { address: { contains: search } },
-                  { email: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { full_name: { contains: search } },
-                  { ktp_number: { contains: search } },
-                  {
-                    full_name: {
-                      contains: search,
-                    },
-                  },
-                  { vendor: { company_name: { contains: search } } },
-                  {
-                    tukang_service: {
-                      some: {
-                        service_type: { service_type: { contains: search } },
+                    { address: { contains: search } },
+                    { email: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { full_name: { contains: search } },
+                    { ktp_number: { contains: search } },
+                    {
+                      full_name: {
+                        contains: search,
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                    { vendor: { company_name: { contains: search } } },
+                    {
+                      tukang_service: {
+                        some: {
+                          service_type: { service_type: { contains: search } },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           service_types
             ? {
-              tukang_service: {
-                some: {
-                  service_type_id: {
-                    in: service_types,
+                tukang_service: {
+                  some: {
+                    service_type_id: {
+                      in: service_types,
+                    },
                   },
                 },
-              },
-            }
+              }
             : undefined,
           area_id
             ? {
-              tukang_area: {
-                some: {
-                  area_id: {
-                    in: area_id,
+                tukang_area: {
+                  some: {
+                    area_id: {
+                      in: area_id,
+                    },
                   },
                 },
-              },
-            }
+              }
             : undefined,
           vendor_id
             ? {
-              vendor_id: vendor_id,
-            }
+                vendor_id: vendor_id,
+              }
             : undefined,
           search_date_from && search_date_to
             ? {
-              join_date: {
-                gte: new Date(`${search_date_from}T00:00:00.000Z`),
-                lte: new Date(`${search_date_to}T23:59:59.000Z`),
-              },
-            }
+                join_date: {
+                  gte: new Date(`${search_date_from}T00:00:00.000Z`),
+                  lte: new Date(`${search_date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ],
         deleted_at: null,
@@ -1573,7 +1484,9 @@ export class ReportsService {
       } = queryParams;
 
       if (!date_from && date_to) {
-        throw new BadRequestException('Mohon untuk menginput date from dan date to!')
+        throw new BadRequestException(
+          'Mohon untuk menginput date from dan date to!',
+        );
       }
 
       const skip = page * take - take;
@@ -1584,100 +1497,100 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                  {
-                    vendor: {
-                      company_name: {
-                        contains: search,
+                    {
+                      vendor: {
+                        company_name: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                    {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                    {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(history_status
             ? [
-              {
-                order_history: {
-                  some: {
-                    status_id: {
-                      in: history_status,
+                {
+                  order_history: {
+                    some: {
+                      status_id: {
+                        in: history_status,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_promotion
             ? [
-              {
-                OR: [
-                  {
-                    AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
                         },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
                             },
                           },
                         },
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
                         },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
+                      ],
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -1687,134 +1600,134 @@ export class ReportsService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(tukang_id
             ? [
-              {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_invoice)
             ? [
-              {
-                invoice_details: {
-                  none: {
-                    deleted_at: null,
-                  },
-                },
-              },
-            ]
-            : []),
-          ...(Boolean(is_active_warranty)
-            ? [
-              {
-                work_orders: {
-                  work_order_status: {
-                    some: {
-                      status: {
-                        category: 'WORKEND',
-                      },
-                      created_at: {
-                        gte: sevenDaysAgo,
-                      },
+                {
+                  invoice_details: {
+                    none: {
+                      deleted_at: null,
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
-          ...(Boolean(is_expired_warranty)
+          ...(Boolean(is_active_warranty)
             ? [
-              {
-                OR: [
-                  {
-                    work_orders: {
-                      work_order_status: {
-                        some: {
-                          status: {
-                            category: 'WORKEND',
-                          },
-                          created_at: {
-                            lt: sevenDaysAgo,
-                          },
+                {
+                  work_orders: {
+                    work_order_status: {
+                      some: {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                        created_at: {
+                          gte: sevenDaysAgo,
                         },
                       },
                     },
                   },
-                  {
-                    complaints: {
-                      some: {
-                        deleted_at: null,
+                },
+              ]
+            : []),
+          ...(Boolean(is_expired_warranty)
+            ? [
+                {
+                  OR: [
+                    {
+                      work_orders: {
+                        work_order_status: {
+                          some: {
+                            status: {
+                              category: 'WORKEND',
+                            },
+                            created_at: {
+                              lt: sevenDaysAgo,
+                            },
+                          },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                    {
+                      complaints: {
+                        some: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(Boolean(is_receipt)
             ? [
-              {
-                receipt_number: {
-                  not: null,
+                {
+                  receipt_number: {
+                    not: null,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_receipt_quotation
             ? [
-              {
-                quotation: {
-                  some: {
-                    receipt_quotation: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      receipt_quotation: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(promotion)
             ? [
-              {
-                quotation: {
-                  some: {
-                    promotion_id: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
@@ -1833,8 +1746,8 @@ export class ReportsService {
         include: {
           refund: {
             where: {
-              deleted_at: null
-            }
+              deleted_at: null,
+            },
           },
           members: {
             where: {
@@ -1932,7 +1845,7 @@ export class ReportsService {
               deleted_by: null,
             },
             orderBy: {
-              created_at: 'desc'
+              created_at: 'desc',
             },
             include: {
               promotion: true,
@@ -1948,13 +1861,13 @@ export class ReportsService {
         },
       });
 
-
-      if (data.length === 0) throw new NotFoundException('Order data not found');
+      if (data.length === 0)
+        throw new NotFoundException('Order data not found');
 
       const itemMap = new Map();
 
-      data.forEach(order => {
-        order.m_order_details.forEach(detail => {
+      data.forEach((order) => {
+        order.m_order_details.forEach((detail) => {
           if (detail?.item?.type === 1 || detail?.item?.type === 2) {
             const fullName = detail.item.item_name;
             const quantity = detail?.quantity || 0;
@@ -1964,8 +1877,9 @@ export class ReportsService {
             if (type === 1) {
               baseName = fullName;
             } else if (type === 2) {
-              const words = fullName.split(" ");
-              baseName = words.length >= 2 ? `${words[0]} ${words[1]}` : fullName;
+              const words = fullName.split(' ');
+              baseName =
+                words.length >= 2 ? `${words[0]} ${words[1]}` : fullName;
             }
 
             if (baseName) {
@@ -1981,14 +1895,13 @@ export class ReportsService {
                   itemName: baseName,
                   quantity: quantity,
                   orderCount: 1,
-                  type: type
+                  type: type,
                 });
               }
             }
           }
         });
       });
-
 
       interface Item {
         itemName: string;
@@ -1997,17 +1910,17 @@ export class ReportsService {
         type: number;
       }
 
-      const allItems: Item[] = [...itemMap.entries()].map(([_, data]) => ({
+      const allItems: Item[] = [...itemMap.entries()].map(([data]) => ({
         itemName: data.itemName,
         quantity: data.quantity,
         orderCount: data.orderCount,
-        type: data.type
+        type: data.type,
       }));
 
-      const bookReceived = data.filter((x) =>
-        x.status.category != 'PICKLIST'
+      const bookReceived = data.filter(
+        (x) => x.status.category != 'PICKLIST',
       ).length;
-      console.log("BOOK RECEIVED", bookReceived);
+      console.log('BOOK RECEIVED', bookReceived);
 
       const validCategories = [
         'WORKEND',
@@ -2021,55 +1934,123 @@ export class ReportsService {
         'QUOTATIONPAIDSTEPONE',
         'QUOTATIONPAIDSTEPTWO',
         'QUOTATIONPAIDSTEPTHREE',
+        'APPROVED',
+        'REJECTED',
+        'PAID',
+        'DONE',
       ];
 
       const orderDone1 = data.filter(({ status }) =>
-        validCategories.includes(status.category)
+        validCategories.includes(status.category),
       ).length;
 
-      const orderDone2 = data.filter(({ status, payment_type }) =>
-        ['WORKREQ', 'TUKANGWORK'].includes(status.category) && payment_type === 'survey'
+      const orderDone2 = data.filter(
+        ({ status, payment_type }) =>
+          ['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
+          payment_type === 'survey',
       ).length;
-
 
       const currentDate = new Date(date_from);
 
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 2);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      const startOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        2,
+      );
+      const endOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        1,
+      );
 
-      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 2);
-      const endOfNextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 2);
+      const nextMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        2,
+      );
+      const endOfNextMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 2,
+        2,
+      );
 
       startOfMonth.setHours(0, 0, 0, 0);
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
-      const statusPending = ['SURVEYSTART', 'TUKANGSURVEY', 'SURVEYREQ'];
-
+      const statusPending = [
+        'SURVEYSTART',
+        'TUKANGSURVEY',
+        'SURVEYREQ',
+        'RESCHEDULE',
+        'RETUKANGSURVEY',
+        'INVESTIGATE',
+        'RESURVEYREQ',
+        'RESURVEYSTART',
+        'RESURVEYDONE',
+        'REWORKREQ',
+        'REWORKSTART',
+        'RESURVEYDONE',
+        'COMPLAINTREJECTEDBYHO',
+        'COMPLAINTREJECTEDBYVENDOR',
+        'RESCHEDULEAPPROVEDBYHO',
+        'RESCHEDULEAPPROVEDBYVENDOR',
+        'RESCHEDULEREJECTEDBYVENDOR',
+        'REFUNDAPPROVEDBYHO',
+        'REFUNDREJECTEDBYHO',
+      ];
 
       const isWithinDateRange = (date) =>
         date && new Date(date) >= startOfMonth && new Date(date) <= endOfMonth;
 
-      const orderPending1 = data.filter(({ status, payment_type, request_survey }) =>
-        statusPending.includes(status.category ) &&
-        (isWithinDateRange(request_survey))
+      const orderPending1 = data.filter(
+        ({ status, payment_type, request_survey }) =>
+          statusPending.includes(status.category) &&
+          isWithinDateRange(request_survey),
       ).length;
 
-      const orderPending2 = data.filter(({ status, payment_type, request_survey }) =>
-        ((['WORKREQ', 'TUKANGWORK'].includes(status.category) &&
-          ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type))) &&
-        (isWithinDateRange(request_survey))
+      const orderPending2 = data.filter(
+        ({ status, payment_type, request_survey }) =>
+          [
+            'WORKREQ',
+            'TUKANGWORK',
+            'COMPLAINTREJECTEDBYHO',
+            'COMPLAINTREJECTEDBYVENDOR',
+            'RESCHEDULEAPPROVEDBYHO',
+            'RESCHEDULEAPPROVEDBYVENDOR',
+            'RESCHEDULEREJECTEDBYVENDOR',
+            'REFUNDAPPROVEDBYHO',
+            'REFUNDREJECTEDBYHO',
+            'WORKREQSTEPTWO',
+            'WORKREQSTEPONE',
+            'WORKSTARTSTEPONE',
+            'WORKENDSTEPONE',
+            'WORKENDSTEPTHREE',
+            'WORKSTARTSTEPTHREE',
+            'WORKENDSTEPTWO',
+            'RETUKANGWORK',
+            'REWORK',
+            'RETUKANGWORKSTEPTWO',
+            'RETUKANGWORKSTEPONE',
+            'TUKANGWORKSTEPONE',
+            'TUKANGWORKSTEPTWO',
+            'TUKANGWORKSTEPTHREE',
+          ].includes(status.category) &&
+          ['gratis', 'pemasangan_tanpa_survey'].includes(payment_type) &&
+          isWithinDateRange(request_survey),
       ).length;
 
-
-      const orderRefund = data.filter((x) =>
-        x.refund.length > 0 || x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND'
+      const orderRefund = data.filter(
+        (x) =>
+          x.refund.length > 0 ||
+          x.status.category === 'CANCELREFUND' ||
+          x.status.category === 'REFUND' ||
+          x.refund.length > 0,
       ).length;
 
-      const orderCancel = data.filter((x) => x.status.category === 'CANCEL'
+      const orderCancel = data.filter(
+        (x) => x.status.category === 'CANCEL',
       ).length;
-      console.log("ORDER CANCEL", orderCancel);
-
 
       const totalProgressOrder = [
         'COMPLAINT',
@@ -2087,60 +2068,116 @@ export class ReportsService {
       const isWithinNextMonth = (date) =>
         date && new Date(date) >= nextMonth && new Date(date) <= endOfNextMonth;
 
-      const orderProgress = data.filter(({ status, request_survey }) =>
-        !totalProgressOrder.includes(status.category) &&
-        (isWithinNextMonth(request_survey))
+      const orderProgress = data.filter(
+        ({ status, request_survey }) =>
+          !totalProgressOrder.includes(status.category) &&
+          isWithinNextMonth(request_survey),
       ).length;
 
-      console.log("ORDER PROGRESS", orderProgress);
+      console.log('ORDER PROGRESS', orderProgress);
 
-      const orderSurvey = data.filter((x) =>
-        x.payment_type === 'survey'
+      const orderSurvey = data.filter(
+        (x) => x.payment_type === 'survey',
       ).length;
-      console.log("ORDER SURVEY", orderSurvey);
+      console.log('ORDER SURVEY', orderSurvey);
 
-      const quotationPaid = data.filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey').length;
-      console.log("QUOTATION PAID", quotationPaid);
+      const quotationPaid = data.filter(
+        (x) =>
+          x?.quotation[0]?.receipt_quotation != null ||
+          (x?.quotation[0]?.quotation_receipt.length > 0 &&
+            x.payment_type === 'survey'),
+      ).length;
+      console.log('QUOTATION PAID', quotationPaid);
       const quotationPaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation != null || x?.quotation[0]?.quotation_receipt.length > 0 && x.payment_type === 'survey')
+        .filter(
+          (x) =>
+            x?.quotation[0]?.receipt_quotation != null ||
+            (x?.quotation[0]?.quotation_receipt.length > 0 &&
+              x.payment_type === 'survey'),
+        )
         .reduce((total, order) => {
-          const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
+          const grandTotal = Number(
+            order.quotation[0]?.quotation_grand_total || 0,
+          );
           return total + grandTotal;
         }, 0);
 
-      const quotationUnpaid = data.filter((x) =>
-        (
-          x?.quotation[0]?.receipt_quotation === null ||
-          (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0)
-        ) &&
-        x.payment_type === 'survey'
+      const quotationUnpaid = data.filter(
+        (x) =>
+          (x?.quotation[0]?.receipt_quotation === null ||
+            (x.quotation[0]?.quotation_special === 1 &&
+              x?.quotation[0]?.quotation_receipt &&
+              x.quotation[0].quotation_receipt.length === 0)) &&
+          x.payment_type === 'survey',
       ).length;
       const quotationUnpaidValue = data
-        .filter((x) => x?.quotation[0]?.receipt_quotation === null || (x.quotation[0]?.quotation_special === 1 && x?.quotation[0]?.quotation_receipt && x.quotation[0].quotation_receipt.length === 0) && x.payment_type === 'survey')
+        .filter(
+          (x) =>
+            x?.quotation[0]?.receipt_quotation === null ||
+            (x.quotation[0]?.quotation_special === 1 &&
+              x?.quotation[0]?.quotation_receipt &&
+              x.quotation[0].quotation_receipt.length === 0 &&
+              x.payment_type === 'survey'),
+        )
         .reduce((total, order) => {
-          const grandTotal = Number(order.quotation[0]?.quotation_grand_total || 0);
+          const grandTotal = Number(
+            order.quotation[0]?.quotation_grand_total || 0,
+          );
           return total + grandTotal;
         }, 0);
 
-      const ongoingSurveyCategories = ['SURVEYREQ', 'SURVEYSTART', 'TUKANGSURVEY', 'INVESTIGATED', 'RESURVEY', 'BOOKED', 'BOOK'];
+      const ongoingSurveyCategories = [
+        'SURVEYREQ',
+        'SURVEYSTART',
+        'TUKANGSURVEY',
+        'INVESTIGATED',
+        'RESURVEY',
+        'BOOKED',
+        'BOOK',
+        'REWORK',
+        'INVESTIGATE',
+        'RESURVEYREQ',
+        'RESURVEYSTART',
+        'RESURVEYDONE',
+        'REWORKREQ',
+        'REWORKSTART',
+        'RESURVEYDONE',
+      ];
 
       const orderSurveyOnGoing = data.filter(
-        x => ongoingSurveyCategories.includes(x.status.category) && x.payment_type === 'survey'
+        (x) =>
+          ongoingSurveyCategories.includes(x.status.category) &&
+          x.payment_type === 'survey',
       ).length;
-      console.log("ORDER SURVEY ON GOING", orderSurveyOnGoing);
-      const orderSurveyNoQuotation = data.filter((x) =>
-        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'SURVEYDONE'
+      console.log('ORDER SURVEY ON GOING', orderSurveyOnGoing);
+      const orderSurveyNoQuotation = data.filter(
+        (x) =>
+          x.payment_type === 'survey' &&
+          x.quotation.length === 0 &&
+          x.status.category === 'SURVEYDONE',
       ).length;
-      const orderSurveyCancelRefund = data.filter((x) =>
-        x.payment_type === 'survey' && x.quotation.length === 0 && x.status.category === 'CANCELREFUND' || x.status.category === 'REFUND' 
+      const orderSurveyCancelRefund = data.filter(
+        (x) =>
+          (x.payment_type === 'survey' &&
+            x.quotation.length === 0 &&
+            x.status.category === 'CANCELREFUND') ||
+          x.status.category === 'REFUND',
       ).length;
-      console.log("ORDER SURVEY NO QUOTATION", orderSurveyNoQuotation);
+      console.log('ORDER SURVEY NO QUOTATION', orderSurveyNoQuotation);
 
       const dateFrom = new Date(date_from);
       const dateTo = new Date(date_to);
 
-      const formattedDateFrom = dateFrom.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-      const formattedDateTo = dateTo.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      const formattedDateFrom = dateFrom.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+      const formattedDateTo = dateTo.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
 
       const titleCell = worksheet.getCell('A1');
       worksheet.getRow(1).height = 40;
@@ -2155,8 +2192,13 @@ export class ReportsService {
       };
       worksheet.mergeCells('A1:F1');
 
-
-      worksheet.addRow(['Installation Booking', '', 'Survey', '', `Job Done: ${orderDone1 + orderDone2}`]);
+      worksheet.addRow([
+        'Installation Booking',
+        '',
+        'Survey',
+        '',
+        `Job Done: ${orderDone1 + orderDone2}`,
+      ]);
 
       const headerRow = worksheet.getRow(2);
       headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -2186,13 +2228,20 @@ export class ReportsService {
         '',
         `Survey: ${orderSurvey}`,
         '',
-        `Add Program`
+        `Add Program`,
       ]);
 
-      const currentMonth = dateFrom.toLocaleString('default', { month: 'long' });
+      const currentMonth = dateFrom.toLocaleString('default', {
+        month: 'long',
+      });
 
-      const nextMonthDate = new Date(dateFrom.getFullYear(), dateFrom.getMonth() + 1);
-      const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long' });
+      const nextMonthDate = new Date(
+        dateFrom.getFullYear(),
+        dateFrom.getMonth() + 1,
+      );
+      const nextMonthName = nextMonthDate.toLocaleString('default', {
+        month: 'long',
+      });
 
       interface Status {
         label: string;
@@ -2203,16 +2252,50 @@ export class ReportsService {
 
       // Data untuk entri default di statuses
       const statuses: Status[] = [
-        { label: 'Done', value: orderDone1 + orderDone2, quotationLabel: 'Survey & Implementation', quotationValue: quotationPaid },
-        { label: `Pending (Req Date ${currentMonth})`, value: orderPending1 + orderPending2, quotationLabel: 'Total Value', quotationValue: quotationPaidValue },
-        { label: 'Refund', value: orderRefund, quotationLabel: 'Survey & Quotation', quotationValue: quotationUnpaid },
-        { label: 'Cancel', value: orderCancel, quotationLabel: 'Total Value', quotationValue: quotationUnpaidValue },
-        { label: `On Going (Req Date ${nextMonthName})`, value: orderProgress, quotationLabel: 'Survey On Going', quotationValue: orderSurveyOnGoing },
-        { label: '', value: '', quotationLabel: 'Survey & No Quotation', quotationValue: orderSurveyNoQuotation },
-        { label: '', value: '', quotationLabel: 'Survey & Cancel Refund', quotationValue: orderSurveyCancelRefund },
-        { label: '', value: '', quotationLabel: '', quotationValue: '' }
+        {
+          label: 'Done',
+          value: orderDone1 + orderDone2,
+          quotationLabel: 'Survey & Implementation',
+          quotationValue: quotationPaid,
+        },
+        {
+          label: `Pending (Req Date ${currentMonth})`,
+          value: orderPending1 + orderPending2,
+          quotationLabel: 'Total Value',
+          quotationValue: quotationPaidValue,
+        },
+        {
+          label: 'Refund',
+          value: orderRefund,
+          quotationLabel: 'Survey & Quotation',
+          quotationValue: quotationUnpaid,
+        },
+        {
+          label: 'Cancel',
+          value: orderCancel,
+          quotationLabel: 'Total Value',
+          quotationValue: quotationUnpaidValue,
+        },
+        {
+          label: `On Going (Req Date ${nextMonthName})`,
+          value: orderProgress,
+          quotationLabel: 'Survey On Going',
+          quotationValue: orderSurveyOnGoing,
+        },
+        {
+          label: '',
+          value: '',
+          quotationLabel: 'Survey & No Quotation',
+          quotationValue: orderSurveyNoQuotation,
+        },
+        {
+          label: '',
+          value: '',
+          quotationLabel: 'Survey & Cancel Refund',
+          quotationValue: orderSurveyCancelRefund,
+        },
+        { label: '', value: '', quotationLabel: '', quotationValue: '' },
       ];
-
 
       const itemLength = allItems.length;
       const statusLength = statuses.length;
@@ -2220,31 +2303,42 @@ export class ReportsService {
       const maxLength = Math.max(itemLength, statusLength);
 
       for (let i = 0; i < maxLength; i++) {
-        const status = statuses[i] || {} as Status;
-        const statusText = status.label ? `${status.label}: ${status.value}` : '';
-        const quotationText = status.quotationLabel ? `${status.quotationLabel}: ${status.quotationValue}` : '';
-
-        const item = allItems[i] || {} as Item;
-        const itemName = item.itemName && item.orderCount
-          ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY '}${item.itemName}: ${item.orderCount}`
+        const status = statuses[i] || ({} as Status);
+        const statusText = status.label
+          ? `${status.label}: ${status.value}`
           : '';
+        const quotationText = status.quotationLabel
+          ? `${status.quotationLabel}: ${status.quotationValue}`
+          : '';
+
+        const item = allItems[i] || ({} as Item);
+        const itemName =
+          item.itemName && item.orderCount
+            ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY '}${
+                item.itemName
+              }: ${item.orderCount}`
+            : '';
         const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
         const row = [
-          { richText: [{ text: statusText || '', font: { argb: 'FF000000' } }] },
+          {
+            richText: [{ text: statusText || '', font: { argb: 'FF000000' } }],
+          },
           '',
-          { richText: [{ text: quotationText || '', font: { argb: 'FF000000' } }] },
+          {
+            richText: [
+              { text: quotationText || '', font: { argb: 'FF000000' } },
+            ],
+          },
           '',
           itemName || '',
-          quantity || ''
+          quantity || '',
         ];
 
         example.push(row);
       }
 
-
-
-      example.forEach(row => {
+      example.forEach((row) => {
         const newRow = worksheet.addRow(row);
         newRow.font = { size: 12 };
         newRow.alignment = { horizontal: 'left' };
@@ -2318,5 +2412,4 @@ export class ReportsService {
       throw error;
     }
   }
-
 }

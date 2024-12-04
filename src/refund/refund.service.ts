@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { UpdateRefundDto } from './dto/update-refund.dto';
@@ -17,8 +18,8 @@ export class RefundService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-    private notifService : NotificationsService
-  ) {}
+    private notifService: NotificationsService,
+  ) { }
   async create(
     createRefundDto: CreateRefundDto,
     user: users,
@@ -33,10 +34,10 @@ export class RefundService {
         include: {
           work_orders: {
             include: {
-              work_order_tukang: true
-            }
-          }
-      },
+              work_order_tukang: true,
+            },
+          },
+        },
       });
       if (!order) throw new BadRequestException('Order not found');
       const evidences:
@@ -46,14 +47,7 @@ export class RefundService {
           evidence_location: evidence.filename,
           created_by: user_id,
         })) ?? undefined;
-      const now = new Date();
-      const month = (now.getMonth() + 1).toString().padStart(2, '0');
-      const year = now.getFullYear().toString();
 
-      const refundCount = await this.dbService.refund.count();
-      const nextRefundNumber = refundCount + 1;
-
-     
 
       const data: Prisma.refundCreateInput = {
         refund_evidences: {
@@ -85,17 +79,17 @@ export class RefundService {
         data,
       });
 
-      if(refund){
+      if (refund) {
         await this.notifService.create(
           {
             refund: refund,
             orders: order,
           },
-          "CREATE",
+          'CREATE',
           refund.created_by,
           moduleTypeNotification.REFUND,
           refund.id,
-          refund.refund_status
+          refund.refund_status,
         );
       }
 
@@ -132,110 +126,110 @@ export class RefundService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    !isNaN(Number(search))
-                      ? {
-                          id: {
-                            equals: Number(search),
-                          },
-                        }
-                      : undefined,
-                    !isNaN(Number(search))
-                      ? {
-                          order_id: {
-                            equals: Number(search),
-                          },
-                        }
-                      : undefined,
-                    { voucher: { contains: search } },
-                    { reason: { contains: search } },
-                    {
-                      orders: {
-                        members: {
-                          whatsapp_number: {
-                            contains: search,
-                          },
+              {
+                OR: [
+                  !isNaN(Number(search))
+                    ? {
+                      id: {
+                        equals: Number(search),
+                      },
+                    }
+                    : undefined,
+                  !isNaN(Number(search))
+                    ? {
+                      order_id: {
+                        equals: Number(search),
+                      },
+                    }
+                    : undefined,
+                  { voucher: { contains: search } },
+                  { reason: { contains: search } },
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
                         },
                       },
                     },
-                    {
-                      orders: {
-                        members: {
-                          phone_number: {
-                            contains: search,
-                          },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
                         },
                       },
                     },
-                    {
-                      orders: {
-                        members: {
-                          full_name: {
-                            contains: search,
-                          },
+                  },
+                  {
+                    orders: {
+                      members: {
+                        full_name: {
+                          contains: search,
                         },
                       },
                     },
-                    {
-                      orders: {
-                        store: {
-                          store_name: search,
-                        },
+                  },
+                  {
+                    orders: {
+                      store: {
+                        store_name: search,
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(store_id
             ? [
-                {
-                  orders: {
-                    store_id: {
-                      in: store_id,
-                    },
+              {
+                orders: {
+                  store_id: {
+                    in: store_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(claim_voucher)
             ? [
-                {
-                  voucher: {
-                    not: null,
-                  },
+              {
+                voucher: {
+                  not: null,
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(penalty_vendor)
             ? [
-                {
-                  penalty_nominal: {
-                    not: null,
-                  },
+              {
+                penalty_nominal: {
+                  not: null,
                 },
-              ]
+              },
+            ]
             : []),
           ...(vendor_id
             ? [
-                {
-                  orders: {
-                    vendor_id: vendor_id,
-                  },
+              {
+                orders: {
+                  vendor_id: vendor_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -384,32 +378,32 @@ export class RefundService {
       const evidences: Array<Prisma.refund_evidencesCreateManyRefundInput> =
         refunds_evidences
           ? refunds_evidences.map((evidence) => ({
-              evidence_location: evidence.filename,
-              created_by: user_id,
-            }))
+            evidence_location: evidence.filename,
+            created_by: user_id,
+          }))
           : undefined;
 
       const refundConn = {
         ...(updateRefundDto.order_id
           ? {
-              orders: {
-                connect: {
-                  id: updateRefundDto.order_id,
-                },
+            orders: {
+              connect: {
+                id: updateRefundDto.order_id,
               },
-            }
+            },
+          }
           : undefined),
         ...(updateRefundDto.refund_status
           ? {
-              status: {
-                connect: {
-                  id: updateRefundDto.refund_status,
-                },
+            status: {
+              connect: {
+                id: updateRefundDto.refund_status,
               },
-            }
+            },
+          }
           : undefined),
       };
-      const refundData = {
+      const refundData: Prisma.refundUpdateInput = {
         date_approve: updateRefundDto.date_approve
           ? new Date(updateRefundDto.date_approve)
           : new Date(),
@@ -422,41 +416,46 @@ export class RefundService {
         penalty_nominal: updateRefundDto.penalty_nominal
           ? updateRefundDto.penalty_nominal
           : null,
+        refund_evidences: {
+          create: evidences,
+        },
         voucher: updateRefundDto.voucher ? updateRefundDto.voucher : null,
         updated_by: user_id,
       };
-      const refund = await this.dbService.refund.update({
-        where: {
-          id,
-        },
-        data: {
-          ...refundConn,
-          ...refundData,
-        },
-        include: {
-          orders: {
-            include: {
-              work_orders: {
-                include: {
-                  work_order_tukang: true
-                }
-              }
-          },
-          }
-        }
-      });
 
-      if(refund){
+      const [refundEvidences, refund] = await this.dbService.$transaction([
+        this.dbService.refund_evidences.deleteMany({ where: { refund_id: id } }),
+        this.dbService.refund.update({
+          where: { id },
+          data: {
+            ...refundConn,
+            ...refundData,
+          },
+          include: {
+            orders: {
+              include: {
+                work_orders: {
+                  include: {
+                    work_order_tukang: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      ])
+
+      if (refund) {
         await this.notifService.create(
           {
             refund: refund,
             orders: refund.orders,
           },
-          "UPDATE",
+          'UPDATE',
           refund.updated_by,
           moduleTypeNotification.REFUND,
           refund.id,
-          refund.refund_status
+          refund.refund_status,
         );
       }
 
@@ -477,10 +476,8 @@ export class RefundService {
         order_by,
         date_from,
         date_to,
-        page,
         search,
         status,
-        take,
         store_id,
         vendor_id,
         penalty_vendor,
@@ -489,44 +486,44 @@ export class RefundService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { voucher: { contains: search } },
-                    { reason: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  { voucher: { contains: search } },
+                  { reason: { contains: search } },
+                ],
+              },
+            ]
             : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(store_id
             ? [
-                {
-                  orders: {
-                    store_id: {
-                      in: store_id,
-                    },
+              {
+                orders: {
+                  store_id: {
+                    in: store_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(vendor_id
             ? [
-                {
-                  orders: {
-                    vendor_id: vendor_id,
-                  },
+              {
+                orders: {
+                  vendor_id: vendor_id,
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -729,7 +726,11 @@ export class RefundService {
           member_name: refund.orders.members.full_name,
           store_name: refund.orders.store.store_name,
           vendor_name: refund.orders?.vendor?.vendor_name ?? '-',
-          item_name: refund?.orders?.m_order_details ? refund.orders.m_order_details.map((item) => item.item_name).join(', ') : '-',
+          item_name: refund?.orders?.m_order_details
+            ? refund.orders.m_order_details
+              .map((item) => item.item_name)
+              .join(', ')
+            : '-',
           status_order: refund.orders.members.member_number,
           paid_status:
             refund.paid_status === 0 || null ? 'Belum Dibayar' : 'Dibayar',
@@ -755,16 +756,16 @@ export class RefundService {
 
       const totalGrandTotal = Boolean(penalty_vendor)
         ? dataExcel.reduce((total, refund) => {
-            return (
-              total + (refund.orders ? Number(refund.orders.grand_total) : 0)
-            );
-          }, 0)
+          return (
+            total + (refund.orders ? Number(refund.orders.grand_total) : 0)
+          );
+        }, 0)
         : dataExcel.reduce((total, refund) => {
-            return (
-              total +
-              (refund.penalty_nominal ? Number(refund.penalty_nominal) : 0)
-            );
-          }, 0);
+          return (
+            total +
+            (refund.penalty_nominal ? Number(refund.penalty_nominal) : 0)
+          );
+        }, 0);
       const formattedTotalGrandTotal = Number(totalGrandTotal);
 
       const totalRow = worksheet.addRow({

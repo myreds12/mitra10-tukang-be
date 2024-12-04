@@ -1,13 +1,13 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, store, users } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
-
 @Injectable()
 export class ItemsService {
-  constructor(private readonly dbService: PrismaService) { }
+  constructor(private readonly dbService: PrismaService) {}
   async create(createItemDto: CreateItemDto, user_id: number) {
     try {
       const {
@@ -115,14 +115,12 @@ export class ItemsService {
     }
   }
 
-  async findAll(queryParamsDto: QueryParamsDto, user: users) {
+  async findAll(queryParamsDto: QueryParamsDto) {
     try {
-      const { id, role_id } = user;
       const {
         search,
         take,
         page,
-        group_by,
         all_store,
         store_id,
         is_free,
@@ -130,7 +128,6 @@ export class ItemsService {
         is_promotion,
       } = queryParamsDto;
       // const category_id = +search ? Number.parseInt(search) : undefined;
-      const now = new Date();
 
       const allStore = await this.dbService.store
         .findMany()
@@ -142,69 +139,71 @@ export class ItemsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    service_name: {
-                      contains: search,
+                {
+                  OR: [
+                    {
+                      service_name: {
+                        contains: search,
+                      },
                     },
-                  },
-                  {
-                    item_name: {
-                      contains: search,
+                    {
+                      item_name: {
+                        contains: search,
+                      },
                     },
-                  },
-                  {
-                    item_code: {
-                      contains: search,
+                    {
+                      item_code: {
+                        contains: search,
+                      },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(is_promotion === 1
             ? [
-              {
-                prices: {
-                  some: {
-                    deleted_at: null,
-                    periodic_start: { lte: new Date() },
-                    periodic_end: { gte: new Date() }
-                  },
-                },
-              },
-            ]
-            : []),
-          ...(store_id ? [
-            {
-              prices: {
-                some: {
-                  deleted_at: null,
-                  is_active: true,
-                  price_stores: {
+                {
+                  prices: {
                     some: {
                       deleted_at: null,
-                      store_id: {
-                        in: store_id
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          ] : []),
+                      periodic_start: { lte: new Date() },
+                      periodic_end: { gte: new Date() },
+                    },
+                  },
+                },
+              ]
+            : []),
+          ...(store_id
+            ? [
+                {
+                  prices: {
+                    some: {
+                      deleted_at: null,
+                      is_active: true,
+                      price_stores: {
+                        some: {
+                          deleted_at: null,
+                          store_id: {
+                            in: store_id,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
           ...(item_type ? [{ type: { equals: item_type } }] : []),
           ...(is_free === 1
             ? [
-              {
-                prices: {
-                  every: {
-                    price: 0,
+                {
+                  prices: {
+                    every: {
+                      price: 0,
+                    },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           // category_id
           //   ? {
@@ -215,20 +214,20 @@ export class ItemsService {
           //   : undefined,
           ...(all_store === 1
             ? [
-              {
-                prices: {
-                  every: {
-                    price_stores: {
-                      every: {
-                        store_id: {
-                          in: allStore,
+                {
+                  prices: {
+                    every: {
+                      price_stores: {
+                        every: {
+                          store_id: {
+                            in: allStore,
+                          },
                         },
                       },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           // sales.sales
           //   ? {
@@ -250,7 +249,6 @@ export class ItemsService {
       };
 
       // console.log('Generated WHERE clause:', JSON.stringify(where, null, 2));
-
 
       const itemsOptions: Prisma.itemsFindManyArgs = {
         skip,
@@ -302,7 +300,7 @@ export class ItemsService {
           page,
           take,
           total,
-          takeTotal: items.length
+          takeTotal: items.length,
         },
       };
     } catch (error) {
@@ -435,7 +433,6 @@ export class ItemsService {
             }
             console.log(Boolean(price.is_active));
 
-
             return {
               where: { item_id: id, id: price?.id ?? 0 },
               update: {
@@ -478,8 +475,6 @@ export class ItemsService {
             };
           }),
         );
-
-
 
       const itemQuery = {
         where: { id },
@@ -546,7 +541,7 @@ export class ItemsService {
         data: {
           is_active: false,
           deleted_at: new Date(),
-          deleted_by: user_id
+          deleted_by: user_id,
         },
       });
 
