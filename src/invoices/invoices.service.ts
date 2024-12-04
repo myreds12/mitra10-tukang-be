@@ -25,7 +25,7 @@ export class InvoicesService {
     private readonly dbService: PrismaService,
     private notifService: NotificationsService,
     private pdfService: PdfService,
-  ) {}
+  ) { }
   private readonly logger = new Logger(InvoicesService.name);
   async create(
     createInvoiceDto: CreateInvoiceDto,
@@ -38,9 +38,9 @@ export class InvoicesService {
       // Prepare evidences if available
       const evidences = invoice_evidences?.length
         ? invoice_evidences.map((item) => ({
-            evidence_location: item.filename,
-            created_by: user_id,
-          }))
+          evidence_location: item.filename,
+          created_by: user_id,
+        }))
         : [];
 
       const vendor = await this.dbService.vendor.findFirst({
@@ -52,8 +52,8 @@ export class InvoicesService {
       // Get provided order IDs
       const providedOrder = createInvoiceDto.invoice_details
         ? createInvoiceDto.invoice_details.map(({ order_id }) =>
-            Number(order_id),
-          )
+          Number(order_id),
+        )
         : [];
       // console.log('Provided Order IDs: ', providedOrder);
 
@@ -136,20 +136,20 @@ export class InvoicesService {
               const totalMargin =
                 vendor.margin_type === 1
                   ? (+vendor.margin_nominal / 100) *
-                    Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0,
-                      ),
-                    )
+                  Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  )
                   : Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0,
-                      ),
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -162,22 +162,22 @@ export class InvoicesService {
               const totalMargin =
                 vendor.margin_type === 1
                   ? ((+vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) *
-                      25) /
-                    100
-                  : Number(
+                    Number(
                       order?.quotation[0]?.quotation_details.reduce(
                         (acc, curr) => acc + Number(curr.final_price),
                         0,
                       ),
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -190,22 +190,22 @@ export class InvoicesService {
               const totalMargin =
                 vendor.margin_type === 1
                   ? ((+vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) *
-                      50) /
-                    100
-                  : Number(
+                    Number(
                       order?.quotation[0]?.quotation_details.reduce(
                         (acc, curr) => acc + Number(curr.final_price),
                         0,
                       ),
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
+                    ) *
+                    50) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -218,22 +218,22 @@ export class InvoicesService {
               const totalMargin =
                 vendor.margin_type === 1
                   ? ((+vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) *
-                      25) /
-                    100
-                  : Number(
+                    Number(
                       order?.quotation[0]?.quotation_details.reduce(
                         (acc, curr) => acc + Number(curr.final_price),
                         0,
                       ),
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) +
+                  +vendor.margin_nominal +
+                  Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -246,25 +246,25 @@ export class InvoicesService {
               const totalMargin =
                 (vendor.margin_type === 1
                   ? order.m_order_details
-                      .filter((i) => i.item.type === 2)
-                      .reduce(
-                        (acc, curr) =>
-                          acc + Number(curr?.item?.invoice_nominal || 0),
-                        0,
-                      ) *
-                    order.m_order_details
-                      .filter((i) => i.item.type === 2)
-                      .reduce(
-                        (acc, curr) => acc + Number(curr?.quantity || 0),
-                        0,
-                      )
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) =>
+                        acc + Number(curr?.item?.invoice_nominal || 0),
+                      0,
+                    ) *
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )
                   : +vendor.margin_nominal *
-                    order.m_order_details
-                      .filter((i) => i.item.type === 2)
-                      .reduce(
-                        (acc, curr) => acc + Number(curr?.quantity || 0),
-                        0,
-                      )) + Number(order.additional_fee);
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -274,12 +274,17 @@ export class InvoicesService {
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'gratis') {
               const totalMargin =
-                order.m_order_details
+                (order.m_order_details
                   .filter((i) => i.item.type === 1)
                   .reduce(
                     (acc, curr) => acc + Number(curr.item.invoice_nominal),
                     0,
-                  ) + Number(order.additional_fee);
+                  ) * order.m_order_details
+                    .filter((i) => i.item.type === 1)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -330,12 +335,12 @@ export class InvoicesService {
         },
         ...(invoiceDetails.length > 0
           ? {
-              invoice_details: {
-                createMany: {
-                  data: invoiceDetails,
-                },
+            invoice_details: {
+              createMany: {
+                data: invoiceDetails,
               },
-            }
+            },
+          }
           : {}),
         created_by: user_id,
       };
@@ -385,67 +390,67 @@ export class InvoicesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      invoice_number: { contains: search },
-                    },
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    {
-                      invoice_details: {
-                        some: {
-                          order_id: !isNaN(+search) ? +search : undefined,
-                        },
+              {
+                OR: [
+                  {
+                    invoice_number: { contains: search },
+                  },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order_id: !isNaN(+search) ? +search : undefined,
                       },
                     },
-                    {
-                      invoice_details: {
-                        some: {
-                          order: {
-                            store: {
-                              store_name: {
-                                contains: search,
-                              },
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order: {
+                          store: {
+                            store_name: {
+                              contains: search,
                             },
                           },
                         },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(status
             ? [
-                {
-                  status: {
-                    in: status,
-                  },
+              {
+                status: {
+                  in: status,
                 },
-              ]
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           monthly
             ? {
-                created_at: {
-                  gte: new Date(now.getFullYear(), 0, 1),
-                  lte: new Date(now.getFullYear(), 11, 31),
-                },
-              }
+              created_at: {
+                gte: new Date(now.getFullYear(), 0, 1),
+                lte: new Date(now.getFullYear(), 11, 31),
+              },
+            }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -645,139 +650,144 @@ export class InvoicesService {
 
       const invoiceDetails = updateInvoiceDto?.invoice_details
         ? updateInvoiceDto?.invoice_details.map((item) => {
-            const order = orders.find((order) => order.id === item.order_id);
-            let total = 0;
+          const order = orders.find((order) => order.id === item.order_id);
+          let total = 0;
 
-            if (order) {
-              if (order.payment_type === 'survey' && item.type === 1) {
-                total = invoice.vendor.nominal_survey
-                  ? Number(invoice.vendor.nominal_survey)
-                  : 75000 + Number(order.additional_fee);
-              } else if (order.payment_type === 'survey' && item.type === 2) {
-                total =
-                  (invoice.vendor.margin_type === 1
-                    ? (+invoice.vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      )
-                    : Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) - +invoice.vendor.margin_nominal) +
-                  Number(order.additional_fee);
-              } else if (order.payment_type === 'survey' && item.type === 3) {
-                total =
-                  (invoice.vendor.margin_type === 1
-                    ? ((+invoice.vendor.margin_nominal / 100) *
-                        Number(
-                          order?.quotation[0]?.quotation_details.reduce(
-                            (acc, curr) => acc + Number(curr.final_price),
-                            0,
-                          ),
-                        ) *
-                        25) /
-                      100
-                    : Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) + +invoice.vendor.margin_nominal) +
-                  Number(order.additional_fee);
-              } else if (order.payment_type === 'survey' && item.type === 4) {
-                total =
-                  (invoice.vendor.margin_type === 1
-                    ? ((+invoice.vendor.margin_nominal / 100) *
-                        Number(
-                          order?.quotation[0]?.quotation_details.reduce(
-                            (acc, curr) => acc + Number(curr.final_price),
-                            0,
-                          ),
-                        ) *
-                        50) /
-                      100
-                    : Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) + +invoice.vendor.margin_nominal) +
-                  Number(order.additional_fee);
-              } else if (order.payment_type === 'survey' && item.type === 5) {
-                total =
-                  (invoice.vendor.margin_type === 1
-                    ? ((+invoice.vendor.margin_nominal / 100) *
-                        Number(
-                          order?.quotation[0]?.quotation_details.reduce(
-                            (acc, curr) => acc + Number(curr.final_price),
-                            0,
-                          ),
-                        ) *
-                        25) /
-                      100
-                    : Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0,
-                        ),
-                      ) + +invoice.vendor.margin_nominal) +
-                  Number(order.additional_fee);
-              } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-                total =
-                  (invoice.vendor.margin_type === 1
-                    ? order.m_order_details
-                        .filter((i) => i.item.type === 2)
-                        .reduce(
-                          (acc, curr) =>
-                            acc + Number(curr?.item?.invoice_nominal || 0),
-                          0,
-                        ) *
-                      order.m_order_details
-                        .filter((i) => i.item.type === 2)
-                        .reduce(
-                          (acc, curr) => acc + Number(curr?.quantity || 0),
-                          0,
-                        )
-                    : +invoice.vendor.margin_nominal *
-                      order.m_order_details
-                        .filter((i) => i.item.type === 2)
-                        .reduce(
-                          (acc, curr) => acc + Number(curr?.quantity || 0),
-                          0,
-                        )) + Number(order.additional_fee);
-              } else if (order.payment_type === 'gratis') {
-                total =
+          if (order) {
+            if (order.payment_type === 'survey' && item.type === 1) {
+              total = invoice.vendor.nominal_survey
+                ? Number(invoice.vendor.nominal_survey)
+                : 75000 + Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 2) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? (+invoice.vendor.margin_nominal / 100) *
+                  Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  )
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) - +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 3) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? ((+invoice.vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) + +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 4) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? ((+invoice.vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    50) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) + +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'survey' && item.type === 5) {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? ((+invoice.vendor.margin_nominal / 100) *
+                    Number(
+                      order?.quotation[0]?.quotation_details.reduce(
+                        (acc, curr) => acc + Number(curr.final_price),
+                        0,
+                      ),
+                    ) *
+                    25) /
+                  100
+                  : Number(
+                    order?.quotation[0]?.quotation_details.reduce(
+                      (acc, curr) => acc + Number(curr.final_price),
+                      0,
+                    ),
+                  ) + +invoice.vendor.margin_nominal) +
+                Number(order.additional_fee);
+            } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+              total =
+                (invoice.vendor.margin_type === 1
+                  ? order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) =>
+                        acc + Number(curr?.item?.invoice_nominal || 0),
+                      0,
+                    ) *
                   order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )
+                  : +invoice.vendor.margin_nominal *
+                  order.m_order_details
+                    .filter((i) => i.item.type === 2)
+                    .reduce(
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
+                      0,
+                    )) + Number(order.additional_fee);
+            } else if (order.payment_type === 'gratis') {
+              total =
+                (order.m_order_details
+                  .filter((i) => i.item.type === 1)
+                  .reduce(
+                    (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                    0,
+                  ) * order.m_order_details
                     .filter((i) => i.item.type === 1)
                     .reduce(
-                      (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                      (acc, curr) => acc + Number(curr?.quantity || 0),
                       0,
-                    ) + Number(order.additional_fee);
-              }
-              totalGrandTotal += total || 0;
+                    )) + Number(order.additional_fee);
             }
+            totalGrandTotal += total || 0;
+          }
 
-            return {
-              where: { id: item.id ?? 0 },
-              create: {
-                order: { connect: { id: item.order_id } },
-                total,
-                type: item.type,
-                created_by: user_id,
-              },
-              update: {
-                order_id: item.order_id,
-                total,
-                updated_at: new Date(),
-                updated_by: user_id,
-              },
-            };
-          })
+          return {
+            where: { id: item.id ?? 0 },
+            create: {
+              order: { connect: { id: item.order_id } },
+              total,
+              type: item.type,
+              created_by: user_id,
+            },
+            update: {
+              order_id: item.order_id,
+              total,
+              updated_at: new Date(),
+              updated_by: user_id,
+            },
+          };
+        })
         : undefined;
 
       const pkpNominal =
@@ -798,7 +808,7 @@ export class InvoicesService {
         pphNominal +
         ppnNominal -
         (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI &&
-        penaltyNominal != 0
+          penaltyNominal != 0
           ? penaltyNominal
           : Number(invoice.penalty_nominal));
 
@@ -810,8 +820,8 @@ export class InvoicesService {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
         ...(updateInvoiceDto.status === 5
           ? {
-              invoice_to_finance_date: new Date(),
-            }
+            invoice_to_finance_date: new Date(),
+          }
           : undefined),
         status: statusInvoice,
         description: updateInvoiceDto?.description ?? undefined,
@@ -827,8 +837,8 @@ export class InvoicesService {
 
       const detailsIds = updateInvoiceDto.invoice_details
         ? updateInvoiceDto.invoice_details
-            .filter((x) => Boolean(x?.id))
-            .map((item) => item?.id)
+          .filter((x) => Boolean(x?.id))
+          .map((item) => item?.id)
         : undefined;
 
       const updatedInvoice = await this.dbService.$transaction([
@@ -838,51 +848,51 @@ export class InvoicesService {
         }),
         ...(invoice_evidences
           ? [
-              this.dbService.invoice_evidence.updateMany({
-                where: {
-                  invoice_id: invoice.id,
-                },
-                data: {
-                  deleted_at: new Date(),
-                  deleted_by: user_id,
-                },
-              }),
-            ]
+            this.dbService.invoice_evidence.updateMany({
+              where: {
+                invoice_id: invoice.id,
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            }),
+          ]
           : []),
         ...(updateInvoiceDto.invoice_details
           ? [
-              this.dbService.invoice_details.updateMany({
-                where: {
-                  ...(detailsIds && detailsIds.length
-                    ? {
-                        id: {
-                          notIn: detailsIds,
-                        },
-                      }
-                    : undefined),
-                  invoice_id: invoice.id,
-                },
-                data: {
-                  deleted_at: new Date(),
-                  deleted_by: user_id,
-                },
-              }),
-            ]
+            this.dbService.invoice_details.updateMany({
+              where: {
+                ...(detailsIds && detailsIds.length
+                  ? {
+                    id: {
+                      notIn: detailsIds,
+                    },
+                  }
+                  : undefined),
+                invoice_id: invoice.id,
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            }),
+          ]
           : []),
         ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI
           ? [
-              this.dbService.refund.updateMany({
-                where: {
-                  orders: {
-                    vendor_id: invoice.vendor.id,
-                  },
-                  paid_status: 0,
+            this.dbService.refund.updateMany({
+              where: {
+                orders: {
+                  vendor_id: invoice.vendor.id,
                 },
-                data: {
-                  paid_status: 1,
-                },
-              }),
-            ]
+                paid_status: 0,
+              },
+              data: {
+                paid_status: 1,
+              },
+            }),
+          ]
           : []),
       ]);
 
@@ -998,67 +1008,67 @@ export class InvoicesService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      invoice_number: { contains: search },
-                    },
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    {
-                      invoice_details: {
-                        some: {
-                          order_id: !isNaN(+search) ? +search : undefined,
-                        },
+              {
+                OR: [
+                  {
+                    invoice_number: { contains: search },
+                  },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order_id: !isNaN(+search) ? +search : undefined,
                       },
                     },
-                    {
-                      invoice_details: {
-                        some: {
-                          order: {
-                            store: {
-                              store_name: {
-                                contains: search,
-                              },
+                  },
+                  {
+                    invoice_details: {
+                      some: {
+                        order: {
+                          store: {
+                            store_name: {
+                              contains: search,
                             },
                           },
                         },
                       },
                     },
-                  ],
-                },
-              ]
+                  },
+                ],
+              },
+            ]
             : []),
           ...(status
             ? [
-                {
-                  status: {
-                    in: status,
-                  },
+              {
+                status: {
+                  in: status,
                 },
-              ]
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           monthly
             ? {
-                created_at: {
-                  gte: new Date(now.getFullYear(), 0, 1),
-                  lte: new Date(now.getFullYear(), 11, 31),
-                },
-              }
+              created_at: {
+                gte: new Date(now.getFullYear(), 0, 1),
+                lte: new Date(now.getFullYear(), 11, 31),
+              },
+            }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -1825,8 +1835,8 @@ export class InvoicesService {
             : order.type === 2 &&
               order.order.payment_type === PAYMENT_TYPE.SURVEY &&
               order.order.quotation[0]
-            ? order.order.quotation[0].quotation_grand_total
-            : order.order.grand_total;
+              ? order.order.quotation[0].quotation_grand_total
+              : order.order.grand_total;
 
         const invoice_price = order.total;
         console.log('Invoice Price:', invoice_price);
@@ -1859,34 +1869,32 @@ export class InvoicesService {
           customer_transaction: +customer_transaction,
           instalation_price: instalation_price,
           ppn_difference: margin_ppn,
-          margin_ppn: `${
-            order.order.payment_type === 'gratis'
+          margin_ppn: `${order.order.payment_type === 'gratis'
               ? -100
               : isNaN(margin_ppn / instalation_price)
-              ? 0
-              : Math.ceil((margin_ppn / instalation_price) * 100)
-          }%`,
+                ? 0
+                : Math.ceil((margin_ppn / instalation_price) * 100)
+            }%`,
           difference: price_difference,
           margin_non_ppn:
             order.order.payment_type === 'gratis'
               ? -150000
               : Math.ceil(price_difference / 1.11),
-          margin: `${
-            order.order.payment_type === 'gratis'
+          margin: `${order.order.payment_type === 'gratis'
               ? -100
               : isNaN(
-                  Math.ceil(
-                    (Math.ceil(price_difference / 1.11) /
-                      +customer_transaction) *
-                      100,
-                  ),
-                )
-              ? 0
-              : Math.ceil(
+                Math.ceil(
+                  (Math.ceil(price_difference / 1.11) /
+                    +customer_transaction) *
+                  100,
+                ),
+              )
+                ? 0
+                : Math.ceil(
                   (Math.ceil(price_difference / 1.11) / +customer_transaction) *
-                    100,
+                  100,
                 )
-          }%`,
+            }%`,
           receipt_number: receipt_number || '-',
           order_status: order.order.status.description,
         });
@@ -1919,22 +1927,22 @@ export class InvoicesService {
           order.order.payment_type === 'gratis'
             ? -100
             : isNaN(
-                Math.ceil(
-                  (Math.ceil(price_difference / 1.11) / +customer_transaction) *
-                    100,
-                ),
-              )
-            ? 0
-            : Math.ceil(
+              Math.ceil(
                 (Math.ceil(price_difference / 1.11) / +customer_transaction) *
-                  100,
+                100,
+              ),
+            )
+              ? 0
+              : Math.ceil(
+                (Math.ceil(price_difference / 1.11) / +customer_transaction) *
+                100,
               );
         totals.ppn +=
           order.order.payment_type === 'gratis'
             ? -100
             : isNaN(margin_ppn / instalation_price)
-            ? 0
-            : Math.ceil((margin_ppn / instalation_price) * 100);
+              ? 0
+              : Math.ceil((margin_ppn / instalation_price) * 100);
         totals.price_difference += price_difference;
       });
 
