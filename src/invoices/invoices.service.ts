@@ -55,7 +55,7 @@ export class InvoicesService {
           Number(order_id),
         )
         : [];
-      // console.log('Provided Order IDs: ', providedOrder);
+      console.log('Provided Order IDs: ', providedOrder);
 
       if (providedOrder.length === 0) {
         this.logger.error('No Order Id Provided');
@@ -110,7 +110,7 @@ export class InvoicesService {
 
 
       let totalGrandTotal = 0;
-      let invoiceDetails = [];
+      const invoiceDetails = [];
 
       const formatDateToMonthYear = (dateString) => {
         const date = new Date(dateString);
@@ -325,6 +325,7 @@ export class InvoicesService {
         pkp_nominal: pkpNominal,
         pph_nominal: pphNominal,
         ppn_nominal: ppnNominal,
+        penalty_nominal: 0,
         status: createInvoiceDto.status,
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
@@ -612,13 +613,23 @@ export class InvoicesService {
         where: { id: { in: providedOrderIds } },
         include: {
           m_order_details: {
+            where: {
+              deleted_at: null
+            },
             include: {
               item: true,
             },
           },
           quotation: {
+            where: {
+              deleted_at: null
+            },
             include: {
-              quotation_details: true,
+              quotation_details: {
+                where: {
+                  deleted_at: null
+                }
+              },
             },
           },
           work_orders: true,
@@ -639,10 +650,13 @@ export class InvoicesService {
 
       console.log('REFUNDS', refund);
 
-      const penaltyNominal = refund?.reduce(
+      const penaltyNominal = refund.length > 0 && updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI ? refund?.reduce(
         (acc, curr) => acc + Number(curr?.penalty_nominal),
         0,
-      );
+      ) : invoice.penalty_nominal;
+
+      console.log("VARIABLE PENALTY NOMINAL", penaltyNominal);
+
 
       let totalGrandTotal = invoice.invoice_details.reduce((acc, curr) => {
         return acc + Number(curr.total);
@@ -651,6 +665,8 @@ export class InvoicesService {
       const invoiceDetails = updateInvoiceDto?.invoice_details
         ? updateInvoiceDto?.invoice_details.map((item) => {
           const order = orders.find((order) => order.id === item.order_id);
+          console.log("ORDER", order);
+          
           let total = 0;
 
           if (order) {
@@ -771,6 +787,27 @@ export class InvoicesService {
             }
             totalGrandTotal += total || 0;
           }
+          console.log("TOTAL", total);
+          console.log("TOTAL QUOTATION", (+invoice.vendor.margin_nominal / 100) *
+            Number(
+              order?.quotation[0]?.quotation_details.reduce(
+                (acc, curr) => acc + Number(curr.final_price),
+                0,
+              ),
+            ));
+          console.log("MARGIN VENDOR", (+invoice.vendor.margin_nominal / 100), (+invoice.vendor.margin_nominal) );
+          console.log("FINAL PRICE QUOTATION", 
+            order?.quotation[0]?.quotation_details.reduce(
+            (acc, curr) => acc + Number(curr.final_price),
+            0,
+          ));
+          console.log("TOTAL QUOTATION", (+invoice.vendor.margin_nominal / 100) *
+            Number(
+              order?.quotation[0]?.quotation_details.reduce(
+                (acc, curr) => acc + Number(curr.final_price),
+                0,
+              ),
+            ));
 
           return {
             where: { id: item.id ?? 0 },
@@ -790,6 +827,7 @@ export class InvoicesService {
         })
         : undefined;
 
+
       const pkpNominal =
         invoice.vendor.type === 1
           ? totalGrandTotal * (+invoice.vendor.pkp_nominal / 100)
@@ -807,9 +845,8 @@ export class InvoicesService {
         pkpNominal +
         pphNominal +
         ppnNominal -
-        (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI &&
-          penaltyNominal != 0
-          ? penaltyNominal
+        (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI
+          ? Number(penaltyNominal)
           : Number(invoice.penalty_nominal));
 
       const statusInvoice =
@@ -1816,7 +1853,7 @@ export class InvoicesService {
         cell.value = null;
       });
 
-      let totals = {
+      const totals = {
         customer_transaction: 0,
         invoice_price: 0,
         instalation_price: 0,
@@ -1870,10 +1907,10 @@ export class InvoicesService {
           instalation_price: instalation_price,
           ppn_difference: margin_ppn,
           margin_ppn: `${order.order.payment_type === 'gratis'
-              ? -100
-              : isNaN(margin_ppn / instalation_price)
-                ? 0
-                : Math.ceil((margin_ppn / instalation_price) * 100)
+            ? -100
+            : isNaN(margin_ppn / instalation_price)
+              ? 0
+              : Math.ceil((margin_ppn / instalation_price) * 100)
             }%`,
           difference: price_difference,
           margin_non_ppn:
@@ -1881,19 +1918,19 @@ export class InvoicesService {
               ? -150000
               : Math.ceil(price_difference / 1.11),
           margin: `${order.order.payment_type === 'gratis'
-              ? -100
-              : isNaN(
-                Math.ceil(
-                  (Math.ceil(price_difference / 1.11) /
-                    +customer_transaction) *
-                  100,
-                ),
+            ? -100
+            : isNaN(
+              Math.ceil(
+                (Math.ceil(price_difference / 1.11) /
+                  +customer_transaction) *
+                100,
+              ),
+            )
+              ? 0
+              : Math.ceil(
+                (Math.ceil(price_difference / 1.11) / +customer_transaction) *
+                100,
               )
-                ? 0
-                : Math.ceil(
-                  (Math.ceil(price_difference / 1.11) / +customer_transaction) *
-                  100,
-                )
             }%`,
           receipt_number: receipt_number || '-',
           order_status: order.order.status.description,

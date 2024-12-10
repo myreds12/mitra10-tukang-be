@@ -348,7 +348,7 @@ export class StoreService {
 
   async remove(id: number, user_id: number) {
     try {
-      const store = await this.dbService.store.update({
+       await this.dbService.store.update({
         where: {
           id,
         },
