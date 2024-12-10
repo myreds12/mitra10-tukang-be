@@ -13,27 +13,43 @@ import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 
 @Injectable()
 export class ComissionSalesIncentiveService {
-  constructor(private readonly dbService: PrismaService, private pdfService: PdfService) { }
-  async create(createComissionSalesIncentiveDto: CreateComissionSalesIncentiveDto, user: users, comission_sales_incentive_evidences: Express.Multer.File[]) {
+  constructor(
+    private readonly dbService: PrismaService,
+    private pdfService: PdfService,
+  ) {}
+  async create(
+    createComissionSalesIncentiveDto: CreateComissionSalesIncentiveDto,
+    user: users,
+    comission_sales_incentive_evidences: Express.Multer.File[],
+  ) {
     try {
-      const evidences = comission_sales_incentive_evidences.length > 0 ? comission_sales_incentive_evidences?.map((item) => {
+      const evidences =
+        comission_sales_incentive_evidences.length > 0
+          ? comission_sales_incentive_evidences?.map((item) => {
+              return {
+                evidence_location: item.filename,
+                created_by: user.id,
+              };
+            })
+          : [];
 
-        return {
-          evidence_location: item.filename,
-          created_by: user.id,
-        }
-      }) : [];
-
-
-
-      const salesIncentiveUpdateArgs = createComissionSalesIncentiveDto.sales_incentive.length > 0 ? createComissionSalesIncentiveDto.sales_incentive.map((item) => item.sales_incentive_id) : undefined;
-      const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
-        where: {
-          id: {
-            in: salesIncentiveUpdateArgs
-          }
-        }
-      }).then((data) => data.reduce((acc, curr) => acc + Number(curr?.nominal), 0));
+      const salesIncentiveUpdateArgs =
+        createComissionSalesIncentiveDto.sales_incentive.length > 0
+          ? createComissionSalesIncentiveDto.sales_incentive.map(
+              (item) => item.sales_incentive_id,
+            )
+          : undefined;
+      const salesIncentiveTotalAmount = await this.dbService.sales_incentive
+        .findMany({
+          where: {
+            id: {
+              in: salesIncentiveUpdateArgs,
+            },
+          },
+        })
+        .then((data) =>
+          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
+        );
       const [comissionSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.create({
           data: {
@@ -42,32 +58,32 @@ export class ComissionSalesIncentiveService {
             created_by: user.id,
             comission_sales_incentive_evidence: {
               createMany: {
-                data: evidences
-              }
-            }
+                data: evidences,
+              },
+            },
           },
           include: {
             sales_incentive: {
               include: {
-                quotation:{
-                  include:{
-                    order: true
-                  }
-                }
-              }
-            }
-          }
+                quotation: {
+                  include: {
+                    order: true,
+                  },
+                },
+              },
+            },
+          },
         }),
       ]);
       await this.dbService.sales_incentive.updateMany({
         where: {
           id: {
-            in: salesIncentiveUpdateArgs
-          }
+            in: salesIncentiveUpdateArgs,
+          },
         },
         data: {
-          comission_sales_incentive_id: comissionSalesIncentive.id
-        }
+          comission_sales_incentive_id: comissionSalesIncentive.id,
+        },
       });
       return comissionSalesIncentive;
     } catch (error) {
@@ -85,132 +101,133 @@ export class ComissionSalesIncentiveService {
         date_from,
         date_to,
         order_by,
-        vendor_id,
         monthly,
         status,
-        invoice_status,
       } = query;
       const skip = page * take - take;
       const now = new Date();
       if (monthly) now.setFullYear(monthly);
-      const where: Prisma.comission_sales_incentiveScalarWhereWithAggregatesInput = {
-        AND: [
-          ...(search
-            ? [
-              {
-                OR: [
-
+      const where: Prisma.comission_sales_incentiveScalarWhereWithAggregatesInput =
+        {
+          AND: [
+            ...(search
+              ? [
                   {
-                    id: !isNaN(+search) ? +search : undefined,
+                    OR: [
+                      {
+                        id: !isNaN(+search) ? +search : undefined,
+                      },
+                    ],
                   },
-                ],
-              },
-              {
-                sales_incentive: {
-                  some: {
-                    sales: {
-                      OR: [
-                        {
-                          id: !isNaN(+search) ? +search : undefined,
-                        },
-                        { full_name: { contains: search } },
-                        { sales_brand: { contains: search } },
-                        { account_name: { contains: search } },
-                        { phone_number: { contains: search } },
-                        { account_number: { contains: search } },
-                        { nik: { contains: search } },
-                        { bank_branch: { contains: search } },
-                        {
-                          sales_categories: {
-                            some: {
-                              categories: { category_name: { contains: search } },
+                  {
+                    sales_incentive: {
+                      some: {
+                        sales: {
+                          OR: [
+                            {
+                              id: !isNaN(+search) ? +search : undefined,
                             },
-                          },
+                            { full_name: { contains: search } },
+                            { sales_brand: { contains: search } },
+                            { account_name: { contains: search } },
+                            { phone_number: { contains: search } },
+                            { account_number: { contains: search } },
+                            { nik: { contains: search } },
+                            { bank_branch: { contains: search } },
+                            {
+                              sales_categories: {
+                                some: {
+                                  categories: {
+                                    category_name: { contains: search },
+                                  },
+                                },
+                              },
+                            },
+                          ],
                         },
-                      ]
-                    }
-                  }
-                }
-              }
-            ]
-            : []),
-          ...(status
-            ? [
-              {
-                status: status[0],
-              },
-            ]
-            : []),
-          date_from && date_to
-            ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
-            : undefined,
-          monthly
-            ? {
-              created_at: {
-                gte: new Date(now.getFullYear(), 0, 1),
-                lte: new Date(now.getFullYear(), 11, 31),
-              },
-            }
-            : undefined,
-        ].filter(Boolean),
-        deleted_at: null,
-      };
-      const comissionSalesIncentive = await this.dbService.comission_sales_incentive.findMany({
-        skip,
-        take: take <= 0 ? undefined : take,
-        where,
-        orderBy: {
-          created_at: order_by,
-        },
-        include: {
-          comission_sales_incentive_evidence: {
-            where: {
-              deleted_at: null
-            }
-          },
-          sales_incentive: {
-            where: {
-              deleted_at: null
-            },
-            include: {
-              incentive: true,
-              quotation: {
-                include: {
-                  quotation_details: {
-                    where: {
-                      deleted_at: null
+                      },
                     },
                   },
-                  promotion: true,
-                  order: {
-                    include: {
-                      m_order_details: {
-                        where: {
-                          deleted_at: null
-                        },
-                        include: {
-                          item: true
-                        }
-                      }
-                    }
-                  }
+                ]
+              : []),
+            ...(status
+              ? [
+                  {
+                    status: status[0],
+                  },
+                ]
+              : []),
+            date_from && date_to
+              ? {
+                  created_at: {
+                    gte: new Date(`${date_from}T00:00:00.000Z`),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 }
+              : undefined,
+            monthly
+              ? {
+                  created_at: {
+                    gte: new Date(now.getFullYear(), 0, 1),
+                    lte: new Date(now.getFullYear(), 11, 31),
+                  },
+                }
+              : undefined,
+          ].filter(Boolean),
+          deleted_at: null,
+        };
+      const comissionSalesIncentive =
+        await this.dbService.comission_sales_incentive.findMany({
+          skip,
+          take: take <= 0 ? undefined : take,
+          where,
+          orderBy: {
+            created_at: order_by,
+          },
+          include: {
+            comission_sales_incentive_evidence: {
+              where: {
+                deleted_at: null,
               },
-              sales: {
-                include: {
-                  store: true,
-                  bank: true,
-                }
-              }
-            }
-          }
-        }
-      });
+            },
+            sales_incentive: {
+              where: {
+                deleted_at: null,
+              },
+              include: {
+                incentive: true,
+                quotation: {
+                  include: {
+                    quotation_details: {
+                      where: {
+                        deleted_at: null,
+                      },
+                    },
+                    promotion: true,
+                    order: {
+                      include: {
+                        m_order_details: {
+                          where: {
+                            deleted_at: null,
+                          },
+                          include: {
+                            item: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                sales: {
+                  include: {
+                    store: true,
+                    bank: true,
+                  },
+                },
+              },
+            },
+          },
+        });
 
       const count = await this.dbService.comission_sales_incentive.count();
       return {
@@ -220,8 +237,8 @@ export class ComissionSalesIncentiveService {
           page,
           take,
           takeTotal: comissionSalesIncentive.length,
-        }
-      }
+        },
+      };
     } catch (error) {
       console.log(error);
       throw error;
@@ -230,54 +247,55 @@ export class ComissionSalesIncentiveService {
 
   async findOne(id: number) {
     try {
-      const comissionSalesIncentive = await this.dbService.comission_sales_incentive.findFirst({
-        where: {
-          id
-        },
-        include: {
-          comission_sales_incentive_evidence: {
-            where: {
-              deleted_at: null
-            }
+      const comissionSalesIncentive =
+        await this.dbService.comission_sales_incentive.findFirst({
+          where: {
+            id,
           },
-          sales_incentive: {
-            where: {
-              deleted_at: null
+          include: {
+            comission_sales_incentive_evidence: {
+              where: {
+                deleted_at: null,
+              },
             },
-            include: {
-              incentive: true,
-              quotation: {
-                include: {
-                  quotation_details: {
-                    where: {
-                      deleted_at: null
+            sales_incentive: {
+              where: {
+                deleted_at: null,
+              },
+              include: {
+                incentive: true,
+                quotation: {
+                  include: {
+                    quotation_details: {
+                      where: {
+                        deleted_at: null,
+                      },
+                    },
+                    promotion: true,
+                    order: {
+                      include: {
+                        m_order_details: {
+                          where: {
+                            deleted_at: null,
+                          },
+                          include: {
+                            item: true,
+                          },
+                        },
+                      },
                     },
                   },
-                  promotion: true,
-                  order: {
-                    include: {
-                      m_order_details: {
-                        where: {
-                          deleted_at: null
-                        },
-                        include: {
-                          item: true
-                        }
-                      }
-                    }
-                  }
-                }
+                },
+                sales: {
+                  include: {
+                    store: true,
+                    bank: true,
+                  },
+                },
               },
-              sales: {
-                include: {
-                  store: true,
-                  bank: true,
-                }
-              }
-            }
-          }
-        }
-      });
+            },
+          },
+        });
       return comissionSalesIncentive;
     } catch (error) {
       throw error;
@@ -291,42 +309,57 @@ export class ComissionSalesIncentiveService {
     user: users,
   ) {
     try {
-      const existingSalesIncentives = await this.dbService.sales_incentive.findMany({
-        where: {
-          comission_sales_incentive_id: id,
-        },
-        select: {
-          id: true
-        }
-      });
+      const existingSalesIncentives =
+        await this.dbService.sales_incentive.findMany({
+          where: {
+            comission_sales_incentive_id: id,
+          },
+          select: {
+            id: true,
+          },
+        });
 
-      const existingSalesIncentiveIds = existingSalesIncentives.map((item) => item.id);
+      const existingSalesIncentiveIds = existingSalesIncentives.map(
+        (item) => item.id,
+      );
 
       const newSalesIncentiveIds =
-        updateComissionSalesIncentiveDto?.sales_incentive?.map((item) => item?.sales_incentive_id) || [];
-  
+        updateComissionSalesIncentiveDto?.sales_incentive?.map(
+          (item) => item?.sales_incentive_id,
+        ) || [];
+
       const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(
         (existingId) => !newSalesIncentiveIds.includes(existingId),
       );
-  
+
       const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(
         (newId) => !existingSalesIncentiveIds.includes(newId),
       );
 
-      const evidences = comission_sales_incentive_evidences.length > 0 ? comission_sales_incentive_evidences.map((item) => {
-        return {
-          evidence_location: item.filename,
-          created_by: user.id,
-        };
-      }) : [];
+      const evidences =
+        comission_sales_incentive_evidences.length > 0
+          ? comission_sales_incentive_evidences.map((item) => {
+              return {
+                evidence_location: item.filename,
+                created_by: user.id,
+              };
+            })
+          : [];
 
-      const salesIncentiveTotalAmount = await this.dbService.sales_incentive.findMany({
-        where: {
-          id: {
-            in: newSalesIncentiveIds.length > 0 ? newSalesIncentiveIds : existingSalesIncentiveIds
-          }
-        }
-      }).then((data) => data.reduce((acc, curr) => acc + Number(curr?.nominal), 0));
+      const salesIncentiveTotalAmount = await this.dbService.sales_incentive
+        .findMany({
+          where: {
+            id: {
+              in:
+                newSalesIncentiveIds.length > 0
+                  ? newSalesIncentiveIds
+                  : existingSalesIncentiveIds,
+            },
+          },
+        })
+        .then((data) =>
+          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
+        );
 
       const [comissionSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.update({
@@ -337,9 +370,9 @@ export class ComissionSalesIncentiveService {
             updated_by: user.id,
             comission_sales_incentive_evidence: {
               createMany: {
-                data: evidences
-              }
-            }
+                data: evidences,
+              },
+            },
           },
         }),
         ...(salesIncentiveIdsToConnect.length > 0
@@ -350,7 +383,7 @@ export class ComissionSalesIncentiveService {
               }),
             ]
           : []),
-  
+
         ...(salesIncentiveIdsToConnect.length > 0
           ? [
               this.dbService.sales_incentive.updateMany({
@@ -368,8 +401,6 @@ export class ComissionSalesIncentiveService {
     }
   }
 
-
-
   remove(id: number) {
     return `This action removes a #${id} comissionSalesIncentive`;
   }
@@ -382,7 +413,6 @@ export class ComissionSalesIncentiveService {
       take: 1,
     });
 
-
     let nextCode: number;
     if (invoices[0]) {
       nextCode = invoices[0].id + 1;
@@ -391,7 +421,7 @@ export class ComissionSalesIncentiveService {
     }
 
     return {
-      code: nextCode
+      code: nextCode,
     };
   }
 
@@ -406,14 +436,14 @@ export class ComissionSalesIncentiveService {
         include: {
           sales_incentive: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               sales: {
                 include: {
                   bank: true,
-                  store: true
-                }
+                  store: true,
+                },
               },
               quotation: {
                 include: {
@@ -422,41 +452,46 @@ export class ComissionSalesIncentiveService {
                       members: true,
                       m_order_details: {
                         where: {
-                          deleted_at: null
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-      });
-
-      const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Comission Sales Incentive', {
-        properties: {
-          tabColor: { argb: '097969' },
-        },
-        pageSetup: {
-          margins: {
-            left: 0.7,
-            right: 0.7,
-            top: 0.75,
-            bottom: 0.75,
-            header: 0.3,
-            footer: 0.3,
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       });
 
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet(
+        'Data Comission Sales Incentive',
+        {
+          properties: {
+            tabColor: { argb: '097969' },
+          },
+          pageSetup: {
+            margins: {
+              left: 0.7,
+              right: 0.7,
+              top: 0.75,
+              bottom: 0.75,
+              header: 0.3,
+              footer: 0.3,
+            },
+          },
+        },
+      );
 
       worksheet.mergeCells('A2: N3');
 
       worksheet.getCell('A2').value = `DATA SALES INCENTIVE`;
       worksheet.getCell('A2').font = { size: 16, bold: true };
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       worksheet.columns = [
         { header: 'No', key: 'no', width: 10 },
@@ -473,7 +508,9 @@ export class ComissionSalesIncentiveService {
         { header: 'Insentif', key: 'sales_incentive', width: 15 },
       ];
 
-      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      const headerRow = worksheet.addRow(
+        worksheet.columns.map((col) => col.header),
+      );
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -497,19 +534,10 @@ export class ComissionSalesIncentiveService {
         cell.value = null;
       });
 
-      let totals = {
-        customer_transaction: 0,
-        invoice_price: 0,
-        instalation_price: 0,
-        margin_ppn: 0,
-        margin_non_ppn: 0,
-        margin: 0,
-        ppn: 0,
-        price_difference: 0,
-      };
-
       data.sales_incentive.forEach((item, index) => {
-        const receipt_number = item.quotation.receipt_quotation ? item.quotation.receipt_quotation : item.quotation.order.receipt_number
+        const receipt_number = item.quotation.receipt_quotation
+          ? item.quotation.receipt_quotation
+          : item.quotation.order.receipt_number;
 
         const row = worksheet.addRow({
           no: index + 1,
@@ -521,7 +549,9 @@ export class ComissionSalesIncentiveService {
           sales_bank: item?.sales?.bank?.bank_name ?? '',
           member_name: item?.quotation?.order?.members?.full_name ?? '',
           no_receipt: receipt_number,
-          item_name: item.quotation?.order?.m_order_details?.map((x) => x?.item_name || '-'),
+          item_name: item.quotation?.order?.m_order_details?.map(
+            (x) => x?.item_name || '-',
+          ),
           instalation_fee: Number(item.quotation.quotation_grand_total),
           sales_incentive: Number(item.nominal),
         });
@@ -531,7 +561,7 @@ export class ComissionSalesIncentiveService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
 
           if (colNumber === 4) {
@@ -540,8 +570,6 @@ export class ComissionSalesIncentiveService {
             cell.alignment = { horizontal: 'left' };
           }
         });
-
-
       });
 
       const totalsRow = worksheet.addRow({
@@ -555,12 +583,21 @@ export class ComissionSalesIncentiveService {
         member_name: '',
         no_receipt: '',
         item_name: 'Total',
-        instalation_fee: data.sales_incentive.reduce((acc, curr) => acc + Number(curr?.quotation.quotation_grand_total), 0),
-        sales_incentive: data.sales_incentive.reduce((acc, curr) => acc + Number(curr?.nominal), 0)
+        instalation_fee: data.sales_incentive.reduce(
+          (acc, curr) => acc + Number(curr?.quotation.quotation_grand_total),
+          0,
+        ),
+        sales_incentive: data.sales_incentive.reduce(
+          (acc, curr) => acc + Number(curr?.nominal),
+          0,
+        ),
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
-      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -570,7 +607,7 @@ export class ComissionSalesIncentiveService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -581,7 +618,10 @@ export class ComissionSalesIncentiveService {
 
       const getFormattedDate = () => {
         const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       const createExcelFilePath = (baseName: string) => {
@@ -599,8 +639,14 @@ export class ComissionSalesIncentiveService {
         res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
@@ -615,7 +661,7 @@ export class ComissionSalesIncentiveService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 
@@ -629,14 +675,14 @@ export class ComissionSalesIncentiveService {
       include: {
         sales_incentive: {
           where: {
-            deleted_at: null
+            deleted_at: null,
           },
           include: {
             sales: {
               include: {
                 bank: true,
-                store: true
-              }
+                store: true,
+              },
             },
             quotation: {
               include: {
@@ -645,115 +691,112 @@ export class ComissionSalesIncentiveService {
                     members: true,
                     m_order_details: {
                       where: {
-                        deleted_at: null
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                        deleted_at: null,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
-
 
     if (!data) {
       console.error('Comission Sales Incentive not found!');
       throw new NotFoundException('Comission Sales Incentive not found!');
     }
 
-
-    const buffer = await this.pdfService.generateLandscape('comission-sales-incentive-pdf', data);
+    const buffer = await this.pdfService.generateLandscape(
+      'comission-sales-incentive-pdf',
+      data,
+    );
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=comission-sales-incentive.pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=comission-sales-incentive.pdf',
+    );
     res.send(buffer);
   }
 
-  async comissionSalesIncentiveExportExcel(query: QueryParamsDto, res: Response) {
+  async comissionSalesIncentiveExportExcel(
+    query: QueryParamsDto,
+    res: Response,
+  ) {
     try {
-      const {
-        page,
-        take,
-        search,
-        date_from,
-        date_to,
-        order_by,
-        vendor_id,
-        monthly,
-        status,
-        invoice_status,
-      } = query;
-      const skip = page * take - take;
+      const { search, date_from, date_to, order_by, monthly, status } = query;
       const now = new Date();
       if (monthly) now.setFullYear(monthly);
-      const where: Prisma.comission_sales_incentiveScalarWhereWithAggregatesInput = {
-        AND: [
-          ...(search
-            ? [
-              {
-                OR: [
-
+      const where: Prisma.comission_sales_incentiveScalarWhereWithAggregatesInput =
+        {
+          AND: [
+            ...(search
+              ? [
                   {
-                    id: !isNaN(+search) ? +search : undefined,
+                    OR: [
+                      {
+                        id: !isNaN(+search) ? +search : undefined,
+                      },
+                    ],
                   },
-                ],
-              },
-              {
-                sales_incentive: {
-                  some: {
-                    sales: {
-                      OR: [
-                        {
-                          id: !isNaN(+search) ? +search : undefined,
-                        },
-                        { full_name: { contains: search } },
-                        { sales_brand: { contains: search } },
-                        { account_name: { contains: search } },
-                        { phone_number: { contains: search } },
-                        { account_number: { contains: search } },
-                        { nik: { contains: search } },
-                        { bank_branch: { contains: search } },
-                        {
-                          sales_categories: {
-                            some: {
-                              categories: { category_name: { contains: search } },
+                  {
+                    sales_incentive: {
+                      some: {
+                        sales: {
+                          OR: [
+                            {
+                              id: !isNaN(+search) ? +search : undefined,
                             },
-                          },
+                            { full_name: { contains: search } },
+                            { sales_brand: { contains: search } },
+                            { account_name: { contains: search } },
+                            { phone_number: { contains: search } },
+                            { account_number: { contains: search } },
+                            { nik: { contains: search } },
+                            { bank_branch: { contains: search } },
+                            {
+                              sales_categories: {
+                                some: {
+                                  categories: {
+                                    category_name: { contains: search },
+                                  },
+                                },
+                              },
+                            },
+                          ],
                         },
-                      ]
-                    }
-                  }
+                      },
+                    },
+                  },
+                ]
+              : []),
+            ...(status
+              ? [
+                  {
+                    status: status[0],
+                  },
+                ]
+              : []),
+            date_from && date_to
+              ? {
+                  created_at: {
+                    gte: new Date(`${date_from}T00:00:00.000Z`),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 }
-              }
-            ]
-            : []),
-          ...(status
-            ? [
-              {
-                status: status[0],
-              },
-            ]
-            : []),
-          date_from && date_to
-            ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
-            : undefined,
-          monthly
-            ? {
-              created_at: {
-                gte: new Date(now.getFullYear(), 0, 1),
-                lte: new Date(now.getFullYear(), 11, 31),
-              },
-            }
-            : undefined,
-        ].filter(Boolean),
-        deleted_at: null,
-      };
+              : undefined,
+            monthly
+              ? {
+                  created_at: {
+                    gte: new Date(now.getFullYear(), 0, 1),
+                    lte: new Date(now.getFullYear(), 11, 31),
+                  },
+                }
+              : undefined,
+          ].filter(Boolean),
+          deleted_at: null,
+        };
       const data = await this.dbService.comission_sales_incentive.findMany({
         where,
         orderBy: {
@@ -762,12 +805,12 @@ export class ComissionSalesIncentiveService {
         include: {
           comission_sales_incentive_evidence: {
             where: {
-              deleted_at: null
-            }
+              deleted_at: null,
+            },
           },
           sales_incentive: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               incentive: true,
@@ -775,7 +818,7 @@ export class ComissionSalesIncentiveService {
                 include: {
                   quotation_details: {
                     where: {
-                      deleted_at: null
+                      deleted_at: null,
                     },
                   },
                   promotion: true,
@@ -783,50 +826,55 @@ export class ComissionSalesIncentiveService {
                     include: {
                       m_order_details: {
                         where: {
-                          deleted_at: null
+                          deleted_at: null,
                         },
                         include: {
-                          item: true
-                        }
-                      }
-                    }
-                  }
-                }
+                          item: true,
+                        },
+                      },
+                    },
+                  },
+                },
               },
               sales: {
                 include: {
                   store: true,
                   bank: true,
-                }
-              }
-            }
-          }
-        }
-      });
-
-      const workbook = new exceljs.Workbook();
-      const worksheet = workbook.addWorksheet('Data Comission Sales Incentive', {
-        properties: {
-          tabColor: { argb: '097969' },
-        },
-        pageSetup: {
-          margins: {
-            left: 0.7,
-            right: 0.7,
-            top: 0.75,
-            bottom: 0.75,
-            header: 0.3,
-            footer: 0.3,
+                },
+              },
+            },
           },
         },
       });
 
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet(
+        'Data Comission Sales Incentive',
+        {
+          properties: {
+            tabColor: { argb: '097969' },
+          },
+          pageSetup: {
+            margins: {
+              left: 0.7,
+              right: 0.7,
+              top: 0.75,
+              bottom: 0.75,
+              header: 0.3,
+              footer: 0.3,
+            },
+          },
+        },
+      );
 
       worksheet.mergeCells('A2: N3');
 
       worksheet.getCell('A2').value = `REKAP DATA INCENTIVE `;
       worksheet.getCell('A2').font = { size: 16, bold: true };
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       worksheet.columns = [
         { header: 'No', key: 'no', width: 10 },
@@ -835,7 +883,9 @@ export class ComissionSalesIncentiveService {
         { header: 'Status Insentif', key: 'status', width: 30 },
         { header: 'Grand Total \n Insentif', key: 'grand_total', width: 25 },
       ];
-      const headerRow = worksheet.addRow(worksheet.columns.map(col => col.header));
+      const headerRow = worksheet.addRow(
+        worksheet.columns.map((col) => col.header),
+      );
       headerRow.eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -860,7 +910,6 @@ export class ComissionSalesIncentiveService {
       });
 
       data.forEach((item, index) => {
-
         const row = worksheet.addRow({
           no: index + 1,
           incentive_id: item.sales_incentive.map((x) => x.id)[0] ?? '',
@@ -878,7 +927,7 @@ export class ComissionSalesIncentiveService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
 
           if (colNumber === 4) {
@@ -887,8 +936,6 @@ export class ComissionSalesIncentiveService {
             cell.alignment = { horizontal: 'left' };
           }
         });
-
-
       });
 
       const totalsRow = worksheet.addRow({
@@ -896,11 +943,17 @@ export class ComissionSalesIncentiveService {
         incentive_id: '',
         created_at: '',
         status: '',
-        grand_total: data.reduce((acc, curr) => acc + Number(curr.total_amount), 0),
+        grand_total: data.reduce(
+          (acc, curr) => acc + Number(curr.total_amount),
+          0,
+        ),
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:D${totalsRow.number}`);
-      totalsRow.getCell('A').alignment = { vertical: 'middle', horizontal: 'center' };
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
@@ -910,7 +963,7 @@ export class ComissionSalesIncentiveService {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         }
 
@@ -921,7 +974,10 @@ export class ComissionSalesIncentiveService {
 
       const getFormattedDate = () => {
         const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       const createExcelFilePath = (baseName: string) => {
@@ -939,8 +995,14 @@ export class ComissionSalesIncentiveService {
         res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
@@ -955,7 +1017,7 @@ export class ComissionSalesIncentiveService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 }

@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import { Injectable } from '@nestjs/common';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -73,9 +74,8 @@ export class VendorService {
         });
 
       const formattedUsername =
-        createVendorDto?.default_username.replace(/ /g, '_') ?? createVendorDto.pic_name.replace(/ /g, '_');
-
-
+        createVendorDto?.default_username.replace(/ /g, '_') ??
+        createVendorDto.pic_name.replace(/ /g, '_');
 
       const username = createVendorDto.default_username
         ? formattedUsername
@@ -181,11 +181,6 @@ export class VendorService {
     }
   }
 
-  /**
-   * Retrieves a list of vendors based on the provided query parameters.
-   * @param query - The query parameters for filtering and pagination.
-   * @returns An object containing the list of vendors, total count, and pagination details.
-   */
   async findAll(query: QueryParamsDto) {
     try {
       const {
@@ -199,6 +194,7 @@ export class VendorService {
         top_best,
         order_date_from,
         order_date_to,
+        is_paid,
       } = query;
       // ...(Boolean(top_best)
       //       ? {
@@ -209,7 +205,6 @@ export class VendorService {
       //         }),
       // now.setHours(0, 0, 0, 0);
       const formattedDate = new Date().toISOString().split('T')[0];
-
 
       const skip = page * take - take;
 
@@ -243,6 +238,51 @@ export class VendorService {
               },
             ]
             : []),
+          ...(is_paid === 1
+            ? [
+              {
+                orders: {
+                  some: {
+                    deleted_at: null,
+                    quotation: {
+                      some: {
+                        deleted_at: null,
+                        receipt_quotation: { not: null },
+                      },
+                    },
+                  },
+                },
+              },
+            ]
+            : is_paid === 0 ? [
+              {
+                orders: {
+                  some: {
+                    deleted_at: null,
+                    quotation: {
+                      some: {
+                        deleted_at: null,
+                        receipt_quotation: null,
+                      },
+                    },
+                  },
+                },
+              },
+            ] : []),
+          ...(order_date_from && order_date_to ? [
+            {
+              orders: {
+                some: {
+                  deleted_at: null,
+                  created_at: {
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                  }
+                }
+              }
+            }
+          ] : []),
+
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -254,33 +294,49 @@ export class VendorService {
         include: {
           orders: {
             where: {
-              AND: [
-                {
-                  deleted_at: null,
-                },
-                ...(order_date_from && order_date_to
-                  ? [
-                    {
-                      created_at: {
-                        gte: new Date(order_date_from),
-                        lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                      },
-                    },
-                  ]
-                  : []),
-              ],
+              deleted_at: null,
+              ...(order_date_from && order_date_to ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                }
+              } : {}),
+              ...(is_paid === 1 ? {
+                quotation: {
+                  some: {
+                    deleted_at: null,
+                    receipt_quotation: { not: null },
+                  },
+                }
+              } : is_paid === 0 && {
+                quotation: {
+                  some: {
+                    deleted_at: null,
+                    receipt_quotation: null,
+                  },
+                }
+              })
             },
             orderBy: {
-              created_at: 'desc'
+              created_at: 'desc',
             },
             include: {
               status: true,
               quotation: {
                 where: {
-                  deleted_at: null
-                }
-              }
-            }
+                  deleted_at: null,
+                  ...(is_paid === 1
+                    ? {
+                      receipt_quotation: {
+                        not: null
+                      }
+                    }
+                    : is_paid === 0 && {
+                      receipt_quotation: null
+                    }),
+                },
+              },
+            },
           },
           tukang: {
             include: {
@@ -289,7 +345,7 @@ export class VendorService {
                   deleted_at: null,
                 },
                 orderBy: {
-                  created_at: 'desc'
+                  created_at: 'desc',
                 },
                 include: {
                   work_orders: {
@@ -320,7 +376,7 @@ export class VendorService {
           },
           vendor_area: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               area: true,
@@ -330,7 +386,7 @@ export class VendorService {
           vendor_document: true,
           vendor_service: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               service_type: true,
@@ -338,7 +394,7 @@ export class VendorService {
           },
           vendor_store: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             select: {
               id: true,
@@ -381,7 +437,7 @@ export class VendorService {
                   work_end_date: {
                     lte: new Date(`${formattedDate}T23:59:59.000Z`),
                   },
-                }
+                },
               ],
             },
           },
@@ -398,7 +454,13 @@ export class VendorService {
         vendor = vendor.filter((v) => {
           return v.tukang.some((t) => {
             const dailySlots = t.work_order_tukang.filter((item) => {
-              const { work_start_date, work_end_date, survey_date, status, created_at } = item?.work_orders || {};
+              const {
+                work_start_date,
+                work_end_date,
+                survey_date,
+                status,
+                created_at,
+              } = item?.work_orders || {};
 
               let startDate: Date;
               let endDate: Date;
@@ -416,7 +478,8 @@ export class VendorService {
 
               const currentDate = new Date().toISOString().split('T')[0];
 
-              const isWithinRange = startDate.toISOString().split('T')[0] <= currentDate &&
+              const isWithinRange =
+                startDate.toISOString().split('T')[0] <= currentDate &&
                 endDate.toISOString().split('T')[0] >= currentDate;
               return (
                 status?.category !== 'SURVEYDONE' &&
@@ -429,8 +492,6 @@ export class VendorService {
           });
         });
       }
-
-
 
       vendor = vendor.map((vendor) => {
         return {
@@ -456,38 +517,96 @@ export class VendorService {
         };
       });
       const dataVendor = vendor.map((item) => {
-
         const totalOrder = item.orders.length;
+      
+        const unpaidOrders = item.orders.filter((order) =>
+          order.quotation.some((x) => x.receipt_quotation === null),
+        );
+      
+        
+        const paidOrders = item.orders.filter((order) =>
+          order.quotation.some((x) => x.receipt_quotation !== null),
+        );
 
-        const totalUnpaid = item.orders
-          .filter((order) =>
-            [
-              'cancel',
-              'cancelrefund',
-              'refundapprovedbyho',
-              'refundrejectedbyho',
-            ].includes(order.status.category.toLowerCase()),
-          )
-          .reduce((total, order) => total + Number(order?.quotation[0]?.quotation_grand_total ?? order.grand_total), 0);
+        const orderSurvey = item.orders.filter((order) =>
+          [
+            'surveyreq',
+            'tukangsurvey',
+            'surveydone',
+            'surveystart',
+            'resurveyreq',
+            'resurveystart',
+            'resurveydone',
+            'retukangsurvey'
+          ].includes(order.status.category.toLocaleLowerCase()),
+        );
+        const orderWork = item.orders.filter((order) =>
+          [
+            'workstart',
+            'workreq',
+            'workdone',
+            'tukangwork',
+            'reworkstart',
+            'reworkend',
+            'reworkreq',
+            'reworkdone',
+            'retukangworkstart',
+            'retukangworkend',
+            'retukangworkreq',
+            'retukangworkdone'
+          ].includes(order.status.category.toLocaleLowerCase()),
+        );
 
-        const totalPaid = item.orders
-          .filter(
-            (order) =>
-              ![
-                'cancel',
-                'cancelrefund',
-                'refundapprovedbyho',
-                'refundrejectedbyho',
-              ].includes(order.status.category.toLowerCase()),
-          )
-          .reduce((total, order) => total + Number(order?.quotation[0]?.quotation_grand_total ?? order.grand_total), 0);
+
+        const totalOrderSurveyValue = orderSurvey.reduce(
+          (total, order) =>
+            total +
+            (Number(
+              order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
+            ) + Number(order?.grand_total ?? 0)),
+          0,
+        );
+
+        const totalOrderWorkValue = orderWork.reduce(
+          (total, order) =>
+            total +
+            (Number(
+              order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
+            ) + Number(order?.grand_total ?? 0)),
+          0,
+        )
+      
+        
+        const totalUnpaid = unpaidOrders.reduce(
+          (total, order) =>
+            total +
+            Number(
+              order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
+            ),
+          0,
+        );
+      
+        const totalPaid = paidOrders.reduce(
+          (total, order) =>
+            total +
+            Number(
+              order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
+            ),
+          0,
+        );
+      
         return {
           ...item,
           total_order: totalOrder,
           total_paid_order: totalPaid,
           total_unpaid_order: totalUnpaid,
+          total_order_survey: orderSurvey.length,
+          total_order_survey_value: totalOrderSurveyValue,
+          total_order_work: orderWork.length,
+          total_order_work_value: totalOrderWorkValue,
         };
       });
+      
 
       const total = await this.dbService.vendor.count({ where });
 
@@ -554,7 +673,7 @@ export class VendorService {
           },
           vendor_area: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               area: true,
@@ -563,7 +682,7 @@ export class VendorService {
           vendor_document: true,
           vendor_service: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             include: {
               service_type: true,
@@ -573,7 +692,7 @@ export class VendorService {
           work_orders: true,
           vendor_store: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             select: {
               id: true,
@@ -739,11 +858,8 @@ export class VendorService {
           }))
           : undefined;
 
-
       const formattedUsername =
         updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
-
-
 
       const vendorData: Prisma.vendorUpdateInput = {
         type: updateVendorDto?.vendor_type,
@@ -820,14 +936,16 @@ export class VendorService {
           this.dbService.vendor_store.updateMany({
             where: {
               vendor_id: id,
-              ...updateVendorDto.vendor_store ? {
-                NOT: updateVendorDto.vendor_store.map((item) => {
-                  return {
-                    id: item?.id,
-                    store_id: item.store_id,
-                  };
-                })
-              } : undefined
+              ...(updateVendorDto.vendor_store
+                ? {
+                  NOT: updateVendorDto.vendor_store.map((item) => {
+                    return {
+                      id: item?.id,
+                      store_id: item.store_id,
+                    };
+                  }),
+                }
+                : undefined),
             },
             data: {
               deleted_by: user_id,
@@ -845,14 +963,16 @@ export class VendorService {
               //     };
               //   })
               //   : undefined,
-              ...updateVendorDto.vendor_area ? {
-                NOT: updateVendorDto.vendor_area.map((item) => {
-                  return {
-                    id: item?.id,
-                    area_id: item.area_id,
-                  };
-                })
-              } : undefined
+              ...(updateVendorDto.vendor_area
+                ? {
+                  NOT: updateVendorDto.vendor_area.map((item) => {
+                    return {
+                      id: item?.id,
+                      area_id: item.area_id,
+                    };
+                  }),
+                }
+                : undefined),
             },
             data: {
               deleted_by: user_id,
@@ -870,14 +990,16 @@ export class VendorService {
               //     };
               //   })
               //   : undefined,
-              ...updateVendorDto.vendor_service ? {
-                NOT: updateVendorDto.vendor_service.map((item) => {
-                  return {
-                    id: item?.id,
-                    service_type_id: item?.service_type_id,
-                  };
-                })
-              } : undefined
+              ...(updateVendorDto.vendor_service
+                ? {
+                  NOT: updateVendorDto.vendor_service.map((item) => {
+                    return {
+                      id: item?.id,
+                      service_type_id: item?.service_type_id,
+                    };
+                  }),
+                }
+                : undefined),
             },
             data: {
               deleted_at: new Date(),

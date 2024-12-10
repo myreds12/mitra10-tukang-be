@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   BadRequestException,
   Injectable,
@@ -20,7 +21,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
-import { QuotationFollowUpDto } from './dto/quotation-follow-up.dto';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
@@ -688,7 +688,6 @@ export class QuotationService {
           .map((item) => item.receipt_quotation)
           .filter((item) => item !== undefined);
 
-        console.log(receiptNumbers);
 
         const duplicates = receiptNumbers.filter(
           (item, index) => receiptNumbers.indexOf(item) !== index,
@@ -931,6 +930,13 @@ export class QuotationService {
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
             quotation_no_promotion: grandTotalNoPromotion,
+            ...(updateQuotationDto.store_id ? {
+              store: {
+                connect: {
+                  id: updateQuotationDto.store_id
+                }
+              }
+            } : undefined),
             quotation_grand_total:
               grandTotal -
               ((updateQuotationDto.quotation_disc
@@ -1002,7 +1008,6 @@ export class QuotationService {
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
         where: { quotation_id: id },
       });
-      console.log(quotation, 'QUOTATION');
 
       if (
         (!existingIncentive && quotation.status.category === 'QUOTATIONPAID') ||
@@ -1032,7 +1037,7 @@ export class QuotationService {
 
   async remove(id: number, user_id: number) {
     try {
-      const quotation = await this.dbService.quotation.update({
+      await this.dbService.quotation.update({
         where: {
           id,
         },
@@ -1130,7 +1135,6 @@ export class QuotationService {
         await this.dbService.sales_incentive.deleteMany({
           where: { id: { in: idsToDelete } },
         });
-        console.log(comission);
 
         await this.dbService.sales_incentive.update({
           where: { id: incentiveToKeep.id },
@@ -1143,6 +1147,22 @@ export class QuotationService {
           `Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`,
         );
       } else if (incentives.length === 1) {
+        const incentiveToKeep = incentives[0];
+        let comission = 0;
+        if (incentiveToKeep.incentive.type === 1) {
+          comission +=
+            Number(incentiveToKeep.quotation.quotation_grand_total) *
+            (Number(incentiveToKeep.incentive.incentive) / 100);
+        } else if (incentiveToKeep.incentive.type === 2) {
+          comission += Number(incentiveToKeep.incentive.incentive);
+        }
+
+        await this.dbService.sales_incentive.update({
+          where: { id: incentiveToKeep.id },
+          data: {
+            nominal: comission,
+          },
+        });
         console.log('Only one incentive exists, nothing to delete.');
       } else {
         console.log('No incentives found for the given quotation_id.');
@@ -1426,8 +1446,6 @@ export class QuotationService {
   async quotationExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
       const {
-        take,
-        page,
         search,
         status,
         date_from,
@@ -1929,7 +1947,8 @@ export class QuotationService {
     quotation: quotation,
   ) {
     const { id: quotation_id, order_id } = quotation;
-
+    console.log("GRAND TOTAL", grandTotal);
+    console.log("STORE ID", storeId);
     const filteredIncentive = await this.dbService.setting_incentive.findMany({
       where: {
         deleted_at: null,
@@ -1947,6 +1966,8 @@ export class QuotationService {
       },
     });
 
+    console.log("INCENTIVE FILTER", filteredIncentive);
+
     const closestIncentive =
       filteredIncentive.length > 0
         ? filteredIncentive.reduce((closest, current) =>
@@ -1956,6 +1977,8 @@ export class QuotationService {
               : closest,
           )
         : null;
+
+    console.log("INCENTIVE CLOSEST", closestIncentive);
     if (!closestIncentive) {
       return null;
     }
@@ -2024,8 +2047,6 @@ export class QuotationService {
     queryParams: QueryParamsDto,
   ) {
     const {
-      take,
-      page,
       search,
       status,
       date_from,
@@ -2291,7 +2312,7 @@ export class QuotationService {
       };
     });
 
-    dataExcel.forEach((quotation: any, index: number) => {
+    dataExcel.forEach((quotation: any) => {
       worksheet.addRow({
         id: quotation.id,
         order_id: quotation.order.id,
@@ -2310,15 +2331,15 @@ export class QuotationService {
         fu1:
           quotation.quotation_follow_up[0]?.follow_up_1 === true
             ? 'YES'
-            : 'NO' || '-',
+            : 'NO' ,
         fu2:
           quotation.quotation_follow_up[0]?.follow_up_2 === true
             ? 'YES'
-            : 'NO' || '-',
+            : 'NO',
         fu3:
           quotation.quotation_follow_up[0]?.follow_up_3 === true
             ? 'YES'
-            : 'NO' || '-',
+            : 'NO',
       });
     });
 

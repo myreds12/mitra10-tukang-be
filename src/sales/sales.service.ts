@@ -391,28 +391,7 @@ export class SalesService {
         : sales?.users?.password
           ? sales.users.password
           : await hash('password', 12);
-      let usersConnectOrCreate:
-        | Prisma.usersCreateNestedOneWithoutSalesInput
-        | undefined;
 
-      if (updateSalesDto?.password) {
-        usersConnectOrCreate = {
-          connectOrCreate: {
-            where: {
-              id: sales?.user_id ?? 0,
-            },
-            create: {
-              username: updateSalesDto?.username
-                ? updateSalesDto.username
-                : salesUsername,
-              password: salesPassword,
-              created_by: user_id,
-              created_at: new Date(),
-              role_id: SALES_ROLES.id,
-            },
-          },
-        };
-      }
       const salesData: Prisma.salesUpdateInput = {
         // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
         ...(sales.users && updateSalesDto.username && updateSalesDto.password
@@ -1147,8 +1126,8 @@ export class SalesService {
           right: { style: 'thin' },
         };
       });
-      console.log("EXCEL DATA" ,dataExcel);
-      
+      console.log("EXCEL DATA", dataExcel);
+
 
       dataExcel.forEach((sales) => {
         const salesCategories = sales.sales_categories
@@ -1250,7 +1229,7 @@ export class SalesService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async deleteOrder() {
     try {
       const updatedSalesIncentives =
@@ -1290,6 +1269,7 @@ export class SalesService {
         },
         data: {
           status: 2,
+          created_at: new Date(),
         },
       });
 
@@ -1322,19 +1302,54 @@ export class SalesService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_HOURS)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async salesUserManagement() {
     try {
-      const twoMonthsAgo = new Date();
-      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-      const salesIncentive = await this.dbService.sales.updateMany({
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 4);
+
+      const targetYear = threeMonthsAgo.getFullYear();
+      const targetMonth = threeMonthsAgo.getMonth();
+
+      const startOfMonth = new Date(Date.UTC(targetYear, targetMonth, 1));
+      const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
+      endOfMonth.setHours(23, 59, 59, 999);
+      startOfMonth.setUTCHours(0, 0, 0, 0);
+
+      const batchSize = 100;
+
+      const salesToUpdate = await this.dbService.sales.findMany({
         where: {
           orders: {
-            some: {
+            every: {
               created_at: {
-                lt: twoMonthsAgo,
+                gte: startOfMonth,
+                lt: endOfMonth,
               },
             },
+          },
+          is_active: true
+        },
+        select: {
+          id: true,
+        },
+        take: batchSize,
+      });
+
+      
+
+      const salesIds = salesToUpdate.map((sales) => sales.id);
+
+      if (salesIds.length === 0) {
+        console.log("No sales to update in this batch.");
+        return;
+      }
+
+
+      const salesUpdate = await this.dbService.sales.updateMany({
+        where: {
+          id: {
+            in: salesIds,
           },
         },
         data: {
@@ -1342,12 +1357,13 @@ export class SalesService {
         },
       });
 
-      await this.dbService.users.updateMany({
+
+      const usersUpdate = await this.dbService.users.updateMany({
         where: {
           sales: {
             some: {
-              created_at: {
-                lt: twoMonthsAgo,
+              id: {
+                in: salesIds,
               },
             },
           },
@@ -1357,26 +1373,60 @@ export class SalesService {
         },
       });
 
-      return salesIncentive;
+
+      return { salesUpdate, usersUpdate };
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
 
-  @Cron(CronExpression.EVERY_10_HOURS)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async managementSalesSixMonth() {
     try {
-      const sixMonthAgo = new Date();
-      sixMonthAgo.setMonth(sixMonthAgo.getMonth() - 6);
-      const salesIncentive = await this.dbService.sales.updateMany({
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 7);
+
+      const targetYear = sixMonthsAgo.getFullYear();
+      const targetMonth = sixMonthsAgo.getMonth();
+
+      const startOfMonth = new Date(Date.UTC(targetYear, targetMonth, 1));
+      const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
+      endOfMonth.setHours(23, 59, 59, 999);
+      startOfMonth.setUTCHours(0, 0, 0, 0);
+
+      const batchSize = 30;
+      const salesToUpdate = await this.dbService.sales.findMany({
         where: {
           orders: {
-            some: {
+            every: {
               created_at: {
-                lt: sixMonthAgo,
+                gte: startOfMonth,
+                lt: endOfMonth,
               },
             },
+          },
+        },
+        select: {
+          id: true, // Ambil ID sales
+        },
+        take: batchSize, // Batasi jumlah data yang diambil
+      });
+
+      const salesIds = salesToUpdate.map((sales) => sales.id);
+
+      if (salesIds.length === 0) {
+        console.log("No sales to update in this batch.");
+        return;
+      }
+
+      console.log("SALES TO UPDATE (BATCH):", salesIds);
+
+      // Step 2: Update sales dengan batch size
+      const salesIncentive = await this.dbService.sales.updateMany({
+        where: {
+          id: {
+            in: salesIds,
           },
         },
         data: {
@@ -1385,12 +1435,15 @@ export class SalesService {
         },
       });
 
-      await this.dbService.users.updateMany({
+      console.log("SALES UPDATED", salesIncentive);
+
+      // Step 3: Update users yang terkait dengan sales tersebut
+      const usersUpdate = await this.dbService.users.updateMany({
         where: {
           sales: {
             some: {
-              created_at: {
-                lt: sixMonthAgo,
+              id: {
+                in: salesIds,
               },
             },
           },
@@ -1401,10 +1454,168 @@ export class SalesService {
         },
       });
 
-      return salesIncentive;
+      console.log("USERS UPDATED", usersUpdate);
+
+      return { salesIncentive, usersUpdate };
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  async apiManagementSales(range_date: 7 | 4) {
+    try {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - range_date);
+
+      const targetYear = sixMonthsAgo.getFullYear();
+      const targetMonth = sixMonthsAgo.getMonth();
+
+      const startOfMonth = new Date(Date.UTC(targetYear, targetMonth, 1));
+      const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
+      endOfMonth.setHours(23, 59, 59, 999);
+      startOfMonth.setUTCHours(0, 0, 0, 0);
+
+      const batchSize = 100;
+      const salesToUpdate = await this.dbService.sales.findMany({
+        where: {
+          orders: {
+            every: {
+              created_at: {
+                gte: startOfMonth,
+                lt: endOfMonth,
+              },
+            },
+          },
+        },
+        select: {
+          id: true, // Ambil ID sales
+        },
+        take: batchSize, // Batasi jumlah data yang diambil
+      });
+
+      const salesIds = salesToUpdate.map((sales) => sales.id);
+
+      if (salesIds.length === 0) {
+        console.log("No sales to update in this batch.");
+        return;
+      }
+
+      console.log("SALES TO UPDATE (BATCH):", salesIds);
+
+      // Step 2: Update sales dengan batch size
+      let salesUser : any, usersUpdate : any
+      if(range_date === 7){
+        salesUser = await this.dbService.sales.updateMany({
+          where: {
+            id: {
+              in: salesIds,
+            },
+          },
+          data: {
+            is_active: false,
+            deleted_at: new Date(),
+          },
+        });
+
+        usersUpdate = await this.dbService.users.updateMany({
+          where: {
+            sales: {
+              some: {
+                id: {
+                  in: salesIds,
+                },
+              },
+            },
+          },
+          data: {
+            is_active: false,
+            deleted_at: new Date(),
+          },
+        });
+      } else if(range_date === 4){
+        salesUser = await this.dbService.sales.updateMany({
+          where: {
+            id: {
+              in: salesIds,
+            },
+          },
+          data: {
+            is_active: false,
+          },
+        });
+  
+  
+        usersUpdate = await this.dbService.users.updateMany({
+          where: {
+            sales: {
+              some: {
+                id: {
+                  in: salesIds,
+                },
+              },
+            },
+          },
+          data: {
+            is_active: false,
+          },
+        });
+      }
+      
+      return { salesIncentive: salesUser, usersUpdate };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async updateDateSalesIncentive(id: number) {
+    try{
+      const salesIncentive = await this.dbService.sales_incentive.findFirst({
+        where: {
+          deleted_at: null,
+          status: 2,
+          id: id
+        }
+      });
+      const quotationSalesIncentive = await this.dbService.quotation.findFirst({
+        where: {
+          id: salesIncentive.quotation_id,
+        },
+        select: {
+          order: {
+            select: {
+              order_history: {
+                where: {
+                  status: {
+                    category: 'WORKEND'
+                  }
+                },
+                orderBy: {
+                  created_at: 'desc'
+                },
+                include: {
+                  status: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const updateSalesIncentive = await this.dbService.sales_incentive.update({
+        where: {
+          id: id
+        },
+        data: {
+          created_at: new Date(quotationSalesIncentive.order.order_history[0].created_at)
+        }
+      })
+
+      return updateSalesIncentive
+    }catch(error){
+      console.error(error);
+      throw error
     }
   }
 }
