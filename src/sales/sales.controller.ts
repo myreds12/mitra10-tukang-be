@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -7,17 +8,15 @@ import {
   Delete,
   UseGuards,
   Request,
-  HttpStatus,
   Res,
   Query,
-  BadRequestException,
   UseInterceptors,
   UploadedFile,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   Request as IExpressRequest,
-  Response as IExpressResponse,
 } from 'express';
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sales.dto';
@@ -40,6 +39,12 @@ interface UserRequest extends IExpressRequest {
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
+  @Post('/sales-user-management/:range_date')
+  async apiSalesUSerManagement(@Param('range_date') range_date: 7 | 4) {
+    if(range_date !== 7 && range_date !== 4) throw new BadRequestException('Range date must be 7 or 4');
+    return await this.salesService.apiManagementSales(range_date);
+  }
+
   @Get('/export-excel')
   @UseGuards()
   async salesExportExcel(@Query() query: QueryParamsDto, @Res() res: Response) {
@@ -51,33 +56,54 @@ export class SalesController {
     // }
 
     return await this.salesService.salesExportExcel(res, query);
-    }
-    
-    @Post('/upload-excel')
-    @UseInterceptors(
-      FileInterceptor('file', {
-        storage: diskStorage({
-          destination: './uploads',
-          filename: (req, file, cb) => {
-            const filename = `${Date.now()}-${file.originalname}`;
-            cb(null, filename);
-          },
-        }),
+  }
+
+  @Post('/incentive-update-date/:id')
+  async incentiveUpdateDate(@Param('id') id: number) {
+    return await this.salesService.updateDateSalesIncentive(id);
+  }
+
+  @Post('/upload-excel')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const filename = `${Date.now()}-${file.originalname}`;
+          cb(null, filename);
+        },
       }),
-    )
-    async uploadTemplate(@UploadedFile() file: Express.Multer.File, @Res() res: Response, @Req() req: UserRequest) {
-      try {
-        const result = await this.salesService.syncSalesCommission(file.path, req.user);
-        return res.status(200).json({ statusCode: 200 ,message: "Successfully Update Comission", data: result });
-      } catch (error) {
-        console.error('Error uploading and processing Excel file:', error);
-        throw error
-      }
+    }),
+  )
+  async uploadTemplate(
+    @UploadedFile() file: Express.Multer.File,
+    @Res() res: Response,
+    @Req() req: UserRequest,
+  ) {
+    try {
+      const result = await this.salesService.syncSalesCommission(
+        file.path,
+        req.user,
+      );
+      return res
+        .status(200)
+        .json({
+          statusCode: 200,
+          message: 'Successfully Update Comission',
+          data: result,
+        });
+    } catch (error) {
+      console.error('Error uploading and processing Excel file:', error);
+      throw error;
     }
+  }
 
   @Get('/export-excel-template')
   @UseGuards()
-  async salesExportTemplateExcel(@Res() res: Response, @Query() query: QueryParamsDto) {
+  async salesExportTemplateExcel(
+    @Res() res: Response,
+    @Query() query: QueryParamsDto,
+  ) {
     return await this.salesService.templateDefaultExcel(res, query);
   }
 

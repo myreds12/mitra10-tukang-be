@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateQuotationPromotionDto } from './dto/create-quotation_promotion.dto';
 import { UpdateQuotationPromotionDto } from './dto/update-quotation_promotion.dto';
 import { Prisma, users } from '@prisma/client';
@@ -8,55 +8,96 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
-import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
 import { PdfService } from 'src/common/service/pdf.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { QuotationPromotionStatus } from './dto/quotation-promotion.status';
 
 @Injectable()
 export class QuotationPromotionService {
-  constructor(private readonly dbService: PrismaService, private readonly pdfService: PdfService, private readonly notifService: NotificationsService) { }
-  async create(createQuotationPromotionDto: CreateQuotationPromotionDto, quotation_promotion_evidences: Express.Multer.File[], user: users) {
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly pdfService: PdfService,
+    private readonly notifService: NotificationsService,
+  ) {}
+  async create(
+    createQuotationPromotionDto: CreateQuotationPromotionDto,
+    quotation_promotion_evidences: Express.Multer.File[],
+    user: users,
+  ) {
     try {
       const { id: user_id } = user;
       const dto = createQuotationPromotionDto;
-      const evidences = quotation_promotion_evidences.length > 0 ? quotation_promotion_evidences.map((x) => ({
-        path: x.filename,
-        created_by: user_id
-      })) : [];
+      const evidences =
+        quotation_promotion_evidences.length > 0
+          ? quotation_promotion_evidences.map((x) => ({
+              path: x.filename,
+              created_by: user_id,
+            }))
+          : [];
+      const quotation = await this.dbService.quotation.findFirst({
+        where: {
+          id: dto.quotation_id,
+        },
+        select: {
+          quotation_grand_total: true,
+        },
+      });
 
       const data: Prisma.quotation_promotionCreateInput = {
         quotation: {
           connect: {
-            id: dto.quotation_id
-          }
+            id: dto.quotation_id,
+          },
         },
         promotion_nominal: dto.promotion_nominal,
         description: dto.description,
         status: dto.status,
         quotation_promotion_evidences: {
           createMany: {
-            data: evidences
-          }
+            data: evidences,
+          },
         },
-        created_by: user_id
-      }
+        created_by: user_id,
+      };
+
+      // if (dto.status === QuotationPromotionStatus.PENGAJUAN_DISETUJUI) {
+      //   await this.dbService.quotation.update({
+      //     where: {
+      //       id: dto.quotation_id,
+      //     },
+      //     data: {
+      //       id: dto.quotation_id,
+      //       quotation_grand_total:
+      //         Number(quotation.quotation_grand_total) -
+      //         (dto?.promotion_nominal ?? Number(dto.promotion_nominal)),
+      //       updated_at: new Date(),
+      //       updated_by: user_id,
+      //     },
+      //   });
+      // }
 
       const [quotation_promotion] = await this.dbService.$transaction([
         this.dbService.quotation_promotion.create({
-          data
-        })
+          data,
+        }),
       ]);
 
-      await this.notifService.create(quotation_promotion, "CREATE",quotation_promotion.created_by, moduleTypeNotification.QUOTATION_PROMOTION, quotation_promotion.id, quotation_promotion.status);
+      await this.notifService.create(
+        quotation_promotion,
+        'CREATE',
+        quotation_promotion.created_by,
+        moduleTypeNotification.QUOTATION_PROMOTION,
+        quotation_promotion.id,
+        quotation_promotion.status,
+      );
 
       return quotation_promotion;
     } catch (error) {
       console.log(error);
-      throw error
+      throw error;
     }
   }
-
 
   async findAll(query: QueryParamsDto) {
     try {
@@ -65,43 +106,51 @@ export class QuotationPromotionService {
 
       const where: Prisma.quotation_promotionWhereInput = {
         AND: [
-          ...(search ? [
-            {
-              OR: [
+          ...(search
+            ? [
                 {
-                  id: !isNaN(+search) ? +search : undefined,
-                },
-                {
-                  quotation_id: !isNaN(+search) ? +search : undefined,
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      quotation_id: !isNaN(+search) ? +search : undefined,
+                    },
+                  ],
                 },
               ]
-            }
-          ] : []),
-          ...(status ? [
-            {
-              status: {
-                in: status
-              }
-            }
-          ] : []),
-          ...(date_from ? [
-            {
-              created_at: {
-                gte: date_from
-              }
-            }
-          ] : []),
-          ...(date_to ? [
-            {
-              created_at: {
-                lte: date_to
-              }
-            }
-          ] : [])
-        ]
+            : []),
+          ...(status
+            ? [
+                {
+                  status: {
+                    in: status,
+                  },
+                },
+              ]
+            : []),
+          ...(date_from
+            ? [
+                {
+                  created_at: {
+                    gte: date_from,
+                  },
+                },
+              ]
+            : []),
+          ...(date_to
+            ? [
+                {
+                  created_at: {
+                    lte: date_to,
+                  },
+                },
+              ]
+            : []),
+        ],
       };
       const total = await this.dbService.quotation_promotion.count({
-        where
+        where,
       });
 
       const data = await this.dbService.quotation_promotion.findMany({
@@ -116,26 +165,26 @@ export class QuotationPromotionService {
             include: {
               promotion: {
                 where: {
-                  deleted_at: null
-                }
+                  deleted_at: null,
+                },
               },
               quotation_receipt: {
                 where: {
-                  deleted_at: null
-                }
+                  deleted_at: null,
+                },
               },
               order: {
                 include: {
                   m_order_details: {
                     where: {
-                      deleted_at: null
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      deleted_at: null,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
       const userIds = [
         ...new Set(
@@ -178,49 +227,49 @@ export class QuotationPromotionService {
           takeTotal: data.length,
           total,
         },
-      }
+      };
     } catch (error) {
       console.log(error);
       throw error;
     }
-  } 
+  }
 
   async findOne(id: number) {
     try {
       const data = await this.dbService.quotation_promotion.findFirst({
         where: {
-          id
+          id,
         },
         include: {
           quotation: {
             include: {
               promotion: {
                 where: {
-                  deleted_at: null
-                }
+                  deleted_at: null,
+                },
               },
               quotation_receipt: {
                 where: {
-                  deleted_at: null
-                }
+                  deleted_at: null,
+                },
               },
               order: {
                 include: {
                   m_order_details: {
                     where: {
-                      deleted_at: null
-                    }
-                  }
-                }
-              }
-            }
+                      deleted_at: null,
+                    },
+                  },
+                },
+              },
+            },
           },
           quotation_promotion_evidences: {
             where: {
-              deleted_at: null
-            }
-          }
-        }
+              deleted_at: null,
+            },
+          },
+        },
       });
       const userIds = [
         data.created_by,
@@ -249,61 +298,108 @@ export class QuotationPromotionService {
     }
   }
 
-  async update(id: number, updateQuotationPromotionDto: UpdateQuotationPromotionDto, quotation_promotion_evidences: Express.Multer.File[], user: users) {
+  async update(
+    id: number,
+    updateQuotationPromotionDto: UpdateQuotationPromotionDto,
+    quotation_promotion_evidences: Express.Multer.File[],
+    user: users,
+  ) {
     try {
       const { id: user_id } = user;
       const dto = updateQuotationPromotionDto;
-      const evidences = quotation_promotion_evidences.length > 0 ? quotation_promotion_evidences.map((x) => ({
-        path: x.filename,
-        created_by: user_id,
-      })) : [];
+      const quotation_promotion =
+        await this.dbService.quotation_promotion.findFirst({
+          where: {
+            id: id,
+            deleted_at: null,
+          },
+          include: {
+            quotation: true,
+          },
+        });
+      const evidences =
+        quotation_promotion_evidences.length > 0
+          ? quotation_promotion_evidences.map((x) => ({
+              path: x.filename,
+              created_by: user_id,
+            }))
+          : [];
+
+      // if (dto.status === QuotationPromotionStatus.PENGAJUAN_DISETUJUI) {
+      //   await this.dbService.quotation.update({
+      //     where: {
+      //       id: quotation_promotion.quotation_id,
+      //     },
+      //     data: {
+      //       id: quotation_promotion.quotation_id,
+      //       quotation_grand_total:
+      //         Number(quotation_promotion.quotation.quotation_grand_total) -
+      //         (dto?.promotion_nominal ??
+      //           Number(quotation_promotion.promotion_nominal)),
+      //       updated_at: new Date(),
+      //       updated_by: user_id,
+      //     },
+      //   });
+      // }
 
       const data: Prisma.quotation_promotionUpdateArgs = {
         where: {
-          id
+          id,
         },
         data: {
           quotation_id: dto.quotation_id ?? undefined,
           description: dto.description ?? undefined,
           promotion_nominal: dto.promotion_nominal ?? undefined,
           status: dto.status ?? undefined,
-          quotation_promotion_evidences: evidences.length > 0 ? {
-            createMany: {
-              data: evidences
-            }
-          } : undefined,
+          quotation_promotion_evidences:
+            evidences.length > 0
+              ? {
+                  createMany: {
+                    data: evidences,
+                  },
+                }
+              : undefined,
           updated_at: new Date(),
-          updated_by: user_id
-        }
+          updated_by: user_id,
+        },
       };
 
-      const [syncFiles, quotationPromotion] = await this.dbService.$transaction([
-        this.dbService.quotation_promotion_evidences.deleteMany({
-          where: {
-            quotation_promotion_id: id
-          }
-        }),
-        this.dbService.quotation_promotion.update(data),
-      ]);
+      const [syncFiles, quotationPromotion] = await this.dbService.$transaction(
+        [
+          this.dbService.quotation_promotion_evidences.deleteMany({
+            where: {
+              quotation_promotion_id: id,
+            },
+          }),
+          this.dbService.quotation_promotion.update(data),
+        ],
+      );
 
-      await this.notifService.create(quotationPromotion, "UPDATE",quotationPromotion.updated_by, moduleTypeNotification.QUOTATION_PROMOTION, quotationPromotion.id, quotationPromotion.status);
-
+      await this.notifService.create(
+        quotationPromotion,
+        'UPDATE',
+        quotationPromotion.updated_by,
+        moduleTypeNotification.QUOTATION_PROMOTION,
+        quotationPromotion.id,
+        quotationPromotion.status,
+      );
 
       return quotationPromotion;
     } catch (error) {
-      console.log(error)
+      console.log(error);
       throw error;
     }
   }
 
   async nextCode() {
     try {
-      const quotationPromotion = await this.dbService.quotation_promotion.findMany({
-        orderBy: {
-          id: 'desc',
-        },
-        take: 1,
-      });
+      const quotationPromotion =
+        await this.dbService.quotation_promotion.findMany({
+          orderBy: {
+            id: 'desc',
+          },
+          take: 1,
+        });
 
       return quotationPromotion[0] || null;
     } catch (error) {
@@ -317,14 +413,14 @@ export class QuotationPromotionService {
     try {
       const data = await this.dbService.quotation_promotion.update({
         where: {
-          id
+          id,
         },
         data: {
           deleted_at: new Date(),
-          deleted_by: user.id
-        }
-      })
-      return data
+          deleted_by: user.id,
+        },
+      });
+      return data;
     } catch (error) {
       console.log(error);
       throw error;
@@ -340,7 +436,7 @@ export class QuotationPromotionService {
           quotation_id: id,
         },
         orderBy: {
-          created_at: 'desc'
+          created_at: 'desc',
         },
         include: {
           quotation: {
@@ -348,16 +444,16 @@ export class QuotationPromotionService {
               promotion: true,
               order: {
                 include: {
-                  vendor: true
-                }
+                  vendor: true,
+                },
               },
               quotation_details: {
                 where: {
-                  deleted_at: null
-                }
-              }
-            }
-          }
+                  deleted_at: null,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -381,57 +477,88 @@ export class QuotationPromotionService {
       worksheet.mergeCells('A2:B2');
       worksheet.getCell('A2').value = `DATA PENGAJUAN DISKON`;
       worksheet.getCell('A2').font = { size: 18, bold: false };
-      worksheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
 
-      let rowIndex = 4; 
+      let rowIndex = 4;
 
-      const quotationNoPromotion = data?.quotation?.quotation_details?.reduce((acc, curr) => acc + Number(curr.final_price), 0);
-      const promotion = data.quotation.promotion ? (-Number(data.quotation.promotion.promotion)) : 0;
+      const quotationNoPromotion = data?.quotation?.quotation_details?.reduce(
+        (acc, curr) => acc + Number(curr.final_price),
+        0,
+      );
+      const promotion = data.quotation.promotion
+        ? -Number(data.quotation.promotion.promotion)
+        : 0;
       const customerPrice = quotationNoPromotion + promotion;
-      const vendorMargin = (quotationNoPromotion * ((Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)) / 100));
-      const mitraMargin = 100 - Number(data?.quotation?.order?.vendor?.margin_nominal ?? 0);
-      const promotionNominal = (Number(data.promotion_nominal) * quotationNoPromotion) / 100;
-      const customerTransaction = customerPrice - promotionNominal; 
+      const vendorMargin =
+        quotationNoPromotion *
+        (Number(data.quotation?.order?.vendor?.margin_nominal ?? 0) / 100);
+      const mitraMargin =
+        100 - Number(data?.quotation?.order?.vendor?.margin_nominal ?? 0);
+      const promotionNominal =
+        Number(data.promotion_nominal) >= 100
+          ? (Number(data.promotion_nominal) * quotationNoPromotion) / 100
+          : Number(data.promotion_nominal);
+      const customerTransaction = customerPrice - promotionNominal;
 
       console.log(promotionNominal);
-      
-
 
       // Define key-value pairs for each order
       const keyValuePairs = [
         { key: 'Harga NET dari Vendor', value: quotationNoPromotion },
         { key: 'Harga dikurang Promo Survey', value: promotion },
         { key: 'Harga Yang di tawarkan ke customer', value: customerPrice },
-        { key: `Margin Mitra10 ${mitraMargin}%`, value: (quotationNoPromotion * (mitraMargin / 100)) },
-        { key: `Margin Vendor ${Number(data.quotation?.order?.vendor?.margin_nominal ?? 0)}%`, value: vendorMargin },
+        {
+          key: `Margin Mitra10 ${mitraMargin}%`,
+          value: quotationNoPromotion * (mitraMargin / 100),
+        },
+        {
+          key: `Margin Vendor ${Number(
+            data.quotation?.order?.vendor?.margin_nominal ?? 0,
+          )}%`,
+          value: vendorMargin,
+        },
         { key: 'Pengajuan Discount Customer', value: promotionNominal },
         { key: 'Total Transakasi Customer', value: customerTransaction },
         { key: 'Margin', value: customerTransaction - vendorMargin },
-        { key: 'Margin Mitra setelah Disc', value: `${Math.ceil((customerTransaction - vendorMargin) / customerTransaction)}%` },
+        {
+          key: 'Margin Mitra setelah Disc',
+          value: `${Math.ceil(
+            (customerTransaction - vendorMargin) / customerTransaction,
+          )}%`,
+        },
       ];
 
-      keyValuePairs.forEach(({ key, value }, pairIndex) => {
+      keyValuePairs.forEach(({ key, value }) => {
         const row = worksheet.getRow(rowIndex);
 
         // Style for Key (Column A)
         worksheet.getCell(`A${rowIndex}`).value = `${key}:`;
         worksheet.getCell(`A${rowIndex}`).font = { bold: true };
-        worksheet.getCell(`A${rowIndex}`).alignment = { vertical: 'middle', horizontal: 'left' };
+        worksheet.getCell(`A${rowIndex}`).alignment = {
+          vertical: 'middle',
+          horizontal: 'left',
+        };
         worksheet.getCell(`A${rowIndex}`).border = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          right: { style: 'thin' },
         };
 
         // Style for Value (Column B)
         worksheet.getCell(`B${rowIndex}`).value = value;
-        worksheet.getCell(`B${rowIndex}`).alignment = { vertical: 'middle', horizontal: 'left' };
+        worksheet.getCell(`B${rowIndex}`).alignment = {
+          vertical: 'middle',
+          horizontal: 'left',
+        };
         worksheet.getCell(`B${rowIndex}`).border = {
           top: { style: 'thin' },
           left: { style: 'thin' },
           bottom: { style: 'thin' },
-          right: { style: 'thin' }
+          right: { style: 'thin' },
         };
 
         if (rowIndex % 2 === 0) {
@@ -442,25 +569,28 @@ export class QuotationPromotionService {
           };
         }
 
-        rowIndex++; 
+        rowIndex++;
       });
 
-      rowIndex++; 
+      rowIndex++;
 
-    worksheet.columns.forEach(column => {
-      let maxLength = 0;
-      column.eachCell({ includeEmpty: true }, cell => {
-        const columnLength = cell.value ? cell.value.toString().length : 10;
-        if (columnLength > maxLength) {
-          maxLength = columnLength;
-        }
+      worksheet.columns.forEach((column) => {
+        let maxLength = 0;
+        column.eachCell({ includeEmpty: true }, (cell) => {
+          const columnLength = cell.value ? cell.value.toString().length : 10;
+          if (columnLength > maxLength) {
+            maxLength = columnLength;
+          }
+        });
+        column.width = maxLength < 10 ? 10 : maxLength;
       });
-      column.width = maxLength < 10 ? 10 : maxLength;
-    });
 
       const getFormattedDate = () => {
         const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       const createExcelFilePath = (baseName: string) => {
@@ -478,8 +608,14 @@ export class QuotationPromotionService {
         res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${path.basename(excelFilePath)}`);
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
       };
@@ -494,7 +630,7 @@ export class QuotationPromotionService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 
@@ -511,11 +647,11 @@ export class QuotationPromotionService {
         promotion: true,
         quotation_promotion_ho: {
           where: {
-            deleted_at: null
+            deleted_at: null,
           },
           orderBy: {
-            created_at: 'desc'
-          }
+            created_at: 'desc',
+          },
         },
         quotation_files: true,
         quotation_details: {
@@ -533,8 +669,8 @@ export class QuotationPromotionService {
                 deleted_at: null,
               },
               include: {
-                item: true
-              }
+                item: true,
+              },
             },
             members: true,
             store: true,
@@ -570,5 +706,4 @@ export class QuotationPromotionService {
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);
   }
-
 }
