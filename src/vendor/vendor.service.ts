@@ -26,18 +26,15 @@ export class VendorService {
     try {
       const { id: user_id } = user;
       const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
-        ? Object.entries(files).map((file) => {
-          if (file[1].length) {
-            const newFile = file[1].map((item) => ({
-              document_name: file[0],
-              path: item.filename,
-              created_by: user_id,
-            }));
+        ? Object.entries(files).flatMap(([key, fileArray]) =>
+          fileArray.map((file) => ({
+            document_name: key,
+            path: file.filename,
+            created_by: user_id,
+          }))
+        )
+        : [];
 
-            return newFile;
-          }
-        })
-        : undefined;
 
       const vendorAreaData: Prisma.vendor_areaCreateManyInput[] =
         createVendorDto.area_id
@@ -48,14 +45,8 @@ export class VendorService {
             created_by: user_id,
           }))
           : undefined;
-      const vendorServiceData: Prisma.vendor_serviceCreateManyInput[] =
-        createVendorDto.service_type_id
-          ? createVendorDto.service_type_id.map((item) => {
-            return {
-              service_type_id: item,
-            };
-          })
-          : undefined;
+          const vendorServiceData = createVendorDto.service_type_id?.map((service_type_id) => ({ service_type_id })) ?? [];
+
 
       //FIXME: CHECK THIS CODE
       const role = await this.dbService.roles.findFirst({
@@ -163,7 +154,7 @@ export class VendorService {
         }),
       ]);
 
-      await this.emailQueue.add(
+       this.emailQueue.add(
         'send-credential-mail',
         {
           username: users.username,
@@ -518,12 +509,12 @@ export class VendorService {
       });
       const dataVendor = vendor.map((item) => {
         const totalOrder = item.orders.length;
-      
+
         const unpaidOrders = item.orders.filter((order) =>
           order.quotation.some((x) => x.receipt_quotation === null),
         );
-      
-        
+
+
         const paidOrders = item.orders.filter((order) =>
           order.quotation.some((x) => x.receipt_quotation !== null),
         );
@@ -575,8 +566,8 @@ export class VendorService {
             ) + Number(order?.grand_total ?? 0)),
           0,
         )
-      
-        
+
+
         const totalUnpaid = unpaidOrders.reduce(
           (total, order) =>
             total +
@@ -585,7 +576,7 @@ export class VendorService {
             ),
           0,
         );
-      
+
         const totalPaid = paidOrders.reduce(
           (total, order) =>
             total +
@@ -594,7 +585,7 @@ export class VendorService {
             ),
           0,
         );
-      
+
         return {
           ...item,
           total_order: totalOrder,
@@ -606,7 +597,7 @@ export class VendorService {
           total_order_work_value: totalOrderWorkValue,
         };
       });
-      
+
 
       const total = await this.dbService.vendor.count({ where });
 
@@ -782,18 +773,15 @@ export class VendorService {
         },
       });
 
-      const vendorFiles: Prisma.vendor_documentCreateManyInput[] = files
-        ? Object.entries(files).map((file) => {
-          if (file[1].length) {
-            const updateFile = file[1].map((item) => ({
-              document_name: file[0],
-              path: item.filename,
-              created_by: user_id,
-            }));
-            return updateFile;
-          }
-        })
-        : undefined;
+      const vendorFiles: Array<Prisma.vendor_documentCreateManyInput> = files
+        ? Object.entries(files).flatMap(([key, fileArray]) =>
+          fileArray.map((file) => ({
+            document_name: key,
+            path: file.filename,
+            created_by: user_id,
+          }))
+        )
+        : [];
 
       const vendorServiceUpsert: Prisma.vendor_serviceUpsertWithWhereUniqueWithoutVendorInput[] =
         updateVendorDto.vendor_service
