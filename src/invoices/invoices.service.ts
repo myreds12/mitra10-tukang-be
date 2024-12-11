@@ -243,28 +243,22 @@ export class InvoicesService {
 
               totalGrandTotal += totalMargin || 0;
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-              const totalMargin =
-                (vendor.margin_type === 1
-                  ? order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) =>
-                        acc + Number(curr?.item?.invoice_nominal || 0),
-                      0,
-                    ) *
-                  order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr?.quantity || 0),
-                      0,
-                    )
-                  : +vendor.margin_nominal *
-                  order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr?.quantity || 0),
-                      0,
-                    )) + Number(order.additional_fee);
+              const totalMargin = (vendor.margin_type === 1
+                ? order.m_order_details
+                .filter((i) => i.item.type === 2)
+                .reduce((acc, curr) => {
+                  const nominal = Number(curr?.item?.invoice_nominal || 0);
+                  const quantity = Number(curr?.quantity || 0);
+                  return acc + (nominal * quantity);
+                }, 0)
+                : +vendor.margin_nominal *
+                order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce(
+                    (acc, curr) => acc + Number(curr?.quantity || 0),
+                    0,
+                  )) + Number(order.additional_fee);;
+
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -648,14 +642,12 @@ export class InvoicesService {
         },
       });
 
-      console.log('REFUNDS', refund);
 
       const penaltyNominal = refund.length > 0 && updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI ? refund?.reduce(
         (acc, curr) => acc + Number(curr?.penalty_nominal),
         0,
       ) : invoice.penalty_nominal;
 
-      console.log("VARIABLE PENALTY NOMINAL", penaltyNominal);
 
 
       let totalGrandTotal = invoice.invoice_details.reduce((acc, curr) => {
@@ -666,7 +658,7 @@ export class InvoicesService {
         ? updateInvoiceDto?.invoice_details.map((item) => {
           const order = orders.find((order) => order.id === item.order_id);
           console.log("ORDER", order);
-          
+
           let total = 0;
 
           if (order) {
@@ -750,27 +742,21 @@ export class InvoicesService {
                 Number(order.additional_fee);
             } else if (order.payment_type === 'pemasangan_tanpa_survey') {
               total =
-                (invoice.vendor.margin_type === 1
-                  ? order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) =>
-                        acc + Number(curr?.item?.invoice_nominal || 0),
-                      0,
-                    ) *
-                  order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr?.quantity || 0),
-                      0,
-                    )
-                  : +invoice.vendor.margin_nominal *
-                  order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr?.quantity || 0),
-                      0,
-                    )) + Number(order.additional_fee);
+              (invoice.vendor.margin_type === 1
+                ? order.m_order_details
+                .filter((i) => i.item.type === 2)
+                .reduce((acc, curr) => {
+                  const nominal = Number(curr?.item?.invoice_nominal || 0);
+                  const quantity = Number(curr?.quantity || 0);
+                  return acc + (nominal * quantity);
+                }, 0)
+                : +invoice.vendor.margin_nominal *
+                order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce(
+                    (acc, curr) => acc + Number(curr?.quantity || 0),
+                    0,
+                  )) + Number(order.additional_fee);
             } else if (order.payment_type === 'gratis') {
               total =
                 (order.m_order_details
@@ -795,12 +781,12 @@ export class InvoicesService {
                 0,
               ),
             ));
-          console.log("MARGIN VENDOR", (+invoice.vendor.margin_nominal / 100), (+invoice.vendor.margin_nominal) );
-          console.log("FINAL PRICE QUOTATION", 
+          console.log("MARGIN VENDOR", (+invoice.vendor.margin_nominal / 100), (+invoice.vendor.margin_nominal));
+          console.log("FINAL PRICE QUOTATION",
             order?.quotation[0]?.quotation_details.reduce(
-            (acc, curr) => acc + Number(curr.final_price),
-            0,
-          ));
+              (acc, curr) => acc + Number(curr.final_price),
+              0,
+            ));
           console.log("TOTAL QUOTATION", (+invoice.vendor.margin_nominal / 100) *
             Number(
               order?.quotation[0]?.quotation_details.reduce(
