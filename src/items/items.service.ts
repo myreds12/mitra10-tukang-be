@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, store, users } from '@prisma/client';
+import { Prisma, store } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 @Injectable()
@@ -33,7 +33,7 @@ export class ItemsService {
         },
       });
 
-      const pricesData = prices.map(async (prc) => {
+      const pricesData = prices.length > 1 ? prices.map(async (prc) => {
         const { periodic_start, periodic_end, min_order, price, price_store } =
           prc;
 
@@ -101,7 +101,7 @@ export class ItemsService {
         }
 
         return createdPrice;
-      });
+      }) : [undefined];
 
       await Promise.all(pricesData);
 
@@ -255,6 +255,7 @@ export class ItemsService {
         take: take > 0 ? take : undefined,
         where,
         include: {
+          category: true,
           prices: {
             where: {
               deleted_by: null,
@@ -266,6 +267,7 @@ export class ItemsService {
               periodic_start: true,
               periodic_end: true,
               is_active: true,
+              
               price_stores: {
                 where: {
                   deleted_by: null,

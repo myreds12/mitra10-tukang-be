@@ -340,6 +340,7 @@ export class RefundService {
                       deleted_at: null
                     },
                     include: {
+                      work_order_items: true,
                       status: true
                     }
                   }

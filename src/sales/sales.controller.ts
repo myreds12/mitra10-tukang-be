@@ -39,6 +39,11 @@ interface UserRequest extends IExpressRequest {
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
+  @Delete('/delete-sales-incentive/:id')
+  async deleteSalesIncentive(@Param('id') id: number) {
+    return await this.salesService.deleteSalesIncentive(id);
+  }
+
   @Post('/sales-user-management/:range_date')
   async apiSalesUSerManagement(@Param('range_date') range_date: 7 | 4) {
     if(range_date !== 7 && range_date !== 4) throw new BadRequestException('Range date must be 7 or 4');
