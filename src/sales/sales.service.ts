@@ -1576,7 +1576,11 @@ export class SalesService {
           deleted_at: null,
           status: 2,
           id: id
-        }
+        },
+        include: {
+          incentive: true,
+          quotation:true
+        },
       });
       const quotationSalesIncentive = await this.dbService.quotation.findFirst({
         where: {
@@ -1603,16 +1607,39 @@ export class SalesService {
         }
       });
 
+      let comission = 0;
+    if (salesIncentive.incentive.type === 1) {
+      comission += Number(salesIncentive.quotation.quotation_grand_total) * (Number(salesIncentive.incentive.incentive) / 100);
+    } else if (salesIncentive.incentive.type === 2) {
+      comission += Number(salesIncentive.incentive.incentive);
+    }
+
       const updateSalesIncentive = await this.dbService.sales_incentive.update({
         where: {
           id: id
         },
         data: {
+          nominal: Math.floor(comission),
           created_at: new Date(quotationSalesIncentive.order.order_history[0].created_at)
         }
       })
 
       return updateSalesIncentive
+    }catch(error){
+      console.error(error);
+      throw error
+    }
+  }
+
+  async deleteSalesIncentive(id: number) {
+    try{
+      const deleteSalesIncentive = await this.dbService.sales_incentive.delete({
+        where: {
+          id: id
+        },
+      });
+
+      return deleteSalesIncentive
     }catch(error){
       console.error(error);
       throw error

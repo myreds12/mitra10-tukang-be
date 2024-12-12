@@ -434,9 +434,6 @@ export class VendorService {
           },
         },
       });
-      if (Boolean(top_best)) {
-        vendor = vendor.sort((a, b) => b.orders.length - a.orders.length);
-      }
       if (take > 0) {
         vendor = vendor.slice(0, take);
       }
@@ -597,6 +594,11 @@ export class VendorService {
           total_order_work_value: totalOrderWorkValue,
         };
       });
+
+      if (Boolean(top_best)) {
+        dataVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
+    }
+    
 
 
       const total = await this.dbService.vendor.count({ where });
