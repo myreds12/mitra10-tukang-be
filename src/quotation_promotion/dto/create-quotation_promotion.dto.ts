@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateQuotationPromotionDto {
   @ApiProperty()
@@ -16,5 +16,10 @@ export class CreateQuotationPromotionDto {
   status: number;
 
   @ApiProperty()
-  description: string;
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  notes?: string;
 }

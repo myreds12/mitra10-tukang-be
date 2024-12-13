@@ -35,14 +35,14 @@ export class QuotationPromotionService {
               created_by: user_id,
             }))
           : [];
-      const quotation = await this.dbService.quotation.findFirst({
-        where: {
-          id: dto.quotation_id,
-        },
-        select: {
-          quotation_grand_total: true,
-        },
-      });
+      // const quotation = await this.dbService.quotation.findFirst({
+      //   where: {
+      //     id: dto.quotation_id,
+      //   },
+      //   select: {
+      //     quotation_grand_total: true,
+      //   },
+      // });
 
       const data: Prisma.quotation_promotionCreateInput = {
         quotation: {
@@ -52,7 +52,8 @@ export class QuotationPromotionService {
         },
         promotion_nominal: dto.promotion_nominal,
         description: dto.description,
-        status: dto.status,
+        notes: dto?.notes,
+        status: dto?.status,
         quotation_promotion_evidences: {
           createMany: {
             data: evidences,
@@ -349,6 +350,7 @@ export class QuotationPromotionService {
         data: {
           quotation_id: dto.quotation_id ?? undefined,
           description: dto.description ?? undefined,
+          notes: dto.notes ?? undefined,
           promotion_nominal: dto.promotion_nominal ?? undefined,
           status: dto.status ?? undefined,
           quotation_promotion_evidences:

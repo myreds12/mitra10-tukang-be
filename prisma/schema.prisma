@@ -972,6 +972,7 @@ model quotation_promotion {
   quotation_id      Int     @db.Int
   promotion_nominal Decimal @db.Decimal(32, 2)
   description       String? @db.Text
+  notes       String? @db.Text
   status            Int     @default(1)
 
   created_by Int?
