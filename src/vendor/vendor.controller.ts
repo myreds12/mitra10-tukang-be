@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Controller,
   Get,
@@ -26,14 +27,12 @@ import { Response } from 'express';
 @UseGuards(JwtAuthGuard)
 export class VendorController {
   constructor(private readonly vendorService: VendorService) {}
-  
+
   @Get('/export-excel')
   @UseGuards()
-  async orderExportExcel(
-    @Query() query: QueryParamsDto,
-    @Res() res: Response) {
-      const data = await this.vendorService.vendorExportExcel(res, query);
-      return data;
+  async orderExportExcel(@Query() query: QueryParamsDto, @Res() res: Response) {
+    const data = await this.vendorService.vendorExportExcel(res, query);
+    return data;
   }
 
   @Get('next-code')
@@ -55,8 +54,13 @@ export class VendorController {
       { name: 'pks_file', maxCount: 1 },
       { name: 'suip_file', maxCount: 1 },
       { name: 'ptkp_file', maxCount: 1 },
-    ]),
+    ], {
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      }
+    }),
   )
+
   async create(
     @UploadedFiles() files: VendorFiles,
     @Body() createVendorDto: CreateVendorDto,

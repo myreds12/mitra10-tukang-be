@@ -1130,7 +1130,7 @@ export class SalesService {
 
 
       dataExcel.forEach((sales) => {
-        const salesCategories = sales.sales_categories
+        const salesCategories = sales.sales_categories.length > 0
           ? sales.sales_categories
             .map((category) => category.categories.category_name)
             .join(',')
@@ -1145,7 +1145,7 @@ export class SalesService {
             minute: '2-digit',
           })}`;
         const currentMonth = new Date();
-        const orderDate = sales.orders
+        const orderDate = sales?.orders
           ? new Date(sales.orders[0].created_at)
           : sales.created_at;
 
@@ -1156,18 +1156,18 @@ export class SalesService {
 
         const row = worksheet.addRow({
           id: sales.id,
-          store_name: sales.store ? sales.store.store_name : '',
-          full_name: sales.full_name ? sales.full_name : '',
-          bank_name: sales.bank ? sales.bank.bank_name : '',
-          account_name: sales.account_name ? sales.account_name : '',
-          number_account: sales.account_number ? sales.account_number : '',
-          phone_number: sales.phone_number ? sales.phone_number : '',
-          sales_brand: sales.sales_brand ? sales.sales_brand : '',
-          order_total: sales.order_total ? sales.order_total : '',
+          store_name: sales?.store ? sales.store.store_name : '',
+          full_name: sales?.full_name ? sales.full_name : '',
+          bank_name: sales?.bank ? sales.bank.bank_name : '',
+          account_name: sales?.account_name ? sales.account_name : '',
+          number_account: sales?.account_number ? sales.account_number : '',
+          phone_number: sales?.phone_number ? sales.phone_number : '',
+          sales_brand: sales?.sales_brand ? sales.sales_brand : '',
+          order_total: sales?.order_total ? sales.order_total : '',
           sales_categories: salesCategories,
-          username: sales.users ? sales.users.username : '',
-          created_at: formattedDateTime(sales.created_at),
-          order_date: sales.order
+          username: sales?.users ? sales.users.username : '',
+          created_at: formattedDateTime(sales?.created_at),
+          order_date: sales?.order.length > 0
             ? formattedDateTime(sales.order[0].created_at)
             : '',
           date_diff: monthDifference,
@@ -1576,7 +1576,11 @@ export class SalesService {
           deleted_at: null,
           status: 2,
           id: id
-        }
+        },
+        include: {
+          incentive: true,
+          quotation:true
+        },
       });
       const quotationSalesIncentive = await this.dbService.quotation.findFirst({
         where: {
@@ -1603,16 +1607,39 @@ export class SalesService {
         }
       });
 
+      let comission = 0;
+    if (salesIncentive.incentive.type === 1) {
+      comission += Number(salesIncentive.quotation.quotation_grand_total) * (Number(salesIncentive.incentive.incentive) / 100);
+    } else if (salesIncentive.incentive.type === 2) {
+      comission += Number(salesIncentive.incentive.incentive);
+    }
+
       const updateSalesIncentive = await this.dbService.sales_incentive.update({
         where: {
           id: id
         },
         data: {
+          nominal: Math.floor(comission),
           created_at: new Date(quotationSalesIncentive.order.order_history[0].created_at)
         }
       })
 
       return updateSalesIncentive
+    }catch(error){
+      console.error(error);
+      throw error
+    }
+  }
+
+  async deleteSalesIncentive(id: number) {
+    try{
+      const deleteSalesIncentive = await this.dbService.sales_incentive.delete({
+        where: {
+          id: id
+        },
+      });
+
+      return deleteSalesIncentive
     }catch(error){
       console.error(error);
       throw error

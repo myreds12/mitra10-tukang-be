@@ -173,19 +173,13 @@ export class StoreService {
         users: true,
         orders: {
           where: {
-            AND: [
-              ...(date_from && date_to
-                ? [
-                    {
-                      created_at: {
-                        gte: new Date(date_from),
-                        lte: new Date(`${date_to}T23:59:59.000Z`),
-                      },
-                    },
-                  ]
-                : []),
-            ],
-            deleted_at: null
+            deleted_at: null,
+            ...(order_date_from && order_date_to ? {
+              created_at: {
+                gte: new Date(order_date_from),
+                lte: new Date(`${order_date_to}T23:59:59.000Z`),
+              }
+            } : {}),
           },
           orderBy: {
             created_at: 'desc',
@@ -204,41 +198,38 @@ export class StoreService {
 
     const dataStore = store.map((item) => {
       const totalOrder = item.orders.length;
-      const totalUnpaid = item.orders
-        .filter((order) =>
-          [
-            'cancel',
-            'cancelrefund',
-            'refundapprovedbyho',
-            'refundrejectedbyho',
-          ].includes(order.status.category.toLowerCase()),
-        )
-        .reduce(
-          (total, order) =>
-            total +
-            Number(
-              order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
-            ),
-          0,
-        );
+      const unpaidOrders = item.orders.filter((order) =>
+        order.quotation.some((x) => x.receipt_quotation === null),
+      );
+      const paidOrders = item.orders.filter((order) =>
+        order.quotation.some((x) => x.receipt_quotation !== null),
+      );
 
-      const totalPaid = item.orders
-        .filter(
-          (order) =>
-            ![
-              'cancel',
-              'cancelrefund',
-              'refundapprovedbyho',
-              'refundrejectedbyho',
-            ].includes(order.status.category.toLowerCase()),
-        )
-        .reduce((total, order) => total + Number(order.grand_total), 0);
+      const totalUnpaid = unpaidOrders.reduce(
+        (total, order) =>
+          total +
+          Number(
+            order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
+          ),
+        0,
+      );
+
+      const totalPaid = paidOrders.reduce(
+        (total, order) =>
+          total +
+          Number(
+            order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
+          ),
+        0,
+      );
 
       return {
         ...item,
         total_order: totalOrder,
-        total_unpaid: totalUnpaid,
-        total_paid: totalPaid,
+        total_unpaid_order: unpaidOrders.length,
+        total_unpaid_value: totalUnpaid,
+        total_paid_order: paidOrders.length,
+        total_paid_value: totalPaid,
       };
     });
 

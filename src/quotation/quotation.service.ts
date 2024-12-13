@@ -90,7 +90,7 @@ export class QuotationService {
           const quantity = item.quantity;
           const margin =
             item.margin_type === MarginType.PERCENTAGE
-              ? +item.margin >= 1 && +item.margin <= 100
+              ? +item.margin <= 100
                 ? prices * quantity * (+item.margin / 100)
                 : 0
               : +item.margin;
@@ -1117,6 +1117,9 @@ export class QuotationService {
         },
       });
 
+      console.log("INCENTIVE" ,incentives.length);
+      
+
       if (incentives.length > 1) {
         const incentiveToKeep = incentives[0];
         let comission = 0;
@@ -1157,13 +1160,15 @@ export class QuotationService {
           comission += Number(incentiveToKeep.incentive.incentive);
         }
 
+        console.log("COMISSION" ,comission);
+        
+
         await this.dbService.sales_incentive.update({
           where: { id: incentiveToKeep.id },
           data: {
             nominal: comission,
           },
         });
-        console.log('Only one incentive exists, nothing to delete.');
       } else {
         console.log('No incentives found for the given quotation_id.');
       }
