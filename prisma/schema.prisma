@@ -972,7 +972,7 @@ model quotation_promotion {
   quotation_id      Int     @db.Int
   promotion_nominal Decimal @db.Decimal(32, 2)
   description       String? @db.Text
-  notes       String? @db.Text
+  notes             String? @db.Text
   status            Int     @default(1)
 
   created_by Int?
@@ -1040,7 +1040,7 @@ model quotation_details {
   margin_type             Int?     @default(1) @map("marginType") // 1 = Percentage, 2 = Nominal
   final_price             Decimal? @default(0) @db.Decimal(32, 2)
   quotation_special_price Decimal? @default(0) @db.Decimal(32, 2)
-  quantity                Int      @default(0)
+  quantity                Decimal  @default(0) @db.Decimal(32, 2)
   description             String?  @default("") @db.Text()
   unit                    String?  @default("") @db.Text()
   is_customer             Boolean  @default(false)
@@ -1118,14 +1118,14 @@ model complaints {
   pic_name          String? @db.VarChar(150)
   type              Int     @default(1) // 1 = COMPLAINT, 2 =  
   is_sync           Int     @default(0)
-  crm_type    Int?
+  crm_type          Int?
 
   description String @db.Text()
 
-  complaint_date          DateTime @db.Date()
+  complaint_date          DateTime  @db.Date()
   complaint_received_date DateTime? @db.Date()
-  feedback_name           String?  @db.VarChar(50)
-  feedback_role           String?  @db.VarChar(50)
+  feedback_name           String?   @db.VarChar(50)
+  feedback_role           String?   @db.VarChar(50)
 
   created_by Int?
   updated_by Int?
