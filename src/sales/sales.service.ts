@@ -1130,7 +1130,7 @@ export class SalesService {
 
 
       dataExcel.forEach((sales) => {
-        const salesCategories = sales.sales_categories
+        const salesCategories = sales.sales_categories.length > 0
           ? sales.sales_categories
             .map((category) => category.categories.category_name)
             .join(',')
@@ -1145,7 +1145,7 @@ export class SalesService {
             minute: '2-digit',
           })}`;
         const currentMonth = new Date();
-        const orderDate = sales.orders
+        const orderDate = sales?.orders
           ? new Date(sales.orders[0].created_at)
           : sales.created_at;
 
@@ -1156,18 +1156,18 @@ export class SalesService {
 
         const row = worksheet.addRow({
           id: sales.id,
-          store_name: sales.store ? sales.store.store_name : '',
-          full_name: sales.full_name ? sales.full_name : '',
-          bank_name: sales.bank ? sales.bank.bank_name : '',
-          account_name: sales.account_name ? sales.account_name : '',
-          number_account: sales.account_number ? sales.account_number : '',
-          phone_number: sales.phone_number ? sales.phone_number : '',
-          sales_brand: sales.sales_brand ? sales.sales_brand : '',
-          order_total: sales.order_total ? sales.order_total : '',
+          store_name: sales?.store ? sales.store.store_name : '',
+          full_name: sales?.full_name ? sales.full_name : '',
+          bank_name: sales?.bank ? sales.bank.bank_name : '',
+          account_name: sales?.account_name ? sales.account_name : '',
+          number_account: sales?.account_number ? sales.account_number : '',
+          phone_number: sales?.phone_number ? sales.phone_number : '',
+          sales_brand: sales?.sales_brand ? sales.sales_brand : '',
+          order_total: sales?.order_total ? sales.order_total : '',
           sales_categories: salesCategories,
-          username: sales.users ? sales.users.username : '',
-          created_at: formattedDateTime(sales.created_at),
-          order_date: sales.order
+          username: sales?.users ? sales.users.username : '',
+          created_at: formattedDateTime(sales?.created_at),
+          order_date: sales?.order.length > 0
             ? formattedDateTime(sales.order[0].created_at)
             : '',
           date_diff: monthDifference,

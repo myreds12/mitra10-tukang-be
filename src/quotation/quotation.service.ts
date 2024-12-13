@@ -90,7 +90,7 @@ export class QuotationService {
           const quantity = item.quantity;
           const margin =
             item.margin_type === MarginType.PERCENTAGE
-              ? +item.margin >= 1 && +item.margin <= 100
+              ? +item.margin <= 100
                 ? prices * quantity * (+item.margin / 100)
                 : 0
               : +item.margin;
