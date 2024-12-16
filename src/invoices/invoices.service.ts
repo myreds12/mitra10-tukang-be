@@ -665,7 +665,7 @@ export class InvoicesService {
             if (order.payment_type === 'survey' && item.type === 1) {
               total = (invoice.vendor.nominal_survey
                 ? Number(invoice.vendor.nominal_survey)
-                : 75000) + Number(order.additional_fee);
+                : 75000);
             } else if (order.payment_type === 'survey' && item.type === 2) {
               total =
                 (invoice.vendor.margin_type === 1
