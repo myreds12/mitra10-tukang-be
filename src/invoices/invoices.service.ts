@@ -122,9 +122,10 @@ export class InvoicesService {
         createInvoiceDto.invoice_details?.forEach((detail) => {
           if (detail.order_id === order.id) {
             if (order.payment_type === 'survey' && detail.type === 1) {
-              const totalMargin = vendor.nominal_survey
+              console.log("ADITIONAL FEE" ,order.additional_fee);
+              const totalMargin = (vendor.nominal_survey
                 ? Number(vendor.nominal_survey)
-                : 75000 + Number(order.additional_fee);
+                : 75000) + Number(order.additional_fee);
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -657,15 +658,14 @@ export class InvoicesService {
       const invoiceDetails = updateInvoiceDto?.invoice_details
         ? updateInvoiceDto?.invoice_details.map((item) => {
           const order = orders.find((order) => order.id === item.order_id);
-          console.log("ORDER", order);
 
           let total = 0;
 
           if (order) {
             if (order.payment_type === 'survey' && item.type === 1) {
-              total = invoice.vendor.nominal_survey
+              total = (invoice.vendor.nominal_survey
                 ? Number(invoice.vendor.nominal_survey)
-                : 75000 + Number(order.additional_fee);
+                : 75000) + Number(order.additional_fee);
             } else if (order.payment_type === 'survey' && item.type === 2) {
               total =
                 (invoice.vendor.margin_type === 1
