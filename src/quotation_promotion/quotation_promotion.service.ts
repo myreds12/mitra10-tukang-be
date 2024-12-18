@@ -326,22 +326,21 @@ export class QuotationPromotionService {
             }))
           : [];
 
-      // if (dto.status === QuotationPromotionStatus.PENGAJUAN_DISETUJUI) {
-      //   await this.dbService.quotation.update({
-      //     where: {
-      //       id: quotation_promotion.quotation_id,
-      //     },
-      //     data: {
-      //       id: quotation_promotion.quotation_id,
-      //       quotation_grand_total:
-      //         Number(quotation_promotion.quotation.quotation_grand_total) -
-      //         (dto?.promotion_nominal ??
-      //           Number(quotation_promotion.promotion_nominal)),
-      //       updated_at: new Date(),
-      //       updated_by: user_id,
-      //     },
-      //   });
-      // }
+      if (dto.status === QuotationPromotionStatus.PENGAJUAN_DISETUJUI) {
+        await this.dbService.quotation.update({
+          where: {
+            id: quotation_promotion.quotation_id,
+          },
+          data: {
+            id: quotation_promotion.quotation_id,
+            quotation_grand_total:
+              Number(quotation_promotion.quotation.quotation_grand_total) -
+              (Number(dto?.promotion_nominal) < 100 ? (Number(dto.promotion_nominal)/100) * Number(quotation_promotion.quotation.quotation_grand_total) : Number(dto.promotion_nominal)),
+            updated_at: new Date(),
+            updated_by: user_id,
+          },
+        });
+      }
 
       const data: Prisma.quotation_promotionUpdateArgs = {
         where: {
