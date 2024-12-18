@@ -836,8 +836,8 @@ export class InvoicesService {
           : Number(invoice.penalty_nominal));
 
       const statusInvoice =
-        totalAmount >= 5000000 && invoice.status === 1
-          ? 4
+        totalAmount >= 5000000 && invoice.status === InvoiceStatus.PENGECEKAN_INVOICE && updateInvoiceDto.status !== InvoiceStatus.INVOICE_DITOLAK
+          ? InvoiceStatus.MENUNGGU_DOKUMEN_TAGIHAN
           : updateInvoiceDto.status;
       const invoiceData = {
         total_amount: totalAmount != 0 ? totalAmount : undefined,
