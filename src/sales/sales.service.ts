@@ -1126,7 +1126,6 @@ export class SalesService {
           right: { style: 'thin' },
         };
       });
-      console.log("EXCEL DATA", dataExcel);
 
 
       dataExcel.forEach((sales) => {
@@ -1145,7 +1144,7 @@ export class SalesService {
             minute: '2-digit',
           })}`;
         const currentMonth = new Date();
-        const orderDate = sales?.orders
+        const orderDate = sales?.orders?.length > 0
           ? new Date(sales.orders[0].created_at)
           : sales.created_at;
 
@@ -1167,7 +1166,7 @@ export class SalesService {
           sales_categories: salesCategories,
           username: sales?.users ? sales.users.username : '',
           created_at: formattedDateTime(sales?.created_at),
-          order_date: sales?.order.length > 0
+          order_date: sales?.order?.length > 0
             ? formattedDateTime(sales.order[0].created_at)
             : '',
           date_diff: monthDifference,
