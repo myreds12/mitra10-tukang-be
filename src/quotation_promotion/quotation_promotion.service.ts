@@ -332,7 +332,6 @@ export class QuotationPromotionService {
             id: quotation_promotion.quotation_id,
           },
           data: {
-            id: quotation_promotion.quotation_id,
             quotation_grand_total:
               Number(quotation_promotion.quotation.quotation_grand_total) -
               (Number(dto?.promotion_nominal) < 100 ? (Number(dto.promotion_nominal)/100) * Number(quotation_promotion.quotation.quotation_grand_total) : Number(dto.promotion_nominal)),
