@@ -529,31 +529,28 @@ async handleOrderTriggers(template_id: number, status_id: number) {
     });
     
     if (quotations.length) {
-      const jobs = []; 
-      let delay = 2000;
-    
-      for (const quotation of quotations) {
+
+      const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
+      let delay: number = 2000;
+
+      for (let index = 0; index < quotations.length; index++) {
+        const quotation = quotations[index];
         const countSendedEmail = await this.countMailLogs(
           quotation.order_id,
           template_id,
         );
-        console.log(
-          `Quotation ID: ${quotation.id}, Emails Sent: ${countSendedEmail}`,
-        );
-    
+
         const jobId = `send-quotation-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
-    
-        if (countSendedEmail < 2 && !jobExist) {
+
+        if (countSendedEmail > 2 && !jobExist) {
           this.logger.log(
-            `Preparing email job for quotation ${quotation.id} - ${template_id}`,
+            `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
-    
           const jobData = {
             module_id: quotation.id,
             template_id: template_id,
           };
-    
           jobs.push({
             name: 'send-quotation-mail',
             data: jobData,
@@ -562,30 +559,21 @@ async handleOrderTriggers(template_id: number, status_id: number) {
               delay,
             },
           });
-    
-          delay += 5000; 
-        } else {
-          console.log(
-            `Skipping email for Quotation ID: ${quotation.id}. ` +
-            `Emails Sent: ${countSendedEmail}, Job Exists: ${!!jobExist}`,
-          );
+          delay += 5000;
         }
       }
-    
+
       if (jobs.length > 0) {
         this.logger.verbose(
           `Jobs triggered [${jobs.length}] => ${JSON.stringify(jobs)}`,
         );
         await this.emailQueue.addBulk(jobs);
-        console.log('Jobs added to the queue:', jobs);
-      } else {
-        this.logger.verbose('No jobs to trigger. All quotations are processed.');
+        console.log('Jobs added to the queue:', jobs); // Confirm jobs are added
       }
     } else {
-      this.logger.verbose(`No quotations found for status id ${status_id}`);
+      this.logger.verbose(`Quotation not found for status id ${status_id}`);
     }
   }
-
   async handleQuotationPaymentTriggers(template_id: number, status_id: number) {
     // console.log("QUOTATION PAYMENT SEND EMAIL")
     const quotations = await this.dbService.quotation.findMany({
@@ -599,65 +587,53 @@ async handleOrderTriggers(template_id: number, status_id: number) {
         deleted_by: null,
       },
     });
-    
+
     if (quotations.length) {
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay: number = 2000;
-    
       console.log(template_id, 'TEMPLATE ID');
-    
-      for (const quotation of quotations) {
+
+      for (let index = 0; index < quotations.length; index++) {
+        const quotation = quotations[index];
         const countSendedEmail = await this.countMailLogs(
           quotation.order_id,
           template_id,
         );
-        console.log(
-          `Quotation ID: ${quotation.id}, Emails Sent: ${countSendedEmail}`,
-        );
-    
-        if (countSendedEmail < 2) {
-          const jobId = `send-quotation-payment-mail-${quotation.id}-${template_id}`;
-          const jobExist = await this.emailQueue.getJob(jobId);
-    
-          if (!jobExist) {
-            this.logger.log(
-              `Sending email for quotation ${quotation.id} - ${template_id}`,
-            );
-    
-            const jobData = {
-              module_id: quotation.id,
-              template_id: template_id,
-            };
-    
-            jobs.push({
-              name: 'send-quotation-payment-mail',
-              data: jobData,
-              opts: {
-                jobId,
-                delay,
-              },
-            });
-    
-            delay += 5000; 
-          } else {
-            console.log(`Job already exists for Job ID: ${jobId}`);
-          }
-        } else {
-          console.log(
-            `Email limit reached for Quotation ID: ${quotation.id}. No more emails sent.`,
+
+        const jobId = `send-quotation-payment-mail-${quotation.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (countSendedEmail > 2 && !jobExist) {
+          this.logger.log(
+            `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
+          const jobData = {
+            module_id: quotation.id,
+            template_id: template_id,
+          };
+          jobs.push({
+            name: 'send-quotation-payment-mail',
+            data: jobData,
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
         }
       }
-    
+
       if (jobs.length > 0) {
         this.logger.verbose(
           `Jobs triggered [${jobs.length}] => ${JSON.stringify(jobs)}`,
         );
         await this.emailQueue.addBulk(jobs);
       }
+    } else {
+      this.logger.verbose(`Quotation not found for status id ${status_id}`);
     }
-    
   }
+
 
   async handleComplaintTriggers(template_id: number, status_id: number) {
     const complaints = await this.dbService.complaints.findMany({
