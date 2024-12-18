@@ -1311,10 +1311,8 @@ export class SalesService {
       const targetYear = threeMonthsAgo.getFullYear();
       const targetMonth = threeMonthsAgo.getMonth();
 
-      const startOfMonth = new Date(Date.UTC(targetYear, targetMonth, 1));
       const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
       endOfMonth.setHours(23, 59, 59, 999);
-      startOfMonth.setUTCHours(0, 0, 0, 0);
 
       const batchSize = 100;
 
@@ -1323,7 +1321,6 @@ export class SalesService {
           orders: {
             every: {
               created_at: {
-                gte: startOfMonth,
                 lt: endOfMonth,
               },
             },
@@ -1331,9 +1328,9 @@ export class SalesService {
           is_active: true
         },
         select: {
-          id: true,
+          id: true, 
         },
-        take: batchSize,
+        take: batchSize, 
       });
 
       
@@ -1390,27 +1387,25 @@ export class SalesService {
       const targetYear = sixMonthsAgo.getFullYear();
       const targetMonth = sixMonthsAgo.getMonth();
 
-      const startOfMonth = new Date(Date.UTC(targetYear, targetMonth, 1));
       const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
       endOfMonth.setHours(23, 59, 59, 999);
-      startOfMonth.setUTCHours(0, 0, 0, 0);
 
-      const batchSize = 30;
+      const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
           orders: {
             every: {
               created_at: {
-                gte: startOfMonth,
                 lt: endOfMonth,
               },
             },
           },
+          is_active: true
         },
         select: {
-          id: true, // Ambil ID sales
+          id: true, 
         },
-        take: batchSize, // Batasi jumlah data yang diambil
+        take: batchSize, 
       });
 
       const salesIds = salesToUpdate.map((sales) => sales.id);
@@ -1422,7 +1417,6 @@ export class SalesService {
 
       console.log("SALES TO UPDATE (BATCH):", salesIds);
 
-      // Step 2: Update sales dengan batch size
       const salesIncentive = await this.dbService.sales.updateMany({
         where: {
           id: {
@@ -1437,7 +1431,6 @@ export class SalesService {
 
       console.log("SALES UPDATED", salesIncentive);
 
-      // Step 3: Update users yang terkait dengan sales tersebut
       const usersUpdate = await this.dbService.users.updateMany({
         where: {
           sales: {
@@ -1465,33 +1458,31 @@ export class SalesService {
 
   async apiManagementSales(range_date: 7 | 4) {
     try {
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - range_date);
+      const rangeMonthAgo = new Date();
+      rangeMonthAgo.setMonth(rangeMonthAgo.getMonth() - range_date);
 
-      const targetYear = sixMonthsAgo.getFullYear();
-      const targetMonth = sixMonthsAgo.getMonth();
+      const targetYear = rangeMonthAgo.getFullYear();
+      const targetMonth = rangeMonthAgo.getMonth();
 
-      const startOfMonth = new Date(Date.UTC(targetYear, targetMonth, 1));
       const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
       endOfMonth.setHours(23, 59, 59, 999);
-      startOfMonth.setUTCHours(0, 0, 0, 0);
 
-      const batchSize = 100;
+      const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
           orders: {
             every: {
               created_at: {
-                gte: startOfMonth,
                 lt: endOfMonth,
               },
             },
           },
+          is_active: true
         },
         select: {
-          id: true, // Ambil ID sales
+          id: true, 
         },
-        take: batchSize, // Batasi jumlah data yang diambil
+        take: batchSize, 
       });
 
       const salesIds = salesToUpdate.map((sales) => sales.id);
@@ -1501,7 +1492,6 @@ export class SalesService {
         return;
       }
 
-      console.log("SALES TO UPDATE (BATCH):", salesIds);
 
       // Step 2: Update sales dengan batch size
       let salesUser : any, usersUpdate : any
