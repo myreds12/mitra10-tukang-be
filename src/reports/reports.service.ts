@@ -1895,9 +1895,6 @@ export class ReportsService {
         });
       });
 
-      // Fixing the allItems mapping issue
-
-
       interface Item {
         itemName: string;
         quantity: number;
@@ -1991,6 +1988,8 @@ export class ReportsService {
         'RESURVEYDONE',
         'REWORKREQ',
         'REWORKSTART',
+        'BOOK',
+        'BOOKED',
         'RESURVEYDONE',
         'COMPLAINTREJECTEDBYHO',
         'COMPLAINTREJECTEDBYVENDOR',
@@ -2063,6 +2062,9 @@ export class ReportsService {
         'WORKENDSTEPTHREE',
         'QUOTEIN',
         'QUOTEOUT',
+        'QUOTATIONPAID',
+        'QUOTATIONDRAFT',
+        'DONE',
         'SURVEYDONE',
       ];
 
