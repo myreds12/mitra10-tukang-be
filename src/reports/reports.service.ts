@@ -1895,9 +1895,6 @@ export class ReportsService {
         });
       });
 
-      // Fixing the allItems mapping issue
-
-
       interface Item {
         itemName: string;
         quantity: number;
@@ -1975,10 +1972,13 @@ export class ReportsService {
         2,
       );
 
+      
       startOfMonth.setHours(0, 0, 0, 0);
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
+      console.log('NEXT MONTH' ,nextMonth);
+      console.log('END OF NEXT MONTH' ,endOfNextMonth);
       const statusPending = [
         'SURVEYSTART',
         'TUKANGSURVEY',
@@ -1991,6 +1991,8 @@ export class ReportsService {
         'RESURVEYDONE',
         'REWORKREQ',
         'REWORKSTART',
+        'BOOK',
+        'BOOKED',
         'RESURVEYDONE',
         'COMPLAINTREJECTEDBYHO',
         'COMPLAINTREJECTEDBYVENDOR',
@@ -2016,6 +2018,7 @@ export class ReportsService {
           [
             'WORKREQ',
             'TUKANGWORK',
+            'WORKSTART',
             'COMPLAINTREJECTEDBYHO',
             'COMPLAINTREJECTEDBYVENDOR',
             'RESCHEDULEAPPROVEDBYHO',
@@ -2028,6 +2031,7 @@ export class ReportsService {
             'WORKSTARTSTEPONE',
             'WORKENDSTEPONE',
             'WORKENDSTEPTHREE',
+            'WORKSTARTSTEPTWO',
             'WORKSTARTSTEPTHREE',
             'WORKENDSTEPTWO',
             'RETUKANGWORK',
@@ -2063,11 +2067,14 @@ export class ReportsService {
         'WORKENDSTEPTHREE',
         'QUOTEIN',
         'QUOTEOUT',
+        'QUOTATIONPAID',
+        'QUOTATIONDRAFT',
+        'DONE',
         'SURVEYDONE',
       ];
 
       const isWithinNextMonth = (date) =>
-        date && new Date(date) >= nextMonth && new Date(date) <= endOfNextMonth;
+        date && new Date(date) >= nextMonth && new Date(date) < endOfNextMonth;
 
       const orderProgress = data.filter(
         ({ status, request_survey }) =>
@@ -2075,7 +2082,6 @@ export class ReportsService {
           isWithinNextMonth(request_survey),
       ).length;
 
-      console.log('ORDER PROGRESS', orderProgress);
 
       const orderSurvey = data.filter(
         (x) => x.payment_type === 'survey',
