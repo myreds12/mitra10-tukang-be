@@ -1109,6 +1109,7 @@ export class SalesService {
         { header: 'Sales Dibuat', key: 'created_at', width: 35 },
         { header: 'Tanggal Terakhir Order', key: 'order_date', width: 55 },
         { header: 'Selisih', key: 'date_diff', width: 35 },
+        { header: 'Status', key: 'is_active', width: 35 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -1168,8 +1169,9 @@ export class SalesService {
           created_at: formattedDateTime(sales?.created_at),
           order_date: sales?.order?.length > 0
             ? formattedDateTime(sales.order[0].created_at)
-            : '',
-          date_diff: monthDifference,
+            : 'Tidak Ada Order',
+          date_diff: `${monthDifference} Bulan`,
+          is_active: sales?.is_active ? 'Aktif' : 'Tidak Aktif',
         });
 
         row.eachCell((cell) => {
