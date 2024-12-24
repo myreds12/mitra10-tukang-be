@@ -173,7 +173,7 @@ export class OrderService {
           vendor: createOrderDto.vendor_id
             ? { connect: { id: createOrderDto.vendor_id } }
             : undefined,
-        }).filter(([key, value]) => value !== undefined),
+        }).filter(([value]) => value !== undefined),
       );
 
       const orderData = {
@@ -1288,16 +1288,6 @@ export class OrderService {
   ) {
     try {
       const { id: user_id } = user;
-      const currentUser = await this.dbService.users.findFirst({
-        where: {
-          id: user_id,
-        },
-        include: {
-          roles: true,
-          sales: true,
-        },
-      });
-
       if (updateOrderDto.receipt_number) {
         const existingOrder = await this.dbService.orders.findFirst({
           where: {
@@ -1395,51 +1385,6 @@ export class OrderService {
             messages: 'The provided detail id not found',
             errorIds: checkOrderDetailIds,
           });
-      }
-
-      const searchStatusInput = updateOrderDto.project_status_id
-        ? await this.dbService.status.findFirst({
-            where: {
-              id: updateOrderDto.project_status_id,
-            },
-          })
-        : null;
-
-      let projectStatusDefault = order.status;
-
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'BOOKED' &&
-        order.status.category === 'PICKLIST' &&
-        currentUser.roles.name.toLowerCase().includes('cs')
-      ) {
-        projectStatusDefault = searchStatusInput;
-      }
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'BOOKED' &&
-        order.status.category === 'BOOK' &&
-        currentUser.roles.name.toLowerCase().includes('admin ho')
-      ) {
-        await this;
-        projectStatusDefault = searchStatusInput;
-      }
-
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'SURVEYREQ' &&
-        order.status.category === 'BOOKED' &&
-        updateOrderDto.vendor_id
-      ) {
-        projectStatusDefault = searchStatusInput;
-      }
-
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'SURVEYSTART' &&
-        order.status.category === 'SURVEYREQ'
-      ) {
-        projectStatusDefault = searchStatusInput;
       }
 
       const salesUser = await this.dbService.sales.findFirst({
@@ -3065,6 +3010,49 @@ export class OrderService {
                   invoice_logs: true,
                   description: true,
                   vendor: true,
+                },
+              },
+            },
+          },
+          order_history: {
+            select: {
+              id: true,
+              order_id: true,
+              payload: true,
+              created_at: true,
+              created_by: true,
+              status: {
+                select: {
+                  id: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
+          reschedule: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              reschedule_tukang: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                include: {
+                  tukang: true,
+                },
+              },
+              status: true,
+              reschedule_status: {
+                include: {
+                  status: true,
+                },
+              },
+              reschedule_evidences: {
+                where: {
+                  deleted_at: null,
                 },
               },
             },
@@ -5177,7 +5165,7 @@ export class OrderService {
       };
     });
 
-    dataExcel.forEach((order: any, index: number) => {
+    dataExcel.forEach((order: any) => {
 
       worksheet.addRow({
         id: order.id,
@@ -5473,7 +5461,7 @@ export class OrderService {
           members: { connect: { id: member ? member.id : newMember.id } },
           store: { connect: { id: store.id } },
           status: { connect: { id: bookedStatus.id } },
-        }).filter(([key, value]) => value !== undefined),
+        }).filter(([value]) => value !== undefined),
       );
 
       const orderData = {
