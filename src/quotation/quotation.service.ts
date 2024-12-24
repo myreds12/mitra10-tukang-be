@@ -1303,69 +1303,24 @@ export class QuotationService {
             quotation.quotation_status,
           );
 
-          console.log(`Updating sales incentives for quotation ${id}`);
-
-          const salesIncentives = await this.dbService.sales_incentive.findMany(
-            {
-              where: {
-                quotation_id: id,
-                status: {
-                  not: IncentiveStatus.LOST_INCENTIVE,
-                },
-              },
-              include: {
-                quotation: {
-                  include: {
-                    order: true,
-                  },
-                },
-              },
-            },
-          );
-
-          await Promise.all(
-            salesIncentives.map(async (salesIncentive) => {
-              await this.dbService.sales_incentive.update({
-                where: {
-                  id: salesIncentive.id,
-                },
-                data: {
-                  status: 5,
-                },
-              });
-
-              const order = await this.dbService.orders.findUnique({
-                where: {
-                  id: salesIncentive.quotation.order_id,
-                },
-                include: {
-                  work_orders: {
-                    include: {
-                      work_order_tukang: true,
-                    },
-                  },
-                },
-              });
-
-              await this.notifService.create(
-                {
-                  sales_incentive: salesIncentive,
-                  orders: order,
-                },
-                'UPDATE',
-                salesIncentive.updated_by,
-                moduleTypeNotification.INCENTIVE,
-                salesIncentive.id,
-                salesIncentive.status,
-              );
-
-              console.log(
-                `Notification created for sales incentive ${salesIncentive.id}`,
-              );
-            }),
-          );
         }),
       );
+
+      await this.dbService.sales_incentive.updateMany({
+        where: {
+          quotation: {
+            order: {
+              refund: {
+                some: {}
+              }
+            }
+          }
+        },
+        data: {
+          status: IncentiveStatus.LOST_INCENTIVE,
+          updated_at: new Date()
+        }
+      })
 
       console.log('Finished checkvalidity');
       return 1;
