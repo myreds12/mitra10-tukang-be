@@ -703,7 +703,7 @@ export class RefundService {
         { header: 'Nama Vendor', key: 'vendor_name', width: 40 },
         { header: 'Nama Pemasanngan', key: 'item_name', width: 50 },
         { header: 'Status Order', key: 'status_order', width: 40 },
-        { header: 'Status Pembayaran', key: 'paid_status', width: 40 },
+        { header: 'Status Pembayaran Penalti', key: 'paid_status', width: 40 },
         { header: 'Catatan', key: 'notes', width: 40 },
         { header: 'Alasan', key: 'reason', width: 40 },
         { header: 'Nomor Persetujuan', key: 'approval_number', width: 25 },

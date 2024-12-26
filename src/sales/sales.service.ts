@@ -189,7 +189,6 @@ export class SalesService {
         page,
         date_from,
         date_to,
-        order_by,
         top_best,
         store_id,
         order_date_from,
@@ -266,12 +265,12 @@ export class SalesService {
           orders: {
             where: {
               deleted_at: null,
-              ...(order_date_from && order_date_to ? {
-                created_at: {
-                  gte: new Date(order_date_from),
-                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                }
-              } : {})
+              // ...(order_date_from && order_date_to ? {
+              //   created_at: {
+              //     gte: new Date(order_date_from),
+              //     lte: new Date(`${order_date_to}T23:59:59.000Z`),
+              //   }
+              // } : undefined)
             }
           },
           bank: true,
@@ -1032,6 +1031,12 @@ export class SalesService {
               }),
           },
           include: {
+            orders: {
+              take: 5,
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
             bank: true,
             store: true,
             sales_brands: {
