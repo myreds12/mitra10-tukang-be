@@ -282,6 +282,7 @@ export class QuotationService {
         date_to,
         order_by,
         vendor_id,
+        store_id,
         promotion,
         is_free,
         is_paid,
@@ -356,6 +357,13 @@ export class QuotationService {
                   vendor_id: vendor_id,
                 },
               }
+            : undefined,
+          store_id
+            ? {
+              order: {
+                store_id: store_id[0]
+              }
+            }
             : undefined,
           Boolean(is_paid)
             ? {

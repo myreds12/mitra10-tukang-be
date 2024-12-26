@@ -3222,17 +3222,55 @@ export class OrderService {
         return nameA.localeCompare(nameB);
       });
 
+      const userIds = [
+        ...new Set(
+          orders
+            .flatMap((order) => [
+              order.created_by,
+              order.updated_by,
+              order.deleted_by,
+              ...order.order_history
+              .map((item) => item.created_by)
+              .filter((id) => id)
+            ])
+            .filter(Boolean),
+        ),
+      ];
+
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+
+      const userMap = users.reduce(
+        (acc, user) => ({
+          ...acc,
+          [user.id]: user,
+        }),
+        {},
+      );
+
+      const ordersWithUser = orders.map((order) => ({
+        ...order,
+        created_by: order.created_by ? userMap[order.created_by] || null : null,
+        updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
+        deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
+        order_history: order.order_history.map((item) => ({
+          ...item,
+          created_by: item.created_by ? userMap[item.created_by] || null : null,
+        }))
+      }));
       const count = await this.dbService.orders.count({
         where,
       });
 
       return {
-        data: orders,
+        data: ordersWithUser,
         meta: {
           total: count,
           page,
           take,
-          takeTotal: orders.length,
+          takeTotal: ordersWithUser.length,
         },
       };
     } catch (error) {
