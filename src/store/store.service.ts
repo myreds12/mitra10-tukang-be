@@ -16,6 +16,7 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { equals } from 'class-validator';
 
 @Injectable()
 export class StoreService {
@@ -92,6 +93,7 @@ export class StoreService {
       date_to,
       area_id,
       store_group_id,
+      vendor_id,
       top_best,
       order_date_from,
       order_date_to,
@@ -144,6 +146,13 @@ export class StoreService {
                 },
               ]
             : []),
+            ...(vendor_id
+              ? [
+                {
+                  vendor_store: { some: { vendor_id: { equals: vendor_id } } },
+                },
+              ]
+              : []),
             ...(order_date_from && order_date_to
               ? [
                   {
@@ -171,6 +180,7 @@ export class StoreService {
       include: {
         area: true,
         users: true,
+        vendor_store: true,
         orders: {
           where: {
             deleted_at: null,
