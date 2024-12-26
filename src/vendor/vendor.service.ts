@@ -205,9 +205,17 @@ export class VendorService {
             ? [
               {
                 OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
                   { phone_number: { contains: search } },
                   { email_address: { contains: search } },
                   { company_name: { contains: search } },
+                  {
+                    pic_name: {
+                      contains: search
+                    }
+                  }
                 ],
               },
             ]
@@ -578,8 +586,8 @@ export class VendorService {
           (total, order) =>
             total +
             Number(
-              order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
-            ),
+              order?.quotation[0]?.quotation_grand_total ?? 0,
+            ) + Number(order?.grand_total ?? 0),
           0,
         );
 

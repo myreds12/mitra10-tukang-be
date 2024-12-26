@@ -199,10 +199,10 @@ export class StoreService {
     const dataStore = store.map((item) => {
       const totalOrder = item.orders.length;
       const unpaidOrders = item.orders.filter((order) =>
-        order.quotation.some((x) => x.receipt_quotation === null),
+        order?.quotation[0]?.receipt_quotation === null,
       );
       const paidOrders = item.orders.filter((order) =>
-        order.quotation.some((x) => x.receipt_quotation !== null),
+       order?.quotation[0]?.receipt_quotation !== null
       );
 
       const totalUnpaid = unpaidOrders.reduce(
@@ -218,8 +218,8 @@ export class StoreService {
         (total, order) =>
           total +
           Number(
-            order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
-          ),
+            order?.quotation[0]?.quotation_grand_total ?? 0,
+          ) + Number(order.grand_total),
         0,
       );
 

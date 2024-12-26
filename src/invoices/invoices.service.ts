@@ -279,15 +279,13 @@ export class InvoicesService {
                 totalGrandTotal += totalMargin || 0;
               } else if (order.payment_type === 'gratis') {
                 const totalMargin =
-                  order.m_order_details
-                    .filter((i) => i.item.type === 1)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr.item.invoice_nominal),
-                      0
-                    ) *
-                  order.m_order_details
-                    .filter((i) => i.item.type === 1)
-                    .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0) +
+                order.m_order_details
+                .filter((i) => i.item.type === 1)
+                .reduce((acc, curr) => {
+                  const nominal = Number(curr?.item?.invoice_nominal || 0);
+                  const quantity = Number(curr?.quantity || 0);
+                  return acc + nominal * quantity;
+                }, 0) +
                   Number(order.additional_fee);
                 invoiceDetails.push({
                   order_id: order.id,

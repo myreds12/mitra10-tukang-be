@@ -106,6 +106,7 @@ export class MemberService {
                     id: !isNaN(+search) ? +search : undefined,
                   },
                   { whatsapp_number: { contains: search } },
+                  { phone_number: { contains: search } },
                   { member_number: { contains: search } },
                   {
                     full_name: {
