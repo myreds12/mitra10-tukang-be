@@ -95,6 +95,7 @@ export class StoreService {
       top_best,
       order_date_from,
       order_date_to,
+      is_promotion
     } = query;
 
     const skip = page * take - take;
@@ -180,6 +181,13 @@ export class StoreService {
                 lte: new Date(`${order_date_to}T23:59:59.000Z`),
               }
             } : {}),
+            ...(is_promotion === 1 ? {
+              payment_type : {
+                not: 'survey'
+              }
+            } : is_promotion === 0 ? {
+              payment_type: 'survey'
+            } : {} ),
           },
           orderBy: {
             created_at: 'desc',

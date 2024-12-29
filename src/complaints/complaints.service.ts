@@ -394,6 +394,7 @@ export class ComplaintsService {
         },
         include: {
           complaint_channels: true,
+          
           complaint_histories: {
             include: {
               status: true,
@@ -985,10 +986,10 @@ export class ComplaintsService {
           complaint_status: complaint?.status?.description || "",
           feedback_name: complaint.feedback_name
             ? complaint.feedback_name
-            : "N/a",
+            : "-",
           feedback_role: complaint.feedback_role
             ? complaint.feedback_role
-            : "N/a",
+            : "-",
           created_at: formattedDateTime(complaint.created_at),
         });
 

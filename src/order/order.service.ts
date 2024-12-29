@@ -504,7 +504,11 @@ export class OrderService {
                   },
                 },
               ]
-            : []),
+            : [
+              {
+                receipt_number: null,
+              }
+            ]),
           ...(is_receipt_quotation
             ? [
                 {
@@ -517,7 +521,15 @@ export class OrderService {
                   },
                 },
               ]
-            : []),
+            : [
+              {
+                quotation: {
+                  some: {
+                    receipt_quotation: null,
+                    },
+                    },
+              }
+            ]),
           ...(Boolean(promotion)
             ? [
                 {
@@ -4305,6 +4317,18 @@ export class OrderService {
                           },
                         },
                       ],
+                    },
+                    {
+                      AND: [
+                        {
+                          payment_type: 'pemasangan_tanpa_survey'
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        }
+                      ]
                     },
                     {
                       AND: [

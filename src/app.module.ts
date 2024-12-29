@@ -51,6 +51,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comission_sales_incentive.module';
 import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 import { CrmModule } from './crm/crm.module';
+import { AdditionalFeeModule } from './additional-fee/additional-fee.module';
 
 @Module({
   imports: [
@@ -156,6 +157,7 @@ import { CrmModule } from './crm/crm.module';
     ComissionSalesIncentiveModule,
     QuotationPromotionModule,
     CrmModule,
+    AdditionalFeeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
