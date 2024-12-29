@@ -186,6 +186,7 @@ export class VendorService {
         order_date_from,
         order_date_to,
         is_paid,
+        is_promotion
       } = query;
       // ...(Boolean(top_best)
       //       ? {
@@ -314,7 +315,14 @@ export class VendorService {
                     receipt_quotation: null,
                   },
                 }
-              })
+              }),
+              ...(is_promotion === 1 ? {
+                payment_type : {
+                  not: 'survey'
+                }
+              } : is_promotion === 0 ? {
+                payment_type: 'survey'
+              } : {} ),
             },
             orderBy: {
               created_at: 'desc',

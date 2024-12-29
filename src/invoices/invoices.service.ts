@@ -836,8 +836,8 @@ export class InvoicesService {
         : +invoice.ppn_nominal;
 
       const totalAmount =
-        totalGrandTotal +
-        pkpNominal +
+        totalGrandTotal -
+        pkpNominal -
         pphNominal +
         ppnNominal -
         (updateInvoiceDto.status === InvoiceStatus.INVOICE_DISETUJUI

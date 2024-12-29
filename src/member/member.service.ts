@@ -183,6 +183,12 @@ export class MemberService {
             include: {
               complaints: true,
               status: true,
+              quotation: {
+                select: {
+                  id: true,
+                  receipt_quotation: true
+                }
+              },
               store: true,
               sales: true,
               m_order_details: true,
@@ -214,24 +220,14 @@ export class MemberService {
         }
         const totalUnpaid = item.order
           .filter((order) =>
-            [
-              'cancel',
-              'cancelrefund',
-              'refundapprovedbyho',
-              'refundrejectedbyho',
-            ].includes(order.status.category.toLowerCase()),
-          )
-          .reduce((total, order) => total + Number(order.grand_total), 0);
-
+          order?.quotation[0]?.receipt_quotation !== null
+        )
+        .reduce((total, order) => total + Number(order.grand_total), 0);
+        
         const totalPaid = item.order
-          .filter(
-            (order) =>
-              ![
-                'cancel',
-                'cancelrefund',
-                'refundapprovedbyho',
-                'refundrejectedbyho',
-              ].includes(order.status.category.toLowerCase()),
+        .filter(
+          (order) =>
+            order?.quotation[0]?.receipt_quotation === null,
           )
           .reduce((total, order) => total + Number(order.grand_total), 0);
 
@@ -406,8 +402,9 @@ export class MemberService {
                     },
                   }
                   : {}),
-              },
-              include: {
+                },
+                include: {
+                quotation: true,
                 complaints: true,
                 status: true,
                 store: true,
@@ -428,24 +425,14 @@ export class MemberService {
         const dataBatch = members.map((item) => {
           const totalUnpaid = item.order
             .filter((order) =>
-              [
-                'cancel',
-                'cancelrefund',
-                'refundapprovedbyho',
-                'refundrejectedbyho',
-              ].includes(order.status.category.toLowerCase()),
+              order?.quotation[0]?.receipt_quotation === null
             )
             .reduce((total, order) => total + Number(order.grand_total), 0);
 
           const totalPaid = item.order
             .filter(
               (order) =>
-                ![
-                  'cancel',
-                  'cancelrefund',
-                  'refundapprovedbyho',
-                  'refundrejectedbyho',
-                ].includes(order.status.category.toLowerCase()),
+                order?.quotation[0]?.receipt_quotation !== null
             )
             .reduce((total, order) => total + Number(order.grand_total), 0);
 
@@ -487,7 +474,7 @@ export class MemberService {
       worksheet.columns = [
         { header: 'Member Id', key: 'id', width: 20 },
         { header: 'Nama Toko', key: 'store_name', width: 35 },
-        { header: 'Nama Member', key: 'full_name', width: 35 },
+        { header: 'Nama Customers', key: 'full_name', width: 35 },
         { header: 'Join Date', key: 'join_date', width: 35 },
         { header: 'Email Member', key: 'email', width: 35 },
         { header: 'Phone Number', key: 'phone_number', width: 35 },

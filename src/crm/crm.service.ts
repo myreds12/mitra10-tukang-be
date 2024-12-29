@@ -18,9 +18,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) { }
-
-
+  ) {}
 
   async create(createCsiDto: CreateCsiDto) {
     try {
@@ -50,13 +48,13 @@ export class CrmService {
           AND: [
             ...(date_from && date_to
               ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                },
-              ]
+                ]
               : []),
           ].filter(Boolean),
           deleted_at: null,
@@ -95,7 +93,7 @@ export class CrmService {
               data: true,
             },
           },
-          email_messages: true
+          email_messages: true,
         },
       });
 
@@ -124,22 +122,10 @@ export class CrmService {
     }
   }
 
-  async sendCsiMail(id: number, orderId: number) {
-    try {
-      const csi = await this.findOne(id);
-      const order = await this.dbService.orders.findFirstOrThrow({
-        where: { id: orderId },
-      });
-
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }
 
   async remove(id: number, user_id: number) {
     try {
-      const csiAnswers = await this.dbService.csi_answers.updateMany({
+      await this.dbService.csi_answers.updateMany({
         where: {
           csi_template_id: id,
         },
@@ -203,33 +189,32 @@ export class CrmService {
     await this.storeAnswer(spreadsheetId);
   }
 
-
-
   async storeAnswer(spreadsheetId: string) {
-    const spreadsheetInstances = this.googleSheetConnectorService.getGoogleSheetConnect();
-    const lastRow = await this.getLastRow(spreadsheetId, "Form Responses 1");
-    
+    const spreadsheetInstances =
+      this.googleSheetConnectorService.getGoogleSheetConnect();
+    const lastRow = await this.getLastRow(spreadsheetId, 'Form Responses 1');
+
     const complaints = await this.dbService.complaints.findMany({
       where: {
         deleted_at: null,
-        is_sync: 0
+        is_sync: 0,
       },
       include: {
         orders: {
           include: {
             store: {
               include: {
-                area: true
-              }
+                area: true,
+              },
             },
             members: true,
             vendor: true,
-          }
+          },
         },
         remedials: {
           orderBy: {
-            created_at: 'desc'
-          }
+            created_at: 'desc',
+          },
         },
         complaint_channels: true,
         status: true,
@@ -274,14 +259,25 @@ export class CrmService {
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
 
     if (!sheetHeader) {
-      console.log("No header found in the spreadsheet.");
+      console.log('No header found in the spreadsheet.');
       return;
     }
-    const ajColumnIndex = sheetHeader.indexOf("AJ") !== -1 ? sheetHeader.indexOf("AJ") : sheetHeader.length + 9;
-    const akColumnIndex = sheetHeader.indexOf("AK") !== -1 ? sheetHeader.indexOf("AJ") : sheetHeader.length + 10;
-    const alColumnIndex = sheetHeader.indexOf("AL") !== -1 ? sheetHeader.indexOf("AJ") : sheetHeader.length + 11;
-    const amColumnIndex = sheetHeader.indexOf("AM") !== -1 ? sheetHeader.indexOf("AM") : sheetHeader.length + 12;
-
+    const ajColumnIndex =
+      sheetHeader.indexOf('AJ') !== -1
+        ? sheetHeader.indexOf('AJ')
+        : sheetHeader.length + 9;
+    const akColumnIndex =
+      sheetHeader.indexOf('AK') !== -1
+        ? sheetHeader.indexOf('AJ')
+        : sheetHeader.length + 10;
+    const alColumnIndex =
+      sheetHeader.indexOf('AL') !== -1
+        ? sheetHeader.indexOf('AJ')
+        : sheetHeader.length + 11;
+    const amColumnIndex =
+      sheetHeader.indexOf('AM') !== -1
+        ? sheetHeader.indexOf('AM')
+        : sheetHeader.length + 12;
 
     const values = complaintWithUser.map((complaint) => {
       const filledHeaders = new Set(); // Set untuk melacak header yang sudah diisi
@@ -289,96 +285,120 @@ export class CrmService {
         if (filledHeaders.has(header)) {
           return '';
         }
-    
-        let cellValue : any = ""; 
-    
+
+        let cellValue: any = '';
+
         switch (header) {
-          case "Timestamp":
+          case 'Timestamp':
             const date = new Date(complaint.created_at);
-            cellValue = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+            cellValue = `${String(date.getDate()).padStart(2, '0')}/${String(
+              date.getMonth() + 1,
+            ).padStart(2, '0')}/${date.getFullYear()} ${String(
+              date.getHours(),
+            ).padStart(2, '0')}:${String(date.getMinutes()).padStart(
+              2,
+              '0',
+            )}:${String(date.getSeconds()).padStart(2, '0')}`;
             break;
-          case "Store Region":
-            cellValue = complaint.orders?.store.area.area || "N/A";
+          case 'Store Region':
+            cellValue = complaint.orders?.store.area.area || 'N/A';
             break;
-          case "Store Name":
-            cellValue = complaint.orders?.store.store_name.toUpperCase() || "N/A";
+          case 'Store Name':
+            cellValue =
+              complaint.orders?.store.store_name.toUpperCase() || 'N/A';
             break;
-          case "Customer Name":
-            cellValue = complaint.orders?.members?.full_name || "N/A";
+          case 'Customer Name':
+            cellValue = complaint.orders?.members?.full_name || 'N/A';
             break;
-          case "Member Id":
-            cellValue = complaint.orders?.member_id || "N/A";
+          case 'Member Id':
+            cellValue = complaint.orders?.member_id || 'N/A';
             break;
-          case "Mobile":
-            cellValue = complaint.orders?.members?.phone_number ?? complaint.orders?.members?.whatsapp_number;
+          case 'Mobile':
+            cellValue =
+              complaint.orders?.members?.phone_number ??
+              complaint.orders?.members?.whatsapp_number;
             break;
-          case "Email":
-            cellValue = complaint.orders?.members?.email || "";
+          case 'Email':
+            cellValue = complaint.orders?.members?.email || '';
             break;
-          case "Complaint Detail":
+          case 'Complaint Detail':
             cellValue = complaint.description;
             break;
-          case "Detail Solution":
-            cellValue = "";
-            break;
-          case "Feedback":
-            cellValue = "";
-            break;
-          case "Complaint Dimension":
-            cellValue = "PROCESS";
-            break;
-          case "Media":
-            cellValue = complaint.complaint_channels?.name || "N/A";
-            break;
-          case "Feedback Value":
-            cellValue = complaint.crm_type ? CRM_TYPE[complaint.crm_type] : "Neutral";
-            break;
-          case "Status":
-            cellValue = "Open";
-            break;
-          case "Closed Ticket Date":
+          case 'Detail Solution':
             cellValue = '';
             break;
-          case "Received By":
+          case 'Feedback':
+            cellValue = '';
+            break;
+          case 'Complaint Dimension':
+            cellValue = 'PROCESS';
+            break;
+          case 'Media':
+            cellValue = complaint.complaint_channels?.name || 'N/A';
+            break;
+          case 'Feedback Value':
+            cellValue = complaint.crm_type
+              ? CRM_TYPE[complaint.crm_type]
+              : 'Neutral';
+            break;
+          case 'Status':
+            cellValue = 'Open';
+            break;
+          case 'Closed Ticket Date':
+            cellValue = '';
+            break;
+          case 'Received By':
             cellValue = complaint.feedback_name;
             break;
-          case "Updated By":
+          case 'Updated By':
             cellValue = complaint.feedback_name;
             break;
-          case "Date Received":
+          case 'Date Received':
             const dateReceived = new Date(complaint.complaint_received_date);
-            cellValue = `${String(dateReceived.getDate()).padStart(2, '0')}/${String(dateReceived.getMonth() + 1).padStart(2, '0')}/${dateReceived.getFullYear()}`;
+            cellValue = `${String(dateReceived.getDate()).padStart(
+              2,
+              '0',
+            )}/${String(dateReceived.getMonth() + 1).padStart(
+              2,
+              '0',
+            )}/${dateReceived.getFullYear()}`;
             break;
-          case "Complaint Variable":
-            cellValue = 'Installasi Yang Dilakukan Oleh Vendor'; 
+          case 'Complaint Variable':
+            cellValue = 'Installasi Yang Dilakukan Oleh Vendor';
             break;
           default:
-            cellValue = "N/A";
+            cellValue = 'N/A';
         }
-    
-        filledHeaders.add(header); 
+
+        filledHeaders.add(header);
         return cellValue;
       });
       const dateReceived = new Date(complaint.complaint_received_date);
-      const formattedDateReceived = `${String(dateReceived.getDate()).padStart(2, '0')}/${String(dateReceived.getMonth() + 1).padStart(2, '0')}/${dateReceived.getFullYear()}`;
+      const formattedDateReceived = `${String(dateReceived.getDate()).padStart(
+        2,
+        '0',
+      )}/${String(dateReceived.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}/${dateReceived.getFullYear()}`;
       rowData[ajColumnIndex] = formattedDateReceived;
-      rowData[akColumnIndex] = `=CONCATENATE(C${lastRow};D${lastRow};E${lastRow};F${lastRow};G${lastRow};H${lastRow};I${lastRow})`;
+      rowData[
+        akColumnIndex
+      ] = `=CONCATENATE(C${lastRow};D${lastRow};E${lastRow};F${lastRow};G${lastRow};H${lastRow};I${lastRow})`;
 
-      rowData[alColumnIndex] = `=CONCATENATE(X${lastRow};Y${lastRow};Z${lastRow};AA${lastRow};AB${lastRow};AC${lastRow};AD${lastRow};AE${lastRow};AF${lastRow};AG${lastRow};AH${lastRow};AI${lastRow})`;
+      rowData[
+        alColumnIndex
+      ] = `=CONCATENATE(X${lastRow};Y${lastRow};Z${lastRow};AA${lastRow};AB${lastRow};AC${lastRow};AD${lastRow};AE${lastRow};AF${lastRow};AG${lastRow};AH${lastRow};AI${lastRow})`;
       rowData[amColumnIndex] = `=VLOOKUP(AK${lastRow};'Store Master'!A:C;3;0)`;
 
-    
       return rowData;
     });
-    
-     
-
 
     await spreadsheetInstances.spreadsheets.values.append({
       spreadsheetId: spreadsheetId,
-      range: "Form Responses 1", // Starting point in the sheet
-      valueInputOption: "USER_ENTERED",
-      insertDataOption: "INSERT_ROWS",
+      range: 'Form Responses 1', // Starting point in the sheet
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
       requestBody: {
         values: values,
       },
@@ -387,38 +407,38 @@ export class CrmService {
     console.log(`${values.length} rows sent to the spreadsheet.`);
 
     // Update `is_sync` to 1 for synced complaints
-    const complaintIds = complaints.map(complaint => complaint.id);
+    const complaintIds = complaints.map((complaint) => complaint.id);
     await this.dbService.complaints.updateMany({
       where: {
         id: {
-          in: complaintIds
-        }
+          in: complaintIds,
+        },
       },
       data: {
-        is_sync: 1
-      }
+        is_sync: 1,
+      },
     });
 
-    console.log("Updated is_sync to 1 for all synced complaints.");
+    console.log('Updated is_sync to 1 for all synced complaints.');
   }
 
-
   async getSpreadsheetHeader(spreadsheetId: string): Promise<string[] | null> {
-    const spreadsheetInstances = this.googleSheetConnectorService.getGoogleSheetConnect();
+    const spreadsheetInstances =
+      this.googleSheetConnectorService.getGoogleSheetConnect();
 
     const response = await spreadsheetInstances.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
-      range: "A1:Z1", // Ambil baris pertama untuk header
+      range: 'A1:Z1', // Ambil baris pertama untuk header
     });
 
     const headers = response.data.values?.[0];
 
     if (!headers) {
-      console.log("No header found in the spreadsheet.");
+      console.log('No header found in the spreadsheet.');
       return null;
     }
 
-    return headers; 
+    return headers;
   }
 
   numberToColumnLabel(column: number): string {
@@ -442,16 +462,17 @@ export class CrmService {
     }
   }
 
-  async  getLastRow(spreadsheetId: string, sheetName: string): Promise<number> {
-    const spreadsheetInstances = this.googleSheetConnectorService.getGoogleSheetConnect();
-  
+  async getLastRow(spreadsheetId: string, sheetName: string): Promise<number> {
+    const spreadsheetInstances =
+      this.googleSheetConnectorService.getGoogleSheetConnect();
+
     const response = await spreadsheetInstances.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
-      range: `${sheetName}!A:A`, 
+      range: `${sheetName}!A:A`,
     });
-  
+
     const rows = response.data.values;
-  
+
     return rows ? rows.length + 1 : 0;
   }
 }

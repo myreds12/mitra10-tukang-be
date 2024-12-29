@@ -192,7 +192,8 @@ export class SalesService {
         top_best,
         store_id,
         order_date_from,
-        order_date_to
+        order_date_to,
+        is_promotion
       } = query;
 
       const skip = page * take - take;
@@ -257,21 +258,29 @@ export class SalesService {
         return take;
       };
 
-      let sales = await this.dbService.sales.findMany({
+      const sales = await this.dbService.sales.findMany({
         where,
         skip,
         take: getTake(),
         include: {
           orders: {
             where: {
+
               deleted_at: null,
-              // ...(order_date_from && order_date_to ? {
-              //   created_at: {
-              //     gte: new Date(order_date_from),
-              //     lte: new Date(`${order_date_to}T23:59:59.000Z`),
-              //   }
-              // } : undefined)
-            }
+              ...(order_date_from && order_date_to ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                }
+              } : undefined),
+              ...(is_promotion === 1 ? {
+                payment_type : {
+                  not: 'survey'
+                }
+              } : is_promotion === 0 ? {
+                payment_type: 'survey'
+              } : {} ),
+            },
           },
           bank: true,
           store: true,
@@ -1151,7 +1160,7 @@ export class SalesService {
 
 
       dataExcel.forEach((sales) => {
-        const salesCategories = sales.sales_categories.length > 0
+        const salesCategories = sales?.sales_categories?.length > 0
           ? sales.sales_categories
             .map((category) => category.categories.category_name)
             .join(',')
@@ -1189,7 +1198,7 @@ export class SalesService {
           username: sales?.users ? sales.users.username : '',
           created_at: formattedDateTime(sales?.created_at),
           order_date: sales?.order?.length > 0
-            ? formattedDateTime(sales.order[0].created_at)
+            ? formattedDateTime(sales?.order[0]?.created_at)
             : 'Tidak Ada Order',
           date_diff: `${monthDifference} Bulan`,
           is_active: sales?.is_active ? 'Aktif' : 'Tidak Aktif',
