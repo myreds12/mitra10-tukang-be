@@ -87,7 +87,7 @@ html(lang="en")
   body
     section#preview-email
       .card
-        img.card-header(src='https://i.ibb.co/LhrxWt7/header-email-instalasi-01.jpg' alt='header-email-instalasi-01' border='0')
+        img.card-header(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co/LhrxWt7/header-email-instalasi-01.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
         .card-body
           .header
             .logo
@@ -115,4 +115,4 @@ html(lang="en")
             h3.fw-bold Hormat Kami, Mitra10
             h3.fw-normal
               | #{data.message.footer}
-        img.card-footer(src='https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg' border='0' alt='footer-email-instalasi-02')
+        img.card-footer(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/WfLzSHp/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")

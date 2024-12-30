@@ -1421,6 +1421,7 @@ export class QuotationService {
         order_by,
         is_free,
         promotion,
+        store_id
       } = queryParams;
       const where: Prisma.quotationWhereInput = {
         AND: [
@@ -1462,6 +1463,13 @@ export class QuotationService {
                 },
               ]
             : []),
+          ...(store_id ?[ {
+            order: {
+              store_id: {
+                in: store_id
+              }
+            }
+          }] : []),
           date_from && date_to
             ? {
                 created_at: {
