@@ -396,6 +396,12 @@ export class ComplaintsService {
           complaint_channels: true,
           
           complaint_histories: {
+            where: {
+              deleted_at: null,
+            },
+            orderBy: {
+              created_at: 'desc'
+            },
             include: {
               status: true,
               complaint_evidence: true,

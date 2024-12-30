@@ -496,7 +496,7 @@ export class OrderService {
                 },
               ]
             : []),
-          ...(Boolean(is_receipt)
+          ...(is_receipt === 1
             ? [
                 {
                   receipt_number: {
@@ -504,12 +504,12 @@ export class OrderService {
                   },
                 },
               ]
-            : [
+            : is_receipt === 0 ? [
               {
                 receipt_number: null,
               }
-            ]),
-          ...(is_receipt_quotation
+            ] : []),
+          ...(is_receipt_quotation === 1
             ? [
                 {
                   quotation: {
@@ -521,7 +521,7 @@ export class OrderService {
                   },
                 },
               ]
-            : [
+            : is_receipt_quotation === 0 ? [
               {
                 quotation: {
                   some: {
@@ -529,7 +529,7 @@ export class OrderService {
                     },
                     },
               }
-            ]),
+            ] : []),
           ...(Boolean(promotion)
             ? [
                 {
