@@ -173,7 +173,7 @@ export class OrderService {
           vendor: createOrderDto.vendor_id
             ? { connect: { id: createOrderDto.vendor_id } }
             : undefined,
-        }).filter(([key, value]) => value !== undefined),
+        }).filter(([value]) => value !== undefined),
       );
 
       const orderData = {
@@ -191,7 +191,7 @@ export class OrderService {
         is_overdistance: createOrderDto.is_overdistance,
         ...(createOrderDto.is_overdistance === 1
           ? {
-              additional_fee: 25000,
+              additional_fee: createOrderDto?.additional_fee ?? 25000,
             }
           : undefined),
         created_by: user_id,
@@ -504,7 +504,11 @@ export class OrderService {
                   },
                 },
               ]
-            : []),
+            : [
+              {
+                receipt_number: null,
+              }
+            ]),
           ...(is_receipt_quotation
             ? [
                 {
@@ -517,7 +521,15 @@ export class OrderService {
                   },
                 },
               ]
-            : []),
+            : [
+              {
+                quotation: {
+                  some: {
+                    receipt_quotation: null,
+                    },
+                    },
+              }
+            ]),
           ...(Boolean(promotion)
             ? [
                 {
@@ -1288,16 +1300,6 @@ export class OrderService {
   ) {
     try {
       const { id: user_id } = user;
-      const currentUser = await this.dbService.users.findFirst({
-        where: {
-          id: user_id,
-        },
-        include: {
-          roles: true,
-          sales: true,
-        },
-      });
-
       if (updateOrderDto.receipt_number) {
         const existingOrder = await this.dbService.orders.findFirst({
           where: {
@@ -1395,51 +1397,6 @@ export class OrderService {
             messages: 'The provided detail id not found',
             errorIds: checkOrderDetailIds,
           });
-      }
-
-      const searchStatusInput = updateOrderDto.project_status_id
-        ? await this.dbService.status.findFirst({
-            where: {
-              id: updateOrderDto.project_status_id,
-            },
-          })
-        : null;
-
-      let projectStatusDefault = order.status;
-
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'BOOKED' &&
-        order.status.category === 'PICKLIST' &&
-        currentUser.roles.name.toLowerCase().includes('cs')
-      ) {
-        projectStatusDefault = searchStatusInput;
-      }
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'BOOKED' &&
-        order.status.category === 'BOOK' &&
-        currentUser.roles.name.toLowerCase().includes('admin ho')
-      ) {
-        await this;
-        projectStatusDefault = searchStatusInput;
-      }
-
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'SURVEYREQ' &&
-        order.status.category === 'BOOKED' &&
-        updateOrderDto.vendor_id
-      ) {
-        projectStatusDefault = searchStatusInput;
-      }
-
-      if (
-        searchStatusInput &&
-        searchStatusInput.category === 'SURVEYSTART' &&
-        order.status.category === 'SURVEYREQ'
-      ) {
-        projectStatusDefault = searchStatusInput;
       }
 
       const salesUser = await this.dbService.sales.findFirst({
@@ -1565,7 +1522,7 @@ export class OrderService {
         is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
         ...(updateOrderDto?.is_overdistance === 1
           ? {
-              additional_fee: 25000,
+              additional_fee: updateOrderDto?.additional_fee ?? 25000,
             }
           : { additional_fee: 0 }),
         member_id: updateOrderDto?.member_id ?? undefined,
@@ -3069,6 +3026,49 @@ export class OrderService {
               },
             },
           },
+          order_history: {
+            select: {
+              id: true,
+              order_id: true,
+              payload: true,
+              created_at: true,
+              created_by: true,
+              status: {
+                select: {
+                  id: true,
+                  category: true,
+                  description: true,
+                },
+              },
+            },
+          },
+          reschedule: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              reschedule_tukang: {
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+                include: {
+                  tukang: true,
+                },
+              },
+              status: true,
+              reschedule_status: {
+                include: {
+                  status: true,
+                },
+              },
+              reschedule_evidences: {
+                where: {
+                  deleted_at: null,
+                },
+              },
+            },
+          },
           sales: {
             where: {
               deleted_at: null,
@@ -3234,17 +3234,55 @@ export class OrderService {
         return nameA.localeCompare(nameB);
       });
 
+      const userIds = [
+        ...new Set(
+          orders
+            .flatMap((order) => [
+              order.created_by,
+              order.updated_by,
+              order.deleted_by,
+              ...order.order_history
+              .map((item) => item.created_by)
+              .filter((id) => id)
+            ])
+            .filter(Boolean),
+        ),
+      ];
+
+      const users = await this.dbService.users.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      });
+
+      const userMap = users.reduce(
+        (acc, user) => ({
+          ...acc,
+          [user.id]: user,
+        }),
+        {},
+      );
+
+      const ordersWithUser = orders.map((order) => ({
+        ...order,
+        created_by: order.created_by ? userMap[order.created_by] || null : null,
+        updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
+        deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
+        order_history: order.order_history.map((item) => ({
+          ...item,
+          created_by: item.created_by ? userMap[item.created_by] || null : null,
+        }))
+      }));
       const count = await this.dbService.orders.count({
         where,
       });
 
       return {
-        data: orders,
+        data: ordersWithUser,
         meta: {
           total: count,
           page,
           take,
-          takeTotal: orders.length,
+          takeTotal: ordersWithUser.length,
         },
       };
     } catch (error) {
@@ -4283,6 +4321,18 @@ export class OrderService {
                     {
                       AND: [
                         {
+                          payment_type: 'pemasangan_tanpa_survey'
+                        },
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        }
+                      ]
+                    },
+                    {
+                      AND: [
+                        {
                           quotation: {
                             some: {
                               promotion_id: {
@@ -5177,7 +5227,7 @@ export class OrderService {
       };
     });
 
-    dataExcel.forEach((order: any, index: number) => {
+    dataExcel.forEach((order: any) => {
 
       worksheet.addRow({
         id: order.id,
@@ -5473,7 +5523,7 @@ export class OrderService {
           members: { connect: { id: member ? member.id : newMember.id } },
           store: { connect: { id: store.id } },
           status: { connect: { id: bookedStatus.id } },
-        }).filter(([key, value]) => value !== undefined),
+        }).filter(([value]) => value !== undefined),
       );
 
       const orderData = {

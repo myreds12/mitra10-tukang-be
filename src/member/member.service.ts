@@ -1,4 +1,5 @@
-import { Injectable, HttpStatus, BadRequestException } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -11,14 +12,18 @@ import * as path from 'path';
 
 @Injectable()
 export class MemberService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
 
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
       const email_check = await this.dbService.members.findFirst({
-        where: { email: createMemberDto.email, join_location: createMemberDto.join_location, deleted_at: null },
-      });;
+        where: {
+          email: createMemberDto.email,
+          join_location: createMemberDto.join_location,
+          deleted_at: null,
+        },
+      });
 
       // const phone_wa_check = await this.dbService.members.findFirst({
       //   where: {
@@ -87,44 +92,63 @@ export class MemberService {
         page,
         take,
         top_best,
-        is_unpaid,
-        is_paid,
         order_date_from,
-        order_date_to
+        order_date_to,
       } = query;
 
       const where: Prisma.membersWhereInput = {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { whatsapp_number: { contains: search } },
-                    { member_number: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { whatsapp_number: { contains: search } },
+                  { phone_number: { contains: search } },
+                  { member_number: { contains: search } },
+                  {
+                    full_name: {
+                      contains: search,
+                    }
+                  },
+                  {
+                    join_location_store: {
+                      store_name: {
+                        contains: search
+                      }
+                    }
+                  },
+                  {
+                    email: {
+                      contains: search
+                    }
+                  }
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  join_location_store: {
-                    id: {
-                      in: store_id,
-                    },
+              {
+                join_location_store: {
+                  id: {
+                    in: store_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -146,19 +170,25 @@ export class MemberService {
                 },
                 ...(order_date_from && order_date_to
                   ? [
-                      {
-                        created_at: {
-                          gte: new Date(order_date_from),
-                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                        },
+                    {
+                      created_at: {
+                        gte: new Date(order_date_from),
+                        lte: new Date(`${order_date_to}T23:59:59.000Z`),
                       },
-                    ]
+                    },
+                  ]
                   : []),
               ],
             },
             include: {
               complaints: true,
               status: true,
+              quotation: {
+                select: {
+                  id: true,
+                  receipt_quotation: true
+                }
+              },
               store: true,
               sales: true,
               m_order_details: true,
@@ -178,37 +208,26 @@ export class MemberService {
         members = members.slice(0, take);
       }
 
-      let orderMemberOne = 0
-      let orderMemberMany = 0
+      let orderMemberOne = 0;
+      let orderMemberMany = 0;
       const dataMember = members.map((item) => {
-        
         const totalOrder = item.order.length;
 
-        if(item.order.length > 1){
-          orderMemberMany += 1
-        }else if(item.order.length === 1){
-          orderMemberOne += 1
+        if (item.order.length > 1) {
+          orderMemberMany += 1;
+        } else if (item.order.length === 1) {
+          orderMemberOne += 1;
         }
         const totalUnpaid = item.order
           .filter((order) =>
-            [
-              'cancel',
-              'cancelrefund',
-              'refundapprovedbyho',
-              'refundrejectedbyho',
-            ].includes(order.status.category.toLowerCase()),
-          )
-          .reduce((total, order) => total + Number(order.grand_total), 0);
-
+          order?.quotation[0]?.receipt_quotation !== null
+        )
+        .reduce((total, order) => total + Number(order.grand_total), 0);
+        
         const totalPaid = item.order
-          .filter(
-            (order) =>
-              ![
-                'cancel',
-                'cancelrefund',
-                'refundapprovedbyho',
-                'refundrejectedbyho',
-              ].includes(order.status.category.toLowerCase()),
+        .filter(
+          (order) =>
+            order?.quotation[0]?.receipt_quotation === null,
           )
           .reduce((total, order) => total + Number(order.grand_total), 0);
 
@@ -332,13 +351,13 @@ export class MemberService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [
-                    { whatsapp_number: { contains: search } },
-                    { member_number: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  { whatsapp_number: { contains: search } },
+                  { member_number: { contains: search } },
+                ],
+              },
+            ]
             : []),
           ...(store_id
             ? [{ join_location_store: { id: { in: store_id } } }]
@@ -377,14 +396,15 @@ export class MemberService {
               where: {
                 ...(date_from && date_to
                   ? {
-                      created_at: {
-                        gte: new Date(date_from),
-                        lte: new Date(`${date_to}T23:59:59.000Z`),
-                      },
-                    }
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
+                  }
                   : {}),
-              },
-              include: {
+                },
+                include: {
+                quotation: true,
                 complaints: true,
                 status: true,
                 store: true,
@@ -405,24 +425,14 @@ export class MemberService {
         const dataBatch = members.map((item) => {
           const totalUnpaid = item.order
             .filter((order) =>
-              [
-                'cancel',
-                'cancelrefund',
-                'refundapprovedbyho',
-                'refundrejectedbyho',
-              ].includes(order.status.category.toLowerCase()),
+              order?.quotation[0]?.receipt_quotation === null
             )
             .reduce((total, order) => total + Number(order.grand_total), 0);
 
           const totalPaid = item.order
             .filter(
               (order) =>
-                ![
-                  'cancel',
-                  'cancelrefund',
-                  'refundapprovedbyho',
-                  'refundrejectedbyho',
-                ].includes(order.status.category.toLowerCase()),
+                order?.quotation[0]?.receipt_quotation !== null
             )
             .reduce((total, order) => total + Number(order.grand_total), 0);
 
@@ -464,7 +474,7 @@ export class MemberService {
       worksheet.columns = [
         { header: 'Member Id', key: 'id', width: 20 },
         { header: 'Nama Toko', key: 'store_name', width: 35 },
-        { header: 'Nama Member', key: 'full_name', width: 35 },
+        { header: 'Nama Customers', key: 'full_name', width: 35 },
         { header: 'Join Date', key: 'join_date', width: 35 },
         { header: 'Email Member', key: 'email', width: 35 },
         { header: 'Phone Number', key: 'phone_number', width: 35 },
@@ -513,7 +523,9 @@ export class MemberService {
             ? member.join_location_store.store_name
             : '',
           full_name: member.full_name ? member.full_name : '',
-          join_date: member.join_date ? formattedDateTime(member.join_date) : '',
+          join_date: member.join_date
+            ? formattedDateTime(member.join_date)
+            : '',
           email: member.email ? member.email : '',
           phone_number: member.phone_number ? member.phone_number : '',
           whatsapp_number: member.whatsapp_number ? member.whatsapp_number : '',
@@ -589,8 +601,6 @@ export class MemberService {
 
   async orderMemberExportExcel(res: Response, queryParams: QueryParamsDto) {
     const {
-      take,
-      page,
       search,
       status,
       date_from,
@@ -604,31 +614,30 @@ export class MemberService {
       promotion,
     } = queryParams;
 
-    const skip = page * take - take;
 
     const where: Prisma.ordersWhereInput = {
       AND: [
         ...(search
           ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
-                        contains: search,
-                      },
-                    },
-                  },
-                  {
-                    project_number: {
+            {
+              OR: [
+                { receipt_number: { contains: search } },
+                { members: { full_name: { contains: search } } },
+                {
+                  store: {
+                    store_name: {
                       contains: search,
                     },
                   },
-                ],
-              },
-            ]
+                },
+                {
+                  project_number: {
+                    contains: search,
+                  },
+                },
+              ],
+            },
+          ]
           : []),
         ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
         ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -638,53 +647,53 @@ export class MemberService {
         ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
         store_id
           ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+            store_id: {
+              in: store_id,
+            },
+          }
           : undefined,
         vendor_id
           ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+            vendor: {
+              id: vendor_id,
+              deleted_at: null,
+            },
+          }
           : undefined,
         ...(date_from && date_to
           ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
               },
-            ]
+            },
+          ]
           : []),
         ...(promotion
           ? [
-              {
-                OR: [
-                  {
-                    payment_type: 'gratis',
-                  },
-                  {
-                    quotation: {
-                      some: {
-                        promotion_id: {
-                          not: null,
-                        },
+            {
+              OR: [
+                {
+                  payment_type: 'gratis',
+                },
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
                       },
                     },
                   },
-                  {
-                    status: {
-                      category: 'WORKEND',
-                    },
+                },
+                {
+                  status: {
+                    category: 'WORKEND',
                   },
-                ],
-              },
-            ]
+                },
+              ],
+            },
+          ]
           : []),
       ].filter(Boolean),
       deleted_at: null,
@@ -1162,12 +1171,12 @@ export class MemberService {
     dataExcel.forEach((order) => {
       const tukangName = order?.work_orders?.work_order_tukang
         ? [
-            ...new Set(
-              order.work_orders.work_order_tukang.map(
-                (item) => item?.tukang?.full_name,
-              ),
+          ...new Set(
+            order.work_orders.work_order_tukang.map(
+              (item) => item?.tukang?.full_name,
             ),
-          ].join(', ')
+          ),
+        ].join(', ')
         : 'Tukang belum ditugaskan';
       const formattedDateTime = (dateTime) =>
         `${new Date(dateTime).toLocaleDateString('id-ID', {
@@ -1227,10 +1236,10 @@ export class MemberService {
           order.payment_type === 'pemasangan_tanpa_survey'
             ? 'Pemasangan Tanpa Survey'
             : order.payment_type === 'survey'
-            ? 'Survey'
-            : order.payment_type === 'gratis'
-            ? 'Gratis'
-            : 'N/a',
+              ? 'Survey'
+              : order.payment_type === 'gratis'
+                ? 'Gratis'
+                : 'N/a',
         receipt_number: order.receipt_number
           ? order.receipt_number
           : 'Receipt belum terbit',
@@ -1241,10 +1250,10 @@ export class MemberService {
           : 'Order Tidak Ada Tanggal Survey',
         work_date:
           order?.work_orders?.work_start_date &&
-          order?.work_orders?.work_end_date
+            order?.work_orders?.work_end_date
             ? `${formattedDateTime(
-                order.work_orders.work_start_date,
-              )} - ${formattedDateTime(order.work_orders.work_end_date)}`
+              order.work_orders.work_start_date,
+            )} - ${formattedDateTime(order.work_orders.work_end_date)}`
             : 'Order Tidak Ada Tanggal Survey',
         company_name: order.vendor ? order.vendor.company_name : '-',
         tukang_name: tukangName,

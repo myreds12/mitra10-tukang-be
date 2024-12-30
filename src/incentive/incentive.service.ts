@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateIncentiveDto } from './dto/create-incentive.dto';
 import { UpdatedIncentiveDto } from './dto/update-incentive.dto';
@@ -249,7 +250,21 @@ export class IncentiveService {
     }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} settingIncentive`;
+  async remove(id: number) {
+    try{
+      const incentive = await this.dbService.setting_incentive.update({
+        where: {
+          id: id,
+        },
+        data: {
+          deleted_at: new Date
+        }
+      })
+
+      return incentive
+    }catch(error){
+      console.log(error)
+      throw error
+    }
   }
 }

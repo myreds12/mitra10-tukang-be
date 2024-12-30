@@ -189,9 +189,11 @@ export class SalesService {
         page,
         date_from,
         date_to,
-        order_by,
         top_best,
         store_id,
+        order_date_from,
+        order_date_to,
+        is_promotion
       } = query;
 
       const skip = page * take - take;
@@ -260,16 +262,26 @@ export class SalesService {
         where,
         skip,
         take: getTake(),
-        orderBy: {
-          ...(Boolean(top_best)
-            ? {
-              order_total: 'desc',
-            }
-            : {
-              created_at: order_by,
-            }),
-        },
         include: {
+          orders: {
+            where: {
+
+              deleted_at: null,
+              ...(order_date_from && order_date_to ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                }
+              } : undefined),
+              ...(is_promotion === 1 ? {
+                payment_type : {
+                  not: 'survey'
+                }
+              } : is_promotion === 0 ? {
+                payment_type: 'survey'
+              } : {} ),
+            },
+          },
           bank: true,
           store: true,
           sales_brands: {
@@ -286,8 +298,20 @@ export class SalesService {
         },
       });
 
+      const dataSales = sales.map((item) => {
+        const totalOrder = item.orders.length;
+
+        return {
+          ...item,
+          sales_total_order: totalOrder
+        }
+      })
+
+      if (Boolean(top_best)) {
+        dataSales.sort((a, b) => b.sales_total_order - a.sales_total_order);
+      }
       return {
-        data: sales,
+        data: dataSales,
         meta: {
           total: count,
           page,
@@ -1016,6 +1040,12 @@ export class SalesService {
               }),
           },
           include: {
+            orders: {
+              take: 5,
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
             bank: true,
             store: true,
             sales_brands: {
@@ -1130,7 +1160,7 @@ export class SalesService {
 
 
       dataExcel.forEach((sales) => {
-        const salesCategories = sales.sales_categories.length > 0
+        const salesCategories = sales?.sales_categories?.length > 0
           ? sales.sales_categories
             .map((category) => category.categories.category_name)
             .join(',')
@@ -1168,7 +1198,7 @@ export class SalesService {
           username: sales?.users ? sales.users.username : '',
           created_at: formattedDateTime(sales?.created_at),
           order_date: sales?.order?.length > 0
-            ? formattedDateTime(sales.order[0].created_at)
+            ? formattedDateTime(sales?.order[0]?.created_at)
             : 'Tidak Ada Order',
           date_diff: `${monthDifference} Bulan`,
           is_active: sales?.is_active ? 'Aktif' : 'Tidak Aktif',
@@ -1312,7 +1342,7 @@ export class SalesService {
       const targetYear = threeMonthsAgo.getFullYear();
       const targetMonth = threeMonthsAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
+      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
       endOfMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 100;
@@ -1329,12 +1359,12 @@ export class SalesService {
           is_active: true
         },
         select: {
-          id: true, 
+          id: true,
         },
-        take: batchSize, 
+        take: batchSize,
       });
 
-      
+
 
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
@@ -1388,7 +1418,7 @@ export class SalesService {
       const targetYear = sixMonthsAgo.getFullYear();
       const targetMonth = sixMonthsAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
+      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
       endOfMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
@@ -1404,9 +1434,9 @@ export class SalesService {
           is_active: true
         },
         select: {
-          id: true, 
+          id: true,
         },
-        take: batchSize, 
+        take: batchSize,
       });
 
       const salesIds = salesToUpdate.map((sales) => sales.id);
@@ -1465,7 +1495,7 @@ export class SalesService {
       const targetYear = rangeMonthAgo.getFullYear();
       const targetMonth = rangeMonthAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0); 
+      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
       endOfMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
@@ -1481,9 +1511,9 @@ export class SalesService {
           is_active: true
         },
         select: {
-          id: true, 
+          id: true,
         },
-        take: batchSize, 
+        take: batchSize,
       });
 
       const salesIds = salesToUpdate.map((sales) => sales.id);
@@ -1495,8 +1525,8 @@ export class SalesService {
 
 
       // Step 2: Update sales dengan batch size
-      let salesUser : any, usersUpdate : any
-      if(range_date === 7){
+      let salesUser: any, usersUpdate: any
+      if (range_date === 7) {
         salesUser = await this.dbService.sales.updateMany({
           where: {
             id: {
@@ -1524,7 +1554,7 @@ export class SalesService {
             deleted_at: new Date(),
           },
         });
-      } else if(range_date === 4){
+      } else if (range_date === 4) {
         salesUser = await this.dbService.sales.updateMany({
           where: {
             id: {
@@ -1535,8 +1565,8 @@ export class SalesService {
             is_active: false,
           },
         });
-  
-  
+
+
         usersUpdate = await this.dbService.users.updateMany({
           where: {
             sales: {
@@ -1552,7 +1582,7 @@ export class SalesService {
           },
         });
       }
-      
+
       return { salesIncentive: salesUser, usersUpdate };
     } catch (error) {
       console.error(error);
@@ -1561,7 +1591,7 @@ export class SalesService {
   }
 
   async updateDateSalesIncentive(id: number) {
-    try{
+    try {
       const salesIncentive = await this.dbService.sales_incentive.findFirst({
         where: {
           deleted_at: null,
@@ -1570,7 +1600,7 @@ export class SalesService {
         },
         include: {
           incentive: true,
-          quotation:true
+          quotation: true
         },
       });
       const quotationSalesIncentive = await this.dbService.quotation.findFirst({
@@ -1599,11 +1629,11 @@ export class SalesService {
       });
 
       let comission = 0;
-    if (salesIncentive.incentive.type === 1) {
-      comission += Number(salesIncentive.quotation.quotation_grand_total) * (Number(salesIncentive.incentive.incentive) / 100);
-    } else if (salesIncentive.incentive.type === 2) {
-      comission += Number(salesIncentive.incentive.incentive);
-    }
+      if (salesIncentive.incentive.type === 1) {
+        comission += Number(salesIncentive.quotation.quotation_grand_total) * (Number(salesIncentive.incentive.incentive) / 100);
+      } else if (salesIncentive.incentive.type === 2) {
+        comission += Number(salesIncentive.incentive.incentive);
+      }
 
       const updateSalesIncentive = await this.dbService.sales_incentive.update({
         where: {
@@ -1616,14 +1646,14 @@ export class SalesService {
       })
 
       return updateSalesIncentive
-    }catch(error){
+    } catch (error) {
       console.error(error);
       throw error
     }
   }
 
   async deleteSalesIncentive(id: number) {
-    try{
+    try {
       const deleteSalesIncentive = await this.dbService.sales_incentive.delete({
         where: {
           id: id
@@ -1631,7 +1661,7 @@ export class SalesService {
       });
 
       return deleteSalesIncentive
-    }catch(error){
+    } catch (error) {
       console.error(error);
       throw error
     }

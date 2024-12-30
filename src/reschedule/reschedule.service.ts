@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateRescheduleDto } from './dto/create-reschedule.dto';
@@ -326,7 +327,7 @@ export class RescheduleService {
           },
         },
         reschedule_evidences: {
-          where:{
+          where: {
             deleted_at: null,
           }
         },
@@ -589,7 +590,7 @@ export class RescheduleService {
 
     if (status.category.toLowerCase().includes('rescheduleapprovedbyvendor') && order.order_history[0].status.category === 'TUKANGSURVEY' || order.order_history[0].status.category === 'SURVEYREQ') {
       console.log("MASUK");
-      
+
       await this.orderService.setStatus(order.id, statusRetukangSurvey.id, user);
       await this.dbService.work_orders.update({
         where: {
@@ -656,6 +657,7 @@ export class RescheduleService {
         { header: 'Nomor Member', key: 'member_number', width: 40 },
         { header: 'Nama Toko', key: 'store_name', width: 40 },
         { header: 'Tanggal Reschedule', key: 'reschedule_date', width: 40 },
+        { header: 'Tanggal Konfirmasi', key: 'confirm_date', width: 40 },
         { header: 'Order Status', key: 'order_status', width: 40 },
         { header: 'Reschedule Dibuat', key: 'created_at', width: 25 },
       ];
@@ -696,6 +698,7 @@ export class RescheduleService {
           member_number: refund.order.members.member_number,
           store_name: refund.order.store.store_name,
           reschedule_date: refund.reschedule_date ? refund.reschedule_date : '',
+          confirm_date: refund.reschedule_date ? refund.reschedule_date : '',
           order_status: refund.order.status.description,
           created_at: formattedDateTime(refund.created_at),
         });

@@ -282,6 +282,7 @@ export class QuotationService {
         date_to,
         order_by,
         vendor_id,
+        store_id,
         promotion,
         is_free,
         is_paid,
@@ -356,6 +357,13 @@ export class QuotationService {
                   vendor_id: vendor_id,
                 },
               }
+            : undefined,
+          store_id
+            ? {
+              order: {
+                store_id: store_id[0]
+              }
+            }
             : undefined,
           Boolean(is_paid)
             ? {
@@ -1303,69 +1311,24 @@ export class QuotationService {
             quotation.quotation_status,
           );
 
-          console.log(`Updating sales incentives for quotation ${id}`);
-
-          const salesIncentives = await this.dbService.sales_incentive.findMany(
-            {
-              where: {
-                quotation_id: id,
-                status: {
-                  not: IncentiveStatus.LOST_INCENTIVE,
-                },
-              },
-              include: {
-                quotation: {
-                  include: {
-                    order: true,
-                  },
-                },
-              },
-            },
-          );
-
-          await Promise.all(
-            salesIncentives.map(async (salesIncentive) => {
-              await this.dbService.sales_incentive.update({
-                where: {
-                  id: salesIncentive.id,
-                },
-                data: {
-                  status: 5,
-                },
-              });
-
-              const order = await this.dbService.orders.findUnique({
-                where: {
-                  id: salesIncentive.quotation.order_id,
-                },
-                include: {
-                  work_orders: {
-                    include: {
-                      work_order_tukang: true,
-                    },
-                  },
-                },
-              });
-
-              await this.notifService.create(
-                {
-                  sales_incentive: salesIncentive,
-                  orders: order,
-                },
-                'UPDATE',
-                salesIncentive.updated_by,
-                moduleTypeNotification.INCENTIVE,
-                salesIncentive.id,
-                salesIncentive.status,
-              );
-
-              console.log(
-                `Notification created for sales incentive ${salesIncentive.id}`,
-              );
-            }),
-          );
         }),
       );
+
+      await this.dbService.sales_incentive.updateMany({
+        where: {
+          quotation: {
+            order: {
+              refund: {
+                some: {}
+              }
+            }
+          }
+        },
+        data: {
+          status: IncentiveStatus.LOST_INCENTIVE,
+          updated_at: new Date()
+        }
+      })
 
       console.log('Finished checkvalidity');
       return 1;
@@ -1708,7 +1671,7 @@ export class QuotationService {
         { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
         { header: 'Nama Promosi', key: 'promotion_tier', width: 30 },
         { header: 'Nominal Promosi', key: 'promotion_nominal', width: 30 },
-        { header: 'Grand Total', key: 'grand_total', width: 25 },
+        { header: 'Total Quotation', key: 'grand_total', width: 25 },
       ];
 
       worksheet.getRow(1).eachCell((cell) => {
@@ -1823,13 +1786,13 @@ export class QuotationService {
               ? quotation.order.sales.full_name
               : 'N/a',
             tukang_name: tukangName,
-            promotion_tier: quotation.promotion
+            promotion_tier: quotation?.promotion
               ? quotation.promotion.name
               : '-',
             promotion_nominal:
               quotation?.promotion?.promotion_type === 1
-                ? `${Number(quotation.promotion.promotion)}%`
-                : Number(quotation?.promotion?.promotion),
+                ? `${Number(quotation?.promotion?.promotion || 0)}%`
+                : Number(quotation?.promotion?.promotion || 0),
             grand_total: isFirstDetail ? formattedGrandTotal : 0,
           });
 
@@ -2300,6 +2263,7 @@ export class QuotationService {
       { header: 'FU1', key: 'fu1', width: 25 },
       { header: 'FU2', key: 'fu2', width: 25 },
       { header: 'FU3', key: 'fu3', width: 25 },
+      { header: 'Notes', key: 'notes', width: 25 },
     ];
     worksheet.getRow(1).eachCell((cell) => {
       cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
@@ -2345,6 +2309,7 @@ export class QuotationService {
           quotation.quotation_follow_up[0]?.follow_up_3 === true
             ? 'YES'
             : 'NO',
+        notes:  quotation?.quotation_follow_up[0]?.description ?? ''
       });
     });
 
