@@ -1,4 +1,6 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable prefer-const */
+/* eslint-disable prettier/prettier */
 import {
   BadRequestException,
   Injectable,
@@ -4151,9 +4153,9 @@ export class OrderService {
       message,
     };
 
-    console.log(data.quotation.order.m_order_details);
 
-    const buffer = await this.pdfService.generate('quotation-pdf', data);
+
+    const buffer = await this.pdfService.generatePotrait('quotation-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);
