@@ -166,8 +166,6 @@ export class ItemsService {
                   prices: {
                     some: {
                       deleted_at: null,
-                      periodic_start: { lte: new Date() },
-                      periodic_end: { gte: new Date() },
                     },
                   },
                 },
