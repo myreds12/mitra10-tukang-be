@@ -287,6 +287,7 @@ export class RefundService {
           status: true,
         },
       });
+      const totalPenalty = refund.reduce((acc, refund) => acc + Number(refund.penalty_nominal), 0);
 
       const count = await this.dbService.refund.count();
 
@@ -297,6 +298,7 @@ export class RefundService {
           skip,
           take,
           page,
+          totalPenalty,
           takeTotal: refund.length,
         },
       };
