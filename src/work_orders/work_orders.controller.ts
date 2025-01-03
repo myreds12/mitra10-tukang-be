@@ -68,11 +68,11 @@ export class WorkOrdersController {
     FileFieldsInterceptor([
       {
         name: 'work_order_before',
-        maxCount: 5,
+        maxCount: 10,
       },
       {
         name: 'work_order_after',
-        maxCount: 5,
+        maxCount: 10,
       },
     ]),
   )
@@ -148,7 +148,7 @@ export class WorkOrdersController {
   }
 
   @Post(':id')
-  @UseInterceptors(FilesInterceptor('work_order_evidences', 5))
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 10))
   async update(
     @Param('id') id: number,
     @Body() dataDto: UpdateWorkOrderDto,
