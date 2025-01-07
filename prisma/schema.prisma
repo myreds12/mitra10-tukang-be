@@ -432,7 +432,6 @@ model store {
   store_name         String  @db.VarChar(45)
   address            String  @db.VarChar(255)
   additional_address String? @db.VarChar(255)
-  store_code         String? @db.VarChar(255)
   zip_code           String? @default("") @db.VarChar(45)
   phone_number_1     String? @default("")
   phone_number_2     String? @default("")
@@ -973,7 +972,7 @@ model quotation_promotion {
   quotation_id      Int     @db.Int
   promotion_nominal Decimal @db.Decimal(32, 2)
   description       String? @db.VarChar(150)
-  notes             String? @db.VarChar(150)
+  notes             String @default("") @db.VarChar(150)
   status            Int     @default(1)
 
   created_by Int?
