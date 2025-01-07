@@ -166,6 +166,12 @@ export class ItemsService {
                   prices: {
                     some: {
                       deleted_at: null,
+                      periodic_start: {
+                        lte: new Date(),
+                      },
+                      periodic_end: {
+                        gte: new Date(),
+                      }
                     },
                   },
                 },
@@ -191,7 +197,7 @@ export class ItemsService {
                 },
               ]
             : []),
-          ...(item_type ? [{ type: { equals: item_type } }] : []),
+          ...(item_type ? [{ type: { in: item_type } }] : []),
           ...(is_free === 1
             ? [
                 {

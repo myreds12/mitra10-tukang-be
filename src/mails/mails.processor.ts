@@ -74,17 +74,17 @@ export class EmailProcessor {
             information: true,
           },
         },
-        // email_message_image: {
-        //   where: {
-        //     deleted_at: null
-        //   },
-        //   select: {
-        //     id: true,
-        //     email_message_id: true,
-        //     type: true,
-        //     path: true
-        //   }
-        // }
+        email_message_image: {
+          where: {
+            deleted_at: null
+          },
+          select: {
+            id: true,
+            email_message_id: true,
+            type: true,
+            path: true
+          }
+        }
       },
     });
   }

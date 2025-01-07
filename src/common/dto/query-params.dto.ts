@@ -145,8 +145,10 @@ export class QueryParamsDto {
   penalty_vendor?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  item_type?: number;
+  @IsNotEmpty()
+  @Transform((value) => value.value.split(',').map(Number))
+  @Type(() => String)
+  item_type?: number[];
 
   @IsOptional()
   @Type(() => Number)
