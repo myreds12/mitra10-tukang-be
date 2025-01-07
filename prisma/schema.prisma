@@ -972,8 +972,8 @@ model quotation_promotion {
   id                Int     @id @default(autoincrement())
   quotation_id      Int     @db.Int
   promotion_nominal Decimal @db.Decimal(32, 2)
-  description       String? @default("") @db.VarChar(150)
-  notes             String? @default("") @db.VarChar(150)
+  description       String? @db.VarChar(150)
+  notes             String? @db.VarChar(150)
   status            Int     @default(1)
 
   created_by Int?
