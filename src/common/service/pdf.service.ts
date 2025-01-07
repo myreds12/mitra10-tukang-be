@@ -37,6 +37,31 @@ export class PdfService {
     });
   }
 
+  async generatePotrait(templatePath: string, data: any) {
+    return new Promise((resolve, reject) => {
+      const html = renderFile(join('templates', `${templatePath}.pug`), {
+        data,
+      });
+
+      
+      create(html, { format: 'A4',
+        header: {
+          height: "2mm",
+        },
+        footer: {
+          height: "5mm",
+        },
+        timeout: 100000,
+        orientation: 'portrait' }).toBuffer((err, buffer) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(buffer);
+        }
+      });
+    });
+  }
+
   async generateLandscape(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
       const html = renderFile(join('templates', `${templatePath}.pug`), {
