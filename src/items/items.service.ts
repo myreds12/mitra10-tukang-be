@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, store } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 @Injectable()
 export class ItemsService {
   constructor(private readonly dbService: PrismaService) {}
@@ -559,4 +560,44 @@ export class ItemsService {
       throw error;
     }
   }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handlePriceExpired() {
+    try {
+      const now = new Date();
+  
+      const priceExpired = await this.dbService.prices.findMany({
+        where: {
+          periodic_end: {
+            lt: now, 
+          },
+          is_active: true,
+        },
+        take: 50,
+      });
+  
+      if (priceExpired.length > 0) {
+        const priceExpiredIds = priceExpired.map((item) => item.id);
+  
+        await this.dbService.prices.updateMany({
+          where: {
+            id: {
+              in: priceExpiredIds,
+            },
+          },
+          data: {
+            is_active: false,
+          },
+        });
+  
+        console.log('SUCCESS UPDATE PRICES');
+      } else {
+        console.log('No expired prices found');
+      }
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+  
 }
