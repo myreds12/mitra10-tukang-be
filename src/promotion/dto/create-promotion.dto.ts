@@ -16,7 +16,7 @@ export class CreatePromotionDto {
 
     @ApiProperty()
     @Type(() => Number)
-    @IsNotEmpty()
+    @IsOptional()
     max_order: number  
     
     @ApiProperty()
