@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
@@ -95,10 +96,12 @@ export class PromotionService {
           ...(date_from && date_to
             ? [
                 {
-                  created_at: {
+                  periodic_start: {
                     gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
                   },
+                  periodic_end: {
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  }
                 },
               ]
             : []),
