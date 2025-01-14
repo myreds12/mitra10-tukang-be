@@ -7,7 +7,6 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { LargeNumberLike } from 'crypto';
 
 export class QueryParamsDto {
   @IsOptional()
@@ -46,19 +45,19 @@ export class QueryParamsDto {
   @IsOptional()
   @IsNotEmpty()
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
-  @Type(() => Array<Number>)
+  @Type(() => Array<number>)
   vendor?: number[];
 
   @IsOptional()
   @IsNotEmpty()
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
-  @Type(() => Array<Number>)
+  @Type(() => Array<number>)
   status?: number[];
 
   @IsOptional()
   @IsNotEmpty()
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
-  @Type(() => Array<Number>)
+  @Type(() => Array<number>)
   history_status?: number[];
 
   @IsOptional()
@@ -68,7 +67,7 @@ export class QueryParamsDto {
   @IsOptional()
   @IsNotEmpty()
   @Transform((value) => value.value.split(',').filter(Boolean).map(Number))
-  @Type(() => Array<Number>)
+  @Type(() => Array<number>)
   work_order_status?: number[];
 
   @IsOptional()
@@ -170,7 +169,7 @@ export class QueryParamsDto {
 
   @IsOptional()
   @IsNotEmpty()
-  order_field: string = 'created_at';
+  order_field = 'created_at';
 
   @IsOptional()
   @IsNotEmpty()
@@ -274,7 +273,7 @@ export class QueryParamsDto {
   @Type(() => Number)
   // @IsIn([0, 1])
   is_used_warranty?: number;
-  
+
   @IsOptional()
   @Type(() => Number)
   // @IsIn([0, 1])

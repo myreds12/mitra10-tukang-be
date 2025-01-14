@@ -1,13 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsDateString,
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsOptional } from 'class-validator';
 import { ServiceType } from './service-type.class.interface';
 import { TukangAreaDto } from './tukang-area.dto';
 
@@ -34,9 +27,9 @@ export class CreateTukangDto {
   @Type(() => ServiceType)
   service_types?: ServiceType[];
 
-  @ApiProperty({type: [TukangAreaDto]})
+  @ApiProperty({ type: [TukangAreaDto] })
   @Type(() => TukangAreaDto)
-  tukang_area?: TukangAreaDto[]
+  tukang_area?: TukangAreaDto[];
 
   join_date?: string;
 

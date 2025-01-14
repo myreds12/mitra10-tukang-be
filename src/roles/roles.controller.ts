@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
@@ -23,8 +22,6 @@ export class RolesController {
 
   @Post('/')
   async create(@Body() createRoleDto: CreateRoleDto, @Request() req) {
-    console.log("kontol");
-    
     const user_id = req.user.id;
     return await this.rolesService.create(createRoleDto, user_id);
   }

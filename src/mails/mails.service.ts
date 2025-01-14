@@ -2,7 +2,6 @@
 import {
   Injectable,
   Logger,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEmailMessageDto } from './dto/create-email-message.dto';
@@ -14,7 +13,6 @@ import { MailType } from './enum/mail_type.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
-import { QuotationMailInterface } from 'src/common/interface/mails';
 
 @Injectable()
 export class MailsService {
@@ -532,7 +530,7 @@ export class MailsService {
     if (quotations.length) {
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 2000;
+      let delay = 2000;
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];
@@ -544,7 +542,7 @@ export class MailsService {
         const jobId = `send-quotation-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
 
-        if (countSendedEmail > 2 && !jobExist) {
+        if (countSendedEmail < 2 && !jobExist) {
           this.logger.log(
             `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
@@ -591,7 +589,7 @@ export class MailsService {
 
     if (quotations.length) {
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 2000;
+      let delay = 2000;
       console.log(template_id, 'TEMPLATE ID');
 
       for (let index = 0; index < quotations.length; index++) {
@@ -651,7 +649,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < complaints.length; index++) {
         const complaint = complaints[index];
@@ -708,7 +706,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < reschedules.length; index++) {
         const reschedule = reschedules[index];
@@ -765,7 +763,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < refunds.length; index++) {
         const refund = refunds[index];
@@ -829,7 +827,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < orders.length; index++) {
         const order = orders[index];

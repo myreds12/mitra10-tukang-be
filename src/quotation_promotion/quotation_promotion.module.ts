@@ -12,16 +12,16 @@ import { NotificationsService } from 'src/notifications/notifications.service';
   providers: [QuotationPromotionService, PdfService, NotificationsService],
   imports: [
     MulterModule.register({
-    storage: diskStorage({
-      destination: './uploads/quotation-promotion',
+      storage: diskStorage({
+        destination: './uploads/quotation-promotion',
 
-      filename(req, file, callback) {
-        const uniqueSuffix = `${Date.now()}`;
-        const filename = `${uniqueSuffix}${extname(file.originalname)}`;
-        callback(null, filename);
-      },
+        filename(req, file, callback) {
+          const uniqueSuffix = `${Date.now()}`;
+          const filename = `${uniqueSuffix}${extname(file.originalname)}`;
+          callback(null, filename);
+        },
+      }),
     }),
-  }),
-]
+  ],
 })
-export class QuotationPromotionModule { }
+export class QuotationPromotionModule {}

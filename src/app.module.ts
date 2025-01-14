@@ -45,7 +45,6 @@ import { BullModule } from '@nestjs/bull';
 import { MailsModule } from './mails/mails.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { IncentiveModule } from './incentive/incentive.module';
-import { PdfService } from './common/service/pdf.service';
 import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comission_sales_incentive.module';

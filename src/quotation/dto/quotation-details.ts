@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsIn, IsNotEmpty, ValidateIf } from 'class-validator';
+import { IsNotEmpty, ValidateIf } from 'class-validator';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 import { MarginType } from './margin-type.enum';
 
@@ -47,7 +47,6 @@ export default class QuotationDetails {
 
   @Type(() => Number)
   work_step: number;
-
 
   @IsNotEmpty()
   @Type(() => Number)

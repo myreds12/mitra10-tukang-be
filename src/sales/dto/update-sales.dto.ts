@@ -1,16 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, ValidateNested } from 'class-validator';
 // import { SalesBrandsDto } from './sales-brands.dto';
 import { SalesCategoriesDto } from './sales-categories.dto';
 import { Type } from 'class-transformer';
-import { IsUsernameValid } from './is-username-valid.decorator';
 
 export class UpdateSalesDto {
   @ApiProperty()
@@ -22,7 +14,6 @@ export class UpdateSalesDto {
   @Type(() => Number)
   @IsInt()
   @IsOptional()
-  
   is_active?: number;
 
   @ApiProperty()

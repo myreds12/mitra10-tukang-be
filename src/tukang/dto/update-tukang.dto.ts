@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional } from 'class-validator';
 import { ServiceType } from './service-type.class.interface';
 import { TukangAreaDto } from './tukang-area.dto';
 
@@ -48,7 +48,7 @@ export class UpdateTukangDto {
   @IsNumber()
   // @IsIn([0, 1])
   is_delete: number;
-  
+
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

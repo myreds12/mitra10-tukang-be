@@ -39,24 +39,28 @@ html(lang="en")
         p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
       
       .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Order
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
-          tbody
-            each item, index in data.complaint.orders.order_details
-              tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.item_code === 'null' ? '-' : (item.item_code || '-')}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item_name === 'null' ? '-' : (item.item_name || '-')}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.service_name || '-'}
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || 0}
-            tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{Number(data.complaint.orders.grand_total).toLocaleString('id')}
+       h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Order
+       if data.complaint.orders.order_details && data.complaint.orders.order_details.length > 0
+         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+           thead
+             tr
+               th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
+               th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
+               th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
+               th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
+           tbody
+             each item, index in data.complaint.orders.order_details
+               tr
+                 td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.item_code === 'null' ? '-' : (item.item_code || '-')}
+                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item_name === 'null' ? '-' : (item.item_name || '-')}
+                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.service_name || '-'}
+                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || 0}
+             tr
+               td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
+               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{Number(data.complaint.orders.grand_total).toLocaleString('id')}
+       else
+         p(style="font-size: 0.875rem; font-style: italic; color: #718096; margin-bottom: 16px;") Tidak ada order
+
 
       .divider(style="border-top: 1px solid #e5e7eb;")
       

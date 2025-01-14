@@ -131,24 +131,61 @@ html(lang="en")
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
+      - if (data.quotation.quotation_special === 1)
+        - const tahapTitles = ['Jasa Pemasangan Tahap 1', 'Jasa Pemasangan Tahap 2', 'Jasa Pemasangan Tahap 3'];
+        each tahapTitle, tahapIndex in tahapTitles
+          .order-info(style="padding: 20px;")
+            h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") #{tahapTitle}
+            table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+              thead
+                tr
+                  th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
+                  th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
+                  th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan
+                  th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
+              tbody
+                each item in data.quotation.quotation_details.filter((x) => x.item_type === 2 && x.work_step === (tahapIndex + 1))
+                  tr
+                    td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.name ? item.name : '-'}
+                    td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? item.quantity : '-'
+                    td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                    - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                    td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
       .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan 
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
-          tbody
-            each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
+         h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Preview Bayar
+         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+           thead
+             tr
+               th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Tahap Pembayaran
+               th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Persentase
+               th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nominal Pembayaran
+           tbody
+             - const percentages = [25, 50, 25];
+             each percentage, index in percentages
+               - var nominalPembayaran = (data.quotation.quotation_grand_total * (percentage / 100)).toFixed(2);
+               tr
+                 td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") Tahap #{index + 1}
+                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{percentage}%
+                 - var formattedNominal = 'Rp. ' + nominalPembayaran.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedNominal}         
+      - else
+        .order-info(style="padding: 20px;")
+          h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
+          table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+            thead
               tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.name ? item.name : '-'}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-' 
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
-                - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
-
+                th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Jenis Jasa
+                th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") QTY
+                th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Satuan
+                th(style="border: 1px solid #e2e8f0; padding: 8px;") Final Price
+            tbody
+              each item in data.quotation.quotation_details.filter((x) => x.item_type === 2)
+                tr
+                  td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.name ? item.name : '-'}
+                  td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? item.quantity : '-'
+                  td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                  - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                  td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
             tr

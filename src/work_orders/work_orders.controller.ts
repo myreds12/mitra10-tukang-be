@@ -1,19 +1,16 @@
 import {
   Body,
   Controller,
-  HttpStatus,
   Param,
   Post,
   Query,
   Request,
-  Res,
   UseGuards,
   Get,
   Delete,
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
-  UploadedFile,
 } from '@nestjs/common';
 import { WorkOrdersService } from './work_orders.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -22,7 +19,6 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import {
   FileFieldsInterceptor,
-  FileInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
@@ -44,7 +40,6 @@ export class WorkOrdersController {
     @Request() req: RequestWithUser,
     @Body() dataDto: WorkOrderTukang,
   ) {
-   
     return await this.workOrdersService.tukangUpdateNotes(
       id,
       req.user,
@@ -96,7 +91,7 @@ export class WorkOrdersController {
 
   @Post(':id/replace-tukang')
   @UseInterceptors(
-    FilesInterceptor('file', 10,{
+    FilesInterceptor('file', 10, {
       storage: diskStorage({
         destination: './uploads/request-tukang',
         filename: (req, file, callback) => {
@@ -113,10 +108,13 @@ export class WorkOrdersController {
     @UploadedFiles() file: Express.Multer.File[],
     @Request() req: RequestWithUser,
   ) {
-    
-    return await this.workOrdersService.replaceTukang(id, updateDto, req.user, file);
+    return await this.workOrdersService.replaceTukang(
+      id,
+      updateDto,
+      req.user,
+      file,
+    );
   }
-
 
   @Post('')
   @UseInterceptors(FilesInterceptor('work_order_evidences', 5))

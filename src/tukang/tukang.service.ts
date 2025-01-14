@@ -1,8 +1,8 @@
-import { BadRequestException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateTukangDto } from './dto/create-tukang.dto';
 import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { hash, hashSync } from 'bcrypt';
+import { hashSync } from 'bcrypt';
 import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { Queue } from 'bull';
@@ -74,14 +74,13 @@ export class TukangService {
         12,
       );
 
-      const formattedUsername =  createTukangDto?.username.replace(/ /g, '_') ?? undefined;
-
-      
+      const formattedUsername =
+        createTukangDto?.username.replace(/ /g, '_') ?? undefined;
 
       const userData = await this.dbService.users.create({
         data: {
           username:
-          formattedUsername ??
+            formattedUsername ??
             `${createTukangDto.full_name.toLowerCase().replace(/ /g, '_')}`,
           password: saltedPassword,
           role_id: roles.id,
@@ -195,10 +194,10 @@ export class TukangService {
                           area: {
                             area: {
                               contains: search,
-                            }
-                          }
-                        }
-                      }
+                            },
+                          },
+                        },
+                      },
                     },
                     { address: { contains: search } },
                     { email: { contains: search } },
@@ -238,8 +237,8 @@ export class TukangService {
                 tukang_area: {
                   some: {
                     area_id: {
-                      in: area_id
-                    }
+                      in: area_id,
+                    },
                   },
                 },
               }
@@ -278,10 +277,10 @@ export class TukangService {
           vendor: true,
           work_order_tukang: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             orderBy: {
-              created_at: 'desc'
+              created_at: 'desc',
             },
             include: {
               work_orders: {
@@ -289,21 +288,21 @@ export class TukangService {
                   status: true,
                   work_order_status: {
                     include: {
-                      status: true
+                      status: true,
                     },
                     orderBy: {
-                      created_at: 'desc'
-                    }
+                      created_at: 'desc',
+                    },
                   },
-                  order: true
-                }
-              }
-            }
+                  order: true,
+                },
+              },
+            },
           },
           tukang_area: {
             include: {
               area: true,
-              tukang: true
+              tukang: true,
             },
           },
           tukang_service: {
@@ -317,18 +316,21 @@ export class TukangService {
 
       const tukangWithSlotOrder = tukang.map((tukangItem) => {
         const dailySlots = tukangItem.work_order_tukang.filter((item) => {
-          const orderDate = new Date(item.work_orders.work_order_status[0].created_at).toISOString().split('T')[0];
+          const orderDate = new Date(
+            item.work_orders.work_order_status[0].created_at,
+          )
+            .toISOString()
+            .split('T')[0];
           const currentDate = new Date().toISOString().split('T')[0];
           // console.log("ORDER DATE:" ,orderDate, "CURRENT DATE: ",currentDate);
-          
-      
+
           return (
             item.work_orders.status.category !== 'SURVEYDONE' &&
             item.work_orders.status.category !== 'WORKEND' &&
             orderDate === currentDate
           );
         });
-      
+
         return {
           ...tukangItem,
           slot_order: dailySlots.length,
@@ -360,31 +362,31 @@ export class TukangService {
           vendor: true,
           work_order_tukang: {
             where: {
-              deleted_at: null
+              deleted_at: null,
             },
             orderBy: {
-              created_at: 'desc'
+              created_at: 'desc',
             },
             include: {
               work_orders: {
                 include: {
                   work_order_status: {
                     include: {
-                      status: true
+                      status: true,
                     },
                     orderBy: {
-                      created_at: 'desc'
-                    }
+                      created_at: 'desc',
+                    },
                   },
-                  order: true
-                }
-              }
-            }
+                  order: true,
+                },
+              },
+            },
           },
           tukang_area: {
             include: {
               area: true,
-              tukang: true
+              tukang: true,
             },
           },
           tukang_service: {
@@ -417,10 +419,9 @@ export class TukangService {
           id,
         },
         include: {
-          users: true
-        }
+          users: true,
+        },
       });
-
 
       const tukangFiles: Array<Prisma.tukang_documentCreateManyInput> = files
         ? Object.entries(files).map((file) => {
@@ -495,21 +496,23 @@ export class TukangService {
         phone_number: updateTukangDto?.phone_number,
         bod: updateTukangDto?.bod ? new Date(updateTukangDto.bod) : undefined,
         is_active: Boolean(updateTukangDto.is_active),
-        ...(updateTukangDto.is_delete === 1 ? {
-          deleted_at: new Date(),
-          users: {
-            update: {
-              deleted_at: new Date()
+        ...(updateTukangDto.is_delete === 1
+          ? {
+              deleted_at: new Date(),
+              users: {
+                update: {
+                  deleted_at: new Date(),
+                },
+              },
             }
-          }
-        } : {
-          deleted_at: null,
-          users: {
-            update: {
-              deleted_at: null
-            }
-          }
-        }),
+          : {
+              deleted_at: null,
+              users: {
+                update: {
+                  deleted_at: null,
+                },
+              },
+            }),
         ...(tukangServiceTypesUpsert
           ? {
               tukang_service: {
@@ -579,20 +582,20 @@ export class TukangService {
             ]
           : []),
       ]);
-      const formattedUsername =  updateTukangDto?.username ? updateTukangDto?.username.replace(/ /g, '_') : tukang.users.username;
-      const saltedPassword = updateTukangDto.password ? hashSync(
-        updateTukangDto?.password,
-        12,
-      ) : tukang.users.password;
-      
+      const formattedUsername = updateTukangDto?.username
+        ? updateTukangDto?.username.replace(/ /g, '_')
+        : tukang.users.username;
+      const saltedPassword = updateTukangDto.password
+        ? hashSync(updateTukangDto?.password, 12)
+        : tukang.users.password;
 
-      const userData = await this.dbService.users.update({
+      await this.dbService.users.update({
         where: {
-          id: tukang.user_id
+          id: tukang.user_id,
         },
         data: {
           username:
-          formattedUsername ??
+            formattedUsername ??
             `${updateTukangDto?.full_name?.toLowerCase().replace(/ /g, '_')}`,
           password: saltedPassword,
         },
@@ -619,8 +622,8 @@ export class TukangService {
             update: {
               deleted_at: new Date(),
               deleted_by: user_id,
-            }
-          }
+            },
+          },
         },
       });
       return tukang;
@@ -796,63 +799,63 @@ export class TukangService {
 
   async tukangOrderPdf(res: Response, queryParams: QueryParamsDto) {
     const { tukang_id, vendor_id, date_from, date_to, order_by } = queryParams;
-      const where: Prisma.work_order_tukangWhereInput = {
-        AND: [
-          vendor_id
-            ? {
+    const where: Prisma.work_order_tukangWhereInput = {
+      AND: [
+        vendor_id
+          ? {
               work_orders: {
                 vendor_id: vendor_id,
-              }
+              },
             }
-            : undefined,
-          tukang_id
-            ? {
-              tukang_id: tukang_id
+          : undefined,
+        tukang_id
+          ? {
+              tukang_id: tukang_id,
             }
-            : undefined,
-          date_from && date_to
-            ? {
+          : undefined,
+        date_from && date_to
+          ? {
               work_orders: {
                 order: {
                   created_at: {
                     gte: new Date(`${date_from}T00:00:00.000Z`),
-                      lte: new Date(`${date_to}T23:59:59.000Z`),
-                  }
-                }
-              }
-            } 
-            : undefined,
-        ].filter(Boolean),
-        deleted_at: null,
-      };
-      const tukang = await this.dbService.work_order_tukang.findMany({
-        where,
-        orderBy: {
-          created_at: order_by
-        },
-        include: {
-          tukang: true,
-          work_orders: {
-            include: {
-              order: {
-                include: {
-                  status: true,
-                  store: true,
-                  members: true,
-                  m_order_details: true
-                }
-              }
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
+                },
+              },
             }
-          }
-        }
-      });
+          : undefined,
+      ].filter(Boolean),
+      deleted_at: null,
+    };
+    const tukang = await this.dbService.work_order_tukang.findMany({
+      where,
+      orderBy: {
+        created_at: order_by,
+      },
+      include: {
+        tukang: true,
+        work_orders: {
+          include: {
+            order: {
+              include: {
+                status: true,
+                store: true,
+                members: true,
+                m_order_details: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     const data = {
-      tukang
+      tukang,
     };
 
     console.log(data.tukang);
-    
+
     const buffer = await this.pdfService.generate('tukang-pdf', data);
     // Set headers to download the PDF
     res.setHeader('Content-Type', 'application/pdf');
@@ -867,27 +870,27 @@ export class TukangService {
         AND: [
           vendor_id
             ? {
-              work_orders: {
-                vendor_id: vendor_id,
+                work_orders: {
+                  vendor_id: vendor_id,
+                },
               }
-            }
             : undefined,
           tukang_id
             ? {
-              tukang_id: tukang_id
-            }
+                tukang_id: tukang_id,
+              }
             : undefined,
           date_from && date_to
             ? {
-              work_orders: {
-                order: {
-                  created_at: {
-                    gte: new Date(`${date_from}T00:00:00.000Z`),
+                work_orders: {
+                  order: {
+                    created_at: {
+                      gte: new Date(`${date_from}T00:00:00.000Z`),
                       lte: new Date(`${date_to}T23:59:59.000Z`),
-                  }
-                }
+                    },
+                  },
+                },
               }
-            } 
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -903,12 +906,12 @@ export class TukangService {
                   status: true,
                   store: true,
                   members: true,
-                  m_order_details: true
-                }
-              }
-            }
-          }
-        }
+                  m_order_details: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       const workbook = new exceljs.Workbook();
@@ -969,12 +972,20 @@ export class TukangService {
           })}`;
         const row = worksheet.addRow({
           id: tukang.work_orders.order_id,
-          order_created: tukang.work_orders.order.created_at ? formattedDateTime(tukang.work_orders.order.created_at) : '',
-          member_name: tukang.work_orders.order.members.full_name ? tukang.work_orders.order.members.full_name : '',
-          item_name: tukang.work_orders.order.m_order_details ? tukang.work_orders.order.m_order_details
-          .map((item) => item?.item_name || '-')
-          .join(', ') : 'Jenis Jasa Pemasangan Belum Ditentukan',
-          order_status: tukang.work_orders.order.status.description ? tukang.work_orders.order.status.description : '',
+          order_created: tukang.work_orders.order.created_at
+            ? formattedDateTime(tukang.work_orders.order.created_at)
+            : '',
+          member_name: tukang.work_orders.order.members.full_name
+            ? tukang.work_orders.order.members.full_name
+            : '',
+          item_name: tukang.work_orders.order.m_order_details
+            ? tukang.work_orders.order.m_order_details
+                .map((item) => item?.item_name || '-')
+                .join(', ')
+            : 'Jenis Jasa Pemasangan Belum Ditentukan',
+          order_status: tukang.work_orders.order.status.description
+            ? tukang.work_orders.order.status.description
+            : '',
           notes: tukang.notes ? tukang.notes : 'Notes Belum Ditentukan',
         });
 

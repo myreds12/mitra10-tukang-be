@@ -4,8 +4,6 @@ import { TukangController } from './tukang.controller';
 import { diskStorage } from 'multer';
 import { MulterModule } from '@nestjs/platform-express';
 import { extname } from 'path';
-import { OrderService } from 'src/order/order.service';
-import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
 import { PdfService } from 'src/common/service/pdf.service';
 
@@ -32,6 +30,6 @@ import { PdfService } from 'src/common/service/pdf.service';
         attempts: 3,
       },
     }),
-  ]
+  ],
 })
 export class TukangModule {}

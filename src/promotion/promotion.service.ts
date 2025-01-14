@@ -59,7 +59,6 @@ export class PromotionService {
         take,
         page,
         search,
-        status,
         date_from,
         date_to,
         order_by,
@@ -218,6 +217,7 @@ export class PromotionService {
         },
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncPromotionStore, updatePromotion] =
         await this.dbService.$transaction([
           this.dbService.promotion_stores.updateMany({
