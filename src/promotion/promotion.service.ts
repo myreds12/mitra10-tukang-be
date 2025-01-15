@@ -92,18 +92,28 @@ export class PromotionService {
                 },
               ]
             : []),
-          ...(date_from && date_to
-            ? [
-                {
-                  periodic_start: {
-                    gte: new Date(date_from),
+            ...(date_from && date_to
+              ? [
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                  periodic_end: {
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  }
-                },
-              ]
-            : []),
+                ]
+              : []),
+              // ...(date_from && date_to
+              //   ? [
+              //       {
+              //         periodic_start: {
+              //           gte: new Date(date_from),
+              //         },
+              //         periodic_end: {
+              //           lte: new Date(`${date_to}T23:59:59.000Z`),
+              //         }
+              //       },
+              //     ]
+              //   : []),
         ].filter(Boolean),
         deleted_at: null,
       };
