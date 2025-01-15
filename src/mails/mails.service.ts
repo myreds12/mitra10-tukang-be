@@ -456,6 +456,10 @@ export class MailsService {
           deleted_at: null,
           deleted_by: null,
         },
+        take: 100,
+        orderBy: {
+          created_at: 'desc',
+        },
         select: { id: true },
       });
 
@@ -525,6 +529,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 50,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
     
     if (quotations.length) {
@@ -585,6 +593,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 50,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
 
     if (quotations.length) {
@@ -641,6 +653,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 10,
+      orderBy: {
+        created_at: 'desc'
+      }
     });
 
     if (complaints.length) {
@@ -755,6 +771,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 10,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
 
     if (refunds.length) {
@@ -812,6 +832,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 50,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
 
     const csi = await this.dbService.csi_template.findFirst({
