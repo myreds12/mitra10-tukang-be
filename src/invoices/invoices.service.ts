@@ -170,7 +170,7 @@ export class InvoicesService {
                 totalGrandTotal += totalMargin || 0;
               } else if (order.payment_type === 'survey' && detail.type === 3) {
                 const totalMargin =
-                  vendor.margin_type === 1
+                  (vendor.margin_type === 1
                     ? ((+vendor.margin_nominal / 100) *
                       Number(
                         order?.quotation[0]?.quotation_details.reduce(
@@ -186,8 +186,8 @@ export class InvoicesService {
                         0
                       )
                     ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
+                    +vendor.margin_nominal) +
+                  Number(order.additional_fee);
                 invoiceDetails.push({
                   order_id: order.id,
                   total: totalMargin,
@@ -279,13 +279,13 @@ export class InvoicesService {
                 totalGrandTotal += totalMargin || 0;
               } else if (order.payment_type === 'gratis') {
                 const totalMargin =
-                order.m_order_details
-                .filter((i) => i.item.type === 1)
-                .reduce((acc, curr) => {
-                  const nominal = Number(curr?.item?.invoice_nominal || 0);
-                  const quantity = Number(curr?.quantity || 0);
-                  return acc + nominal * quantity;
-                }, 0) +
+                  order.m_order_details
+                    .filter((i) => i.item.type === 1)
+                    .reduce((acc, curr) => {
+                      const nominal = Number(curr?.item?.invoice_nominal || 0);
+                      const quantity = Number(curr?.quantity || 0);
+                      return acc + nominal * quantity;
+                    }, 0) +
                   Number(order.additional_fee);
                 invoiceDetails.push({
                   order_id: order.id,
@@ -483,6 +483,18 @@ export class InvoicesService {
                     },
                   },
                   members: true,
+                  quotation: {
+                    where: {
+                      deleted_at: null
+                    },
+                    include: {
+                      quotation_receipt: {
+                        where: {
+                          deleted_at: null
+                        }
+                      }
+                    }
+                  }
                 },
               },
             },
@@ -536,7 +548,18 @@ export class InvoicesService {
                       item: true,
                     },
                   },
-                  quotation: true,
+                  quotation: {
+                    where: {
+                      deleted_at: null
+                    },
+                    include: {
+                      quotation_receipt: {
+                        where: {
+                          deleted_at: null
+                        }
+                      }
+                    }
+                  },
                   members: true,
                 },
               },
@@ -1746,7 +1769,13 @@ export class InvoicesService {
               status: true,
               quotation: {
                 where: { deleted_at: null },
-                include: { quotation_receipt: true },
+                include: {
+                  quotation_receipt: true, quotation_details: {
+                    where: {
+                      deleted_at: null
+                    }
+                  }
+                },
               },
               store: true,
               sales: true,
@@ -1867,9 +1896,20 @@ export class InvoicesService {
             : order.type === 2 &&
               order.order.payment_type === PAYMENT_TYPE.SURVEY &&
               order.order.quotation[0]
-              ? order.order.quotation[0].quotation_grand_total
-              : order.order.grand_total;
-
+              ? order.order.quotation[0].quotation_grand_total : order.type === 3 &&
+                order.order.payment_type === PAYMENT_TYPE.SURVEY &&
+                order.order.quotation[0] ?
+                order.order.quotation[0].quotation_details.filter((x) => x.work_step === 1).reduce((a, b) => a + Number(b.quotation_special_price), 0)
+                : order.type === 4 &&
+                  order.order.payment_type === PAYMENT_TYPE.SURVEY &&
+                  order.order.quotation[0] ?
+                  order.order.quotation[0].quotation_details.filter((x) => x.work_step === 2).reduce((a, b) => a + Number(b.quotation_special_price), 0)
+                  : order.type === 5 &&
+                    order.order.payment_type === PAYMENT_TYPE.SURVEY &&
+                    order.order.quotation[0] ?
+                    order.order.quotation[0].quotation_details.filter((x) => x.work_step === 3).reduce((a, b) => a + Number(b.quotation_special_price), 0)
+                    : order.order.grand_total;
+                                                                                                                                                                                                                                                                                      
         const invoice_price = order.total;
         console.log('Invoice Price:', invoice_price);
 
@@ -1880,9 +1920,11 @@ export class InvoicesService {
         const margin_ppn = instalation_price - invoice_price;
         const price_difference = +customer_transaction - invoice_price;
         const receipt_number =
-          order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type != 1
-            ? order.order.quotation[0].receipt_quotation || '-'
-            : order.order.receipt_number;
+          order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type === 2
+            ? order.order.quotation[0].receipt_quotation || '-' : order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type === 3 ? order.order.quotation[0].quotation_receipt.filter((x) => x.quotation_step === 1)[0].receipt_quotation :
+              order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type === 4 ? order.order.quotation[0].quotation_receipt.filter((x) => x.quotation_step === 2)[0].receipt_quotation :
+                order.order.payment_type === PAYMENT_TYPE.SURVEY && order.type === 5 ? order.order.quotation[0].quotation_receipt.filter((x) => x.quotation_step === 3)[0].receipt_quotation
+                  : order.order.receipt_number;
         console.log('Order ID:', order.order_id);
         console.log('Receipt Number:', receipt_number);
 
