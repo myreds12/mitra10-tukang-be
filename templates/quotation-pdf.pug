@@ -129,25 +129,16 @@ html(lang="en")
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .information(style="padding: 20px;")
-        h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 1. Semua penjualan  Jasa Instalasi bersifat final.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 2. Pembayaran harus dilakukan secara penuh sebelum pesanan diproses.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 3. Waktu Kunjungan adalah perkiraan dan dapat bervariasi berdasarkan lokasi dan bersifat Kondisional.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 4. Kami tidak bertanggung jawab atas kerusakan produk sebelum & sesudah pengerjaan atau kerugian yang terjadi selama Pengerjaan.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 5. Dengan melakukan pemesanan, Anda menyetujui syarat dan ketentuan kami.
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
+        each item, index in data.message.information_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .terms-conditions(style="padding: 20px;")
-        h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 1. Biaya diatas adalah Jasa Instalasi berlaku 7 hari dari tanggal dikirimnya Quotation.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 2. Jadwal Survey/Pengerjaan akan ditentukan oleh teknisi, setelah material tersedia (material disediakan oleh Customer) dan barang diterima Customer, serta barang yang akan dikerjakan Jasa Instalasi adalah barang dari Mitra10.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 3. Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 4. Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 5. Semua Jasa Pemasangan wajib dilakukan Survey. Biaya survey akan dikembalikan apabila biaya Jasa Instalasi & Service minimal Rp 800.000.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 6. Quotation diberikan kepada Customer maksimal H+2 dihari kerja setelah Survey selesai.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 7. Garansi 7 (Tujuh) hari untuk Jasa Instalasi & Service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses Jasa Instalasi & Service.
-        p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat & Ketentuan
+        each item, index in data.message.terms_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
         img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
 
 

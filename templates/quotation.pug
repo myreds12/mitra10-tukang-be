@@ -147,27 +147,27 @@ html(lang="en")
                 each item in data.quotation.quotation_details.filter((x) => x.item_type === 2 && x.work_step === (tahapIndex + 1))
                   tr
                     td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.name ? item.name : '-'}
-                    td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? item.quantity : '-'
-                    td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                    td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? item.quantity : '-' 
+                    td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
                     - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                     td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
       .order-info(style="padding: 20px;")
-         h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Preview Bayar
-         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-           thead
-             tr
-               th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Tahap Pembayaran
-               th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Persentase
-               th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nominal Pembayaran
-           tbody
-             - const percentages = [25, 50, 25];
-             each percentage, index in percentages
-               - var nominalPembayaran = (data.quotation.quotation_grand_total * (percentage / 100)).toFixed(2);
-               tr
-                 td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") Tahap #{index + 1}
-                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{percentage}%
-                 - var formattedNominal = 'Rp. ' + nominalPembayaran.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedNominal}         
+        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Preview Bayar
+        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+          thead
+            tr
+              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Tahap Pembayaran
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Persentase
+              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nominal Pembayaran
+          tbody
+            - const percentages = [25, 50, 25];
+            each percentage, index in percentages
+              - var nominalPembayaran = (data.quotation.quotation_grand_total * (percentage / 100)).toFixed(2);
+              tr
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") Tahap #{index + 1}
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{percentage}%
+                - var formattedNominal = 'Rp. ' + nominalPembayaran.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedNominal}         
       - else
         .order-info(style="padding: 20px;")
           h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
@@ -182,8 +182,8 @@ html(lang="en")
               each item in data.quotation.quotation_details.filter((x) => x.item_type === 2)
                 tr
                   td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.name ? item.name : '-'}
-                  td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? item.quantity : '-'
-                  td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                  td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? item.quantity : '-' 
+                  td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
                   - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                   td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
@@ -349,21 +349,15 @@ html(lang="en")
 
       .information(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        each item, index in data.message.terms_detail
-          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
+        each item, index in data.message.information_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .terms-conditions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
-        p(style="margin-bottom: 8px; color: #4a5568;") 1. Biaya diatas adalah Jasa Instalasi berlaku 7 hari dari tanggal dikirimnya Quotation.
-        p(style="margin-bottom: 8px; color: #4a5568;") 2. Jadwal Survey/Pengerjaan akan ditentukan oleh teknisi, setelah material tersedia (material disediakan oleh Customer) dan barang diterima Customer, serta barang yang akan dikerjakan Jasa Instalasi adalah barang dari Mitra10.
-        p(style="margin-bottom: 8px; color: #4a5568;") 3. Penjadwalan ulang pada H-1 tidak dikenakan biaya, penjadwalan ulang pada hari H akan dikenakan biaya tambahan minimal sebesar Rp 75.000.
-        p(style="margin-bottom: 8px; color: #4a5568;") 4. Pekerjaan tambahan (Pekerjaan diluar yang sudah diajukan & di transaksikan) akan dikenakan biaya tambahan.
-        p(style="margin-bottom: 8px; color: #4a5568;") 5. Semua Jasa Pemasangan wajib dilakukan Survey. Biaya survey akan dikembalikan apabila biaya Jasa Instalasi & Service minimal Rp 800.000.
-        p(style="margin-bottom: 8px; color: #4a5568;") 6. Quotation diberikan kepada Customer maksimal H+2 dihari kerja setelah Survey selesai.
-        p(style="margin-bottom: 8px; color: #4a5568;") 7. Garansi 7 (Tujuh) hari untuk Jasa Instalasi & Service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses Jasa Instalasi & Service.
-        p(style="margin-bottom: 8px; color: #4a5568;") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
+        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat & Ketentuan
+        each item, index in data.message.terms_detail
+          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
