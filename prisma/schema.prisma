@@ -52,6 +52,22 @@ model city {
   province province? @relation(fields: [province_id], references: [id])
 }
 
+
+model data_master {
+  id          Int    @id @default(autoincrement())
+  value       Int?
+  name        String @db.VarChar(255)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+}
+
+
 model employee {
   id Int @id @default(autoincrement())
 
