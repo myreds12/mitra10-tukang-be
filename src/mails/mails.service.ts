@@ -194,18 +194,19 @@ export class MailsService {
   ) {
     try {
       const { header_files, footer_files } = files;
+
       const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-        header_files?.map((item) => ({
+        header_files ? header_files?.map((item) => ({
           type: 1,
           path: item.filename,
           created_by: user_id,
-        }));
+        })) : [];
       const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-        footer_files?.map((item) => ({
+        footer_files ? footer_files?.map((item) => ({
           type: 2,
           path: item.filename,
           created_by: user_id,
-        }));
+        })) : [];
       const evidence = [...header, ...footer];
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
@@ -304,6 +305,7 @@ export class MailsService {
 
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncFiles, syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
         this.dbService.email_message_image.deleteMany({
           where: {
@@ -534,7 +536,7 @@ export class MailsService {
         created_at: 'desc',
       }
     });
-    
+
     if (quotations.length) {
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
@@ -894,7 +896,7 @@ export class MailsService {
     }
   }
 
-  async removeHistory(id: number, user_id: number) {
+  async removeHistory(id: number) {
     const emailMessage = await this.dbService.mail_logs.delete({
       where: {
         id,

@@ -7,7 +7,7 @@ html(lang="en")
   body(style="background-color: rgb(242, 242, 242); font-family: Arial, sans-serif; line-height: 1.1; letter-spacing: normal;")
     .container(style="max-width: 100%;margin: 0 auto; background-color: #ffffff; border-radius: 0.5rem; overflow: hidden;")
       .header
-        img(src="https://i.ibb.co.com/QrMqc0K/Header-quot.png" alt="Banner Image" style="width: 100%; height: auto;")
+        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co.com/DpFCt8g/Whats-App-Image-2024-10-10-at-15-42-16-3d05600b.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
 
       .order-details(style="padding-left: 16px; padding-right: 16px;")
         table(style="width: 100%;")
@@ -65,9 +65,9 @@ html(lang="en")
           tbody
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 2)
               tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")=item.name ? item.name : '-'
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-'	
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-'
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")=item.name ? item.name : '-' 
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.quantity ? (item.quantity ) : '-' 
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")=item.unit ? item.unit : '-' 
                 - var formattedFinalPrice = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPrice}
 
@@ -82,12 +82,12 @@ html(lang="en")
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
               tr
                 td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-'	
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-'
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-' 
+                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-' 
                 - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
                 td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{formattedFinalPriceItem}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Total
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Total
               - var reducedTotal = 0
               - data.quotation.quotation_details.forEach(detail => {
               -   var reducedPrice = parseFloat(detail.final_price) 
@@ -96,24 +96,24 @@ html(lang="en")
               - var formattedReducedTotal = 'Rp. ' + reducedTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.').replace('.', ',')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedReducedTotal}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Promosi
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Promosi
               - var formattedQuotationPromotion = data.quotation.quotation_promotion || data.quotation.quotation_promotion ? 'Rp. ' + (Number(data.quotation.quotation_promotion || 0) + Number(data.quotation.quotation_disc || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedQuotationPromotion}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Additional Promosi (#{data.quotation.promotion ? data.quotation.promotion.name : ''})
               - var formattedPromotion = data.quotation.promotion  ? 'Rp. ' + data.quotation.promotion.promotion.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Rp. 0' 
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedPromotion}
             tr
-              td(colspan="3", style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Grand Total
+              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.8rem; font-weight: 600;") Grand Total
               - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
-              
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
 
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-         div(style="page-break-after: always;")
+
+
+      .divider(style="border-top: 1px solid #e5e7eb;")
+        div(style="page-break-after: always;")
       .payment-instructions(style="padding: 20px; margin-top: 1px")
         h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 2px;") Intruksi Pembayaran
         p(style="margin-bottom: 2px; color: #4a5568; font-weight: 600; font-size:0.9rem") 1. Silahkan melakukan pembayaran di account di bawah ini:
@@ -148,8 +148,8 @@ html(lang="en")
         p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 6. Quotation diberikan kepada Customer maksimal H+2 dihari kerja setelah Survey selesai.
         p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 7. Garansi 7 (Tujuh) hari untuk Jasa Instalasi & Service terhitung sejak tanggal serah terima pekerjaan dan hanya 1x kunjungan. Kerusakan produk yang terpasang, tidak menjadi bagian garansi dan proses Jasa Instalasi & Service.
         p(style="margin-bottom: 2px; color: #4a5568;font-size:0.9rem") 8. Biaya Transportasi, jarak dari toko Mitra10 lokasi pengerjaan kurang dari 10KM adalah FREE : Lebih dari 10KM dikenakan biaya Transportasi Rp 25.000 Max 40KM.
-        img(src="https://i.ibb.co.com/L1s8SbR/Footer-quot.png" alt="Banner Image" style="width: 100%; height: 50%;")
-        
+        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
 
 
-        
+
+
