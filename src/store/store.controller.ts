@@ -3,34 +3,23 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
   Request,
   Query,
   Res,
-  HttpStatus,
-  Req,
   HttpCode,
-  NotFoundException,
 } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
+import { Response as IExpressResponse } from 'express';
 
-interface UserRequest extends IExpressRequest {
-  user: users;
-}
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { users } from '@prisma/client';
 @ApiTags('Stores')
 @Controller('stores')
 @UseGuards(JwtAuthGuard)
@@ -41,9 +30,10 @@ export class StoreController {
   @UseGuards()
   async memberExportExcel(
     @Query() query: QueryParamsDto,
-    @Res() res: IExpressResponse) {
-      const data = await this.storeService.storeExportExcel(res, query);
-      return data;
+    @Res() res: IExpressResponse,
+  ) {
+    const data = await this.storeService.storeExportExcel(res, query);
+    return data;
   }
 
   @Get('next-code')

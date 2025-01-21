@@ -19,6 +19,7 @@ export class ServiceTypeService {
       return {
         status: HttpStatus.CREATED,
         message: 'Successfully to Create Data',
+        data: service_type,
       };
     } catch (error) {
       return {

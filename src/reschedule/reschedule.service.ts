@@ -6,12 +6,10 @@ import { Prisma, users } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateRescheduleDto } from './dto/update-reschedule.dto';
 import { OrderService } from 'src/order/order.service';
-import { PAYMENT_TYPE } from 'src/order/enum/payment_type.enum';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
-import { log } from 'console';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 
@@ -141,7 +139,6 @@ export class RescheduleService {
       take,
       page,
       search,
-      status,
       date_from,
       date_to,
       order_by,
@@ -558,6 +555,7 @@ export class RescheduleService {
 
     console.log('RESCHEDULE DATA:', rescheduleData);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [deletedEvidences, updateRescheduleTukang, updatedReschedule] =
       await this.dbService.$transaction([
         this.dbService.reschedule_evidences.updateMany({
@@ -689,7 +687,6 @@ export class RescheduleService {
             minute: '2-digit',
           })}`;
 
-        const formattedCurrency = (amount) => (amount ? Number(amount) : '0');
 
         const row = worksheet.addRow({
           id: refund.id,

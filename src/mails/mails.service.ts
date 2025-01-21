@@ -2,7 +2,6 @@
 import {
   Injectable,
   Logger,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEmailMessageDto } from './dto/create-email-message.dto';
@@ -14,7 +13,6 @@ import { MailType } from './enum/mail_type.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
-import { QuotationMailInterface } from 'src/common/interface/mails';
 
 @Injectable()
 export class MailsService {
@@ -196,18 +194,19 @@ export class MailsService {
   ) {
     try {
       const { header_files, footer_files } = files;
+
       const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-        header_files?.map((item) => ({
+        header_files ? header_files?.map((item) => ({
           type: 1,
           path: item.filename,
           created_by: user_id,
-        }));
+        })) : [];
       const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-        footer_files?.map((item) => ({
+        footer_files ? footer_files?.map((item) => ({
           type: 2,
           path: item.filename,
           created_by: user_id,
-        }));
+        })) : [];
       const evidence = [...header, ...footer];
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
@@ -306,6 +305,7 @@ export class MailsService {
 
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncFiles, syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
         this.dbService.email_message_image.deleteMany({
           where: {
@@ -458,6 +458,10 @@ export class MailsService {
           deleted_at: null,
           deleted_by: null,
         },
+        take: 100,
+        orderBy: {
+          created_at: 'desc',
+        },
         select: { id: true },
       });
 
@@ -527,12 +531,16 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 50,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
-    
+
     if (quotations.length) {
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 2000;
+      let delay = 2000;
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];
@@ -544,7 +552,7 @@ export class MailsService {
         const jobId = `send-quotation-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
 
-        if (countSendedEmail > 2 && !jobExist) {
+        if (countSendedEmail < 2 && !jobExist) {
           this.logger.log(
             `Sending email for quotation ${quotation.id} - ${template_id}`,
           );
@@ -587,11 +595,15 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 50,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
 
     if (quotations.length) {
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 2000;
+      let delay = 2000;
       console.log(template_id, 'TEMPLATE ID');
 
       for (let index = 0; index < quotations.length; index++) {
@@ -643,6 +655,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 10,
+      orderBy: {
+        created_at: 'desc'
+      }
     });
 
     if (complaints.length) {
@@ -651,7 +667,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < complaints.length; index++) {
         const complaint = complaints[index];
@@ -708,7 +724,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < reschedules.length; index++) {
         const reschedule = reschedules[index];
@@ -757,6 +773,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 10,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
 
     if (refunds.length) {
@@ -765,7 +785,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < refunds.length; index++) {
         const refund = refunds[index];
@@ -814,6 +834,10 @@ export class MailsService {
         deleted_at: null,
         deleted_by: null,
       },
+      take: 50,
+      orderBy: {
+        created_at: 'desc',
+      }
     });
 
     const csi = await this.dbService.csi_template.findFirst({
@@ -829,7 +853,7 @@ export class MailsService {
       );
 
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
-      let delay: number = 5000;
+      let delay = 5000;
 
       for (let index = 0; index < orders.length; index++) {
         const order = orders[index];
@@ -872,7 +896,7 @@ export class MailsService {
     }
   }
 
-  async removeHistory(id: number, user_id: number) {
+  async removeHistory(id: number) {
     const emailMessage = await this.dbService.mail_logs.delete({
       where: {
         id,

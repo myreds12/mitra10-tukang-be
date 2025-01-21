@@ -1,4 +1,4 @@
 export enum PromotionType {
-    PERCENTAGE = 1,
-    NOMINAL = 2
-  }
+  PERCENTAGE = 1,
+  NOMINAL = 2,
+}

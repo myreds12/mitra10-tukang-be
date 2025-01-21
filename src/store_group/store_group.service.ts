@@ -1,12 +1,11 @@
-import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateStoreGroupDto } from './dto/create-store_group.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateStoreGroupDto } from './dto/update-store_group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class StoreGroupService {
   constructor(private readonly dbService: PrismaService) {}
-  create(createStoreGroupDto: CreateStoreGroupDto) {
+  create() {
     return 'This action adds a new storeGroup';
   }
 
@@ -63,6 +62,7 @@ export class StoreGroupService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(id: number, updateStoreGroupDto: UpdateStoreGroupDto) {
     return `This action updates a #${id} storeGroup`;
   }

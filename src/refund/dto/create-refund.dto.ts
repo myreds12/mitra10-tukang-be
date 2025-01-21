@@ -1,6 +1,6 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import { IsOptional } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsOptional } from 'class-validator';
 
 export class CreateRefundDto {
   @ApiProperty()
@@ -25,5 +25,5 @@ export class CreateRefundDto {
   @Type(() => Number)
   refund_status: number;
 
-  refund_evidences: Express.Multer.File[]
+  refund_evidences: Express.Multer.File[];
 }

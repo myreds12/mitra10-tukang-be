@@ -3,12 +3,10 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Request,
   Res,
-  HttpStatus,
   Query,
   UseGuards,
   UploadedFiles,
@@ -28,7 +26,6 @@ import {
 } from '@nestjs/platform-express';
 import { Response as IExpressResponse } from 'express';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
-import { HttpStatusCode } from 'axios';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -37,11 +34,15 @@ import { MailType } from 'src/mails/enum/mail_type.enum';
 @UseGuards(JwtAuthGuard)
 @Controller('quotation')
 export class QuotationController {
-  constructor(private readonly quotationService: QuotationService, @InjectQueue('email') private emailQueue: Queue, private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly quotationService: QuotationService,
+    @InjectQueue('email') private emailQueue: Queue,
+    private readonly dbService: PrismaService,
+  ) {}
 
   @Post('/duplicate-incentive/:id')
   @UseGuards(JwtAuthGuard)
-  async duplicatesIncentive(@Param('id') id: string){
+  async duplicatesIncentive(@Param('id') id: string) {
     return await this.quotationService.incentiveDuplicate(+id);
   }
 
@@ -56,8 +57,14 @@ export class QuotationController {
 
   @Post('/follow-up')
   @UseGuards(JwtAuthGuard)
-  async quotationFollowUp(@Body() createQuotationFollowUp: CreateQuotationDto, @Req() req: RequestWithUser){
-    return await this.quotationService.quotationFollowUp(createQuotationFollowUp, req.user);
+  async quotationFollowUp(
+    @Body() createQuotationFollowUp: CreateQuotationDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return await this.quotationService.quotationFollowUp(
+      createQuotationFollowUp,
+      req.user,
+    );
   }
 
   @Get('/send-mail/:id')
@@ -67,7 +74,7 @@ export class QuotationController {
     try {
       const data = await this.quotationService.findOne(id);
       console.log(data);
-      
+
       if (!data) new NotFoundException('Order not found');
 
       // this.logger.verbose(
@@ -78,12 +85,13 @@ export class QuotationController {
 
       const message = await this.dbService.email_messages.findFirst({
         where: {
-          email_type: MailType.QUOTATIONS
-        }
-      })
+          email_type: MailType.QUOTATIONS,
+        },
+      });
 
       await this.emailQueue.add('send-quotation-mail', {
-        module_id: data.id, template_id: message.id
+        module_id: data.id,
+        template_id: message.id,
       });
     } catch (error) {
       throw error;

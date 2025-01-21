@@ -5,7 +5,7 @@ export class CreateStoreDto {
   @IsNotEmpty()
   store_name: string;
 
-  default_username?: string; 
+  default_username?: string;
 
   @IsOptional()
   store_group_id?: number;

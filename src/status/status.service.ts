@@ -8,13 +8,13 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 export class StatusService {
   constructor(private readonly dbService: PrismaService) {}
 
-  async create(createStatusDto: CreateStatusDto, user_id: number) {
+  async create(createStatusDto: CreateStatusDto) {
     try {
       const status = await this.dbService.status.create({
         data: {
           description: createStatusDto.description,
           category: createStatusDto.category,
-          status_urgency: createStatusDto.status_urgency
+          status_urgency: createStatusDto.status_urgency,
         },
       });
 
@@ -62,7 +62,7 @@ export class StatusService {
     }
   }
 
-  async update(id: number, updateStatusDto: UpdateStatusDto, user_id: number) {
+  async update(id: number, updateStatusDto: UpdateStatusDto) {
     try {
       await this.dbService.status.update({
         where: {
@@ -79,7 +79,7 @@ export class StatusService {
     }
   }
 
-  async remove(id: number, user_id: number) {
+  async remove(id: number) {
     try {
       await this.dbService.status.delete({
         where: {

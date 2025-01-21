@@ -5,6 +5,6 @@ import { StatusController } from './status.controller';
 @Module({
   controllers: [StatusController],
   providers: [StatusService],
-  exports: [StatusService]
+  exports: [StatusService],
 })
-export class StatusModule { }
+export class StatusModule {}

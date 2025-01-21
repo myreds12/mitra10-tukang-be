@@ -326,29 +326,33 @@ export class QuotationPromotionService {
             }))
           : [];
 
-          if (dto.status === QuotationPromotionStatus.PENGAJUAN_DISETUJUI) {
-            const currentGrandTotal = Number(quotation_promotion.quotation.quotation_grand_total);
-            const promotionNominal = Number(dto?.promotion_nominal ?? quotation_promotion.promotion_nominal);
-            console.log(currentGrandTotal, promotionNominal);
-          
-            const discount = promotionNominal < 100
-              ? (promotionNominal / 100) * currentGrandTotal
-              : promotionNominal;
+      if (dto.status === QuotationPromotionStatus.PENGAJUAN_DISETUJUI) {
+        const currentGrandTotal = Number(
+          quotation_promotion.quotation.quotation_grand_total,
+        );
+        const promotionNominal = Number(
+          dto?.promotion_nominal ?? quotation_promotion.promotion_nominal,
+        );
+        console.log(currentGrandTotal, promotionNominal);
 
-            console.log(discount);
-          
-            await this.dbService.quotation.update({
-              where: {
-                id: quotation_promotion.quotation_id,
-              },
-              data: {
-                quotation_grand_total: currentGrandTotal - discount,
-                updated_at: new Date(),
-                updated_by: user_id,
-              },
-            });
-          }
-          
+        const discount =
+          promotionNominal < 100
+            ? (promotionNominal / 100) * currentGrandTotal
+            : promotionNominal;
+
+        console.log(discount);
+
+        await this.dbService.quotation.update({
+          where: {
+            id: quotation_promotion.quotation_id,
+          },
+          data: {
+            quotation_grand_total: currentGrandTotal - discount,
+            updated_at: new Date(),
+            updated_by: user_id,
+          },
+        });
+      }
 
       const data: Prisma.quotation_promotionUpdateArgs = {
         where: {
@@ -372,10 +376,11 @@ export class QuotationPromotionService {
           updated_by: user_id,
         },
         include: {
-          quotation: true
-        }
+          quotation: true,
+        },
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncFiles, quotationPromotion] = await this.dbService.$transaction(
         [
           this.dbService.quotation_promotion_evidences.deleteMany({

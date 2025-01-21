@@ -3,10 +3,8 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
-  Req,
   UseGuards,
   Query,
 } from '@nestjs/common';
@@ -16,7 +14,6 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @ApiTags('Status')
 @Controller('status')
@@ -25,12 +22,8 @@ export class StatusController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(
-    @Body() createStatusDto: CreateStatusDto,
-    @Req() req: RequestWithUser,
-  ) {
-    const user_id = req.user.id;
-    return this.statusService.create(createStatusDto, user_id);
+  create(@Body() createStatusDto: CreateStatusDto) {
+    return this.statusService.create(createStatusDto);
   }
 
   @Get()
@@ -46,19 +39,13 @@ export class StatusController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateStatusDto: UpdateStatusDto,
-    @Req() req: RequestWithUser,
-  ) {
-    const user_id = req.user.id;
-    return this.statusService.update(+id, updateStatusDto, user_id);
+  update(@Param('id') id: string, @Body() updateStatusDto: UpdateStatusDto) {
+    return this.statusService.update(+id, updateStatusDto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: RequestWithUser) {
-    const user_id = req.user.id;
-    return this.statusService.remove(+id, user_id);
+  remove(@Param('id') id: string) {
+    return this.statusService.remove(+id);
   }
 }

@@ -4,6 +4,6 @@ import { StoreGroupController } from './store_group.controller';
 
 @Module({
   controllers: [StoreGroupController],
-  providers: [StoreGroupService]
+  providers: [StoreGroupService],
 })
 export class StoreGroupModule {}
