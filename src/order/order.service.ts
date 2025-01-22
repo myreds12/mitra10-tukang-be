@@ -558,12 +558,7 @@ export class OrderService {
       const orders = await this.dbService.orders.findMany({
         skip,
         take: take > 0 ? take : undefined,
-        where: {
-          ...where,
-          invoice_details: {
-            none: {}, // Memastikan tidak ada data terkait di relasi invoice_details
-          },
-        },
+        where,
         orderBy: {
           created_at: order_by,
         },
