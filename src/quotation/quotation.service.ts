@@ -31,7 +31,7 @@ export class QuotationService {
     private readonly orderService: OrderService,
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   private readonly logger = new Logger(QuotationService.name);
 
@@ -63,30 +63,30 @@ export class QuotationService {
       const evidence: Array<Prisma.quotation_filesCreateManyQuotationInput> =
         quotation_files
           ? quotation_files.map((item) => ({
-              path: item.filename,
-              created_by: user_id,
-            }))
+            path: item.filename,
+            created_by: user_id,
+          }))
           : undefined;
 
       const promotion = createQuotationDto.promotion_id
         ? await this.dbService.promotion.findFirst({
-            where: {
-              id: createQuotationDto.promotion_id,
-              deleted_at: null,
-            },
-            include: {
-              promotion_stores: {
-                include: {
-                  store: true,
-                },
+          where: {
+            id: createQuotationDto.promotion_id,
+            deleted_at: null,
+          },
+          include: {
+            promotion_stores: {
+              include: {
+                store: true,
               },
             },
-          })
+          },
+        })
         : undefined;
 
       let quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
-          const prices = Number(item.is_customer ? 0 : item?.price ?? 0);
+          const prices = Number(item?.is_customer ? 0 : item?.price ?? 0);
           const quantity = item.quantity;
           const margin =
             item.margin_type === MarginType.PERCENTAGE
@@ -182,12 +182,12 @@ export class QuotationService {
         },
         ...(promotion
           ? {
-              promotion: {
-                connect: {
-                  id: promotion.id,
-                },
+            promotion: {
+              connect: {
+                id: promotion.id,
               },
-            }
+            },
+          }
           : undefined),
         store: {
           connect: {
@@ -293,70 +293,70 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      id: !isNaN(+search) ? +search : undefined,
-                    },
-                    {
-                      order_id: !isNaN(+search) ? +search : undefined,
-                    },
-                    {
-                      order: { vendor: { company_name: { contains: search } } },
-                    },
-                    {
-                      quotation_details: {
-                        some: {
-                          name: {
-                            contains: search,
-                          },
-                        },
-                      },
-                    },
-                    {
-                      order: {
-                        members: {
-                          full_name: {
-                            contains: search,
-                          },
-                        },
-                      },
-                    },
-                    { store: { store_name: { contains: search } } },
-                    { quotation_number: { contains: search } },
-                  ],
-                },
-              ]
-            : []),
-          ...(is_free
-            ? [
-                {
-                  order: {
-                    m_order_details: {
-                      every: {
-                        item: {
-                          type: 1,
+              {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    order_id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    order: { vendor: { company_name: { contains: search } } },
+                  },
+                  {
+                    quotation_details: {
+                      some: {
+                        name: {
+                          contains: search,
                         },
                       },
                     },
                   },
+                  {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
+            : []),
+          ...(is_free
+            ? [
+              {
+                order: {
+                  m_order_details: {
+                    every: {
+                      item: {
+                        type: 1,
+                      },
+                    },
+                  },
                 },
-              ]
+              },
+            ]
             : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : null,
           vendor_id
             ? {
-                order: {
-                  vendor_id: vendor_id,
-                },
-              }
+              order: {
+                vendor_id: vendor_id,
+              },
+            }
             : undefined,
           store_id
             ? {
@@ -367,19 +367,19 @@ export class QuotationService {
             : undefined,
           Boolean(is_paid)
             ? {
-                receipt_quotation: {
-                  not: null,
-                },
-              }
+              receipt_quotation: {
+                not: null,
+              },
+            }
             : undefined,
           ...(Boolean(promotion)
             ? [
-                {
-                  promotion_id: {
-                    not: null,
-                  },
+              {
+                promotion_id: {
+                  not: null,
                 },
-              ]
+              },
+            ]
             : []),
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -625,18 +625,20 @@ export class QuotationService {
         include: { promotion: true, quotation_follow_up: true },
       });
 
+      console.log('PAYLOAD', updateQuotationDto);
+
       const promotion =
         updateQuotationDto.promotion_id ||
-        (quotationForUpdate.promotion_id &&
-          updateQuotationDto.promotion_id != 0)
+          (quotationForUpdate.promotion_id &&
+            updateQuotationDto.promotion_id != 0)
           ? await this.dbService.promotion.findFirstOrThrow({
-              where: {
-                id:
-                  updateQuotationDto?.promotion_id ??
-                  quotationForUpdate?.promotion?.id,
-              },
-              include: { promotion_stores: { include: { store: true } } },
-            })
+            where: {
+              id:
+                updateQuotationDto?.promotion_id ??
+                quotationForUpdate?.promotion?.id,
+            },
+            include: { promotion_stores: { include: { store: true } } },
+          })
           : undefined;
 
       const quotationfiles =
@@ -658,16 +660,16 @@ export class QuotationService {
       const quotationReceipts: Prisma.quotation_receiptUpsertWithWhereUniqueWithoutQuotationInput[] =
         updateQuotationDto.receipts_quotation
           ? updateQuotationDto.receipts_quotation.map((item) => ({
-              where: { id: item?.id ?? 0 },
-              update: {
-                receipt_quotation: item?.receipt_quotation ?? undefined,
-                quotation_step: item?.quotation_step ?? undefined,
-              },
-              create: {
-                receipt_quotation: item?.receipt_quotation,
-                quotation_step: item?.quotation_step,
-              },
-            }))
+            where: { id: item?.id ?? 0 },
+            update: {
+              receipt_quotation: item?.receipt_quotation ?? undefined,
+              quotation_step: item?.quotation_step ?? undefined,
+            },
+            create: {
+              receipt_quotation: item?.receipt_quotation,
+              quotation_step: item?.quotation_step,
+            },
+          }))
           : [];
 
       if (
@@ -745,12 +747,12 @@ export class QuotationService {
       let grandTotal = 0;
       let grandTotalNoPromotion = 0;
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
-        (item) => {
+        (item, i) => {
           let price = 0;
           const quantity = item.quantity ? Number(item.quantity) : 0;
           let final_price = 0;
 
-          if (!item.is_customer) {
+          if (!item.is_customer && item.is_customer !== undefined) {
             price = Number(item.price);
             final_price =
               price * quantity +
@@ -758,6 +760,7 @@ export class QuotationService {
                 ? price * quantity * (+item.margin / 100)
                 : +item.margin);
           }
+          console.log(`PRICE${[i]}`, price);
 
           grandTotal += final_price;
           grandTotalNoPromotion += final_price;
@@ -881,6 +884,7 @@ export class QuotationService {
         },
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncDetails, quotation] = await this.dbService.$transaction([
         this.dbService.quotation_details.updateMany({
           where: {
@@ -901,21 +905,21 @@ export class QuotationService {
           data: {
             ...(promotion
               ? {
-                  promotion: {
-                    connect: {
-                      id:
-                        updateQuotationDto?.promotion_id ??
-                        quotationForUpdate.promotion_id,
-                    },
+                promotion: {
+                  connect: {
+                    id:
+                      updateQuotationDto?.promotion_id ??
+                      quotationForUpdate.promotion_id,
                   },
-                }
+                },
+              }
               : updateQuotationDto.promotion_id === 0
-              ? {
+                ? {
                   promotion: {
                     disconnect: true,
                   },
                 }
-              : undefined),
+                : undefined),
             status: updateQuotationDto?.quotation_status && {
               connect: { id: updateQuotationDto.quotation_status },
             },
@@ -930,10 +934,10 @@ export class QuotationService {
               : undefined,
             ...(updateQuotationDto?.quotation_status === quoteOutStatus.id
               ? {
-                  quotation_validity: new Date(
-                    Date.now() + 8 * 24 * 60 * 60 * 1000,
-                  ),
-                }
+                quotation_validity: new Date(
+                  Date.now() + 8 * 24 * 60 * 60 * 1000,
+                ),
+              }
               : undefined),
             quotation_disc: updateQuotationDto?.quotation_disc,
             quotation_promotion: updateQuotationDto?.quotation_promotion,
@@ -961,27 +965,27 @@ export class QuotationService {
             quotation_details: { upsert: updatedQuotationDetails },
             ...(quotationForUpdate.quotation_special === 1 &&
               quotationReceipts.length && {
-                quotation_receipt: { upsert: quotationReceipts },
-              }),
+              quotation_receipt: { upsert: quotationReceipts },
+            }),
             ...(updateQuotationDto?.quotation_status ===
               quotePaid.find(
                 (x) =>
                   x.category === 'QUOTATIONPAIDSTEPTHREE' || 'QUOTATIONPAID',
               ).id && quotationForUpdate.quotation_follow_up.length
               ? {
-                  quotation_follow_up: {
-                    updateMany: {
-                      where: {
-                        quotation_id: id,
-                      },
-                      data: {
-                        is_done: true,
-                        updated_at: new Date(),
-                        updated_by: user_id,
-                      },
+                quotation_follow_up: {
+                  updateMany: {
+                    where: {
+                      quotation_id: id,
+                    },
+                    data: {
+                      is_done: true,
+                      updated_at: new Date(),
+                      updated_by: user_id,
                     },
                   },
-                }
+                },
+              }
               : undefined),
           },
           include: {
@@ -1125,8 +1129,8 @@ export class QuotationService {
         },
       });
 
-      console.log("INCENTIVE" ,incentives.length);
-      
+      console.log("INCENTIVE", incentives.length);
+
 
       if (incentives.length > 1) {
         const incentiveToKeep = incentives[0];
@@ -1168,8 +1172,8 @@ export class QuotationService {
           comission += Number(incentiveToKeep.incentive.incentive);
         }
 
-        console.log("COMISSION" ,comission);
-        
+        console.log("COMISSION", comission);
+
 
         await this.dbService.sales_incentive.update({
           where: { id: incentiveToKeep.id },
@@ -1428,42 +1432,42 @@ export class QuotationService {
           status ? { status: { id: { in: status } } } : null,
           ...(search
             ? [
-                {
-                  OR: [
-                    {
-                      order: { vendor: { company_name: { contains: search } } },
-                    },
-                    { store: { store_name: { contains: search } } },
-                    { quotation_number: { contains: search } },
-                  ],
-                },
-              ]
+              {
+                OR: [
+                  {
+                    order: { vendor: { company_name: { contains: search } } },
+                  },
+                  { store: { store_name: { contains: search } } },
+                  { quotation_number: { contains: search } },
+                ],
+              },
+            ]
             : []),
           ...(is_free
             ? [
-                {
-                  order: {
-                    m_order_details: {
-                      every: {
-                        item: {
-                          type: 1,
-                        },
+              {
+                order: {
+                  m_order_details: {
+                    every: {
+                      item: {
+                        type: 1,
                       },
                     },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(Boolean(promotion)
             ? [
-                {
-                  promotion_id: {
-                    not: null,
-                  },
+              {
+                promotion_id: {
+                  not: null,
                 },
-              ]
+              },
+            ]
             : []),
-          ...(store_id ?[ {
+          ...(store_id ? [{
             order: {
               store_id: {
                 in: store_id
@@ -1472,11 +1476,11 @@ export class QuotationService {
           }] : []),
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : null,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -1709,17 +1713,14 @@ export class QuotationService {
           const specialStepDescription =
             quotation.quotation_special === 1 ? stepDescription : '';
 
-          const itemName = `${
-            detail?.name ?? 'Item tidak ditulis'
-          } ${stepDescription}`;
+          const itemName = `${detail?.name ?? 'Item tidak ditulis'
+            } ${stepDescription}`;
 
-          const itemQuantity = `${
-            detail?.quantity ?? '1'
-          } ${specialStepDescription}`;
+          const itemQuantity = `${detail?.quantity ?? '1'
+            } ${specialStepDescription}`;
 
-          const itemUnit = `${
-            detail?.unit ?? 'Satuan tidak tersedia'
-          } ${specialStepDescription}`;
+          const itemUnit = `${detail?.unit ?? 'Satuan tidak tersedia'
+            } ${specialStepDescription}`;
 
           const statusPayment = quotation?.receipt_quotation
             ? 'Dibayar'
@@ -1727,12 +1728,12 @@ export class QuotationService {
 
           const tukangName = quotation?.order?.work_orders?.work_order_tukang
             ? Array.from(
-                new Set(
-                  quotation.order.work_orders.work_order_tukang.map(
-                    (item) => item?.tukang?.full_name,
-                  ),
+              new Set(
+                quotation.order.work_orders.work_order_tukang.map(
+                  (item) => item?.tukang?.full_name,
                 ),
-              ).join(', ')
+              ),
+            ).join(', ')
             : 'Tukang belum ditugaskan';
 
           const workOrderItems =
@@ -1947,11 +1948,11 @@ export class QuotationService {
     const closestIncentive =
       filteredIncentive.length > 0
         ? filteredIncentive.reduce((closest, current) =>
-            Math.abs(Number(current.min_order) - grandTotal) <
+          Math.abs(Number(current.min_order) - grandTotal) <
             Math.abs(Number(closest.min_order) - grandTotal)
-              ? current
-              : closest,
-          )
+            ? current
+            : closest,
+        )
         : null;
 
     console.log("INCENTIVE CLOSEST", closestIncentive);
@@ -2036,48 +2037,48 @@ export class QuotationService {
         status ? { status: { id: { in: status } } } : null,
         ...(search
           ? [
-              {
-                OR: [
-                  {
-                    order: { vendor: { company_name: { contains: search } } },
-                  },
-                  { store: { store_name: { contains: search } } },
-                  { quotation_number: { contains: search } },
-                ],
-              },
-            ]
+            {
+              OR: [
+                {
+                  order: { vendor: { company_name: { contains: search } } },
+                },
+                { store: { store_name: { contains: search } } },
+                { quotation_number: { contains: search } },
+              ],
+            },
+          ]
           : []),
         ...(is_free
           ? [
-              {
-                order: {
-                  m_order_details: {
-                    every: {
-                      item: {
-                        type: 1,
-                      },
+            {
+              order: {
+                m_order_details: {
+                  every: {
+                    item: {
+                      type: 1,
                     },
                   },
                 },
               },
-            ]
+            },
+          ]
           : []),
         ...(Boolean(promotion)
           ? [
-              {
-                promotion_id: {
-                  not: null,
-                },
+            {
+              promotion_id: {
+                not: null,
               },
-            ]
+            },
+          ]
           : []),
         date_from && date_to
           ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+            created_at: {
+              gte: new Date(`${date_from}T00:00:00.000Z`),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
           : null,
       ].filter((condition) => Boolean(condition)),
       deleted_at: null,
@@ -2308,7 +2309,7 @@ export class QuotationService {
         fu1:
           quotation.quotation_follow_up[0]?.follow_up_1 === true
             ? 'YES'
-            : 'NO' ,
+            : 'NO',
         fu2:
           quotation.quotation_follow_up[0]?.follow_up_2 === true
             ? 'YES'
@@ -2317,7 +2318,7 @@ export class QuotationService {
           quotation.quotation_follow_up[0]?.follow_up_3 === true
             ? 'YES'
             : 'NO',
-        notes:  quotation?.quotation_follow_up[0]?.description ?? ''
+        notes: quotation?.quotation_follow_up[0]?.description ?? ''
       });
     });
 
