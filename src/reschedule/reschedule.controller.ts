@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
@@ -32,7 +31,7 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('reschedule')
 export class RescheduleController {
-  constructor(private readonly rescheduleService: RescheduleService) { }
+  constructor(private readonly rescheduleService: RescheduleService) {}
 
   @Get('/export-excel')
   async rescheduleExportExcel(
@@ -93,9 +92,8 @@ export class RescheduleController {
         reschedule_evidences,
       );
     } catch (error) {
-      console.log(error)
-      throw error
+      console.log(error);
+      throw error;
     }
-
   }
 }

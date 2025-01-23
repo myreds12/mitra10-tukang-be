@@ -1,33 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import {
-  IsDate,
-  IsEnum,
-  IsIn,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Min,
-  ValidateNested,
-} from 'class-validator';
-import { MarginType } from 'src/quotation/dto/margin-type.enum';
-import { VendorPkp } from '../enum/vendor_type.enum';
-
-class VendorBank {
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  id: number;
-
-  @ApiProperty()
-  @IsNumber()
-  @Type(() => Number)
-  bank_id: number;
-
-  account_name: string;
-  account_number: string;
-}
+import { IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
 
 class VendorArea {
   @IsNumber()
@@ -72,7 +45,7 @@ export class UpdateVendorDto {
   @ApiProperty()
   @Type(() => Number)
   pkp_nominal?: number;
-  
+
   @Type(() => Number)
   @IsOptional()
   // @IsNumber()
@@ -80,18 +53,17 @@ export class UpdateVendorDto {
   max_order: number;
 
   address?: string;
-  
+
   @IsOptional()
   @ApiProperty()
   @Type(() => Number)
   @IsNumber()
   margin_nominal: number;
-  
+
   @IsOptional()
   @ApiProperty()
   @Type(() => Number)
   margin_type: number;
-
 
   phone_number?: string;
 
@@ -141,7 +113,7 @@ export class UpdateVendorDto {
   @ApiProperty()
   @IsOptional()
   @Type(() => Number)
-  bank_id?: number; 
+  bank_id?: number;
 
   @Type(() => Number)
   nominal_survey?: number;

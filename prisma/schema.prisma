@@ -52,6 +52,22 @@ model city {
   province province? @relation(fields: [province_id], references: [id])
 }
 
+
+model data_master {
+  id          Int    @id @default(autoincrement())
+  value       Int?
+  name        String @db.VarChar(255)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
+}
+
+
 model employee {
   id Int @id @default(autoincrement())
 
@@ -971,8 +987,8 @@ model quotation_promotion {
   id                Int     @id @default(autoincrement())
   quotation_id      Int     @db.Int
   promotion_nominal Decimal @db.Decimal(32, 2)
-  description       String? @default("") @db.VarChar(150)
-  notes             String? @default("") @db.VarChar(150)
+  description       String? @db.VarChar(150)
+  notes             String? @db.VarChar(150)
   status            Int     @default(1)
 
   created_by Int?

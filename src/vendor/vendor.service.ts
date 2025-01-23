@@ -342,6 +342,13 @@ export class VendorService {
                       receipt_quotation: null
                     }),
                 },
+                include: {
+                  quotation_receipt: {
+                    where: {
+                      deleted_at: null
+                    }
+                  }
+                }
               },
             },
           },
@@ -524,12 +531,12 @@ export class VendorService {
         const totalOrder = item.orders.length;
 
         const unpaidOrders = item.orders.filter((order) =>
-          order.quotation.some((x) => x.receipt_quotation === null),
+          order.quotation.some((x) => x.receipt_quotation === null) || order?.quotation[0]?.quotation_receipt.every((x) => x.receipt_quotation === null)
         );
 
 
         const paidOrders = item.orders.filter((order) =>
-          order.quotation.some((x) => x.receipt_quotation !== null),
+          order.quotation.some((x) => x.receipt_quotation !== null) || order?.quotation[0]?.quotation_receipt.some ((x) => x.receipt_quotation !== null),
         );
 
         const orderSurvey = item.orders.filter((order) =>

@@ -68,10 +68,6 @@ export class WorkOrdersService {
         },
       };
 
-      console.log("NEW DATE: ", new Date() );
-      console.log("SURVEY DATE: ", dataDto.survey_date );
-      console.log(new Date(dataDto.survey_date), "SURVEY DATE PARSING");
-      
       const work_order_data: Prisma.work_ordersCreateArgs = {
         data: {
           request_work_time: dataDto?.request_work_time
@@ -154,11 +150,10 @@ export class WorkOrdersService {
         date_from,
         date_to,
         status,
-        order_by,
         tukang_id,
         vendor_id,
       } = queryParamsDto;
-  
+
       const skip = page * take - take;
       const where: Prisma.work_ordersWhereInput = {
         AND: [
@@ -245,11 +240,11 @@ export class WorkOrdersService {
           deleted_at: null,
         },
       };
-  
+
       const total = await this.dbService.work_orders.count({
         where,
       });
-  
+
       const work_orders = await this.dbService.work_orders.findMany({
         skip,
         take: take <= 0 ? undefined : take,
@@ -321,7 +316,7 @@ export class WorkOrdersService {
           work_order_evidences: true,
         },
       });
-  
+
       const userIds = [
         ...new Set(
           work_orders
@@ -334,12 +329,12 @@ export class WorkOrdersService {
             .filter(Boolean),
         ),
       ];
-  
+
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       });
-  
+
       const userMap = users.reduce(
         (acc, user) => ({
           ...acc,
@@ -347,7 +342,7 @@ export class WorkOrdersService {
         }),
         {},
       );
-  
+
       const workOrdersWithUser = work_orders.map((item) => ({
         ...item,
         created_by: item.created_by ? userMap[item.created_by] || null : null,
@@ -360,7 +355,7 @@ export class WorkOrdersService {
             : null,
         })),
       }));
-  
+
       return {
         data: workOrdersWithUser,
         meta: { skip, page, take, total },
@@ -370,8 +365,6 @@ export class WorkOrdersService {
       throw error;
     }
   }
-
-  
 
   async findOne(id: number) {
     try {
@@ -451,9 +444,9 @@ export class WorkOrdersService {
           work_order_evidences: true,
         },
       });
-  
+
       if (!work_orders) throw Error('Work Order Not Found!');
-  
+
       // Get user IDs from work order and order history
       const userIds = [
         work_orders.created_by,
@@ -461,14 +454,14 @@ export class WorkOrdersService {
         work_orders.deleted_by,
         ...work_orders.order.order_history.map((history) => history.created_by),
       ].filter(Boolean);
-  
+
       const users = await this.dbService.users.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       });
-  
+
       const userMap = Object.fromEntries(users.map((user) => [user.id, user]));
-  
+
       // Attach user data to the work_orders and order history
       const workOrdersWithUser = {
         ...work_orders,
@@ -483,14 +476,13 @@ export class WorkOrdersService {
           })),
         },
       };
-  
+
       return workOrdersWithUser;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-  
 
   async update(
     id: number,
@@ -586,7 +578,7 @@ export class WorkOrdersService {
           ...(dataDto.vendor_id
             ? { vendor: { connect: { id: dataDto.vendor_id } } }
             : undefined),
-            session: dataDto.session,
+          session: dataDto.session,
           request_work_time: dataDto?.request_work_time
             ? new Date(dataDto.request_work_time)
             : undefined,
@@ -612,6 +604,7 @@ export class WorkOrdersService {
             .map((x) => x.id)
         : undefined;
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_syncTukang, _syncEvidence, work_order] =
         await this.dbService.$transaction([
           this.dbService.work_order_tukang.updateMany({
@@ -687,7 +680,7 @@ export class WorkOrdersService {
   ): Promise<work_orders> {
     try {
       console.log(user);
-      
+
       console.log('PAYLOAD', updateData);
 
       const { id: user_id } = user;
@@ -897,9 +890,11 @@ export class WorkOrdersService {
     }
   }
 
-  async tukangUpdateNotes(id: number,
+  async tukangUpdateNotes(
+    id: number,
     user: users,
-    updateData: WorkOrderTukang){
+    updateData: WorkOrderTukang,
+  ) {
     try {
       const workOrder = await this.dbService.work_orders.findFirst({
         where: {
@@ -920,9 +915,9 @@ export class WorkOrdersService {
                     include: {
                       tukang: true,
                     },
-                  }
-                }
-              }
+                  },
+                },
+              },
             },
           },
         },
@@ -930,18 +925,17 @@ export class WorkOrdersService {
 
       if (!workOrder) throw new BadRequestException('Work Order not exist');
 
-
       const workOrderTukang = await this.dbService.$transaction([
         this.dbService.work_order_tukang.updateMany({
           where: {
             work_order_id: id,
             tukang_id: updateData.tukang_id,
-            deleted_at: null
+            deleted_at: null,
           },
           data: {
-           notes: updateData.notes,
-           updated_by: user.id,
-            updated_at: new Date()
+            notes: updateData.notes,
+            updated_by: user.id,
+            updated_at: new Date(),
           },
         }),
       ]);
@@ -952,7 +946,7 @@ export class WorkOrdersService {
       throw error;
     }
   }
-  
+
   async replaceTukang(
     id: number,
     updateDto: UpdateWorkOrderDto,
@@ -960,9 +954,6 @@ export class WorkOrdersService {
     files: Express.Multer.File[],
   ) {
     try {
-      const workOrder = await this.dbService.work_orders.findUniqueOrThrow({
-        where: { id },
-      });
       const evidences = files.map((file) => ({
         evidence_location: file.filename,
         created_by: user.id,
@@ -1101,7 +1092,6 @@ export class WorkOrdersService {
         date_from,
         date_to,
         status,
-        order_by,
         tukang_id,
         vendor_id,
       } = queryParamsDto;

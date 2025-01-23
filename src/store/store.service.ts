@@ -92,6 +92,7 @@ export class StoreService {
       date_to,
       area_id,
       store_group_id,
+      vendor_id,
       top_best,
       order_date_from,
       order_date_to,
@@ -145,6 +146,13 @@ export class StoreService {
                 },
               ]
             : []),
+            ...(vendor_id
+              ? [
+                {
+                  vendor_store: { some: { vendor_id: { equals: vendor_id } } },
+                },
+              ]
+              : []),
             ...(order_date_from && order_date_to
               ? [
                   {
@@ -172,6 +180,7 @@ export class StoreService {
       include: {
         area: true,
         users: true,
+        vendor_store: true,
         orders: {
           where: {
             deleted_at: null,
@@ -194,7 +203,18 @@ export class StoreService {
           },
           include: {
             status: true,
-            quotation: true,
+            quotation: {
+              where: {
+                deleted_at: null
+              },
+              include: {
+                quotation_receipt: {
+                  where: {
+                    deleted_at: null
+                  }
+                }
+              }
+            },
           },
         },
       },
@@ -207,11 +227,14 @@ export class StoreService {
     const dataStore = store.map((item) => {
       const totalOrder = item.orders.length;
       const unpaidOrders = item.orders.filter((order) =>
-        order?.quotation[0]?.receipt_quotation === null,
+        order?.quotation[0]?.receipt_quotation === null || order?.quotation[0]?.quotation_receipt.every((x) => x.receipt_quotation === null),
       );
       const paidOrders = item.orders.filter((order) =>
-       order?.quotation[0]?.receipt_quotation !== null
+       order?.quotation[0]?.receipt_quotation !== null || order?.quotation[0]?.quotation_receipt.some ((x) => x.receipt_quotation !== null)
       );
+
+      console.log('UNPAID' ,unpaidOrders)
+      console.log('PAID' ,paidOrders)
 
       const totalUnpaid = unpaidOrders.reduce(
         (total, order) =>

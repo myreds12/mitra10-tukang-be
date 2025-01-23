@@ -1,12 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  ValidateNested,
-} from 'class-validator';
+import { IsNotEmpty, IsOptional, ValidateNested } from 'class-validator';
 import { WorkOrderTukang } from './wo-tukang.dto';
 import { Session } from '../enum/session.enum';
 

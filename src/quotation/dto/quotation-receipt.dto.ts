@@ -1,6 +1,6 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import { IsOptional } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsOptional } from 'class-validator';
 
 export default class QuotationReceipt {
   @ApiProperty()

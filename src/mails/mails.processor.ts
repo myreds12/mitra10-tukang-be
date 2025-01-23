@@ -1,7 +1,7 @@
 import { Logger, NotFoundException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
+import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { ConfigService } from '@nestjs/config';
 import { MailType } from './enum/mail_type.enum';
@@ -23,21 +23,6 @@ export class EmailProcessor {
   ) {}
   private readonly logger = new Logger(EmailProcessor.name);
 
-  @OnQueueFailed()
-  private async handleJobFailure(
-    job: Job<DefaultDataMailInterface>,
-    error: any,
-  ) {
-    this.logger.error(error.message);
-    await this.maillogs(
-      job.data?.module_id ?? 0,
-      job.data?.template_id ?? 0,
-      { to: '', cc: '', bcc: '' },
-      0,
-      JSON.stringify(error),
-    );
-  }
-
   private async getMessage(mailType: MailType, id?: number) {
     return await this.dbService.email_messages.findFirst({
       where: {
@@ -56,7 +41,7 @@ export class EmailProcessor {
         is_active: true,
         terms_detail: {
           where: {
-            deleted_at: null
+            deleted_at: null,
           },
           select: {
             id: true,
@@ -66,7 +51,7 @@ export class EmailProcessor {
         },
         information_detail: {
           where: {
-            deleted_at: null
+            deleted_at: null,
           },
           select: {
             id: true,
@@ -74,22 +59,20 @@ export class EmailProcessor {
             information: true,
           },
         },
-        // email_message_image: {
-        //   where: {
-        //     deleted_at: null
-        //   },
-        //   select: {
-        //     id: true,
-        //     email_message_id: true,
-        //     type: true,
-        //     path: true
-        //   }
-        // }
+        email_message_image: {
+          where: {
+            deleted_at: null,
+          },
+          select: {
+            id: true,
+            email_message_id: true,
+            type: true,
+            path: true,
+          },
+        },
       },
     });
   }
-
-  async generatePDF(data: any) {}
 
   @Process('send-order-mail')
   async sendOrderMail(job: Job<OrderMailInterface>) {
@@ -185,7 +168,7 @@ export class EmailProcessor {
               },
             },
           },
-          order_files: true
+          order_files: true,
         },
       });
       this.logger.log('Order: ', order);
@@ -204,12 +187,12 @@ export class EmailProcessor {
         apiUrl: this.configService.get<string>('API_URL'),
       };
 
-      const { bcc, cc } = message;
+      const { bcc } = message;
       const storeMail = order.store.email;
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      let defaultBcc = bcc
+      const defaultBcc = bcc
         ? bcc
             .split(',')
             .concat(
@@ -265,7 +248,7 @@ export class EmailProcessor {
     } catch (error) {
       this.logger.error(job.data);
       this.logger.error(error);
-      console.error(error)
+      console.error(error);
 
       // try {
       //   if (error instanceof NotFoundException) {
@@ -307,7 +290,7 @@ export class EmailProcessor {
       const message = await this.getMessage(MailType.CREDENTIALS);
       if (!message) throw new NotFoundException('message not found!');
 
-      let to = users.username.includes('@')
+      const to = users.username.includes('@')
         ? users.username
         : users.employee?.email ??
           users.pic_vendor[0]?.email_address ??
@@ -363,8 +346,8 @@ export class EmailProcessor {
           store: true,
           sales: {
             include: {
-              store: true
-            }
+              store: true,
+            },
           },
           tukang: true,
         },
@@ -381,7 +364,7 @@ export class EmailProcessor {
         'example@example.com';
 
       let subject = 'Register Account';
-      let bcc: string[] = ['ecommerce@mitra10.com'];
+      const bcc: string[] = ['ecommerce@mitra10.com'];
       if (users.employee) {
         subject = 'Register Employee Account';
       } else if (users.pic_vendor.length > 0) {
@@ -429,13 +412,11 @@ export class EmailProcessor {
   async sendQuotationMail(job: Job<QuotationMailInterface>) {
     try {
       const { module_id, template_id } = job.data;
-     
 
       if (!module_id) {
         console.error('quotation_id is null!');
         throw new NotFoundException('quotation_id is null!');
       }
-
 
       const quotation = await this.dbService.quotation.findFirst({
         where: {
@@ -459,11 +440,11 @@ export class EmailProcessor {
             include: {
               m_order_details: {
                 where: {
-                  deleted_at: null
+                  deleted_at: null,
                 },
                 include: {
-                  item: true
-                }
+                  item: true,
+                },
               },
               members: true,
               vendor: true,
@@ -511,8 +492,8 @@ export class EmailProcessor {
         message,
         apiUrl: this.configService.get<string>('API_URL'),
       };
-      
-      const { bcc, cc } = message;
+
+      const { bcc } = message;
 
       const storeMail = quotation.store.email;
       const adminHo = '';
@@ -536,7 +517,7 @@ export class EmailProcessor {
           defaultTo = checkOrder.members.email;
         }
       }
-      if(quotation.status.category === 'QUOTEOUT'){
+      if (quotation.status.category === 'QUOTEOUT') {
         await this.dbService.quotation.update({
           where: {
             id: module_id,
@@ -545,8 +526,8 @@ export class EmailProcessor {
             readiness: 2,
           },
         });
-        ('QUOTEOUT readiness 2')
-      }else if(quotation.status.category === 'QUOTEIN'){
+        ('QUOTEOUT readiness 2');
+      } else if (quotation.status.category === 'QUOTEIN') {
         await this.dbService.quotation.update({
           where: {
             id: module_id,
@@ -557,7 +538,7 @@ export class EmailProcessor {
         });
       }
 
-      let defaultBcc = bcc
+      const defaultBcc = bcc
         ? bcc
             .split(',')
             .concat(
@@ -597,8 +578,6 @@ export class EmailProcessor {
           1,
           data,
         );
-
-        
       }
     } catch (error) {
       this.logger.error(error);
@@ -610,18 +589,16 @@ export class EmailProcessor {
     try {
       const { module_id, template_id } = job.data;
 
-
       if (!module_id) {
         console.error('quotation_id is null!');
         throw new NotFoundException('quotation_id is null!');
       }
 
-
       const quotation = await this.dbService.quotation.findFirst({
         where: {
           id: module_id,
           receipt_quotation: {
-            not: null
+            not: null,
           },
           readiness: 2,
           deleted_at: null,
@@ -676,7 +653,10 @@ export class EmailProcessor {
         throw new NotFoundException('quotation not found!');
       }
 
-      const message = await this.getMessage(MailType.QUOTATION_PAYMENT, template_id);
+      const message = await this.getMessage(
+        MailType.QUOTATION_PAYMENT,
+        template_id,
+      );
       if (!message) {
         console.error('Message not found!');
         throw new NotFoundException('message not found!');
@@ -688,7 +668,7 @@ export class EmailProcessor {
         message,
         apiUrl: this.configService.get<string>('API_URL'),
       };
-      const { bcc, cc } = message;
+      const { bcc } = message;
 
       const storeMail = quotation.store.email;
       const adminHo = '';
@@ -713,7 +693,7 @@ export class EmailProcessor {
         }
       }
 
-      let defaultBcc = bcc
+      const defaultBcc = bcc
         ? bcc
             .split(',')
             .concat(
@@ -771,7 +751,6 @@ export class EmailProcessor {
   @Process('send-csi-mail')
   async sendcsimail(job: Job<CsiMailInterface>) {
     try {
-
       const { module_id, order_id, template_id } = job.data;
 
       const csi = await this.dbService.csi_template.findFirst({
@@ -787,10 +766,9 @@ export class EmailProcessor {
         },
         include: {
           members: true,
-          status: true
+          status: true,
         },
       });
-
 
       if (!csi) throw new NotFoundException('csi not found!');
       if (!order) throw new NotFoundException('order not found!');
@@ -880,7 +858,7 @@ export class EmailProcessor {
         message,
       };
 
-      const { bcc, cc } = message;
+      const { bcc } = message;
       const vendor = tukang.vendor.email_address;
       // TODO: add admin ho as bcc too
       const adminHo = '';
@@ -952,8 +930,7 @@ export class EmailProcessor {
         message,
       };
 
-
-      const { bcc, cc } = message;
+      const { bcc } = message;
 
       // TODO: add admin ho as bcc too
       const adminHo = '';
@@ -1009,6 +986,14 @@ export class EmailProcessor {
           },
         },
         include: {
+          reschedule_status: {
+            where: {
+              deleted_at: null,
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+          },
           order: {
             include: {
               store: true,
@@ -1040,12 +1025,12 @@ export class EmailProcessor {
         message,
       };
 
-      const { bcc, cc } = message;
+      const { bcc } = message;
       const storeMail = reschedule.order.store.email;
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      let defaultBcc = bcc
+      const defaultBcc = bcc
         ? bcc
             .split(',')
             .concat(
@@ -1144,12 +1129,12 @@ export class EmailProcessor {
         message,
       };
 
-      const { bcc, cc } = message;
+      const { bcc } = message;
       const storeMail = refund.orders.store.email;
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      let defaultBcc = bcc
+      const defaultBcc = bcc
         ? bcc
             .split(',')
             .concat(
@@ -1243,12 +1228,12 @@ export class EmailProcessor {
         message,
       };
 
-      const { bcc, cc } = message;
+      const { bcc } = message;
       const storeMail = complaint.orders.store.email;
       // TODO: add admin ho as bcc too
       const adminHo = '';
 
-      let defaultBcc = bcc
+      const defaultBcc = bcc
         ? bcc
             .split(',')
             .concat(
@@ -1311,22 +1296,6 @@ export class EmailProcessor {
     status: number,
     data: any = null,
   ) {
-
-    const dataMailLogs =  await this.dbService.mail_logs.create({
-      data: {
-        emailMessages: {
-          connect: {
-            id: emailMessageId,
-          },
-        },
-        moduleId,
-        data: JSON.stringify(data ?? {}),
-        to: JSON.stringify(to ?? {}),
-        status,
-      },
-    });
-
     // console.log(dataMailLogs);
-    
   }
 }

@@ -7,7 +7,6 @@ import {
   Delete,
   Req,
   Res,
-  HttpStatus,
   Query,
   UseGuards,
   UseInterceptors,
@@ -20,10 +19,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
+import { Response as IExpressResponse } from 'express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('refund')
@@ -31,9 +27,12 @@ export class RefundController {
   constructor(private readonly refundService: RefundService) {}
 
   @Get('/export-excel')
-  async refundExportExcel(@Res() res: IExpressResponse, @Query() query: QueryParamsDto ) {
+  async refundExportExcel(
+    @Res() res: IExpressResponse,
+    @Query() query: QueryParamsDto,
+  ) {
     return await this.refundService.refundExportExcel(res, query);
-    }
+  }
 
   @Post()
   @UseInterceptors(FilesInterceptor('refund_evidences'))

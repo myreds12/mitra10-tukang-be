@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsIn, IsOptional, ValidateNested } from 'class-validator';
+import { IsIn, IsOptional, ValidateNested } from 'class-validator';
 import QuotationDetails from './quotation-details';
 import { ApiProperty } from '@nestjs/swagger';
 import QuotationReceipt from './quotation-receipt.dto';
@@ -27,7 +27,7 @@ export class UpdateQuotationDto {
 
   @IsIn([1, 2, 3, 4])
   @Type(() => Number)
-  readiness: number = 1;
+  readiness = 1;
 
   @IsOptional()
   @Type(() => Number)
@@ -37,10 +37,9 @@ export class UpdateQuotationDto {
   @Type(() => Number)
   quotation_special?: number;
 
-  
   @Type(() => QuotationReceipt)
   @ValidateNested({ each: true })
-  receipts_quotation?:QuotationReceipt[]
+  receipts_quotation?: QuotationReceipt[];
 
   @Type(() => QuotationDetails)
   @ValidateNested({ each: true })
@@ -49,7 +48,7 @@ export class UpdateQuotationDto {
   quotation_files: Express.Multer.File[];
   quotation_receipts: Express.Multer.File[];
 
-  @Type(() => Array<Number>)
-  @Transform(({ value }) => (value as Array<Number>).map(Number))
+  @Type(() => Array<number>)
+  @Transform(({ value }) => (value as Array<number>).map(Number))
   preserve_files: number[];
 }

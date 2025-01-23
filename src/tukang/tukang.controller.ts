@@ -9,10 +9,8 @@ import {
   UseInterceptors,
   UseGuards,
   Res,
-  HttpStatus,
   Query,
   UploadedFiles,
-  BadRequestException,
 } from '@nestjs/common';
 import { TukangService } from './tukang.service';
 import { CreateTukangDto } from './dto/create-tukang.dto';
@@ -33,28 +31,30 @@ export class TukangController {
   @Get('/export-pdf-order')
   async tukangOrderExportPdf(
     @Query() query: QueryParamsDto,
-    @Res() res: Response) {
-      const data = await this.tukangService.tukangOrderPdf(res, query);
-      return data;
+    @Res() res: Response,
+  ) {
+    const data = await this.tukangService.tukangOrderPdf(res, query);
+    return data;
   }
 
   @Get('/export-excel-order')
   @UseGuards(JwtAuthGuard)
   async tukangOrderExportExcel(
     @Query() query: QueryParamsDto,
-    @Res() res: Response) {
-      const data = await this.tukangService.tukangExportOrderExcel(res, query);
-      return data;
+    @Res() res: Response,
+  ) {
+    const data = await this.tukangService.tukangExportOrderExcel(res, query);
+    return data;
   }
-
 
   @Get('/export-excel')
   @UseGuards(JwtAuthGuard)
   async tukangExportExcel(
     @Query() query: QueryParamsDto,
-    @Res() res: Response) {
-      const data = await this.tukangService.tukangExportExcel(res, query);
-      return data;
+    @Res() res: Response,
+  ) {
+    const data = await this.tukangService.tukangExportExcel(res, query);
+    return data;
   }
 
   @Get('next-code')
@@ -86,7 +86,7 @@ export class TukangController {
   ) {
     const user = req.user;
     console.log(user);
-    
+
     return await this.tukangService.create(createTukangDto, user, files);
   }
 

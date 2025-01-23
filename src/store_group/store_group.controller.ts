@@ -9,7 +9,6 @@ import {
   Request,
 } from '@nestjs/common';
 import { StoreGroupService } from './store_group.service';
-import { CreateStoreGroupDto } from './dto/create-store_group.dto';
 import { UpdateStoreGroupDto } from './dto/update-store_group.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 

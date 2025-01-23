@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
@@ -58,7 +59,6 @@ export class PromotionService {
         take,
         page,
         search,
-        status,
         date_from,
         date_to,
         order_by,
@@ -92,16 +92,28 @@ export class PromotionService {
                 },
               ]
             : []),
-          ...(date_from && date_to
-            ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+            ...(date_from && date_to
+              ? [
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                },
-              ]
-            : []),
+                ]
+              : []),
+              // ...(date_from && date_to
+              //   ? [
+              //       {
+              //         periodic_start: {
+              //           gte: new Date(date_from),
+              //         },
+              //         periodic_end: {
+              //           lte: new Date(`${date_to}T23:59:59.000Z`),
+              //         }
+              //       },
+              //     ]
+              //   : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -215,6 +227,7 @@ export class PromotionService {
         },
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncPromotionStore, updatePromotion] =
         await this.dbService.$transaction([
           this.dbService.promotion_stores.updateMany({

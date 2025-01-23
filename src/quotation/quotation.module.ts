@@ -4,7 +4,6 @@ import { QuotationController } from './quotation.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { OrderService } from 'src/order/order.service';
 import { OrderModule } from 'src/order/order.module';
 import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
