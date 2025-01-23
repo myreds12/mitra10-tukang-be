@@ -9,6 +9,7 @@ import { PositionsModule } from './positions/positions.module';
 import { MenusModule } from './menus/menus.module';
 import { ServiceTypeModule } from './service_type/service_type.module';
 import { BankModule } from './bank/bank.module';
+import { DataMasterModule } from './data_master/dataMaster.module';
 import { EmployeeModule } from './employee/employee.module';
 import { SalesModule } from './sales/sales.module';
 import { ItemsModule } from './items/items.module';
@@ -62,6 +63,7 @@ import { CrmModule } from './crm/crm.module';
     MenusModule,
     ServiceTypeModule,
     BankModule,
+    DataMasterModule,
     EmployeeModule,
     SalesModule,
     ItemsModule,
