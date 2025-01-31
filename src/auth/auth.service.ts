@@ -24,7 +24,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     try {
@@ -43,7 +43,7 @@ export class AuthService {
 
       const formattedUsername = dto.username.replace(/ /g, '_');
 
-      if(formattedUsername.length > 20){
+      if (formattedUsername.length > 20) {
         throw new BadRequestException('Username tidak boleh lebih dari 20 karakter.');
       }
 
@@ -56,34 +56,34 @@ export class AuthService {
             //FIXME: CHECK THIS CODE
             ...(dto.vendor_id
               ? {
-                  pic_vendor: {
-                    create: {
-                      pic_name: dto.pic_name,
-                      vendor: {
-                        connect: {
-                          id: dto.vendor_id,
-                        },
+                pic_vendor: {
+                  create: {
+                    pic_name: dto.pic_name,
+                    vendor: {
+                      connect: {
+                        id: dto.vendor_id,
                       },
-                      email_address: dto.email,
                     },
+                    email_address: dto.email,
                   },
-                }
-              : undefined),
-              employee: {
-                create: {
-                  email: dto?.email ?? undefined,
-                  full_name: dto?.pic_name ?? undefined,
-                  nik: dto?.nik ?? undefined,
-                  birth: dto?.birth ? new Date(dto.birth) : undefined,
-                  phone_number: dto?.phone_number ?? undefined,
-                  whatsapp_number: dto?.whatsapp_number ?? undefined,
-                  store: dto?.store_id ? {
-                    connect: {
-                      id: dto.store_id
-                    }
-                  } : undefined
-                }
+                },
               }
+              : undefined),
+            employee: {
+              create: {
+                email: dto?.email ?? undefined,
+                full_name: dto?.pic_name ?? dto?.username ?? undefined,
+                nik: dto?.nik ?? undefined,
+                birth: dto?.birth ? new Date(dto.birth) : undefined,
+                phone_number: dto?.phone_number ?? undefined,
+                whatsapp_number: dto?.whatsapp_number ?? undefined,
+                store: dto?.store_id ? {
+                  connect: {
+                    id: dto.store_id
+                  }
+                } : undefined
+              }
+            }
           },
         }),
       ]);
@@ -116,18 +116,18 @@ export class AuthService {
           password: dto?.password ? await hash(dto.password, 12) : undefined,
           ...(dto.id_pic
             ? {
-                pic_vendor: {
-                  update: {
-                    where: {
-                      id: dto.id_pic,
-                    },
-                    data: {
-                      pic_name: dto.pic_name,
-                      email_address: dto.email,
-                    },
+              pic_vendor: {
+                update: {
+                  where: {
+                    id: dto.id_pic,
+                  },
+                  data: {
+                    pic_name: dto.pic_name,
+                    email_address: dto.email,
                   },
                 },
-              }
+              },
+            }
             : undefined),
           ...(files ? {
             profile_picture: files.filename
@@ -146,17 +146,17 @@ export class AuthService {
     try {
       let updatedUsers = [];
       let batchNumber = 0;
-  
+
       while (true) {
         const users = await this.dbService.users.findMany({
-          skip: batchNumber * take, 
+          skip: batchNumber * take,
           take: take,
         });
-  
+
         if (users.length === 0) {
           break;
         }
-  
+
         // Update setiap user dalam batch
         const updatedBatch = await Promise.all(
           users.map(async (user) => {
@@ -172,14 +172,14 @@ export class AuthService {
             return updatedUser;
           })
         );
-  
+
         // Tambahkan hasil batch ke array total updatedUsers
         updatedUsers = [...updatedUsers, ...updatedBatch];
-  
+
         // Tingkatkan nomor batch
         batchNumber++;
       }
-  
+
       return updatedUsers; // Mengembalikan semua user yang telah diperbarui
     } catch (error) {
       console.error(error);
@@ -240,7 +240,7 @@ export class AuthService {
             }
           },
           roles: {
-            select: { id: true ,name: true },
+            select: { id: true, name: true },
           },
           employee: {
             select: {
@@ -309,23 +309,23 @@ export class AuthService {
 
       if (user.roles.id === roles.id) {
         const salesData = user.sales[0];
-        const requiredFields = ['id','full_name', 'bank_id', 'account_name', 'account_number', 'phone_number', 'sales_brand'];
+        const requiredFields = ['id', 'full_name', 'bank_id', 'account_name', 'account_number', 'phone_number', 'sales_brand'];
 
         const isSalesDataIncomplete = requiredFields.some(field => !salesData[field]);
         if (isSalesDataIncomplete || !salesData.store?.id) {
 
           throw new HttpException('Data sales tidak lengkap, mohon untuk menghubungi admin toko', HttpStatus.FORBIDDEN);
         }
-        if(salesData.is_active === false){
+        if (salesData.is_active === false) {
           throw new HttpException('Akun anda tidak aktif, mohon hubungi admin toko', HttpStatus.FORBIDDEN);
         }
 
-        if(salesData.deleted_at){
+        if (salesData.deleted_at) {
           throw new HttpException('Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko', HttpStatus.FORBIDDEN);
         }
       }
 
-      if(user.deleted_at){
+      if (user.deleted_at) {
         throw new HttpException('Akun anda sudah dihapus, mohon untuk menghubungi kepada admin yang bersangkutan', HttpStatus.FORBIDDEN);
       }
 
@@ -376,7 +376,7 @@ export class AuthService {
       if (
         user.forget_password &&
         new Date(user.forget_password) <
-          new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
       ) {
         await this.dbService.users.update({
           where: {
@@ -488,42 +488,42 @@ export class AuthService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [{ username: { contains: search } }],
-                },
-              ]
+              {
+                OR: [{ username: { contains: search } }],
+              },
+            ]
             : []),
           ...(vendor_id
             ? [
-                {
-                  pic_vendor: {
-                    some: {
-                      vendor_id: vendor_id,
-                    },
+              {
+                pic_vendor: {
+                  some: {
+                    vendor_id: vendor_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  store: {
-                    some: {
-                      id: { in: store_id },
-                    },
+              {
+                store: {
+                  some: {
+                    id: { in: store_id },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -546,7 +546,7 @@ export class AuthService {
           created_by: true,
           updated_at: true,
           updated_by: true,
-        employee: true,
+          employee: true,
           store: true,
           roles: true,
           sales: true,
