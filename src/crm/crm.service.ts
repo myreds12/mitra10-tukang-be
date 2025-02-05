@@ -1,9 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCrmDto } from './dto/create-crm.dto';
-import { UpdateCrmDto } from './dto/update-crm.dto';
 import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Logger } from 'winston';
 import { CreateCsiDto } from 'src/csi/dto/create-csi.dto';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -18,7 +15,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async create(createCsiDto: CreateCsiDto) {
     try {
@@ -48,13 +45,13 @@ export class CrmService {
           AND: [
             ...(date_from && date_to
               ? [
-                  {
-                    created_at: {
-                      gte: new Date(date_from),
-                      lte: new Date(`${date_to}T23:59:59.000Z`),
-                    },
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
                   },
-                ]
+                },
+              ]
               : []),
           ].filter(Boolean),
           deleted_at: null,
@@ -121,7 +118,6 @@ export class CrmService {
       throw error;
     }
   }
-
 
   async remove(id: number, user_id: number) {
     try {
@@ -255,6 +251,8 @@ export class CrmService {
       updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
       deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
     }));
+
+    console.log('KOMPLAIN USER', complaintWithUser);
 
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
 
@@ -444,7 +442,7 @@ export class CrmService {
   numberToColumnLabel(column: number): string {
     let label = '';
     while (column > 0) {
-      let remainder = (column - 1) % 26;
+      const remainder = (column - 1) % 26;
       label = String.fromCharCode(65 + remainder) + label;
       column = Math.floor((column - 1) / 26);
     }

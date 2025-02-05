@@ -1023,7 +1023,7 @@ export class QuotationService {
 
       if (
         (!existingIncentive && quotation.status.category === 'QUOTATIONPAID') ||
-        quotation.status.category === 'QUOTATIONPAIDSTEPTHREE'
+        quotation.status.category === 'QUOTATIONPAIDSTEPTHREE' || quotation.status.category === 'QUOTATIONPAIDSTEPTWO' || quotation.status.category === 'QUOTATIONPAIDSTEPONE'
       ) {
         console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
@@ -1923,25 +1923,38 @@ export class QuotationService {
     salesId: number,
     quotation: quotation,
   ) {
-    const { id: quotation_id, order_id } = quotation;
+    const { id: quotation_id, order_id, quotation_status } = quotation;
+
+    // Mengambil status dari database
+    const statusList = await this.dbService.status.findMany({
+      select: {
+        id: true,
+        category: true,
+        description: true,
+      }
+    });
+
+    const stepTwoStatus = statusList.find(item => item.description === 'QUOTATIONPAIDSTEPTWO')?.id;
+    const stepThreeStatus = statusList.find(item => item.description === 'QUOTATIONPAIDSTEPTHREE')?.id;
+
+    if (quotation_status === stepTwoStatus || quotation_status === stepThreeStatus) {
+      grandTotal *= 0.5;
+    }
+
     console.log("GRAND TOTAL", grandTotal);
     console.log("STORE ID", storeId);
+
     const filteredIncentive = await this.dbService.setting_incentive.findMany({
       where: {
         deleted_at: null,
         stores: {
-          some: {
-            store_id: storeId,
-          },
+          some: { store_id: storeId },
         },
-        min_order: {
-          lte: grandTotal,
-        },
-        max_order: {
-          gte: grandTotal,
-        },
+        min_order: { lte: grandTotal },
+        max_order: { gte: grandTotal },
       },
     });
+
 
     console.log("INCENTIVE FILTER", filteredIncentive);
 
