@@ -628,16 +628,13 @@ export class QuotationService {
       console.log('PAYLOAD', updateQuotationDto);
 
       const promotion =
-        updateQuotationDto.promotion_id ||
-          (quotationForUpdate.promotion_id &&
-            updateQuotationDto.promotion_id != 0)
+        updateQuotationDto?.promotion_id || quotationForUpdate?.promotion_id
           ? await this.dbService.promotion.findFirstOrThrow({
             where: {
               id:
                 updateQuotationDto?.promotion_id ??
                 quotationForUpdate?.promotion?.id,
             },
-            include: { promotion_stores: { include: { store: true } } },
           })
           : undefined;
 
@@ -1191,58 +1188,56 @@ export class QuotationService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
-  // async syncQuotationMail() {
-  //   try {
-  //     this.logger.verbose('Initiate syncQuotationMail');
+  async updatePromotionQuotation() {
+    try {
+      const quotationNoPromotion = await this.dbService.quotation.findMany({
+        where: {
+          quotation_grand_total: {
+            gte: 2000000
+          },
+          promotion_id: null
+        }
+      });
 
-  //     // TODO: SEARCH QUOTATION WHERE READINESS 2 AND QUOTATION STATUS QUOTEOUT
-  //     const quotations = await this.dbService.quotation.findMany({
-  //       where: {
-  //         status: {
-  //           category: {
-  //             contains: 'QUOTEOUT',
-  //           },
-  //         },
-  //         readiness: 2,
-  //       },
-  //       take: 10,
-  //     });
+      const promotions = await this.dbService.promotion.findFirst({
+        where: {
+          deleted_at: null,
+          min_order: {
+            gte: 2000000
+          }
+        }
+      });
 
-  //     if (!quotations.length) {
-  //       this.logger.log('No pending quotation to send');
-  //       return 0;
-  //     }
+      if (promotions) {
+        const updateQuotation = await Promise.all(
+          quotationNoPromotion.map(async (quotation) => {
+            const discountAmount =
+              promotions.promotion_type === 1
+                ? Number(quotation.quotation_grand_total) * (Number(promotions.promotion) / 100)
+                : Number(promotions.promotion);
 
-  //     this.logger.log(`${quotations.length} pending quotations found`);
-  //     await Promise.all(
-  //       quotations.map(async (quotation) => {
-  //         const { id } = quotation;
-  //         this.logger.log(`${quotations.length} pending quotations found`);
+            return this.dbService.quotation.update({
+              where: { id: quotation.id },
+              data: {
+                promotion_id: promotions.id,
+                quotation_grand_total: Number(quotation.quotation_grand_total) - discountAmount,
+              },
+            });
+          })
+        );
 
-  //         // TODO: TRIGGER SEND EMAIL
-  //         await this.emailQueue.add('send-quotation-mail', { id });
+        return updateQuotation;
+      }
 
-  //         // TODO: CHANGE CURRENT QUOTATION STATUS TO READINESS 4
-  //         await this.dbService.quotation.update({
-  //           where: {
-  //             id,
-  //           },
-  //           data: {
-  //             readiness: 4,
-  //           },
-  //         });
-  //       }),
-  //     );
+      return { message: "No promotions available" };
 
-  //     this.logger.log('Finished syncQuotationMail');
 
-  //     return quotations.length;
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     throw error;
-  //   }
-  // }
+      return 'Gagal';
+    } catch (error) {
+      console.error();
+      throw error;
+    }
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
