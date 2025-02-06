@@ -4,7 +4,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   HttpStatus,
@@ -54,7 +53,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
   private readonly logger = new Logger(OrderController.name);
 
   @Post('/public')
@@ -144,13 +143,13 @@ export class OrderController {
   async orderFollowUpExportPdf(
     @Query() query: QueryParamsDto,
     @Res() res: IExpressResponse) {
-      const data = await this.orderService.orderFollowUpPdf(res, query);
-      return data;
+    const data = await this.orderService.orderFollowUpPdf(res, query);
+    return data;
   }
 
   @Post('/follow-up')
   @UseGuards(JwtAuthGuard)
-  async orderFollowUp(@Body() createOrderFollowUp: CreateOrderDto, @Req() req: UserRequest){
+  async orderFollowUp(@Body() createOrderFollowUp: CreateOrderDto, @Req() req: UserRequest) {
     return await this.orderService.orderFollowUp(createOrderFollowUp, req.user);
   }
 
@@ -228,7 +227,7 @@ export class OrderController {
   @HttpCode(HttpStatus.OK)
   async testMail(@Param('id', ParseIntPipe) id: number) {
     try {
-      const {data: order} = await this.orderService.findOne(id);
+      const { data: order } = await this.orderService.findOne(id);
       if (!order) new NotFoundException('Order not found');
 
       this.logger.verbose(
