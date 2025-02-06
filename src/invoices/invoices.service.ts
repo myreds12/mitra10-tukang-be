@@ -621,34 +621,28 @@ export class InvoicesService {
       const providedOrderIds =
         updateInvoiceDto?.invoice_details?.map(({ order_id }) =>
           Number(order_id),
-        ) || undefined;
+        ) || [];
 
-      const orders = await this.dbService.orders.findMany({
-        where: { id: { in: providedOrderIds } },
-        include: {
-          m_order_details: {
-            where: {
-              deleted_at: null
+      const orders = providedOrderIds.length > 0
+        ? await this.dbService.orders.findMany({
+          where: { id: { in: providedOrderIds } },
+          include: {
+            m_order_details: {
+              where: { deleted_at: null },
+              include: { item: true },
             },
-            include: {
-              item: true,
-            },
-          },
-          quotation: {
-            where: {
-              deleted_at: null
-            },
-            include: {
-              quotation_details: {
-                where: {
-                  deleted_at: null
-                }
+            quotation: {
+              where: { deleted_at: null },
+              include: {
+                quotation_details: {
+                  where: { deleted_at: null },
+                },
               },
             },
+            work_orders: true,
           },
-          work_orders: true,
-        },
-      });
+        })
+        : [];
 
       const refund = await this.dbService.refund.findMany({
         where: {
@@ -674,142 +668,142 @@ export class InvoicesService {
         return acc + Number(curr.total);
       }, 0);
 
-      const invoiceDetails = updateInvoiceDto?.invoice_details
-        ? updateInvoiceDto?.invoice_details.map((item) => {
-          const order = orders.find((order) => order.id === item.order_id);
+      const orderMap = new Map(orders.map(order => [order.id, order]));
 
-          let total = 0;
+      const invoiceDetails = updateInvoiceDto?.invoice_details?.map((item) => {
+        const order = orderMap.get(item.order_id);
 
-          if (order) {
-            if (order.payment_type === 'survey' && item.type === 1) {
-              total = (invoice.vendor.nominal_survey
-                ? Number(invoice.vendor.nominal_survey)
-                : 75000);
-            } else if (order.payment_type === 'survey' && item.type === 2) {
-              total =
-                (invoice.vendor.margin_type === 1
-                  ? (+invoice.vendor.margin_nominal / 100) *
+        let total = 0;
+
+        if (order) {
+          if (order.payment_type === 'survey' && item.type === 1) {
+            total = (invoice.vendor.nominal_survey
+              ? Number(invoice.vendor.nominal_survey)
+              : 75000);
+          } else if (order.payment_type === 'survey' && item.type === 2) {
+            total =
+              (invoice.vendor.margin_type === 1
+                ? (+invoice.vendor.margin_nominal / 100) *
+                Number(
+                  order?.quotation[0]?.quotation_details.reduce(
+                    (acc, curr) => acc + Number(curr.final_price),
+                    0,
+                  ),
+                )
+                : Number(
+                  order?.quotation[0]?.quotation_details.reduce(
+                    (acc, curr) => acc + Number(curr.final_price),
+                    0,
+                  ),
+                ) - +invoice.vendor.margin_nominal) +
+              Number(order.additional_fee);
+          } else if (order.payment_type === 'survey' && item.type === 3) {
+            total =
+              (invoice.vendor.margin_type === 1
+                ? ((+invoice.vendor.margin_nominal / 100) *
                   Number(
                     order?.quotation[0]?.quotation_details.reduce(
                       (acc, curr) => acc + Number(curr.final_price),
                       0,
                     ),
-                  )
-                  : Number(
+                  ) *
+                  25) /
+                100
+                : Number(
+                  order?.quotation[0]?.quotation_details.reduce(
+                    (acc, curr) => acc + Number(curr.final_price),
+                    0,
+                  ),
+                ) + +invoice.vendor.margin_nominal) +
+              Number(order.additional_fee);
+          } else if (order.payment_type === 'survey' && item.type === 4) {
+            total =
+              (invoice.vendor.margin_type === 1
+                ? ((+invoice.vendor.margin_nominal / 100) *
+                  Number(
                     order?.quotation[0]?.quotation_details.reduce(
                       (acc, curr) => acc + Number(curr.final_price),
                       0,
                     ),
-                  ) - +invoice.vendor.margin_nominal) +
-                Number(order.additional_fee);
-            } else if (order.payment_type === 'survey' && item.type === 3) {
-              total =
-                (invoice.vendor.margin_type === 1
-                  ? ((+invoice.vendor.margin_nominal / 100) *
-                    Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0,
-                      ),
-                    ) *
-                    25) /
-                  100
-                  : Number(
+                  ) *
+                  50) /
+                100
+                : Number(
+                  order?.quotation[0]?.quotation_details.reduce(
+                    (acc, curr) => acc + Number(curr.final_price),
+                    0,
+                  ),
+                ) + +invoice.vendor.margin_nominal) +
+              Number(order.additional_fee);
+          } else if (order.payment_type === 'survey' && item.type === 5) {
+            total =
+              (invoice.vendor.margin_type === 1
+                ? ((+invoice.vendor.margin_nominal / 100) *
+                  Number(
                     order?.quotation[0]?.quotation_details.reduce(
                       (acc, curr) => acc + Number(curr.final_price),
                       0,
                     ),
-                  ) + +invoice.vendor.margin_nominal) +
-                Number(order.additional_fee);
-            } else if (order.payment_type === 'survey' && item.type === 4) {
-              total =
-                (invoice.vendor.margin_type === 1
-                  ? ((+invoice.vendor.margin_nominal / 100) *
-                    Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0,
-                      ),
-                    ) *
-                    50) /
-                  100
-                  : Number(
-                    order?.quotation[0]?.quotation_details.reduce(
-                      (acc, curr) => acc + Number(curr.final_price),
-                      0,
-                    ),
-                  ) + +invoice.vendor.margin_nominal) +
-                Number(order.additional_fee);
-            } else if (order.payment_type === 'survey' && item.type === 5) {
-              total =
-                (invoice.vendor.margin_type === 1
-                  ? ((+invoice.vendor.margin_nominal / 100) *
-                    Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0,
-                      ),
-                    ) *
-                    25) /
-                  100
-                  : Number(
-                    order?.quotation[0]?.quotation_details.reduce(
-                      (acc, curr) => acc + Number(curr.final_price),
-                      0,
-                    ),
-                  ) + +invoice.vendor.margin_nominal) +
-                Number(order.additional_fee);
-            } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-              total =
-                (invoice.vendor.margin_type === 1
-                  ? order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce((acc, curr) => {
-                      const nominal = Number(curr?.item?.invoice_nominal || 0);
-                      const quantity = Number(curr?.quantity || 0);
-                      return acc + (nominal * quantity);
-                    }, 0)
-                  : +invoice.vendor.margin_nominal *
-                  order.m_order_details
-                    .filter((i) => i.item.type === 2)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr?.quantity || 0),
-                      0,
-                    )) + Number(order.additional_fee);
-            } else if (order.payment_type === 'gratis') {
-              total =
-                (order.m_order_details
+                  ) *
+                  25) /
+                100
+                : Number(
+                  order?.quotation[0]?.quotation_details.reduce(
+                    (acc, curr) => acc + Number(curr.final_price),
+                    0,
+                  ),
+                ) + +invoice.vendor.margin_nominal) +
+              Number(order.additional_fee);
+          } else if (order.payment_type === 'pemasangan_tanpa_survey') {
+            total =
+              (invoice.vendor.margin_type === 1
+                ? order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce((acc, curr) => {
+                    const nominal = Number(curr?.item?.invoice_nominal || 0);
+                    const quantity = Number(curr?.quantity || 0);
+                    return acc + (nominal * quantity);
+                  }, 0)
+                : +invoice.vendor.margin_nominal *
+                order.m_order_details
+                  .filter((i) => i.item.type === 2)
+                  .reduce(
+                    (acc, curr) => acc + Number(curr?.quantity || 0),
+                    0,
+                  )) + Number(order.additional_fee);
+          } else if (order.payment_type === 'gratis') {
+            total =
+              (order.m_order_details
+                .filter((i) => i.item.type === 1)
+                .reduce(
+                  (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                  0,
+                ) * order.m_order_details
                   .filter((i) => i.item.type === 1)
                   .reduce(
-                    (acc, curr) => acc + Number(curr.item.invoice_nominal),
+                    (acc, curr) => acc + Number(curr?.quantity || 0),
                     0,
-                  ) * order.m_order_details
-                    .filter((i) => i.item.type === 1)
-                    .reduce(
-                      (acc, curr) => acc + Number(curr?.quantity || 0),
-                      0,
-                    )) + Number(order.additional_fee);
-            }
-            totalGrandTotal += total || 0;
+                  )) + Number(order.additional_fee);
           }
+          totalGrandTotal += total || 0;
+        }
 
-          return {
-            where: { id: item.id ?? 0 },
-            create: {
-              order: { connect: { id: item.order_id } },
-              total,
-              type: item.type,
-              created_by: user_id,
-            },
-            update: {
-              order_id: item.order_id,
-              total,
-              updated_at: new Date(),
-              updated_by: user_id,
-            },
-          };
-        })
-        : undefined;
+        return {
+          where: { id: item.id ?? 0 },
+          create: {
+            order: { connect: { id: item.order_id } },
+            total,
+            type: item.type,
+            created_by: user_id,
+          },
+          update: {
+            order_id: item.order_id,
+            total,
+            updated_at: new Date(),
+            updated_by: user_id,
+          },
+        };
+      }) || [];
 
 
       const pkpNominal =
