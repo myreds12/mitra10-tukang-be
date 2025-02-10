@@ -38,7 +38,13 @@ export class QuotationController {
     private readonly quotationService: QuotationService,
     @InjectQueue('email') private emailQueue: Queue,
     private readonly dbService: PrismaService,
-  ) {}
+  ) { }
+
+  @Post('/update-quotation-promotion')
+  @UseGuards(JwtAuthGuard)
+  async updateQuotationPromotion() {
+    return await this.quotationService.updatePromotionQuotation();
+  }
 
   @Post('/duplicate-incentive/:id')
   @UseGuards(JwtAuthGuard)
@@ -66,6 +72,8 @@ export class QuotationController {
       req.user,
     );
   }
+
+
 
   @Get('/send-mail/:id')
   @UseGuards(JwtAuthGuard)

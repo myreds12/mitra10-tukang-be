@@ -1,9 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCrmDto } from './dto/create-crm.dto';
-import { UpdateCrmDto } from './dto/update-crm.dto';
 import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Logger } from 'winston';
 import { CreateCsiDto } from 'src/csi/dto/create-csi.dto';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -18,7 +15,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async create(createCsiDto: CreateCsiDto) {
     try {
@@ -48,13 +45,13 @@ export class CrmService {
           AND: [
             ...(date_from && date_to
               ? [
-                  {
-                    created_at: {
-                      gte: new Date(date_from),
-                      lte: new Date(`${date_to}T23:59:59.000Z`),
-                    },
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
                   },
-                ]
+                },
+              ]
               : []),
           ].filter(Boolean),
           deleted_at: null,
@@ -121,7 +118,6 @@ export class CrmService {
       throw error;
     }
   }
-
 
   async remove(id: number, user_id: number) {
     try {
@@ -192,7 +188,6 @@ export class CrmService {
   async storeAnswer(spreadsheetId: string) {
     const spreadsheetInstances =
       this.googleSheetConnectorService.getGoogleSheetConnect();
-    const lastRow = await this.getLastRow(spreadsheetId, 'Form Responses 1');
 
     const complaints = await this.dbService.complaints.findMany({
       where: {
@@ -224,6 +219,7 @@ export class CrmService {
     if (complaints.length === 0) {
       return;
     }
+
     const userIds = [
       ...new Set(
         complaints
@@ -256,36 +252,19 @@ export class CrmService {
       deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
     }));
 
+    console.log('KOMPLAIN USER', complaintWithUser);
+
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
+
+    console.log('Sheet Header:', sheetHeader);
 
     if (!sheetHeader) {
       console.log('No header found in the spreadsheet.');
       return;
     }
-    const ajColumnIndex =
-      sheetHeader.indexOf('AJ') !== -1
-        ? sheetHeader.indexOf('AJ')
-        : sheetHeader.length + 9;
-    const akColumnIndex =
-      sheetHeader.indexOf('AK') !== -1
-        ? sheetHeader.indexOf('AJ')
-        : sheetHeader.length + 10;
-    const alColumnIndex =
-      sheetHeader.indexOf('AL') !== -1
-        ? sheetHeader.indexOf('AJ')
-        : sheetHeader.length + 11;
-    const amColumnIndex =
-      sheetHeader.indexOf('AM') !== -1
-        ? sheetHeader.indexOf('AM')
-        : sheetHeader.length + 12;
 
     const values = complaintWithUser.map((complaint) => {
-      const filledHeaders = new Set(); // Set untuk melacak header yang sudah diisi
       const rowData = sheetHeader.map((header) => {
-        if (filledHeaders.has(header)) {
-          return '';
-        }
-
         let cellValue: any = '';
 
         switch (header) {
@@ -353,15 +332,8 @@ export class CrmService {
           case 'Updated By':
             cellValue = complaint.feedback_name;
             break;
-          case 'Date Received':
-            const dateReceived = new Date(complaint.complaint_received_date);
-            cellValue = `${String(dateReceived.getDate()).padStart(
-              2,
-              '0',
-            )}/${String(dateReceived.getMonth() + 1).padStart(
-              2,
-              '0',
-            )}/${dateReceived.getFullYear()}`;
+          case 'Work By (Vendor or M10)':
+            cellValue = 'M10';
             break;
           case 'Complaint Variable':
             cellValue = 'Installasi Yang Dilakukan Oleh Vendor';
@@ -370,33 +342,15 @@ export class CrmService {
             cellValue = 'N/A';
         }
 
-        filledHeaders.add(header);
         return cellValue;
       });
-      const dateReceived = new Date(complaint.complaint_received_date);
-      const formattedDateReceived = `${String(dateReceived.getDate()).padStart(
-        2,
-        '0',
-      )}/${String(dateReceived.getMonth() + 1).padStart(
-        2,
-        '0',
-      )}/${dateReceived.getFullYear()}`;
-      rowData[ajColumnIndex] = formattedDateReceived;
-      rowData[
-        akColumnIndex
-      ] = `=CONCATENATE(C${lastRow};D${lastRow};E${lastRow};F${lastRow};G${lastRow};H${lastRow};I${lastRow})`;
-
-      rowData[
-        alColumnIndex
-      ] = `=CONCATENATE(X${lastRow};Y${lastRow};Z${lastRow};AA${lastRow};AB${lastRow};AC${lastRow};AD${lastRow};AE${lastRow};AF${lastRow};AG${lastRow};AH${lastRow};AI${lastRow})`;
-      rowData[amColumnIndex] = `=VLOOKUP(AK${lastRow};'Store Master'!A:C;3;0)`;
 
       return rowData;
     });
 
     await spreadsheetInstances.spreadsheets.values.append({
       spreadsheetId: spreadsheetId,
-      range: 'Form Responses 1', // Starting point in the sheet
+      range: 'Instalation App!A1', // Mulai dari kolom A, baris 1
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
@@ -408,7 +362,7 @@ export class CrmService {
 
     // Update `is_sync` to 1 for synced complaints
     const complaintIds = complaints.map((complaint) => complaint.id);
-    await this.dbService.complaints.updateMany({
+    const updateComplaint = await this.dbService.complaints.updateMany({
       where: {
         id: {
           in: complaintIds,
@@ -419,6 +373,7 @@ export class CrmService {
       },
     });
 
+    console.log('Update Complaint', updateComplaint);
     console.log('Updated is_sync to 1 for all synced complaints.');
   }
 
@@ -428,7 +383,7 @@ export class CrmService {
 
     const response = await spreadsheetInstances.spreadsheets.values.get({
       spreadsheetId: spreadsheetId,
-      range: 'A1:Z1', // Ambil baris pertama untuk header
+      range: 'Instalation App!1:1', // Ambil baris pertama untuk header
     });
 
     const headers = response.data.values?.[0];
@@ -444,7 +399,7 @@ export class CrmService {
   numberToColumnLabel(column: number): string {
     let label = '';
     while (column > 0) {
-      let remainder = (column - 1) % 26;
+      const remainder = (column - 1) % 26;
       label = String.fromCharCode(65 + remainder) + label;
       column = Math.floor((column - 1) / 26);
     }

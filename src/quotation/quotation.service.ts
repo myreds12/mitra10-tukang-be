@@ -628,16 +628,13 @@ export class QuotationService {
       console.log('PAYLOAD', updateQuotationDto);
 
       const promotion =
-        updateQuotationDto.promotion_id ||
-          (quotationForUpdate.promotion_id &&
-            updateQuotationDto.promotion_id != 0)
+        updateQuotationDto?.promotion_id || quotationForUpdate?.promotion_id
           ? await this.dbService.promotion.findFirstOrThrow({
             where: {
               id:
                 updateQuotationDto?.promotion_id ??
                 quotationForUpdate?.promotion?.id,
             },
-            include: { promotion_stores: { include: { store: true } } },
           })
           : undefined;
 
@@ -1023,7 +1020,7 @@ export class QuotationService {
 
       if (
         (!existingIncentive && quotation.status.category === 'QUOTATIONPAID') ||
-        quotation.status.category === 'QUOTATIONPAIDSTEPTHREE'
+        quotation.status.category === 'QUOTATIONPAIDSTEPTHREE' || quotation.status.category === 'QUOTATIONPAIDSTEPTWO' || quotation.status.category === 'QUOTATIONPAIDSTEPONE'
       ) {
         console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
@@ -1191,58 +1188,56 @@ export class QuotationService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
-  // async syncQuotationMail() {
-  //   try {
-  //     this.logger.verbose('Initiate syncQuotationMail');
+  async updatePromotionQuotation() {
+    try {
+      const quotationNoPromotion = await this.dbService.quotation.findMany({
+        where: {
+          quotation_grand_total: {
+            gte: 2000000
+          },
+          promotion_id: null
+        }
+      });
 
-  //     // TODO: SEARCH QUOTATION WHERE READINESS 2 AND QUOTATION STATUS QUOTEOUT
-  //     const quotations = await this.dbService.quotation.findMany({
-  //       where: {
-  //         status: {
-  //           category: {
-  //             contains: 'QUOTEOUT',
-  //           },
-  //         },
-  //         readiness: 2,
-  //       },
-  //       take: 10,
-  //     });
+      const promotions = await this.dbService.promotion.findFirst({
+        where: {
+          deleted_at: null,
+          min_order: {
+            gte: 2000000
+          }
+        }
+      });
 
-  //     if (!quotations.length) {
-  //       this.logger.log('No pending quotation to send');
-  //       return 0;
-  //     }
+      if (promotions) {
+        const updateQuotation = await Promise.all(
+          quotationNoPromotion.map(async (quotation) => {
+            const discountAmount =
+              promotions.promotion_type === 1
+                ? Number(quotation.quotation_grand_total) * (Number(promotions.promotion) / 100)
+                : Number(promotions.promotion);
 
-  //     this.logger.log(`${quotations.length} pending quotations found`);
-  //     await Promise.all(
-  //       quotations.map(async (quotation) => {
-  //         const { id } = quotation;
-  //         this.logger.log(`${quotations.length} pending quotations found`);
+            return this.dbService.quotation.update({
+              where: { id: quotation.id },
+              data: {
+                promotion_id: promotions.id,
+                quotation_grand_total: Number(quotation.quotation_grand_total) - discountAmount,
+              },
+            });
+          })
+        );
 
-  //         // TODO: TRIGGER SEND EMAIL
-  //         await this.emailQueue.add('send-quotation-mail', { id });
+        return updateQuotation;
+      }
 
-  //         // TODO: CHANGE CURRENT QUOTATION STATUS TO READINESS 4
-  //         await this.dbService.quotation.update({
-  //           where: {
-  //             id,
-  //           },
-  //           data: {
-  //             readiness: 4,
-  //           },
-  //         });
-  //       }),
-  //     );
+      return { message: "No promotions available" };
 
-  //     this.logger.log('Finished syncQuotationMail');
 
-  //     return quotations.length;
-  //   } catch (error) {
-  //     this.logger.error(error);
-  //     throw error;
-  //   }
-  // }
+      return 'Gagal';
+    } catch (error) {
+      console.error();
+      throw error;
+    }
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
@@ -1923,25 +1918,38 @@ export class QuotationService {
     salesId: number,
     quotation: quotation,
   ) {
-    const { id: quotation_id, order_id } = quotation;
+    const { id: quotation_id, order_id, quotation_status } = quotation;
+
+    // Mengambil status dari database
+    const statusList = await this.dbService.status.findMany({
+      select: {
+        id: true,
+        category: true,
+        description: true,
+      }
+    });
+
+    const stepTwoStatus = statusList.find(item => item.description === 'QUOTATIONPAIDSTEPTWO')?.id;
+    const stepThreeStatus = statusList.find(item => item.description === 'QUOTATIONPAIDSTEPTHREE')?.id;
+
+    if (quotation_status === stepTwoStatus || quotation_status === stepThreeStatus) {
+      grandTotal *= 0.5;
+    }
+
     console.log("GRAND TOTAL", grandTotal);
     console.log("STORE ID", storeId);
+
     const filteredIncentive = await this.dbService.setting_incentive.findMany({
       where: {
         deleted_at: null,
         stores: {
-          some: {
-            store_id: storeId,
-          },
+          some: { store_id: storeId },
         },
-        min_order: {
-          lte: grandTotal,
-        },
-        max_order: {
-          gte: grandTotal,
-        },
+        min_order: { lte: grandTotal },
+        max_order: { gte: grandTotal },
       },
     });
+
 
     console.log("INCENTIVE FILTER", filteredIncentive);
 
