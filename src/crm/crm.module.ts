@@ -8,6 +8,7 @@ import { HttpModule } from '@nestjs/axios';
 @Module({
   controllers: [CrmController],
   providers: [CrmService, ConfigService],
+  exports: [CrmService],
   imports: [
     HttpModule,
     GoogleSheetModule.registerAsync({
@@ -34,4 +35,4 @@ import { HttpModule } from '@nestjs/axios';
     }),
   ],
 })
-export class CrmModule {}
+export class CrmModule { }

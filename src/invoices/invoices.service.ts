@@ -1872,6 +1872,7 @@ export class InvoicesService {
 
           const { quotation_grand_total: quotationGrandTotal, quotation_details: quotationDetails } = quotation[0];
           const surveyCalculators = {
+            1: () => grandTotal,
             2: () => quotationGrandTotal,
             3: () => calculateSurveyTotal(quotationDetails, 1),
             4: () => calculateSurveyTotal(quotationDetails, 2),
