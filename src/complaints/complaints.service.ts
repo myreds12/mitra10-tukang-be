@@ -16,14 +16,16 @@ import * as fs from "fs";
 import * as path from "path";
 import { NotificationsService } from "src/notifications/notifications.service";
 import { moduleTypeNotification } from "src/notifications/dto/notification-module-type.enum";
+import { CrmService } from "src/crm/crm.service";
 
 @Injectable()
 export class ComplaintsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-    private notifService: NotificationsService
-  ) {}
+    private notifService: NotificationsService,
+    private readonly crmService: CrmService
+  ) { }
   async create(
     createComplaintDto: CreateComplaintDto,
     user: users,
@@ -43,11 +45,6 @@ export class ComplaintsService {
           id: createComplaintDto.complaint_status,
         },
       });
-
-      // if (
-      //   !COMPLAINT_STATUS.category.includes('INVESTIGATED' || 'WARRANTYCLAIM')
-      // )
-      //   throw new BadRequestException('Status does not exist!');
 
       const findOrder = await this.dbService.orders.findFirst({
         where: {
@@ -81,10 +78,10 @@ export class ComplaintsService {
         feedback_role: createComplaintDto.feedback_role,
         ...(createComplaintDto.complaint_received_date
           ? {
-              complaint_received_date: new Date(
-                createComplaintDto.complaint_received_date
-              ),
-            }
+            complaint_received_date: new Date(
+              createComplaintDto.complaint_received_date
+            ),
+          }
           : undefined),
         complaint_date: new Date(createComplaintDto.complaint_date),
         type: createComplaintDto.type,
@@ -131,6 +128,8 @@ export class ComplaintsService {
         );
       }
 
+      await this.crmService.syncAnswer(complaint.id);
+
       await this.orderService.setStatus(
         complaint.order_id,
         complaint.complaint_status,
@@ -166,108 +165,108 @@ export class ComplaintsService {
           status ? { status: { id: { in: status } } } : undefined,
           search
             ? {
-                OR: [
-                  !isNaN(Number(search))
-                    ? {
-                        id: {
-                          equals: Number(search),
-                        },
-                      }
-                    : undefined,
-                  !isNaN(Number(search))
-                    ? {
-                        order_id: Number(search),
-                      }
-                    : undefined,
-                  {
-                    complaint_channels: {
-                      name: { contains: search },
+              OR: [
+                !isNaN(Number(search))
+                  ? {
+                    id: {
+                      equals: Number(search),
                     },
+                  }
+                  : undefined,
+                !isNaN(Number(search))
+                  ? {
+                    order_id: Number(search),
+                  }
+                  : undefined,
+                {
+                  complaint_channels: {
+                    name: { contains: search },
                   },
-                  {
-                    orders: {
-                      members: {
-                        whatsapp_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        phone_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      phone_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  orders: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      store: {
-                        store_name: search,
+                },
+                {
+                  orders: {
+                    store: {
+                      store_name: search,
+                    },
+                  },
+                },
+                {
+                  orders: {
+                    sales: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    orders: {
-                      sales: {
-                        full_name: {
-                          contains: search,
-                        },
-                      },
-                    },
-                  },
-                ],
-              }
+                },
+              ],
+            }
             : undefined,
           store_id
             ? {
-                orders: {
-                  store_id: {
-                    in: store_id,
-                  },
+              orders: {
+                store_id: {
+                  in: store_id,
                 },
-              }
+              },
+            }
             : undefined,
           vendor_id
             ? {
-                orders: {
-                  vendor_id: {
-                    equals: vendor_id,
-                  },
+              orders: {
+                vendor_id: {
+                  equals: vendor_id,
                 },
-              }
+              },
+            }
             : undefined,
           tukang_id
             ? {
-                orders: {
-                  work_orders: {
-                    work_order_tukang: {
-                      some: {
-                        tukang_id: tukang_id,
-                      },
+              orders: {
+                work_orders: {
+                  work_order_tukang: {
+                    some: {
+                      tukang_id: tukang_id,
                     },
                   },
                 },
-              }
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -394,7 +393,7 @@ export class ComplaintsService {
         },
         include: {
           complaint_channels: true,
-          
+
           complaint_histories: {
             where: {
               deleted_at: null,
@@ -593,10 +592,10 @@ export class ComplaintsService {
 
       const orderConn = updateComplaintDto.order_id
         ? {
-            connect: {
-              id: updateComplaintDto.order_id,
-            },
-          }
+          connect: {
+            id: updateComplaintDto.order_id,
+          },
+        }
         : undefined;
 
       const surveyStatusCategories = ["SURVEYREQ", "SURVEYSTART", "SURVEYEND"];
@@ -665,10 +664,10 @@ export class ComplaintsService {
 
       const complaint_channelsConn = updateComplaintDto.complaint_channel
         ? {
-            connect: {
-              id: updateComplaintDto.complaint_channel,
-            },
-          }
+          connect: {
+            id: updateComplaintDto.complaint_channel,
+          },
+        }
         : undefined;
 
       const complaintData: Prisma.complaintsUpdateInput = Object.fromEntries(
@@ -679,10 +678,10 @@ export class ComplaintsService {
           description: updateComplaintDto.description ?? undefined,
           ...(updateComplaintDto.complaint_received_date
             ? {
-                complaint_received_date: new Date(
-                  updateComplaintDto.complaint_received_date
-                ),
-              }
+              complaint_received_date: new Date(
+                updateComplaintDto.complaint_received_date
+              ),
+            }
             : undefined),
           complaint_date: updateComplaintDto.complaint_date
             ? new Date(updateComplaintDto.complaint_date)
@@ -697,10 +696,10 @@ export class ComplaintsService {
               created_by: user_id,
               complaint_evidence: evidences.length
                 ? {
-                    createMany: {
-                      data: evidences,
-                    },
-                  }
+                  createMany: {
+                    data: evidences,
+                  },
+                }
                 : undefined,
             },
           },
@@ -723,12 +722,12 @@ export class ComplaintsService {
             ...complaintData,
             ...(updateComplaintDto.complaint_status
               ? {
-                  status: {
-                    connect: {
-                      id: updateComplaintDto?.complaint_status,
-                    },
+                status: {
+                  connect: {
+                    id: updateComplaintDto?.complaint_status,
                   },
-                }
+                },
+              }
               : undefined),
           },
           include: {
@@ -1009,16 +1008,6 @@ export class ComplaintsService {
           };
         });
       });
-
-      const totalGrandTotal = data.reduce((total, complaint) => {
-        return (
-          total + (complaint.orders ? Number(complaint.orders.grand_total) : 0)
-        );
-      }, 0);
-      const formattedTotalGrandTotal = new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-      }).format(totalGrandTotal);
 
       const getFormattedDate = () => {
         const now = new Date();
