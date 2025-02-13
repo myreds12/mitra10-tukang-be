@@ -1,26 +1,26 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { CreateComissionSalesIncentiveDto } from "./dto/create-comission_sales_incentive.dto";
-import { UpdateComissionSalesIncentiveDto } from "./dto/update-comission_sales_incentive.dto";
-import { Prisma, users } from "@prisma/client";
-import { PrismaService } from "src/prisma/prisma.service";
-import { QueryParamsDto } from "src/common/dto/query-params.dto";
-import * as exceljs from "exceljs";
-import * as fs from "fs";
-import * as path from "path";
-import { Response } from "express";
-import { PdfService } from "src/common/service/pdf.service";
-import { IncentiveStatus } from "src/incentive/dto/incentive-status.enum";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateComissionSalesIncentiveDto } from './dto/create-comission_sales_incentive.dto';
+import { UpdateComissionSalesIncentiveDto } from './dto/update-comission_sales_incentive.dto';
+import { Prisma, users } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { QueryParamsDto } from 'src/common/dto/query-params.dto';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Response } from 'express';
+import { PdfService } from 'src/common/service/pdf.service';
+import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 
 @Injectable()
 export class ComissionSalesIncentiveService {
   constructor(
     private readonly dbService: PrismaService,
-    private pdfService: PdfService
+    private pdfService: PdfService,
   ) {}
   async create(
     createComissionSalesIncentiveDto: CreateComissionSalesIncentiveDto,
     user: users,
-    comission_sales_incentive_evidences: Express.Multer.File[]
+    comission_sales_incentive_evidences: Express.Multer.File[],
   ) {
     try {
       const evidences =
@@ -36,7 +36,7 @@ export class ComissionSalesIncentiveService {
       const salesIncentiveUpdateArgs =
         createComissionSalesIncentiveDto.sales_incentive.length > 0
           ? createComissionSalesIncentiveDto.sales_incentive.map(
-              (item) => item.sales_incentive_id
+              (item) => item.sales_incentive_id,
             )
           : undefined;
       const salesIncentiveTotalAmount = await this.dbService.sales_incentive
@@ -48,7 +48,7 @@ export class ComissionSalesIncentiveService {
           },
         })
         .then((data) =>
-          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0)
+          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
         );
       const [comissionSalesIncentive] = await this.dbService.$transaction([
         this.dbService.comission_sales_incentive.create({
@@ -306,7 +306,7 @@ export class ComissionSalesIncentiveService {
     id: number,
     updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
     comission_sales_incentive_evidences: Express.Multer.File[],
-    user: users
+    user: users,
   ) {
     try {
       const existingSalesIncentives =
@@ -320,20 +320,20 @@ export class ComissionSalesIncentiveService {
         });
 
       const existingSalesIncentiveIds = existingSalesIncentives.map(
-        (item) => item.id
+        (item) => item.id,
       );
 
       const newSalesIncentiveIds =
         updateComissionSalesIncentiveDto?.sales_incentive?.map(
-          (item) => item?.sales_incentive_id
+          (item) => item?.sales_incentive_id,
         ) || [];
 
       const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(
-        (existingId) => !newSalesIncentiveIds.includes(existingId)
+        (existingId) => !newSalesIncentiveIds.includes(existingId),
       );
 
       const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(
-        (newId) => !existingSalesIncentiveIds.includes(newId)
+        (newId) => !existingSalesIncentiveIds.includes(newId),
       );
 
       const evidences =
@@ -358,7 +358,7 @@ export class ComissionSalesIncentiveService {
           },
         })
         .then((data) =>
-          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0)
+          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
         );
 
       const [comissionSalesIncentive] = await this.dbService.$transaction([
@@ -373,18 +373,20 @@ export class ComissionSalesIncentiveService {
                 data: evidences,
               },
             },
-            ...(updateComissionSalesIncentiveDto.status === 3 ? {
-              sales_incentive: {
-                updateMany: {
-                  where: {
-                    comission_sales_incentive_id: id,
+            ...(updateComissionSalesIncentiveDto.status === 3
+              ? {
+                  sales_incentive: {
+                    updateMany: {
+                      where: {
+                        comission_sales_incentive_id: id,
+                      },
+                      data: {
+                        status: IncentiveStatus.DITOLAK,
+                      },
+                    },
                   },
-                  data: {
-                    status: IncentiveStatus.DITOLAK
-                  }
                 }
-              }
-            } : undefined)
+              : undefined),
           },
         }),
         ...(salesIncentiveIdsToConnect.length > 0
@@ -420,7 +422,7 @@ export class ComissionSalesIncentiveService {
   async nextCode() {
     const invoices = await this.dbService.comission_sales_incentive.findMany({
       orderBy: {
-        id: "desc",
+        id: 'desc',
       },
       take: 1,
     });
@@ -478,10 +480,10 @@ export class ComissionSalesIncentiveService {
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet(
-        "Data Comission Sales Incentive",
+        'Data Comission Sales Incentive',
         {
           properties: {
-            tabColor: { argb: "097969" },
+            tabColor: { argb: '097969' },
           },
           pageSetup: {
             margins: {
@@ -493,54 +495,54 @@ export class ComissionSalesIncentiveService {
               footer: 0.3,
             },
           },
-        }
+        },
       );
 
-      worksheet.mergeCells("A2: N3");
+      worksheet.mergeCells('A2: N3');
 
-      worksheet.getCell("A2").value = `DATA SALES INCENTIVE`;
-      worksheet.getCell("A2").font = { size: 16, bold: true };
-      worksheet.getCell("A2").alignment = {
-        vertical: "middle",
-        horizontal: "center",
+      worksheet.getCell('A2').value = `DATA SALES INCENTIVE`;
+      worksheet.getCell('A2').font = { size: 16, bold: true };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
       };
 
       worksheet.columns = [
-        { header: "No", key: "no", width: 10 },
-        { header: "Store Name", key: "store_name", width: 30 },
-        { header: "NIK", key: "nik", width: 12 },
-        { header: "Nama Lengkap", key: "sales_name", width: 30 },
-        { header: "Divisi/Brand", key: "sales_brand", width: 23 },
-        { header: "No. Rekening", key: "sales_account_number", width: 15 },
-        { header: "Bank", key: "sales_bank", width: 15 },
-        { header: "Customer Name", key: "member_name", width: 30 },
-        { header: "Nomor Receipt", key: "no_receipt", width: 15 },
-        { header: "Jenis Pengerjaan", key: "item_name", width: 35 },
-        { header: "Installation Fee", key: "instalation_fee", width: 15 },
-        { header: "Insentif", key: "sales_incentive", width: 15 },
+        { header: 'No', key: 'no', width: 10 },
+        { header: 'Store Name', key: 'store_name', width: 30 },
+        { header: 'NIK', key: 'nik', width: 12 },
+        { header: 'Nama Lengkap', key: 'sales_name', width: 30 },
+        { header: 'Divisi/Brand', key: 'sales_brand', width: 23 },
+        { header: 'No. Rekening', key: 'sales_account_number', width: 15 },
+        { header: 'Bank', key: 'sales_bank', width: 15 },
+        { header: 'Customer Name', key: 'member_name', width: 30 },
+        { header: 'Nomor Receipt', key: 'no_receipt', width: 15 },
+        { header: 'Jenis Pengerjaan', key: 'item_name', width: 35 },
+        { header: 'Installation Fee', key: 'instalation_fee', width: 15 },
+        { header: 'Insentif', key: 'sales_incentive', width: 15 },
       ];
 
       const headerRow = worksheet.addRow(
-        worksheet.columns.map((col) => col.header)
+        worksheet.columns.map((col) => col.header),
       );
       headerRow.eachCell((cell) => {
-        cell.font = { bold: true, size: 14, color: { argb: "FFFFFF" } };
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF4CAF50" },
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' },
         };
-        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
         };
       });
       headerRow.height = 35;
 
-      worksheet.getCell("A1").value = null;
+      worksheet.getCell('A1').value = null;
 
       worksheet.getRow(1).eachCell((cell) => {
         cell.value = null;
@@ -554,15 +556,15 @@ export class ComissionSalesIncentiveService {
         const row = worksheet.addRow({
           no: index + 1,
           store_name: item.sales.store.store_name,
-          nik: item.sales.nik || "",
+          nik: item.sales.nik || '',
           sales_name: item.sales.full_name,
-          sales_brand: item.sales.sales_brand || "",
-          sales_account_number: item?.sales?.account_number ?? "",
-          sales_bank: item?.sales?.bank?.bank_name ?? "",
-          member_name: item?.quotation?.order?.members?.full_name ?? "",
+          sales_brand: item.sales.sales_brand || '',
+          sales_account_number: item?.sales?.account_number ?? '',
+          sales_bank: item?.sales?.bank?.bank_name ?? '',
+          member_name: item?.quotation?.order?.members?.full_name ?? '',
           no_receipt: receipt_number,
           item_name: item.quotation?.order?.m_order_details?.map(
-            (x) => x?.item_name || "-"
+            (x) => x?.item_name || '-',
           ),
           instalation_fee: Number(item.quotation.quotation_grand_total),
           sales_incentive: Number(item.nominal),
@@ -570,61 +572,61 @@ export class ComissionSalesIncentiveService {
 
         row.eachCell((cell, colNumber) => {
           cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
           };
 
           if (colNumber === 4) {
-            cell.alignment = { horizontal: "left" };
+            cell.alignment = { horizontal: 'left' };
           } else {
-            cell.alignment = { horizontal: "left" };
+            cell.alignment = { horizontal: 'left' };
           }
         });
       });
 
       const totalsRow = worksheet.addRow({
-        no: "",
-        store_name: "",
-        nik: "",
-        sales_name: "",
-        sales_brand: "",
-        sales_account_number: "",
-        sales_bank: "",
-        member_name: "",
-        no_receipt: "",
-        item_name: "Total",
+        no: '',
+        store_name: '',
+        nik: '',
+        sales_name: '',
+        sales_brand: '',
+        sales_account_number: '',
+        sales_bank: '',
+        member_name: '',
+        no_receipt: '',
+        item_name: 'Total',
         instalation_fee: data.sales_incentive.reduce(
           (acc, curr) => acc + Number(curr?.quotation.quotation_grand_total),
-          0
+          0,
         ),
         sales_incentive: data.sales_incentive.reduce(
           (acc, curr) => acc + Number(curr?.nominal),
-          0
+          0,
         ),
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:E${totalsRow.number}`);
-      totalsRow.getCell("A").alignment = {
-        vertical: "middle",
-        horizontal: "center",
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
       };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
           cell.font = { bold: true };
-          cell.alignment = { vertical: "middle", horizontal: "left" };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
           cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
           };
         }
 
         if (colNumber === 1) {
-          cell.alignment = { vertical: "middle", horizontal: "left" };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
       });
 
@@ -632,12 +634,12 @@ export class ComissionSalesIncentiveService {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
           2,
-          "0"
-        )}-${String(now.getDate()).padStart(2, "0")}`;
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       const createExcelFilePath = (baseName: string) => {
-        const folderPath = "./storage/excel/comission-sales-incentive";
+        const folderPath = './storage/excel/comission-sales-incentive';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }
@@ -648,16 +650,16 @@ export class ComissionSalesIncentiveService {
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
-        res: Response
+        res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
         res.setHeader(
-          "Content-Type",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         res.setHeader(
-          "Content-Disposition",
-          `attachment; filename=${path.basename(excelFilePath)}`
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
         );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
@@ -673,7 +675,7 @@ export class ComissionSalesIncentiveService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 
@@ -716,25 +718,25 @@ export class ComissionSalesIncentiveService {
     });
 
     if (!data) {
-      console.error("Comission Sales Incentive not found!");
-      throw new NotFoundException("Comission Sales Incentive not found!");
+      console.error('Comission Sales Incentive not found!');
+      throw new NotFoundException('Comission Sales Incentive not found!');
     }
 
     const buffer = await this.pdfService.generateLandscape(
-      "comission-sales-incentive-pdf",
-      data
+      'comission-sales-incentive-pdf',
+      data,
     );
-    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=comission-sales-incentive.pdf"
+      'Content-Disposition',
+      'attachment; filename=comission-sales-incentive.pdf',
     );
     res.send(buffer);
   }
 
   async comissionSalesIncentiveExportExcel(
     query: QueryParamsDto,
-    res: Response
+    res: Response,
   ) {
     try {
       const { search, date_from, date_to, order_by, monthly, status } = query;
@@ -861,10 +863,10 @@ export class ComissionSalesIncentiveService {
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet(
-        "Data Comission Sales Incentive",
+        'Data Comission Sales Incentive',
         {
           properties: {
-            tabColor: { argb: "097969" },
+            tabColor: { argb: '097969' },
           },
           pageSetup: {
             margins: {
@@ -876,46 +878,46 @@ export class ComissionSalesIncentiveService {
               footer: 0.3,
             },
           },
-        }
+        },
       );
 
-      worksheet.mergeCells("A2: N3");
+      worksheet.mergeCells('A2: N3');
 
-      worksheet.getCell("A2").value = `REKAP DATA INCENTIVE `;
-      worksheet.getCell("A2").font = { size: 16, bold: true };
-      worksheet.getCell("A2").alignment = {
-        vertical: "middle",
-        horizontal: "center",
+      worksheet.getCell('A2').value = `REKAP DATA INCENTIVE `;
+      worksheet.getCell('A2').font = { size: 16, bold: true };
+      worksheet.getCell('A2').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
       };
 
       worksheet.columns = [
-        { header: "No", key: "no", width: 10 },
-        { header: "Incentive ID", key: "incentive_id", width: 25 },
-        { header: "Tanggal Pengajuan", key: "created_at", width: 17 },
-        { header: "Status Insentif", key: "status", width: 30 },
-        { header: "Grand Total \n Insentif", key: "grand_total", width: 25 },
+        { header: 'No', key: 'no', width: 10 },
+        { header: 'Incentive ID', key: 'incentive_id', width: 25 },
+        { header: 'Tanggal Pengajuan', key: 'created_at', width: 17 },
+        { header: 'Status Insentif', key: 'status', width: 30 },
+        { header: 'Grand Total \n Insentif', key: 'grand_total', width: 25 },
       ];
       const headerRow = worksheet.addRow(
-        worksheet.columns.map((col) => col.header)
+        worksheet.columns.map((col) => col.header),
       );
       headerRow.eachCell((cell) => {
-        cell.font = { bold: true, size: 14, color: { argb: "FFFFFF" } };
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF4CAF50" },
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' },
         };
-        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
         };
       });
       headerRow.height = 35;
 
-      worksheet.getCell("A1").value = null;
+      worksheet.getCell('A1').value = null;
 
       worksheet.getRow(1).eachCell((cell) => {
         cell.value = null;
@@ -924,11 +926,11 @@ export class ComissionSalesIncentiveService {
       data.forEach((item, index) => {
         const row = worksheet.addRow({
           no: index + 1,
-          incentive_id: item.sales_incentive.map((x) => x.id)[0] ?? "",
-          created_at: new Date(item.created_at).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
+          incentive_id: item.sales_incentive.map((x) => x.id)[0] ?? '',
+          created_at: new Date(item.created_at).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
           }),
           status: IncentiveStatus[item.status],
           grand_total: Number(item.total_amount),
@@ -936,51 +938,51 @@ export class ComissionSalesIncentiveService {
 
         row.eachCell((cell, colNumber) => {
           cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
           };
 
           if (colNumber === 4) {
-            cell.alignment = { horizontal: "left" };
+            cell.alignment = { horizontal: 'left' };
           } else {
-            cell.alignment = { horizontal: "left" };
+            cell.alignment = { horizontal: 'left' };
           }
         });
       });
 
       const totalsRow = worksheet.addRow({
-        no: "Total",
-        incentive_id: "",
-        created_at: "",
-        status: "",
+        no: 'Total',
+        incentive_id: '',
+        created_at: '',
+        status: '',
         grand_total: data.reduce(
           (acc, curr) => acc + Number(curr.total_amount),
-          0
+          0,
         ),
       });
 
       worksheet.mergeCells(`A${totalsRow.number}:D${totalsRow.number}`);
-      totalsRow.getCell("A").alignment = {
-        vertical: "middle",
-        horizontal: "center",
+      totalsRow.getCell('A').alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
       };
 
       totalsRow.eachCell((cell, colNumber) => {
         if (colNumber > 1) {
           cell.font = { bold: true };
-          cell.alignment = { vertical: "middle", horizontal: "left" };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
           cell.border = {
-            top: { style: "thin" },
-            left: { style: "thin" },
-            bottom: { style: "thin" },
-            right: { style: "thin" },
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
           };
         }
 
         if (colNumber === 1) {
-          cell.alignment = { vertical: "middle", horizontal: "left" };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
         }
       });
 
@@ -988,12 +990,12 @@ export class ComissionSalesIncentiveService {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
           2,
-          "0"
-        )}-${String(now.getDate()).padStart(2, "0")}`;
+          '0',
+        )}-${String(now.getDate()).padStart(2, '0')}`;
       };
 
       const createExcelFilePath = (baseName: string) => {
-        const folderPath = "./storage/excel/comission-sales-incentive";
+        const folderPath = './storage/excel/comission-sales-incentive';
         if (!fs.existsSync(folderPath)) {
           fs.mkdirSync(folderPath, { recursive: true });
         }
@@ -1004,16 +1006,16 @@ export class ComissionSalesIncentiveService {
       const writeWorkbookAndSendResponse = async (
         workbook: exceljs.Workbook,
         excelFilePath: string,
-        res: Response
+        res: Response,
       ) => {
         await workbook.xlsx.writeFile(excelFilePath);
         res.setHeader(
-          "Content-Type",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         res.setHeader(
-          "Content-Disposition",
-          `attachment; filename=${path.basename(excelFilePath)}`
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
         );
         const fileStream = fs.createReadStream(excelFilePath);
         fileStream.pipe(res);
@@ -1029,7 +1031,7 @@ export class ComissionSalesIncentiveService {
       return generateExcelFile(res);
     } catch (error) {
       console.error(error);
-      res.status(500).send("An error occurred while generating the invoice.");
+      res.status(500).send('An error occurred while generating the invoice.');
     }
   }
 }

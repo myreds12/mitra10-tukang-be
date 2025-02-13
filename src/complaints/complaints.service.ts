@@ -959,8 +959,8 @@ export class ComplaintsService {
           const timeDiff =
             complaintCreatedAtWith7Days.getTime() - now.getTime();
 
-          console.log(timeDiff);
-          console.log(complaintCreatedAtWith7Days);
+          // console.log(timeDiff);
+          // console.log(complaintCreatedAtWith7Days);
           const days = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
           const hours = Math.floor(
             (timeDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)

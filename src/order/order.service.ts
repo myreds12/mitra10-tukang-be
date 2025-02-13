@@ -4148,7 +4148,7 @@ export class OrderService {
       message,
     };
 
-    console.log(data.message);
+    // console.log(data.message);
 
     const buffer = await this.pdfService.generatePotrait('quotation-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
@@ -4190,8 +4190,8 @@ export class OrderService {
           `Quotation with ID ${item.order_id} not found!`,
         );
       }
-      console.log('BOOLEAN CSI SURVEY', Boolean(item.csi_survey));
-      console.log('BOOLEAN CSI WORK', Boolean(item.csi_work));
+      // console.log('BOOLEAN CSI SURVEY', Boolean(item.csi_survey));
+      // console.log('BOOLEAN CSI WORK', Boolean(item.csi_work));
 
       return this.dbService.order_follow_up.upsert({
         where: { id: item.id ?? 0, deleted_at: null },

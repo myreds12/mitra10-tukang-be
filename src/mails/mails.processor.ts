@@ -244,7 +244,7 @@ export class EmailProcessor {
         1,
         data,
       );
-      console.log('Mail Sent');
+      // console.log('Mail Sent');
     } catch (error) {
       this.logger.error(job.data);
       this.logger.error(error);

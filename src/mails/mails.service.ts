@@ -577,7 +577,7 @@ export class MailsService {
           `Jobs triggered [${jobs.length}] => ${JSON.stringify(jobs)}`,
         );
         await this.emailQueue.addBulk(jobs);
-        console.log('Jobs added to the queue:', jobs); // Confirm jobs are added
+        // console.log('Jobs added to the queue:', jobs); // Confirm jobs are added
       }
     } else {
       this.logger.verbose(`Quotation not found for status id ${status_id}`);
@@ -604,7 +604,7 @@ export class MailsService {
     if (quotations.length) {
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay = 2000;
-      console.log(template_id, 'TEMPLATE ID');
+      // console.log(template_id, 'TEMPLATE ID');
 
       for (let index = 0; index < quotations.length; index++) {
         const quotation = quotations[index];

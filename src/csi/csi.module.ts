@@ -24,9 +24,8 @@ import { BullModule } from '@nestjs/bull';
           'SPREADSHEETS.CLIENT_ID',
         ),
         client_email: configService.get<string>('SPREADSHEETS.CLIENT_EMAIL'),
-        private_key: configService
-          .get<string>('SPREADSHEETS.PRIVATE_KEY'),
-          // .replace(/\\n/g, '\n'),
+        private_key: configService.get<string>('SPREADSHEETS.PRIVATE_KEY'),
+        // .replace(/\\n/g, '\n'),
         private_key_id: configService.get<string>(
           'SPREADSHEETS.PRIVATE_KEY_ID',
         ),

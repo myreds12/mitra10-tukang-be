@@ -15,7 +15,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) { }
+  ) {}
 
   async create(createCsiDto: CreateCsiDto) {
     try {
@@ -45,13 +45,13 @@ export class CrmService {
           AND: [
             ...(date_from && date_to
               ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                },
-              ]
+                ]
               : []),
           ].filter(Boolean),
           deleted_at: null,
@@ -252,14 +252,14 @@ export class CrmService {
       deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
     }));
 
-    console.log('KOMPLAIN USER', complaintWithUser);
+    // console.log('KOMPLAIN USER', complaintWithUser);
 
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
 
-    console.log('Sheet Header:', sheetHeader);
+    // console.log('Sheet Header:', sheetHeader);
 
     if (!sheetHeader) {
-      console.log('No header found in the spreadsheet.');
+      // console.log('No header found in the spreadsheet.');
       return;
     }
 
@@ -358,7 +358,7 @@ export class CrmService {
       },
     });
 
-    console.log(`${values.length} rows sent to the spreadsheet.`);
+    // console.log(`${values.length} rows sent to the spreadsheet.`);
 
     // Update `is_sync` to 1 for synced complaints
     const complaintIds = complaints.map((complaint) => complaint.id);
@@ -373,8 +373,8 @@ export class CrmService {
       },
     });
 
-    console.log('Update Complaint', updateComplaint);
-    console.log('Updated is_sync to 1 for all synced complaints.');
+    // console.log('Update Complaint', updateComplaint);
+    // console.log('Updated is_sync to 1 for all synced complaints.');
   }
 
   async getSpreadsheetHeader(spreadsheetId: string): Promise<string[] | null> {
@@ -389,7 +389,7 @@ export class CrmService {
     const headers = response.data.values?.[0];
 
     if (!headers) {
-      console.log('No header found in the spreadsheet.');
+      // console.log('No header found in the spreadsheet.');
       return null;
     }
 

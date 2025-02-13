@@ -92,7 +92,7 @@ export class CsiService {
               data: true,
             },
           },
-          email_messages: true
+          email_messages: true,
         },
       });
 
@@ -123,12 +123,15 @@ export class CsiService {
 
   async sendCsiMail(id: number, orderId: number) {
     try {
-      const csi =  await this.findOne(id);
-      const order =  await this.dbService.orders.findFirstOrThrow({
+      const csi = await this.findOne(id);
+      const order = await this.dbService.orders.findFirstOrThrow({
         where: { id: orderId },
       });
 
-      await this.emailQueue.add('send-csi-mail', { modeule_id: csi.id, order_id: order.id });
+      await this.emailQueue.add('send-csi-mail', {
+        modeule_id: csi.id,
+        order_id: order.id,
+      });
     } catch (error) {
       console.error(error);
       throw error;
@@ -253,7 +256,7 @@ export class CsiService {
   numberToColumnLabel(num: number) {
     let label = '';
     while (num > 0) {
-      let remainder = (num - 1) % 26;
+      const remainder = (num - 1) % 26;
       label = String.fromCharCode(65 + remainder) + label;
       num = Math.floor((num - remainder) / 26);
     }
@@ -267,7 +270,7 @@ export class CsiService {
     if (match && match[1]) {
       return match[1];
     } else {
-      return null; 
+      return null;
     }
   }
 
@@ -292,7 +295,7 @@ export class CsiService {
 
   //     if (!csi) {
   //       this.logger.warn('CSI Template not found!');
-  //       return; 
+  //       return;
   //     }
 
   //     const statusCategories = ['SURVEYDONE', 'WORKEND'];

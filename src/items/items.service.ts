@@ -438,7 +438,7 @@ export class ItemsService {
                 priceStoreCreate.push({ store_id: value.store_id });
               }
             }
-            console.log(Boolean(price.is_active));
+            // console.log(Boolean(price.is_active));
 
             return {
               where: { item_id: id, id: price?.id ?? 0 },
@@ -590,9 +590,9 @@ export class ItemsService {
           },
         });
 
-        console.log('SUCCESS UPDATE PRICES');
+        // console.log('SUCCESS UPDATE PRICES');
       } else {
-        console.log('No expired prices found');
+        // console.log('No expired prices found');
       }
     } catch (error) {
       console.log(error);

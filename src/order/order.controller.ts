@@ -117,8 +117,8 @@ export class OrderController {
     @UploadedFiles() files: { [name: string]: Express.Multer.File[] },
   ) {
     try {
-      console.log(id);
-      console.log(files);
+      // console.log(id);
+      // console.log(files);
       return await this.orderService.updateReceiptPublic(
         +id,
         files,
