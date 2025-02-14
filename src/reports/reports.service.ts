@@ -246,8 +246,6 @@ export class ReportsService {
       });
       const salesIncetiveCount = await this.dbService.incentive_store.findMany({
         where,
-
-     
         include: {
           store: {
             include:{
@@ -291,9 +289,17 @@ export class ReportsService {
       const filteredSalesIncentive = salesIncetive.filter(
         (item) => item.store.quotation.length > 1
       );
-      const filteredSalesIncentiveCount = salesIncetiveCount.filter(
-        (item) => item.store.quotation.length > 1
-      );
+      const filteredSalesIncentiveCount = [];
+      const storeSet = new Set();
+      
+      salesIncetiveCount.forEach((item) => {
+        if (item.store.quotation.length > 1 && !storeSet.has(item.store.id)) {
+          storeSet.add(item.store.id);
+          filteredSalesIncentiveCount.push(item);
+        }
+      });
+    
+      
       // const totalIncentive = await this.dbService.sales_incentive.aggregate({
       //   where,
       //   _sum: {
