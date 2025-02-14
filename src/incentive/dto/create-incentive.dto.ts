@@ -52,6 +52,14 @@ export class CreateIncentiveDto {
   incentive: number;
 
   @IsNotEmpty()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  min_invoice: number;
+
+  @IsNotEmpty()
+  is_manager: boolean;
+
+  @IsNotEmpty()
   @IsEnum(IncentiveType)
   type: IncentiveType;
 

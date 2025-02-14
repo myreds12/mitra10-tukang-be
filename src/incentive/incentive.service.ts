@@ -45,6 +45,8 @@ export class IncentiveService {
           max_order: createIncentiveDto.max_order,
           min_order: createIncentiveDto.min_order,
           incentive: createIncentiveDto.incentive,
+          min_invoice:  createIncentiveDto.is_manager===true?createIncentiveDto.min_invoice:0,
+          is_manager: createIncentiveDto.is_manager,
           type: createIncentiveDto.type,
           stores: {
             createMany: {
@@ -65,12 +67,16 @@ export class IncentiveService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { take, page, order_by, store_id, search } = query;
+      const { take, page, order_by, store_id, search, is_manager } = query;
       const skip = page * take - take;
-
+      const parsedIsManager = String(is_manager) === "true";
       const where: Prisma.setting_incentiveWhereInput = {
         deleted_at: null,
         deleted_by: null,
+        ...(typeof is_manager === "string" 
+          ? { is_manager: is_manager === "false" ? false : true } 
+          : {}),
+      
         AND: [
           ...(search
             ? [
@@ -85,6 +91,7 @@ export class IncentiveService {
                 },
               ]
             : []),
+          
           store_id
             ? {
                 stores: {
@@ -99,7 +106,7 @@ export class IncentiveService {
         ].filter(Boolean),
       };
       this.logger.verbose(where);
-
+      
       const count = await this.dbService.setting_incentive.count({ where });
 
       const data = await this.dbService.setting_incentive.findMany({
@@ -115,6 +122,8 @@ export class IncentiveService {
           type: true,
           min_order: true,
           max_order: true,
+          min_invoice:true,
+          is_manager: true,
           incentive: true,
           stores: {
             select: {
@@ -154,7 +163,9 @@ export class IncentiveService {
           type: true,
           min_order: true,
           max_order: true,
+          min_invoice:true,
           incentive: true,
+          is_manager:true,
           stores: {
             select: {
               store_id: true,
@@ -223,6 +234,8 @@ export class IncentiveService {
             max_order: updateIncentiveDto.max_order,
             min_order: updateIncentiveDto.min_order,
             incentive: updateIncentiveDto.incentive,
+            min_invoice:  updateIncentiveDto.is_manager===true?updateIncentiveDto.min_invoice:0,
+            is_manager: updateIncentiveDto.is_manager,
             type: updateIncentiveDto.type,
             stores: {
               createMany: storesToAdd.length

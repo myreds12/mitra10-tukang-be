@@ -278,4 +278,8 @@ export class QueryParamsDto {
   @Type(() => Number)
   // @IsIn([0, 1])
   is_read?: number;
+
+  @IsOptional()
+  // @IsIn([0, 1])
+  is_manager?: boolean;
 }

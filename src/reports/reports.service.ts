@@ -164,6 +164,158 @@ export class ReportsService {
     }
   }
 
+  async storeComissionReport(query: QueryParamsDto) {
+    try {
+      const {
+        page,
+        take,
+        date_from,
+        date_to,
+        search,
+      } = query;
+      const skip = page * take - take;
+      const where: Prisma.incentive_storeWhereInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+                  {
+                    store: {
+                      store_name:search
+                    },
+      
+                  },
+                ],
+              },
+            ]
+            : []),
+    
+        ].filter(Boolean),
+        // comission_sales_incentive: {
+        //   deleted_at:{
+        //     not: null
+        //   }
+        // },
+      };
+
+      const salesIncetive = await this.dbService.incentive_store.findMany({
+        where,
+        skip,
+        take: take > 0 ? take : undefined,
+     
+        include: {
+          store: {
+            include:{
+              quotation:{
+                where:{
+                  order:{
+                          created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
+                    status:{
+           
+                      category: "WORKEND",
+                    
+                    }
+                  }
+                }
+              }
+              // orders:{
+                
+              //   where:{
+              //       created_at: {
+              //         gte: new Date(date_from),
+              //         lte: new Date(`${date_to}T23:59:59.000Z`),
+              //       },
+              //       status: {
+              //         category: "WORKEND",
+              //       },
+              //   },
+              //   include:{
+              //     status:true,
+              //     quotation:true
+              //   }
+             
+              // }
+            }
+          },
+          incentive: true,
+        },
+      });
+      const salesIncetiveCount = await this.dbService.incentive_store.findMany({
+        where,
+
+     
+        include: {
+          store: {
+            include:{
+              quotation:{
+                where:{
+                  order:{
+                          created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
+                    status:{
+           
+                      category: "WORKEND",
+                    
+                    }
+                  }
+                }
+              }
+              // orders:{
+                
+              //   where:{
+              //       created_at: {
+              //         gte: new Date(date_from),
+              //         lte: new Date(`${date_to}T23:59:59.000Z`),
+              //       },
+              //       status: {
+              //         category: "WORKEND",
+              //       },
+              //   },
+              //   include:{
+              //     status:true,
+              //     quotation:true
+              //   }
+             
+              // }
+            }
+          },
+          incentive: true,
+        },
+      });
+      const filteredSalesIncentive = salesIncetive.filter(
+        (item) => item.store.quotation.length > 1
+      );
+      const filteredSalesIncentiveCount = salesIncetiveCount.filter(
+        (item) => item.store.quotation.length > 1
+      );
+      // const totalIncentive = await this.dbService.sales_incentive.aggregate({
+      //   where,
+      //   _sum: {
+      //     nominal: true,
+      //   },
+      // });
+      return {
+        data: filteredSalesIncentive,
+        meta: {
+          page,
+          take,
+          total: filteredSalesIncentiveCount.length,
+          takeTotal: filteredSalesIncentive.length,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+
   async reportOrder(query: QueryParamsDto) {
     try {
       const {

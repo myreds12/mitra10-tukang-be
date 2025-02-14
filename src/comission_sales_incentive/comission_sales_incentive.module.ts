@@ -9,15 +9,17 @@ import { PdfService } from 'src/common/service/pdf.service';
 @Module({
   controllers: [ComissionSalesIncentiveController],
   providers: [ComissionSalesIncentiveService, PdfService],
-  imports: [MulterModule.register({
-    storage: diskStorage({
-      destination: './uploads/comission-sales-incentive',
-      filename(req, file, callback) {
-        const uniqueSuffix = `${Date.now()}`;
-        const filename = `${uniqueSuffix}${extname(file.originalname)}`;
-        callback(null, filename);
-      },
+  imports: [
+    MulterModule.register({
+      storage: diskStorage({
+        destination: './uploads/comission-sales-incentive',
+        filename(req, file, callback) {
+          const uniqueSuffix = `${Date.now()}`;
+          const filename = `${uniqueSuffix}${extname(file.originalname)}`;
+          callback(null, filename);
+        },
+      }),
     }),
-  }),]
+  ],
 })
 export class ComissionSalesIncentiveModule {}
