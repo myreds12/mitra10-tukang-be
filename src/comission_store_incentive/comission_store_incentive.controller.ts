@@ -14,8 +14,8 @@ import {
   Res,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ComissionSalesIncentiveService } from './comission_sales_incentive.service';
-import { CreateComissionSalesIncentiveDto } from './dto/create-comission_sales_incentive.dto';
+import { ComissionSalesIncentiveService } from './comission_store_incentive.service';
+import { CreateComissionSalesIncentiveDto } from './dto/create-comission_store_incentive.dto';
 import { UpdateComissionSalesIncentiveDto } from './dto/update-comission_sales_incentive.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import {
@@ -26,7 +26,7 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
-@Controller('comission-sales-incentive')
+@Controller('comission-store-incentive')
 @UseGuards(JwtAuthGuard)
 export class ComissionSalesIncentiveController {
   constructor(
@@ -66,7 +66,7 @@ export class ComissionSalesIncentiveController {
   }
 
   @Post()
-  @UseInterceptors(FilesInterceptor('comission_sales_incentive_evidences'))
+  @UseInterceptors(FilesInterceptor('comission_store_incentive_evidences'))
   async create(
     @Body() createComissionSalesIncentiveDto: CreateComissionSalesIncentiveDto,
     @Req() req: RequestWithUser,
@@ -89,21 +89,21 @@ export class ComissionSalesIncentiveController {
     return await this.comissionSalesIncentiveService.findOne(+id);
   }
 
-  @Patch(':id')
-  @UseInterceptors(FilesInterceptor('comission_sales_incentive_evidences'))
-  update(
-    @Param('id') id: string,
-    @Body() updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
-    @UploadedFiles() comission_sales_incentive_evidences: Express.Multer.File[],
-    @Req() req: RequestWithUser,
-  ) {
-    return this.comissionSalesIncentiveService.update(
-      +id,
-      updateComissionSalesIncentiveDto,
-      comission_sales_incentive_evidences,
-      req.user,
-    );
-  }
+  // @Patch(':id')
+  // @UseInterceptors(FilesInterceptor('comission_sales_incentive_evidences'))
+  // update(
+  //   @Param('id') id: string,
+  //   @Body() updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
+  //   @UploadedFiles() comission_sales_incentive_evidences: Express.Multer.File[],
+  //   @Req() req: RequestWithUser,
+  // ) {
+  //   return this.comissionSalesIncentiveService.update(
+  //     +id,
+  //     updateComissionSalesIncentiveDto,
+  //     comission_sales_incentive_evidences,
+  //     req.user,
+  //   );
+  // }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

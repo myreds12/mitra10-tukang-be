@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SalesIncentiveDto } from './sales_incentive.dto';
+import { StoreIncentiveDto } from './store_incentive.dto';
 import { Type } from 'class-transformer';
 import { IsEnum, IsOptional, ValidateNested } from 'class-validator';
-import { ComissionSalesIncentiveStatus } from './comission_sales_incentive.status';
+import { ComissionStoreIncentiveStatus } from './comission_store_incentive.status';
 
 export class CreateComissionSalesIncentiveDto {
   @ApiProperty()
-  @Type(() => SalesIncentiveDto)
+  @Type(() => StoreIncentiveDto)
   @ValidateNested({ each: true })
-  sales_incentive: SalesIncentiveDto[];
+  store_incentive: StoreIncentiveDto[];
 
   @IsOptional()
   @Type(() => Number)
@@ -22,8 +22,19 @@ export class CreateComissionSalesIncentiveDto {
   @Type(() => Number)
   pkp_nominal?: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  nominal?: number;
+
+  @IsOptional()
+  tanggal_awal?: any;
+
+  @IsOptional()
+  tanggal_akhir?: any;
+  @IsOptional()
+  incentive_id?: any;
   @ApiProperty()
   @Type(() => Number)
-  @IsEnum(ComissionSalesIncentiveStatus)
-  status: ComissionSalesIncentiveStatus;
+  @IsEnum(ComissionStoreIncentiveStatus)
+  status: ComissionStoreIncentiveStatus;
 }

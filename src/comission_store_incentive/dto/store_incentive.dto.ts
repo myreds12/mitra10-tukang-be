@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-export class SalesIncentiveDto {
+export class StoreIncentiveDto {
   @ApiProperty()
   @Type(() => Number)
-  sales_incentive_id: number;
+  store_incentive_id: number;
 }

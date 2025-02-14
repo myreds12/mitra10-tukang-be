@@ -3,5 +3,5 @@ export enum IncentiveStatus {
   PENGAJUAN_INSENTIF = 2,
   INSENTIF_DIBAYARKAN = 3,
   DITOLAK = 4,
-  LOST_INCENTIVE = 5
+  LOST_INCENTIVE = 5,
 }

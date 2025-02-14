@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateComissionSalesIncentiveDto } from './dto/create-comission_sales_incentive.dto';
+import { CreateComissionSalesIncentiveDto } from './dto/create-comission_store_incentive.dto';
 import { UpdateComissionSalesIncentiveDto } from './dto/update-comission_sales_incentive.dto';
 import { Prisma, users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -33,56 +33,51 @@ export class ComissionSalesIncentiveService {
             })
           : [];
 
-      const salesIncentiveUpdateArgs =
-        createComissionSalesIncentiveDto.sales_incentive.length > 0
-          ? createComissionSalesIncentiveDto.sales_incentive.map(
-              (item) => item.sales_incentive_id,
+      const salesIncentiveData =
+        createComissionSalesIncentiveDto.store_incentive.map((item) => ({
+          store_id: Number(item.store_incentive_id),
+          incentive_id: Number(createComissionSalesIncentiveDto.incentive_id),
+          total_amount: Number(createComissionSalesIncentiveDto.nominal),
+          status: IncentiveStatus.POTENTIAL_INCENTIVE,
+          created_by: user.id,
+          tanggal_awal: new Date(createComissionSalesIncentiveDto.tanggal_awal),
+          tanggal_akhir: new Date(
+            createComissionSalesIncentiveDto.tanggal_akhir,
+          ),
+        }));
+        const salesIncentiveUpdateArgs =
+        createComissionSalesIncentiveDto.store_incentive.length > 0
+          ? createComissionSalesIncentiveDto.store_incentive.map(
+              (item) => item.store_incentive_id,
             )
           : undefined;
-      const salesIncentiveTotalAmount = await this.dbService.sales_incentive
-        .findMany({
-          where: {
-            id: {
-              in: salesIncentiveUpdateArgs,
-            },
-          },
-        })
-        .then((data) =>
-          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
-        );
+      const comissionStoreIncentive =
+        await this.dbService.store_incentive.createMany({
+          data: salesIncentiveData,
+        });
+
       const [comissionSalesIncentive] = await this.dbService.$transaction([
-        this.dbService.comission_sales_incentive.create({
+        this.dbService.comission_store_incentive.create({
           data: {
-            total_amount: salesIncentiveTotalAmount,
+            total_amount: Number(createComissionSalesIncentiveDto.nominal),
             status: createComissionSalesIncentiveDto.status,
             created_by: user.id,
-            comission_sales_incentive_evidence: {
+            comission_store_incentive_evidence: {
               createMany: {
                 data: evidences,
               },
             },
           },
-          include: {
-            sales_incentive: {
-              include: {
-                quotation: {
-                  include: {
-                    order: true,
-                  },
-                },
-              },
-            },
-          },
         }),
       ]);
-      await this.dbService.sales_incentive.updateMany({
+      await this.dbService.store_incentive.updateMany({
         where: {
           id: {
             in: salesIncentiveUpdateArgs,
           },
         },
         data: {
-          comission_sales_incentive_id: comissionSalesIncentive.id,
+          comission_store_incentive_id: comissionSalesIncentive.id,
         },
       });
       return comissionSalesIncentive;
@@ -302,118 +297,118 @@ export class ComissionSalesIncentiveService {
     }
   }
 
-  async update(
-    id: number,
-    updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
-    comission_sales_incentive_evidences: Express.Multer.File[],
-    user: users,
-  ) {
-    try {
-      const existingSalesIncentives =
-        await this.dbService.sales_incentive.findMany({
-          where: {
-            comission_sales_incentive_id: id,
-          },
-          select: {
-            id: true,
-          },
-        });
+  // async update(
+  //   id: number,
+  //   updateComissionSalesIncentiveDto: UpdateComissionSalesIncentiveDto,
+  //   comission_sales_incentive_evidences: Express.Multer.File[],
+  //   user: users,
+  // ) {
+  //   try {
+  //     const existingSalesIncentives =
+  //       await this.dbService.sales_incentive.findMany({
+  //         where: {
+  //           comission_sales_incentive_id: id,
+  //         },
+  //         select: {
+  //           id: true,
+  //         },
+  //       });
 
-      const existingSalesIncentiveIds = existingSalesIncentives.map(
-        (item) => item.id,
-      );
+  //     const existingSalesIncentiveIds = existingSalesIncentives.map(
+  //       (item) => item.id,
+  //     );
 
-      const newSalesIncentiveIds =
-        updateComissionSalesIncentiveDto?.sales_incentive?.map(
-          (item) => item?.sales_incentive_id,
-        ) || [];
+  //     const newSalesIncentiveIds =
+  //       updateComissionSalesIncentiveDto?.sales_incentive?.map(
+  //         (item) => item?.sales_incentive_id,
+  //       ) || [];
 
-      const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(
-        (existingId) => !newSalesIncentiveIds.includes(existingId),
-      );
+  //     const salesIncentiveIdsToDisconnect = existingSalesIncentiveIds.filter(
+  //       (existingId) => !newSalesIncentiveIds.includes(existingId),
+  //     );
 
-      const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(
-        (newId) => !existingSalesIncentiveIds.includes(newId),
-      );
+  //     const salesIncentiveIdsToConnect = newSalesIncentiveIds.filter(
+  //       (newId) => !existingSalesIncentiveIds.includes(newId),
+  //     );
 
-      const evidences =
-        comission_sales_incentive_evidences.length > 0
-          ? comission_sales_incentive_evidences.map((item) => {
-              return {
-                evidence_location: item.filename,
-                created_by: user.id,
-              };
-            })
-          : [];
+  //     const evidences =
+  //       comission_sales_incentive_evidences.length > 0
+  //         ? comission_sales_incentive_evidences.map((item) => {
+  //             return {
+  //               evidence_location: item.filename,
+  //               created_by: user.id,
+  //             };
+  //           })
+  //         : [];
 
-      const salesIncentiveTotalAmount = await this.dbService.sales_incentive
-        .findMany({
-          where: {
-            id: {
-              in:
-                newSalesIncentiveIds.length > 0
-                  ? newSalesIncentiveIds
-                  : existingSalesIncentiveIds,
-            },
-          },
-        })
-        .then((data) =>
-          data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
-        );
+  //     const salesIncentiveTotalAmount = await this.dbService.sales_incentive
+  //       .findMany({
+  //         where: {
+  //           id: {
+  //             in:
+  //               newSalesIncentiveIds.length > 0
+  //                 ? newSalesIncentiveIds
+  //                 : existingSalesIncentiveIds,
+  //           },
+  //         },
+  //       })
+  //       .then((data) =>
+  //         data.reduce((acc, curr) => acc + Number(curr?.nominal), 0),
+  //       );
 
-      const [comissionSalesIncentive] = await this.dbService.$transaction([
-        this.dbService.comission_sales_incentive.update({
-          where: { id },
-          data: {
-            total_amount: salesIncentiveTotalAmount,
-            status: updateComissionSalesIncentiveDto.status,
-            updated_by: user.id,
-            comission_sales_incentive_evidence: {
-              createMany: {
-                data: evidences,
-              },
-            },
-            ...(updateComissionSalesIncentiveDto.status === 3
-              ? {
-                  sales_incentive: {
-                    updateMany: {
-                      where: {
-                        comission_sales_incentive_id: id,
-                      },
-                      data: {
-                        status: IncentiveStatus.DITOLAK,
-                      },
-                    },
-                  },
-                }
-              : undefined),
-          },
-        }),
-        ...(salesIncentiveIdsToConnect.length > 0
-          ? [
-              this.dbService.sales_incentive.updateMany({
-                where: { id: { in: salesIncentiveIdsToDisconnect } },
-                data: { comission_sales_incentive_id: null },
-              }),
-            ]
-          : []),
+  //     const [comissionSalesIncentive] = await this.dbService.$transaction([
+  //       this.dbService.comission_sales_incentive.update({
+  //         where: { id },
+  //         data: {
+  //           total_amount: salesIncentiveTotalAmount,
+  //           status: updateComissionSalesIncentiveDto.status,
+  //           updated_by: user.id,
+  //           comission_sales_incentive_evidence: {
+  //             createMany: {
+  //               data: evidences,
+  //             },
+  //           },
+  //           ...(updateComissionSalesIncentiveDto.status === 3
+  //             ? {
+  //                 sales_incentive: {
+  //                   updateMany: {
+  //                     where: {
+  //                       comission_sales_incentive_id: id,
+  //                     },
+  //                     data: {
+  //                       status: IncentiveStatus.DITOLAK,
+  //                     },
+  //                   },
+  //                 },
+  //               }
+  //             : undefined),
+  //         },
+  //       }),
+  //       ...(salesIncentiveIdsToConnect.length > 0
+  //         ? [
+  //             this.dbService.sales_incentive.updateMany({
+  //               where: { id: { in: salesIncentiveIdsToDisconnect } },
+  //               data: { comission_sales_incentive_id: null },
+  //             }),
+  //           ]
+  //         : []),
 
-        ...(salesIncentiveIdsToConnect.length > 0
-          ? [
-              this.dbService.sales_incentive.updateMany({
-                where: { id: { in: salesIncentiveIdsToConnect } },
-                data: { comission_sales_incentive_id: id },
-              }),
-            ]
-          : []),
-      ]);
+  //       ...(salesIncentiveIdsToConnect.length > 0
+  //         ? [
+  //             this.dbService.sales_incentive.updateMany({
+  //               where: { id: { in: salesIncentiveIdsToConnect } },
+  //               data: { comission_sales_incentive_id: id },
+  //             }),
+  //           ]
+  //         : []),
+  //     ]);
 
-      return comissionSalesIncentive;
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }
+  //     return comissionSalesIncentive;
+  //   } catch (error) {
+  //     console.error(error);
+  //     throw error;
+  //   }
+  // }
 
   remove(id: number) {
     return `This action removes a #${id} comissionSalesIncentive`;

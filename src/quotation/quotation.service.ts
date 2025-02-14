@@ -625,7 +625,7 @@ export class QuotationService {
         include: { promotion: true, quotation_follow_up: true },
       });
 
-      console.log('PAYLOAD', updateQuotationDto);
+      // console.log('PAYLOAD', updateQuotationDto);
 
       const promotion =
         updateQuotationDto?.promotion_id || quotationForUpdate?.promotion_id
@@ -757,7 +757,7 @@ export class QuotationService {
                 ? price * quantity * (+item.margin / 100)
                 : +item.margin);
           }
-          console.log(`PRICE${[i]}`, price);
+          // console.log(`PRICE${[i]}`, price);
 
           grandTotal += final_price;
           grandTotalNoPromotion += final_price;
@@ -1022,7 +1022,7 @@ export class QuotationService {
         (!existingIncentive && quotation.status.category === 'QUOTATIONPAID') ||
         quotation.status.category === 'QUOTATIONPAIDSTEPTHREE' || quotation.status.category === 'QUOTATIONPAIDSTEPTWO' || quotation.status.category === 'QUOTATIONPAIDSTEPONE'
       ) {
-        console.log('INCENTIVE[START]');
+        // console.log('INCENTIVE[START]');
         await this.generateSalesIncentive(
           Number(quotation.quotation_grand_total),
           quotation.store_id,
@@ -1126,7 +1126,7 @@ export class QuotationService {
         },
       });
 
-      console.log("INCENTIVE", incentives.length);
+      // console.log("INCENTIVE", incentives.length);
 
 
       if (incentives.length > 1) {
@@ -1155,9 +1155,9 @@ export class QuotationService {
           },
         });
 
-        console.log(
-          `Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`,
-        );
+        // console.log(
+        //   `Deleted ${idsToDelete.length} incentives for quotation_id=${id}, kept one.`,
+        // );
       } else if (incentives.length === 1) {
         const incentiveToKeep = incentives[0];
         let comission = 0;
@@ -1169,7 +1169,7 @@ export class QuotationService {
           comission += Number(incentiveToKeep.incentive.incentive);
         }
 
-        console.log("COMISSION", comission);
+        // console.log("COMISSION", comission);
 
 
         await this.dbService.sales_incentive.update({
@@ -1179,7 +1179,7 @@ export class QuotationService {
           },
         });
       } else {
-        console.log('No incentives found for the given quotation_id.');
+        // console.log('No incentives found for the given quotation_id.');
       }
     } catch (error) {
       console.log(error);
@@ -1242,7 +1242,7 @@ export class QuotationService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
     try {
-      console.log('init checkvalidity');
+      // console.log('init checkvalidity');
       this.logger.log('init checkvalidity');
       const quotations = await this.dbService.quotation.findMany({
         where: {
@@ -1264,15 +1264,15 @@ export class QuotationService {
         },
       });
 
-      console.log(`Found ${quotations.length} quotations`);
+      // console.log(`Found ${quotations.length} quotations`);
 
       if (!quotations.length) {
-        console.log('No quotation found');
+        // console.log('No quotation found');
         this.logger.log('No quotation found');
         return 0;
       }
 
-      console.log(`${quotations.length} quotation found`);
+      // console.log(`${quotations.length} quotation found`);
       this.logger.log(`${quotations.length} quotation found`);
 
       const NEWSTATUS = await this.dbService.status.findFirst({
@@ -1286,7 +1286,7 @@ export class QuotationService {
       await Promise.all(
         quotations.map(async (quotation) => {
           const { id } = quotation;
-          console.log(`Updating quotation ${id}`);
+          // console.log(`Updating quotation ${id}`);
 
           // Update the quotation status
           await this.dbService.quotation.update({

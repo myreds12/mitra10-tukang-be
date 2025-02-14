@@ -38,7 +38,7 @@ export class QuotationController {
     private readonly quotationService: QuotationService,
     @InjectQueue('email') private emailQueue: Queue,
     private readonly dbService: PrismaService,
-  ) { }
+  ) {}
 
   @Post('/update-quotation-promotion')
   @UseGuards(JwtAuthGuard)
@@ -73,15 +73,13 @@ export class QuotationController {
     );
   }
 
-
-
   @Get('/send-mail/:id')
   @UseGuards(JwtAuthGuard)
   // @HttpStatusCode(HttpStatus.OK)
   async testMail(@Param('id', ParseIntPipe) id: number) {
     try {
       const data = await this.quotationService.findOne(id);
-      console.log(data);
+      // console.log(data);
 
       if (!data) new NotFoundException('Order not found');
 

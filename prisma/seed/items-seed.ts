@@ -3,7 +3,7 @@ import { PrismaClient, categories } from '@prisma/client';
 const prisma = new PrismaClient();
 export async function ItemsSeed() {
   const categories = await prisma.categories.findMany();
-  console.log(categories);
+  // console.log(categories);
 
   const item = [
     {

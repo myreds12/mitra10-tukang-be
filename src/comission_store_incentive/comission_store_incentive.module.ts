@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ComissionSalesIncentiveService } from './comission_sales_incentive.service';
-import { ComissionSalesIncentiveController } from './comission_sales_incentive.controller';
+import { ComissionSalesIncentiveService } from './comission_store_incentive.service';
+import { ComissionSalesIncentiveController } from './comission_store_incentive.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -22,4 +22,4 @@ import { PdfService } from 'src/common/service/pdf.service';
     }),
   ],
 })
-export class ComissionSalesIncentiveModule {}
+export class ComissionStoreIncentiveModule {}

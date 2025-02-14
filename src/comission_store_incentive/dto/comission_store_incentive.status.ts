@@ -1,4 +1,4 @@
-export enum ComissionSalesIncentiveStatus {
+export enum ComissionStoreIncentiveStatus {
   PENGECEKAN_COMISSION = 1,
   DISETUJUI = 2,
   DITOLAK = 3,

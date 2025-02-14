@@ -4,6 +4,6 @@ import { IncentiveController } from './incentive.controller';
 
 @Module({
   controllers: [IncentiveController],
-  providers: [IncentiveService]
+  providers: [IncentiveService],
 })
 export class IncentiveModule {}

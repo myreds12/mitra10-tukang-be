@@ -62,6 +62,12 @@ export class ReportsController {
     return await this.reportsService.salesComissionReport(queryParamsDto);
   }
 
+  @Get('/store-comission')
+  async storeComission(@Query() queryParamsDto: QueryParamsDto) {
+    return await this.reportsService.storeComissionReport(queryParamsDto);
+  }
+
+
   @Get('/orders')
   // @CheckPermissions([PermissionAction.READ, menuName])
   @UseGuards(JwtAuthGuard)

@@ -5,7 +5,6 @@ import { CreateCsiDto } from 'src/csi/dto/create-csi.dto';
 import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateCsiDto } from 'src/csi/dto/update-csi.dto';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { CRM_TYPE } from 'src/complaints/dto/crm_type.enum';
 
@@ -15,7 +14,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) { }
+  ) {}
 
   async create(createCsiDto: CreateCsiDto) {
     try {
@@ -45,13 +44,13 @@ export class CrmService {
           AND: [
             ...(date_from && date_to
               ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                },
-              ]
+                ]
               : []),
           ].filter(Boolean),
           deleted_at: null,
@@ -178,19 +177,19 @@ export class CrmService {
     return parsedData;
   }
 
-  @Cron(CronExpression.EVERY_5_SECONDS)
-  async syncAnswer() {
+  async syncAnswer(complaint_id: number) {
     const spreadsheetId = this.configService.get<string>('SPREADSHEET_CRM');
 
-    await this.storeAnswer(spreadsheetId);
+    await this.storeAnswer(spreadsheetId, complaint_id);
   }
 
-  async storeAnswer(spreadsheetId: string) {
+  async storeAnswer(spreadsheetId: string, complaint_id: number) {
     const spreadsheetInstances =
       this.googleSheetConnectorService.getGoogleSheetConnect();
 
-    const complaints = await this.dbService.complaints.findMany({
+    const complaints = await this.dbService.complaints.findFirst({
       where: {
+        id: complaint_id,
         deleted_at: null,
         is_sync: 0,
       },
@@ -216,21 +215,15 @@ export class CrmService {
       },
     });
 
-    if (complaints.length === 0) {
+    if (!complaints) {
       return;
     }
 
     const userIds = [
-      ...new Set(
-        complaints
-          .flatMap((order) => [
-            order.created_by,
-            order.updated_by,
-            order.deleted_by,
-          ])
-          .filter(Boolean),
-      ),
-    ];
+      complaints.created_by,
+      complaints.updated_by,
+      complaints.deleted_by,
+    ].filter(Boolean);
 
     const users = await this.dbService.users.findMany({
       where: { id: { in: userIds } },
@@ -245,75 +238,77 @@ export class CrmService {
       {},
     );
 
-    const complaintWithUser = complaints.map((order) => ({
-      ...order,
-      created_by: order.created_by ? userMap[order.created_by] || null : null,
-      updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
-      deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
-    }));
+    const complaintWithUser = {
+      ...complaints,
+      created_by: userMap[complaints.created_by] || null,
+      updated_by: userMap[complaints.updated_by] || null,
+      deleted_by: userMap[complaints.deleted_by] || null,
+    };
 
-    console.log('KOMPLAIN USER', complaintWithUser);
+    // console.log('KOMPLAIN USER', complaintWithUser);
 
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
 
-    console.log('Sheet Header:', sheetHeader);
+    // console.log('Sheet Header:', sheetHeader);
 
     if (!sheetHeader) {
-      console.log('No header found in the spreadsheet.');
+      // console.log('No header found in the spreadsheet.');
       return;
     }
 
-    const values = complaintWithUser.map((complaint) => {
+    const values = [complaintWithUser].map((complaint) => {
       const rowData = sheetHeader.map((header) => {
-        let cellValue: any = '';
+        let cellValue = '';
 
         switch (header) {
           case 'Timestamp':
-            const date = new Date(complaint.created_at);
-            cellValue = `${String(date.getDate()).padStart(2, '0')}/${String(
-              date.getMonth() + 1,
-            ).padStart(2, '0')}/${date.getFullYear()} ${String(
-              date.getHours(),
-            ).padStart(2, '0')}:${String(date.getMinutes()).padStart(
-              2,
-              '0',
-            )}:${String(date.getSeconds()).padStart(2, '0')}`;
+            if (complaint.created_at) {
+              const date = new Date(complaint.created_at);
+              cellValue = `${String(date.getDate()).padStart(2, '0')}/${String(
+                date.getMonth() + 1,
+              ).padStart(2, '0')}/${date.getFullYear()} ${String(
+                date.getHours(),
+              ).padStart(2, '0')}:${String(date.getMinutes()).padStart(
+                2,
+                '0',
+              )}:${String(date.getSeconds()).padStart(2, '0')}`;
+            }
             break;
           case 'Store Region':
-            cellValue = complaint.orders?.store.area.area || 'N/A';
+            cellValue = complaint.orders?.store?.area?.area ?? 'N/A';
             break;
           case 'Store Name':
             cellValue =
-              complaint.orders?.store.store_name.toUpperCase() || 'N/A';
+              complaint.orders?.store?.store_name?.toUpperCase() ?? 'N/A';
             break;
           case 'Customer Name':
-            cellValue = complaint.orders?.members?.full_name || 'N/A';
+            cellValue = complaint.orders?.members?.full_name ?? 'N/A';
             break;
           case 'Member Id':
-            cellValue = complaint.orders?.member_id || 'N/A';
+            cellValue = complaint.orders.member_id.toString() ?? 'N/A';
             break;
           case 'Mobile':
             cellValue =
               complaint.orders?.members?.phone_number ??
-              complaint.orders?.members?.whatsapp_number;
+              complaint.orders?.members?.whatsapp_number ??
+              'N/A';
             break;
           case 'Email':
-            cellValue = complaint.orders?.members?.email || '';
+            cellValue = complaint.orders?.members?.email ?? '';
             break;
           case 'Complaint Detail':
-            cellValue = complaint.description;
+            cellValue = complaint.description ?? 'N/A';
             break;
           case 'Detail Solution':
-            cellValue = '';
-            break;
           case 'Feedback':
+          case 'Closed Ticket Date':
             cellValue = '';
             break;
           case 'Complaint Dimension':
             cellValue = 'PROCESS';
             break;
           case 'Media':
-            cellValue = complaint.complaint_channels?.name || 'N/A';
+            cellValue = complaint.complaint_channels?.name ?? 'N/A';
             break;
           case 'Feedback Value':
             cellValue = complaint.crm_type
@@ -323,14 +318,9 @@ export class CrmService {
           case 'Status':
             cellValue = 'Open';
             break;
-          case 'Closed Ticket Date':
-            cellValue = '';
-            break;
           case 'Received By':
-            cellValue = complaint.feedback_name;
-            break;
           case 'Updated By':
-            cellValue = complaint.feedback_name;
+            cellValue = complaint.feedback_name ?? 'N/A';
             break;
           case 'Work By (Vendor or M10)':
             cellValue = 'M10';
@@ -358,23 +348,20 @@ export class CrmService {
       },
     });
 
-    console.log(`${values.length} rows sent to the spreadsheet.`);
+    // console.log(`${values.length} rows sent to the spreadsheet.`);
 
     // Update `is_sync` to 1 for synced complaints
-    const complaintIds = complaints.map((complaint) => complaint.id);
     const updateComplaint = await this.dbService.complaints.updateMany({
       where: {
-        id: {
-          in: complaintIds,
-        },
+        id: complaint_id,
       },
       data: {
         is_sync: 1,
       },
     });
 
-    console.log('Update Complaint', updateComplaint);
-    console.log('Updated is_sync to 1 for all synced complaints.');
+    // console.log('Update Complaint', updateComplaint);
+    // console.log('Updated is_sync to 1 for all synced complaints.');
   }
 
   async getSpreadsheetHeader(spreadsheetId: string): Promise<string[] | null> {
@@ -389,7 +376,7 @@ export class CrmService {
     const headers = response.data.values?.[0];
 
     if (!headers) {
-      console.log('No header found in the spreadsheet.');
+      // console.log('No header found in the spreadsheet.');
       return null;
     }
 
