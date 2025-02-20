@@ -26,6 +26,7 @@ export class ComplaintsService {
     private notifService: NotificationsService,
     private readonly crmService: CrmService
   ) { }
+
   async create(
     createComplaintDto: CreateComplaintDto,
     user: users,
@@ -34,55 +35,33 @@ export class ComplaintsService {
     try {
       const { id: user_id } = user;
 
-      const evidences: Array<Prisma.complaint_evidenceCreateManyComplaint_historiesInput> =
-        complaint_evidences.map((file) => ({
-          evidence_location: file.filename,
-          created_by: user_id,
-        }));
+      const evidences = complaint_evidences.map((file) => ({
+        evidence_location: file.filename,
+        created_by: user_id,
+      }));
 
-      const COMPLAINT_STATUS = await this.dbService.status.findFirst({
-        where: {
-          id: createComplaintDto.complaint_status,
-        },
-      });
-
-      const findOrder = await this.dbService.orders.findFirst({
-        where: {
-          id: createComplaintDto.order_id,
-        },
-      });
-
+      // Parallel execution of independent queries
+      const [COMPLAINT_STATUS, findOrder] = await Promise.all([
+        this.dbService.status.findFirst({
+          where: { id: createComplaintDto.complaint_status },
+        }),
+        this.dbService.orders.findFirst({
+          where: { id: createComplaintDto.order_id },
+        }),
+      ]);
 
       if (!findOrder) throw new BadRequestException("Order does not exist!");
 
-      const complaintData: Prisma.complaintsCreateInput = {
-        orders: {
-          connect: {
-            id: createComplaintDto.order_id,
-          },
-        },
-        complaint_channels: {
-          connect: {
-            id: createComplaintDto.complaint_channel,
-          },
-        },
-        status: {
-          connect: {
-            id: COMPLAINT_STATUS.id,
-          },
-        },
+      const complaintData = {
+        orders: { connect: { id: createComplaintDto.order_id } },
+        complaint_channels: { connect: { id: createComplaintDto.complaint_channel } },
+        status: { connect: { id: COMPLAINT_STATUS.id } },
         description: createComplaintDto.description,
         crm_type: createComplaintDto.crm_type,
         pic_name: createComplaintDto.pic_name,
         feedback_name: createComplaintDto.feedback_name,
         feedback_role: createComplaintDto.feedback_role,
-        ...(createComplaintDto.complaint_received_date
-          ? {
-            complaint_received_date: new Date(
-              createComplaintDto.complaint_received_date
-            ),
-          }
-          : undefined),
+        complaint_received_date: createComplaintDto.complaint_received_date ? new Date(createComplaintDto.complaint_received_date) : undefined,
         complaint_date: new Date(createComplaintDto.complaint_date),
         type: createComplaintDto.type,
         created_by: user_id,
@@ -91,31 +70,27 @@ export class ComplaintsService {
             status_id: COMPLAINT_STATUS.id,
             reason: createComplaintDto?.complaint_histories?.reason ?? "",
             created_by: user_id,
-            complaint_evidence: {
-              createMany: { data: evidences },
-            },
+            complaint_evidence: { createMany: { data: evidences } },
           },
         },
       };
 
-      const [complaint] = await this.dbService.$transaction([
-        this.dbService.complaints.create({
-          data: complaintData,
-          include: {
-            orders: {
-              include: {
-                work_orders: {
-                  include: {
-                    work_order_tukang: true,
-                  },
-                },
+      const complaint = await this.dbService.complaints.create({
+        data: complaintData,
+        include: {
+          orders: {
+            include: {
+              work_orders: {
+                include: { work_order_tukang: true },
               },
             },
           },
-        }),
-      ]);
-      if (complaint) {
-        await this.notifService.create(
+        },
+      });
+
+      // Execute notifications and status updates in parallel
+      await Promise.all([
+        this.notifService.create(
           {
             complaint: complaint,
             orders: complaint.orders,
@@ -125,24 +100,18 @@ export class ComplaintsService {
           moduleTypeNotification.COMPLAINT,
           complaint.id,
           complaint.complaint_status
-        );
-      }
-
-      await this.crmService.syncAnswer(complaint.id);
-
-      await this.orderService.setStatus(
-        complaint.order_id,
-        complaint.complaint_status,
-        user
-      );
+        ),
+        this.crmService.syncAnswer(complaint.id),
+        this.orderService.setStatus(complaint.order_id, complaint.complaint_status, user),
+      ]);
 
       return complaint;
     } catch (error) {
       console.error(error);
-
       throw error;
     }
   }
+
 
   async findAll(query: QueryParamsDto) {
     try {

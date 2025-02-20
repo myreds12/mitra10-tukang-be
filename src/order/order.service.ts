@@ -1447,16 +1447,6 @@ export class OrderService {
               currentItem?.default_price ??
               0;
 
-            // console.log(currentItem.default_price);
-
-            // const comission = Number(
-            //   salesUser?.sales_categories?.find(
-            //     ({ category_id }) => currentItem?.category_id === category_id,
-            //   )?.commission ?? salesUser?.sales_categories?.find(
-            //     ({ category_id }) => item.category_id === category_id,
-            //   )?.commission,
-            // );
-
             const comission = Number(
               salesUser?.sales_categories?.find(
                 ({ category_id }) => currentItem?.category_id === category_id,

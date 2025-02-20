@@ -522,7 +522,9 @@ export class InvoicesService {
         },
         include: {
           invoice_evidence: true,
-          vendor: true,
+          vendor: {
+            include: { bank: true }
+          },
           invoice_details: {
             include: {
               order: {
@@ -1722,6 +1724,150 @@ export class InvoicesService {
         data: JSON.stringify(data ?? {}),
       },
     });
+  }
+
+  async getOrderInvoice(queryParams: QueryParamsDto) {
+    try {
+      const {
+        take,
+        page,
+        search,
+        status,
+        date_from,
+        date_to,
+        order_by,
+        payment_type,
+        store_id,
+        vendor_id,
+        work_order_status,
+      } = queryParams;
+
+      const skip = page * take - take;
+
+      const where: Prisma.ordersWhereInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+                  { receipt_number: { contains: search } },
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { members: { full_name: { contains: search } } },
+                  {
+                    store: {
+                      store_name: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    project_number: {
+                      contains: search,
+                    },
+                  },
+                  {
+                    vendor: {
+                      company_name: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    members: {
+                      phone_number: {
+                        contains: search,
+                      },
+                    },
+                  },
+                  {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
+                      },
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(status ? [{ status: { id: { in: status } } }] : []),
+          ...(work_order_status
+            ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
+            : []),
+          ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
+          store_id
+            ? {
+              store_id: {
+                in: store_id,
+              },
+            }
+            : undefined,
+          vendor_id
+            ? {
+              vendor: {
+                id: vendor_id,
+                deleted_at: null,
+              },
+            }
+            : undefined,
+          ...(date_from && date_to
+            ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+            : []),
+        ].filter(Boolean),
+        order_history: {
+          some: {
+            status: {
+              category: {
+                in: ['QUOTEIN', 'WORKEND', 'WORKENDSTEPONE', 'WORKENDSTEPTWO', 'WORKENDSTEPTHREE']
+              }
+            }
+          }
+        },
+        deleted_at: null,
+      };
+
+      const data = await this.dbService.orders.findMany({
+        skip,
+        take: take > 0 ? take : undefined,
+        where,
+        orderBy: {
+          created_at: order_by,
+        },
+        include: {
+          order_history: {
+            where: {
+              status: {
+                category: {
+                  in: ['QUOTEIN', 'WORKEND', 'WORKENDSTEPONE', 'WORKENDSTEPTWO', 'WORKENDSTEPTHREE']
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Duplicate orders based on order_history count
+      const expandedData = data.flatMap(order =>
+        order.order_history.map(history => ({
+          ...order,
+          order_history: history
+        }))
+      );
+
+      return expandedData;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async rekonselInvoices(id: number, res: Response) {
