@@ -22,7 +22,7 @@ export class StoreService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const role = await this.dbService.roles.findFirst({
@@ -105,78 +105,78 @@ export class StoreService {
       AND: [
         ...(area_id
           ? [
-              {
-                OR: [
-                  {
-                    area_id: {
-                      in: area_id,
-                    },
+            {
+              OR: [
+                {
+                  area_id: {
+                    in: area_id,
                   },
-                ],
-              },
-            ]
+                },
+              ],
+            },
+          ]
           : []),
         ...(search
           ? [
-              {
-                OR: [
-                  {
-                    store_name: {
-                      contains: search,
-                    },
+            {
+              OR: [
+                {
+                  store_name: {
+                    contains: search,
                   },
-                ],
-              },
-            ]
+                },
+              ],
+            },
+          ]
           : []),
         ...(store_group_id
           ? [
-              {
-                OR: [{ store_group_id: { equals: store_group_id } }],
-              },
-            ]
+            {
+              OR: [{ store_group_id: { equals: store_group_id } }],
+            },
+          ]
           : []),
-          ...(date_from && date_to
-            ? [
-                {
+        ...(date_from && date_to
+          ? [
+            {
+              created_at: {
+                gte: new Date(date_from),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            },
+          ]
+          : []),
+        ...(vendor_id
+          ? [
+            {
+              vendor_store: { some: { vendor_id: { equals: vendor_id } } },
+            },
+          ]
+          : []),
+        ...(order_date_from && order_date_to
+          ? [
+            {
+              orders: {
+                some: {
                   created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23:59:59.000Z`),
                   },
-                },
-              ]
-            : []),
-            ...(vendor_id
-              ? [
-                {
-                  vendor_store: { some: { vendor_id: { equals: vendor_id } } },
-                },
-              ]
-              : []),
-            ...(order_date_from && order_date_to
-              ? [
-                  {
-                    orders: {
-                      some: {
-                        created_at: {
-                          gte: new Date(order_date_from),
-                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                        },
-                      }
-                    },
-                  },
-                ]
-              : []),
+                }
+              },
+            },
+          ]
+          : []),
       ],
-      
-      
+
+
       deleted_at: null,
     };
 
     let store = await this.dbService.store.findMany({
       where,
       skip,
-      take: take <= 0 ? undefined : take,
+      take: take > 0 ? take : undefined,
       include: {
         area: true,
         users: true,
@@ -191,12 +191,12 @@ export class StoreService {
               }
             } : {}),
             ...(is_promotion === 1 ? {
-              payment_type : {
+              payment_type: {
                 not: 'survey'
               }
             } : is_promotion === 0 ? {
               payment_type: 'survey'
-            } : {} ),
+            } : {}),
           },
           orderBy: {
             created_at: 'desc',
@@ -230,11 +230,11 @@ export class StoreService {
         order?.quotation[0]?.receipt_quotation === null || order?.quotation[0]?.quotation_receipt.every((x) => x.receipt_quotation === null),
       );
       const paidOrders = item.orders.filter((order) =>
-       order?.quotation[0]?.receipt_quotation !== null || order?.quotation[0]?.quotation_receipt.some ((x) => x.receipt_quotation !== null)
+        order?.quotation[0]?.receipt_quotation !== null || order?.quotation[0]?.quotation_receipt.some((x) => x.receipt_quotation !== null)
       );
 
-      console.log('UNPAID' ,unpaidOrders)
-      console.log('PAID' ,paidOrders)
+      console.log('UNPAID', unpaidOrders)
+      console.log('PAID', paidOrders)
 
       const totalUnpaid = unpaidOrders.reduce(
         (total, order) =>
@@ -313,16 +313,16 @@ export class StoreService {
         : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
       const user = store.user_id
         ? await this.dbService.users.update({
-            where: {
-              id: store.user_id,
-            },
-            data: {
-              username,
-              password: dto?.default_password
-                ? await hash(dto?.default_password ?? 'password', 10)
-                : store.users.password,
-            },
-          })
+          where: {
+            id: store.user_id,
+          },
+          data: {
+            username,
+            password: dto?.default_password
+              ? await hash(dto?.default_password ?? 'password', 10)
+              : store.users.password,
+          },
+        })
         : undefined;
       const storeUpdate = await this.dbService.store.update({
         where: {
@@ -370,7 +370,7 @@ export class StoreService {
 
   async remove(id: number, user_id: number) {
     try {
-       await this.dbService.store.update({
+      await this.dbService.store.update({
         where: {
           id,
         },
@@ -467,12 +467,12 @@ export class StoreService {
         const orderDate = store.orders[0]?.created_at
           ? new Date(store?.orders[0]?.created_at)
           : store.created_at;
-          
+
         const monthDifference =
           (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 +
           currentMonth.getMonth() -
           orderDate.getMonth();
-          console.log("MONTH DIFFERENCE" ,monthDifference);
+        console.log("MONTH DIFFERENCE", monthDifference);
         const row = worksheet.addRow({
           id: store.id,
           store_name: store.store_name ? store.store_name : '',
