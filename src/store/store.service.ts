@@ -99,8 +99,6 @@ export class StoreService {
       is_promotion
     } = query;
 
-    const skip = page * take - take;
-
     const where: Prisma.storeWhereInput = {
       AND: [
         ...(area_id
@@ -173,10 +171,12 @@ export class StoreService {
       deleted_at: null,
     };
 
+    const skip = take > 0 ? page * take - take : 0;
+
     let store = await this.dbService.store.findMany({
       where,
       skip,
-      take: take > 0 ? take : 200,
+      take: take > 0 ? take : undefined,
       include: {
         area: true,
         users: true,
@@ -219,6 +219,7 @@ export class StoreService {
         },
       },
     });
+
 
     if (Boolean(top_best)) {
       store = store.sort((a, b) => b.orders.length - a.orders.length);
