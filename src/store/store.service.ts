@@ -176,7 +176,7 @@ export class StoreService {
     let store = await this.dbService.store.findMany({
       where,
       skip,
-      take: take > 0 ? take : undefined,
+      take: take > 0 ? take : 200,
       include: {
         area: true,
         users: true,
