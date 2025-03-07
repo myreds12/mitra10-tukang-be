@@ -177,6 +177,10 @@ export class QueryParamsDto {
 
   @IsOptional()
   @IsNotEmpty()
+  role_name: string;
+
+  @IsOptional()
+  @IsNotEmpty()
   type_email_message: number;
 
   @IsOptional()

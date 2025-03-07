@@ -37,9 +37,7 @@ export class AuthController {
 
   @Post('/update/training')
   @UseGuards(JwtAuthGuard)
-  async updateUserTraining(
-    @Query('take') take: number = 100
-  ) {
+  async updateUserTraining(@Query('take') take = 100) {
     return await this.authService.updateAllUsersForTesting(take);
   }
 
@@ -53,7 +51,7 @@ export class AuthController {
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return await this.authService.findOne(id);
   }
-  
+
   @Delete('/delete-user/:id')
   async delete(@Param('id', ParseIntPipe) id: number) {
     return await this.authService.deleteUser(id);
@@ -69,8 +67,6 @@ export class AuthController {
   ) {
     return await this.authService.updateUser(id, dto, files);
   }
-
-
 
   @HttpCode(200)
   @Post('login')
