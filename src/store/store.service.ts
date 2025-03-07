@@ -22,7 +22,7 @@ export class StoreService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
   async create(dto: CreateStoreDto, user_id: number) {
     try {
       const role = await this.dbService.roles.findFirst({
@@ -99,84 +99,26 @@ export class StoreService {
       is_promotion
     } = query;
 
-    const skip = page * take - take;
-
     const where: Prisma.storeWhereInput = {
       AND: [
-        ...(area_id
-          ? [
-              {
-                OR: [
-                  {
-                    area_id: {
-                      in: area_id,
-                    },
-                  },
-                ],
-              },
-            ]
-          : []),
-        ...(search
-          ? [
-              {
-                OR: [
-                  {
-                    store_name: {
-                      contains: search,
-                    },
-                  },
-                ],
-              },
-            ]
-          : []),
-        ...(store_group_id
-          ? [
-              {
-                OR: [{ store_group_id: { equals: store_group_id } }],
-              },
-            ]
-          : []),
-          ...(date_from && date_to
-            ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
-                },
-              ]
-            : []),
-            ...(vendor_id
-              ? [
-                {
-                  vendor_store: { some: { vendor_id: { equals: vendor_id } } },
-                },
-              ]
-              : []),
-            ...(order_date_from && order_date_to
-              ? [
-                  {
-                    orders: {
-                      some: {
-                        created_at: {
-                          gte: new Date(order_date_from),
-                          lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                        },
-                      }
-                    },
-                  },
-                ]
-              : []),
-      ],
-      
-      
-      deleted_at: null,
+        ...(area_id ? [{ area_id: { in: area_id } }] : []),
+        ...(search ? [{ store_name: { contains: search } }] : []),
+        ...(store_group_id ? [{ store_group_id: { equals: store_group_id } }] : []),
+        ...(date_from && date_to ? [{
+          created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) }
+        }] : []),
+        ...(vendor_id ? [{ vendor_store: { some: { vendor_id: { equals: vendor_id } } } }] : []),
+        { deleted_at: null }
+      ]
     };
 
-    let store = await this.dbService.store.findMany({
+    const skip = take > 0 ? page * take - take : 0;
+
+    // 1. Ambil data store dengan hanya 10 order terbaru
+    const stores = await this.dbService.store.findMany({
       where,
       skip,
-      take: take <= 0 ? undefined : take,
+      take: take > 0 ? take : undefined,
       include: {
         area: true,
         users: true,
@@ -185,88 +127,93 @@ export class StoreService {
           where: {
             deleted_at: null,
             ...(order_date_from && order_date_to ? {
-              created_at: {
-                gte: new Date(order_date_from),
-                lte: new Date(`${order_date_to}T23:59:59.000Z`),
-              }
+              created_at: { gte: new Date(order_date_from), lte: new Date(`${order_date_to}T23:59:59.000Z`) }
             } : {}),
-            ...(is_promotion === 1 ? {
-              payment_type : {
-                not: 'survey'
-              }
-            } : is_promotion === 0 ? {
-              payment_type: 'survey'
-            } : {} ),
+            ...(is_promotion === 1 ? { payment_type: { not: "survey" } } : is_promotion === 0 ? { payment_type: "survey" } : {})
           },
-          orderBy: {
-            created_at: 'desc',
-          },
+          orderBy: { created_at: "desc" },
+          take: 10,
           include: {
             status: true,
             quotation: {
-              where: {
-                deleted_at: null
-              },
+              where: { deleted_at: null },
               include: {
-                quotation_receipt: {
-                  where: {
-                    deleted_at: null
-                  }
-                }
+                quotation_receipt: { where: { deleted_at: null } }
               }
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     });
 
-    if (Boolean(top_best)) {
-      store = store.sort((a, b) => b.orders.length - a.orders.length);
-    }
+    const storeIds = stores.map(s => s.id);
 
-    const dataStore = store.map((item) => {
-      const totalOrder = item.orders.length;
-      const unpaidOrders = item.orders.filter((order) =>
-        order?.quotation[0]?.receipt_quotation === null || order?.quotation[0]?.quotation_receipt.every((x) => x.receipt_quotation === null),
-      );
-      const paidOrders = item.orders.filter((order) =>
-       order?.quotation[0]?.receipt_quotation !== null || order?.quotation[0]?.quotation_receipt.some ((x) => x.receipt_quotation !== null)
-      );
+    // 2. Query aggregate untuk menghitung total order, unpaid, dan paid
+    const [orderAggregates, unpaidAggregates, paidAggregates] = await Promise.all([
+      this.dbService.orders.groupBy({
+        by: ["store_id"],
+        where: {
+          store_id: { in: storeIds },
+          deleted_at: null,
+          ...(order_date_from && order_date_to ? {
+            created_at: { gte: new Date(order_date_from), lte: new Date(`${order_date_to}T23:59:59.000Z`) }
+          } : {}),
+          ...(is_promotion === 1 ? { payment_type: { not: "survey" } } : is_promotion === 0 ? { payment_type: "survey" } : {})
+        },
+        _count: { id: true },
+        _sum: { grand_total: true }
+      }),
+      this.dbService.orders.groupBy({
+        by: ["store_id"],
+        where: {
+          store_id: { in: storeIds },
+          deleted_at: null,
+          quotation: { some: { quotation_receipt: { none: {} } } } // Tidak ada receipt = unpaid
+        },
+        _count: { id: true },
+        _sum: { grand_total: true }
+      }),
+      this.dbService.orders.groupBy({
+        by: ["store_id"],
+        where: {
+          store_id: { in: storeIds },
+          deleted_at: null,
+          quotation: { some: { quotation_receipt: { some: {} } } } // Ada receipt = paid
+        },
+        _count: { id: true },
+        _sum: { grand_total: true }
+      })
+    ]);
 
-      console.log('UNPAID' ,unpaidOrders)
-      console.log('PAID' ,paidOrders)
+    // 3. Konversi hasil aggregate ke map untuk akses cepat
+    const orderMap = Object.fromEntries(orderAggregates.map(o => [o.store_id, o]));
+    const unpaidMap = Object.fromEntries(unpaidAggregates.map(o => [o.store_id, o]));
+    const paidMap = Object.fromEntries(paidAggregates.map(o => [o.store_id, o]));
 
-      const totalUnpaid = unpaidOrders.reduce(
-        (total, order) =>
-          total +
-          Number(
-            order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
-          ),
-        0,
-      );
-
-      const totalPaid = paidOrders.reduce(
-        (total, order) =>
-          total +
-          Number(
-            order?.quotation[0]?.quotation_grand_total ?? 0,
-          ) + Number(order.grand_total),
-        0,
-      );
+    // 4. Gabungkan hasil aggregate ke dalam store
+    const dataStore = stores.map(store => {
+      const totalOrder = orderMap[store.id]?._count.id || 0;
+      const totalUnpaidOrder = unpaidMap[store.id]?._count.id || 0;
+      const totalPaidOrder = paidMap[store.id]?._count.id || 0;
+      const totalUnpaidValue = unpaidMap[store.id]?._sum.grand_total || 0;
+      const totalPaidValue = paidMap[store.id]?._sum.grand_total || 0;
 
       return {
-        ...item,
+        ...store,
         total_order: totalOrder,
-        total_unpaid_order: unpaidOrders.length,
-        total_unpaid_value: totalUnpaid,
-        total_paid_order: paidOrders.length,
-        total_paid_value: totalPaid,
+        total_unpaid_order: totalUnpaidOrder,
+        total_unpaid_value: totalUnpaidValue,
+        total_paid_order: totalPaidOrder,
+        total_paid_value: totalPaidValue
       };
     });
 
-    const total = await this.dbService.store.count({
-      where,
-    });
+    // Jika `top_best` diaktifkan, urutkan berdasarkan jumlah order terbanyak
+    if (Boolean(top_best)) {
+      dataStore.sort((a, b) => b.total_order - a.total_order);
+    }
+
+    const total = await this.dbService.store.count({ where });
 
     return {
       data: dataStore,
@@ -274,10 +221,11 @@ export class StoreService {
         total,
         skip,
         page,
-        take,
-      },
+        take
+      }
     };
   }
+
 
   async findOne(id: number) {
     try {
@@ -313,16 +261,16 @@ export class StoreService {
         : `${dto.store_name.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '_')}`;
       const user = store.user_id
         ? await this.dbService.users.update({
-            where: {
-              id: store.user_id,
-            },
-            data: {
-              username,
-              password: dto?.default_password
-                ? await hash(dto?.default_password ?? 'password', 10)
-                : store.users.password,
-            },
-          })
+          where: {
+            id: store.user_id,
+          },
+          data: {
+            username,
+            password: dto?.default_password
+              ? await hash(dto?.default_password ?? 'password', 10)
+              : store.users.password,
+          },
+        })
         : undefined;
       const storeUpdate = await this.dbService.store.update({
         where: {
@@ -370,7 +318,7 @@ export class StoreService {
 
   async remove(id: number, user_id: number) {
     try {
-       await this.dbService.store.update({
+      await this.dbService.store.update({
         where: {
           id,
         },
@@ -400,7 +348,137 @@ export class StoreService {
 
   async storeExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { data } = await this.findAll(queryParams);
+
+      const {
+        take,
+        search,
+        date_from,
+        date_to,
+        area_id,
+        store_group_id,
+        vendor_id,
+        order_date_from,
+        order_date_to,
+        is_promotion
+      } = queryParams;
+
+      const where: Prisma.storeWhereInput = {
+        AND: [
+          ...(area_id
+            ? [
+              {
+                OR: [
+                  {
+                    area_id: {
+                      in: area_id,
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(search
+            ? [
+              {
+                OR: [
+                  {
+                    store_name: {
+                      contains: search,
+                    },
+                  },
+                ],
+              },
+            ]
+            : []),
+          ...(store_group_id
+            ? [
+              {
+                OR: [{ store_group_id: { equals: store_group_id } }],
+              },
+            ]
+            : []),
+          ...(date_from && date_to
+            ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              },
+            ]
+            : []),
+          ...(vendor_id
+            ? [
+              {
+                vendor_store: { some: { vendor_id: { equals: vendor_id } } },
+              },
+            ]
+            : []),
+          ...(order_date_from && order_date_to
+            ? [
+              {
+                orders: {
+                  some: {
+                    created_at: {
+                      gte: new Date(order_date_from),
+                      lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                    },
+                  }
+                },
+              },
+            ]
+            : []),
+        ],
+
+
+        deleted_at: null,
+      };
+
+      const data = await this.dbService.store.findMany({
+        where,
+        take: take > 0 ? take : undefined,
+        include: {
+          area: true,
+          users: true,
+          vendor_store: true,
+          orders: {
+            where: {
+              deleted_at: null,
+              ...(order_date_from && order_date_to ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                }
+              } : {}),
+              ...(is_promotion === 1 ? {
+                payment_type: {
+                  not: 'survey'
+                }
+              } : is_promotion === 0 ? {
+                payment_type: 'survey'
+              } : {}),
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+            include: {
+              status: true,
+              quotation: {
+                where: {
+                  deleted_at: null
+                },
+                include: {
+                  quotation_receipt: {
+                    where: {
+                      deleted_at: null
+                    }
+                  }
+                }
+              },
+            },
+          },
+        },
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Store ', {
@@ -467,12 +545,12 @@ export class StoreService {
         const orderDate = store.orders[0]?.created_at
           ? new Date(store?.orders[0]?.created_at)
           : store.created_at;
-          
+
         const monthDifference =
           (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 +
           currentMonth.getMonth() -
           orderDate.getMonth();
-          console.log("MONTH DIFFERENCE" ,monthDifference);
+        console.log("MONTH DIFFERENCE", monthDifference);
         const row = worksheet.addRow({
           id: store.id,
           store_name: store.store_name ? store.store_name : '',

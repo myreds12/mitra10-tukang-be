@@ -195,6 +195,14 @@ font-family: Arial, Helvetica, sans-serif;\
       margin-top: 5px;\
       margin-bottom: 5px;\
       ')
+        | Nama Bank :
+        span(style='font-weight: 400') #{data.invoice.vendor.bank.bank_name}
+      p(style='\
+      font-size: 14px;\
+      font-weight: 600;\
+      margin-top: 5px;\
+      margin-bottom: 5px;\
+      ')
         | Nama Akun :
         span(style='font-weight: 400') #{data.invoice.vendor.company_name}
       p(style='\

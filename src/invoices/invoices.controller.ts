@@ -3,17 +3,14 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
   Request,
   Res,
-  HttpStatus,
   Query,
   UploadedFiles,
   UseInterceptors,
-  Req,
   ParseIntPipe,
   UploadedFile,
 } from '@nestjs/common';
@@ -21,22 +18,22 @@ import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import {
-  Request as IExpressRequest,
-  Response as IExpressResponse,
-} from 'express';
-import { users } from '@prisma/client';
+import { Response as IExpressResponse } from 'express';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @ApiTags('Invoices')
 @UseGuards(JwtAuthGuard)
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
+  constructor(private readonly invoicesService: InvoicesService) { }
+
+  // @Get('/order')
+  // async getOrderInvoice(@Query() query: QueryParamsDto) {
+  //   return await this.invoicesService.getOrderInvoice(query);
+  // }
 
   @Get('/order')
   async getOrderInvoice(@Query() query: QueryParamsDto) {
@@ -52,12 +49,18 @@ export class InvoicesController {
   }
 
   @Get('/pdf/:id')
-  async downloadPdf(@Param('id', ParseIntPipe) id: number, @Res() res: IExpressResponse) {
+  async downloadPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: IExpressResponse,
+  ) {
     return await this.invoicesService.invoicePdf(id, res);
   }
 
   @Get('/rekonsel-pdf/:id')
-  async rekonselPdf(@Param('id', ParseIntPipe) id: number, @Res() res: IExpressResponse) {
+  async rekonselPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: IExpressResponse,
+  ) {
     return await this.invoicesService.rekonselPdf(id, res);
   }
 
@@ -79,7 +82,7 @@ export class InvoicesController {
 
   @Post('/upload-excel-invoice')
   @UseInterceptors(FileInterceptor('excel_file'))
-  async syncInvoiceUpdate(@UploadedFile() file: Express.Multer.File, @Req() req: IExpressRequest) {
+  async syncInvoiceUpdate(@UploadedFile() file: Express.Multer.File) {
     return await this.invoicesService.syncInvoiceFromExcel(file);
   }
 
