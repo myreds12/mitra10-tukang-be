@@ -882,7 +882,19 @@ export class QuotationService {
       });
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [syncDetails, quotation] = await this.dbService.$transaction([
+      const [syncFiles, syncDetails, quotation] = await this.dbService.$transaction([
+        this.dbService.quotation_files.updateMany({
+          where: {
+            quotation_id: id,
+            id: {
+              notIn: updateQuotationDto.preserve_files,
+            },
+          },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+          },
+        }),
         this.dbService.quotation_details.updateMany({
           where: {
             quotation_id: id,
@@ -956,7 +968,7 @@ export class QuotationService {
                   : 0)),
             updated_by: user_id,
             updated_at: new Date(),
-            quotation_files: quotation_files
+            quotation_files: quotation_files || quotation_receipts
               ? { createMany: { data: evidence } }
               : undefined,
             quotation_details: { upsert: updatedQuotationDetails },
