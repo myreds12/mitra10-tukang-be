@@ -246,6 +246,7 @@ export class VendorService {
               payment_type: 'survey'
             } : {}),
           },
+          take: 10,
           orderBy: {
             created_at: 'desc',
           },
@@ -280,6 +281,7 @@ export class VendorService {
               where: {
                 deleted_at: null,
               },
+              take: 10,
               orderBy: {
                 created_at: 'desc',
               },
