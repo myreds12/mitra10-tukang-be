@@ -911,20 +911,6 @@ export class InvoicesService {
             }),
           ]
           : []),
-        ...(updateInvoiceDto.status === InvoiceStatus.INVOICE_DITOLAK
-          ? [
-            this.dbService.refund.updateMany({
-              where: {
-                orders: {
-                  vendor_id: invoice.vendor.id,
-                },
-                paid_status: 1,
-              },
-              data: {
-                paid_status: 0,
-              },
-            }),
-          ] : [])
       ]);
 
       if (updatedInvoice) {
