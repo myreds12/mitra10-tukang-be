@@ -36,6 +36,7 @@ export class AuthService {
         },
       });
 
+
       if (user) {
         throw new BadRequestException(
           'Username tersebut sudah ada, silahkan buat dengan username lain.',
@@ -204,12 +205,9 @@ export class AuthService {
       }
 
 
-      const deleteUser = await this.dbService.users.update({
+      const deleteUser = await this.dbService.users.delete({
         where: {
           id,
-        },
-        data: {
-          deleted_at: new Date(),
         }
       });
       return deleteUser;
