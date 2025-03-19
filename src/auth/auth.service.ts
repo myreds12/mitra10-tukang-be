@@ -36,7 +36,6 @@ export class AuthService {
         },
       });
 
-
       if (user) {
         throw new BadRequestException(
           'Username tersebut sudah ada, silahkan buat dengan username lain.',
@@ -200,14 +199,17 @@ export class AuthService {
         }
       });
 
-      if (!user) {
+      if (!user || user.deleted_at) {
         throw new NotFoundException('User tidak ada.');
       }
 
 
-      const deleteUser = await this.dbService.users.delete({
+      const deleteUser = await this.dbService.users.update({
         where: {
           id,
+        },
+        data: {
+          deleted_at: new Date(),
         }
       });
       return deleteUser;
@@ -322,10 +324,6 @@ export class AuthService {
         if (salesData.deleted_at) {
           throw new HttpException('Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko', HttpStatus.FORBIDDEN);
         }
-      }
-
-      if (user.deleted_at) {
-        throw new HttpException('Akun anda sudah dihapus, mohon untuk menghubungi kepada admin yang bersangkutan', HttpStatus.FORBIDDEN);
       }
 
       return await this.generateJwt(
