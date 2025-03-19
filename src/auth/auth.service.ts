@@ -32,6 +32,7 @@ export class AuthService {
       const user = await this.dbService.users.findFirst({
         where: {
           username: dto.username,
+          deleted_at: null,
         },
       });
 
