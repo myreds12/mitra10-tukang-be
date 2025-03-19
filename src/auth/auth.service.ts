@@ -200,7 +200,7 @@ export class AuthService {
         }
       });
 
-      if (!user || user.deleted_at) {
+      if (!user) {
         throw new NotFoundException('User tidak ada.');
       }
 
