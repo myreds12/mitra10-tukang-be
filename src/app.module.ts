@@ -50,6 +50,7 @@ import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comission_sales_incentive.module';
 import { ComissionStoreIncentiveModule } from './comission_store_incentive/comission_store_incentive.module';
+import { ComissionManagerIncentiveModule } from './comission_manager_incentive/comission_manager_incentive.module';
 import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 import { CrmModule } from './crm/crm.module';
 
@@ -157,6 +158,7 @@ import { CrmModule } from './crm/crm.module';
     NotificationsModule,
     ComissionSalesIncentiveModule,
     ComissionStoreIncentiveModule,
+    ComissionManagerIncentiveModule,
     QuotationPromotionModule,
     CrmModule,
   ],

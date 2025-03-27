@@ -169,6 +169,22 @@ export class WorkOrdersController {
     );
   }
 
+  @Post(':id/replace-foto')
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 10))
+  async updateFoto(
+    @Param('id') id: number,
+    @Request() req: RequestWithUser,
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
+  ) {
+    console.log('work order update : ', id, req.user, work_order_evidences);
+
+    return await this.workOrdersService.updateFoto(
+      id,
+      req.user,
+      work_order_evidences,
+    );
+  }
+
   @Delete(':id')
   async delete(@Param('id') id: number, @Request() req) {
     const user_id = req.user.id;

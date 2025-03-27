@@ -706,6 +706,7 @@ export class OrderService {
               address: true,
               phone_number: true,
               is_active: true,
+              nominal_survey: true,
               work_orders: {
                 where: {
                   deleted_at: null,

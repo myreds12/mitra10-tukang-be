@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateComissionSalesIncentiveDto } from './dto/create-comission_store_incentive.dto';
-import { UpdateComissionSalesIncentiveDto } from './dto/update-comission_sales_incentive.dto';
+import { CreateComissionSalesIncentiveDto } from './dto/create-comission_manager_incentive.dto';
+import { UpdateComissionSalesIncentiveDto } from './dto/update-comission_manager_incentive.dto';
 import { Prisma, users } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -34,8 +34,8 @@ export class ComissionSalesIncentiveService {
           : [];
 
       const salesIncentiveData =
-        createComissionSalesIncentiveDto.store_incentive.map((item) => ({
-          store_id: Number(item.store_incentive_id),
+        createComissionSalesIncentiveDto.manager_incentive.map((item) => ({
+          store_id: Number(item.manager_incentive_id),
           incentive_id: Number(createComissionSalesIncentiveDto.incentive_id),
           total_amount: Number(createComissionSalesIncentiveDto.nominal),
           status: IncentiveStatus.POTENTIAL_INCENTIVE,
@@ -46,9 +46,9 @@ export class ComissionSalesIncentiveService {
           ),
         }));
       const salesIncentiveUpdateArgs =
-        createComissionSalesIncentiveDto.store_incentive.length > 0
-          ? createComissionSalesIncentiveDto.store_incentive.map(
-              (item) => item.store_incentive_id,
+        createComissionSalesIncentiveDto.manager_incentive.length > 0
+          ? createComissionSalesIncentiveDto.manager_incentive.map(
+              (item) => item.manager_incentive_id,
             )
           : undefined;
       const comissionStoreIncentive =

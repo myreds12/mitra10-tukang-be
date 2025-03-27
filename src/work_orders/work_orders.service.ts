@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
@@ -640,19 +641,6 @@ export class WorkOrdersService {
               deleted_by: user_id,
             },
           }),
-          // this.dbService.work_order_items.updateMany({
-          //   where: {
-          //     id: {
-          //       notIn: dataDto?.status_details?.work_order_items
-          //         .filter((x) => Boolean(x.id))
-          //         .map((x) => x.id),
-          //     },
-          //   },
-          //   data: {
-          //     deleted_at: new Date(),
-          //     deleted_by: user.id,
-          //   },
-          // }),
           this.dbService.work_orders.update(work_order_data),
         ]);
 
@@ -663,6 +651,49 @@ export class WorkOrdersService {
       );
 
       return work_order;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async updateFoto(
+    id: number,
+    user: users,
+    work_order_evidences?: Array<Express.Multer.File>,
+  ) {
+    try {
+      const checkWorkOrder = await this.dbService.work_order_evidences.findFirst({
+        where: {
+          id,
+        },
+      });
+
+      if (!checkWorkOrder)
+        throw new BadRequestException('Work Order Evidencae not exist');
+
+
+
+      const { id: user_id } = user;
+      await Promise.all(
+        work_order_evidences.map(async (evidence) => {
+          await this.dbService.work_order_evidences.updateMany({
+            where: {
+              id: checkWorkOrder.id, // Pastikan `id` tersedia di evidence
+            },
+            data: {
+              evidence_location: evidence.filename,
+              updated_at: new Date(),
+              updated_by: user_id,
+            },
+          });
+        })
+      );
+      
+
+
+ 
+      return checkWorkOrder;
     } catch (error) {
       console.error(error);
       throw error;
