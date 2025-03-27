@@ -190,23 +190,25 @@ export class MailsService {
     id: number,
     updateEmailMessageDto: UpdateEmailMessageDto,
     user_id: number,
-    files: { [name: string]: Express.Multer.File[] }
+    files: { [name: string]: Express.Multer.File[] } = {}
   ) {
     try {
-      const { header_files, footer_files } = files;
+      const { header_files = [], footer_files = [] } = files || {};
 
       const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-        header_files ? header_files?.map((item) => ({
+        header_files.map((item) => ({
           type: 1,
           path: item.filename,
           created_by: user_id,
-        })) : [];
+        }));
+
       const footer: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
-        footer_files ? footer_files?.map((item) => ({
+        footer_files.map((item) => ({
           type: 2,
           path: item.filename,
           created_by: user_id,
-        })) : [];
+        }));
+
       const evidence = [...header, ...footer];
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
@@ -306,12 +308,22 @@ export class MailsService {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [syncFiles, syncTerms, syncInformation, emailMessage] = await this.dbService.$transaction([
-        this.dbService.email_message_image.deleteMany({
-          where: {
-            email_message_id: id
-          }
-        }),
+      await this.dbService.$transaction([
+        ...(header_files?.length || footer_files?.length
+          ? [
+            this.dbService.email_message_image.deleteMany({
+              where: {
+                email_message_id: id,
+                ...(header_files?.length && !footer_files?.length
+                  ? { type: 1 }
+                  : {}),
+                ...(footer_files?.length && !header_files?.length
+                  ? { type: 2 }
+                  : {}),
+              },
+            }),
+          ]
+          : []),
         this.dbService.terms_detail.updateMany({
           where: {
             ...(deletedTermsDetailsId && deletedTermsDetailsId.length
@@ -352,6 +364,31 @@ export class MailsService {
           data,
         }),
       ]);
+
+      const emailMessage = await this.dbService.email_messages.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          terms_detail: {
+            where: {
+              deleted_at: null,
+            },
+          },
+          information_detail: {
+            where: {
+              deleted_at: null,
+            },
+          },
+          csi_template: true,
+          trigger: true,
+          email_message_image: {
+            where: {
+              deleted_at: null
+            }
+          }
+        },
+      });
 
       return emailMessage;
     } catch (error) {

@@ -1448,16 +1448,6 @@ export class OrderService {
               currentItem?.default_price ??
               0;
 
-            // console.log(currentItem.default_price);
-
-            // const comission = Number(
-            //   salesUser?.sales_categories?.find(
-            //     ({ category_id }) => currentItem?.category_id === category_id,
-            //   )?.commission ?? salesUser?.sales_categories?.find(
-            //     ({ category_id }) => item.category_id === category_id,
-            //   )?.commission,
-            // );
-
             const comission = Number(
               salesUser?.sales_categories?.find(
                 ({ category_id }) => currentItem?.category_id === category_id,
@@ -5528,8 +5518,8 @@ export class OrderService {
         notes: dto?.notes ?? undefined,
         project_address: member ? member?.address_1 : newMember.address_1,
         project_number: member
-          ? member?.phone_number ?? member?.whatsapp_number
-          : newMember?.phone_number ?? newMember?.whatsapp_number,
+          ? member?.phone_number ?? member?.whatsapp_number ?? undefined
+          : newMember?.phone_number ?? newMember?.whatsapp_number ?? undefined,
         receipt_number: dto?.receipt_number ?? undefined,
         grand_total: grand_total.toFixed(2),
         payment_type, // Menggunakan `payment_type` yang di-set berdasarkan tipe item

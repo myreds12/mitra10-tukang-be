@@ -32,6 +32,7 @@ export class AuthService {
       const user = await this.dbService.users.findFirst({
         where: {
           username: dto.username,
+          deleted_at: null,
         },
       });
 
@@ -323,10 +324,6 @@ export class AuthService {
         if (salesData.deleted_at) {
           throw new HttpException('Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko', HttpStatus.FORBIDDEN);
         }
-      }
-
-      if (user.deleted_at) {
-        throw new HttpException('Akun anda sudah dihapus, mohon untuk menghubungi kepada admin yang bersangkutan', HttpStatus.FORBIDDEN);
       }
 
       return await this.generateJwt(
