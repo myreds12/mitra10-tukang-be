@@ -1,12 +1,4 @@
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  IsEmail,
-  IsNotEmpty,
-  IsPhoneNumber,
-  IsDate,
-} from 'class-validator';
+import { IsInt, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class CreateMemberDto {
   @IsNotEmpty()
@@ -16,20 +8,20 @@ export class CreateMemberDto {
   // @IsEmail()
   // @IsNotEmpty()
   email: string;
-  
+
   phone_number: string;
-  
+
   whatsapp_number: string;
-  
+
   address_1: string;
-  
+
   address_2?: string;
-  
+
   @IsOptional()
   @IsInt()
   area_id?: number;
 
-  zip_code: string;
+  store_code: string;
 
   rating?: number;
 

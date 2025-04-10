@@ -5382,11 +5382,25 @@ export class OrderService {
     try {
       const store = await this.dbService.store.findFirst({
         where: {
-          store_name: {
-            contains: dto.store_name,
-          },
+          OR: [
+            {
+              store_name: {
+                contains: dto.store_name,
+              },
+            },
+            {
+              zip_code: {
+                contains: dto.store_name,
+              },
+            },
+          ],
         },
       });
+
+      if (!store) {
+        throw new NotFoundException('Toko tidak ditemukan');
+      }
+
 
       const member = await this.dbService.members.findFirst({
         where: {
@@ -5409,7 +5423,7 @@ export class OrderService {
             address_1: memberDto?.address_1 ?? undefined,
             address_2: memberDto?.address_2 ?? undefined,
             area_id: memberDto?.area_id ?? undefined,
-            zip_code: memberDto?.zip_code ?? undefined,
+            zip_code: memberDto?.store_code ?? undefined,
             join_date: new Date(),
             join_location: store?.id ?? undefined,
           },

@@ -32,7 +32,7 @@ import { WorkOrderTukang } from './dto/wo-tukang.dto';
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) {}
+  constructor(private readonly workOrdersService: WorkOrdersService) { }
 
   @Post('update-notes/:id')
   async updatTukangNotes(
@@ -153,14 +153,6 @@ export class WorkOrdersController {
     @Request() req: RequestWithUser,
     @UploadedFiles() work_order_evidences: Express.Multer.File[],
   ) {
-    console.log(
-      'work order update : ',
-      id,
-      dataDto,
-      req.user,
-      work_order_evidences,
-    );
-
     return await this.workOrdersService.update(
       id,
       dataDto,

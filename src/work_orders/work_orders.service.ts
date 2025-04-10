@@ -20,7 +20,7 @@ export class WorkOrdersService {
     private orderService: OrderService,
     private vendorService: VendorService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   async create(
     dataDto: CreateWorkOrderDto,
@@ -101,12 +101,12 @@ export class WorkOrdersService {
           },
           ...(evidences
             ? {
-                work_order_evidences: {
-                  createMany: {
-                    data: evidences,
-                  },
+              work_order_evidences: {
+                createMany: {
+                  data: evidences,
                 },
-              }
+              },
+            }
             : undefined),
           work_order_tukang: {
             createMany: {
@@ -160,80 +160,80 @@ export class WorkOrdersService {
         AND: [
           search
             ? {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    order: {
-                      members: {
-                        whatsapp_number: {
-                          contains: search,
-                        },
+              OR: [
+                {
+                  id: !isNaN(+search) ? +search : undefined,
+                },
+                {
+                  order: {
+                    members: {
+                      whatsapp_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    order: {
-                      members: {
-                        phone_number: {
-                          contains: search,
-                        },
+                },
+                {
+                  order: {
+                    members: {
+                      phone_number: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    order: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  order: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    order: {
-                      sales: {
-                        full_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  order: {
+                    sales: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                  {
-                    order: {
-                      store: {
-                        store_name: {
-                          contains: search,
-                        },
+                },
+                {
+                  order: {
+                    store: {
+                      store_name: {
+                        contains: search,
                       },
                     },
                   },
-                ],
-              }
+                },
+              ],
+            }
             : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           tukang_id
             ? {
-                work_order_tukang: {
-                  some: {
-                    tukang_id: tukang_id,
-                  },
+              work_order_tukang: {
+                some: {
+                  tukang_id: tukang_id,
                 },
-              }
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -516,17 +516,17 @@ export class WorkOrdersService {
 
       const { id: user_id } = user;
       const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
-        {
-          ...(work_order_evidences
-            ? {
-                data: work_order_evidences.map((evidences) => ({
-                  evidence_location: evidences.filename,
-                  updated_at: new Date(),
-                  updated_by: user_id,
-                })),
-              }
-            : undefined),
-        };
+      {
+        ...(work_order_evidences
+          ? {
+            data: work_order_evidences.map((evidences) => ({
+              evidence_location: evidences.filename,
+              updated_at: new Date(),
+              updated_by: user_id,
+            })),
+          }
+          : undefined),
+      };
 
       const tukangUpsert: Prisma.work_order_tukangUpsertWithWhereUniqueWithoutWork_ordersInput[] =
         dataDto?.work_order_tukang?.map((item) => {
@@ -547,24 +547,24 @@ export class WorkOrdersService {
         });
 
       const workOrderStatus: Prisma.work_order_statusCreateWithoutWork_orderInput =
-        {
-          parent_id: parentId ?? undefined,
-          status: {
-            connect: {
-              id: dataDto.work_order_status,
-            },
+      {
+        parent_id: parentId ?? undefined,
+        status: {
+          connect: {
+            id: dataDto.work_order_status,
           },
-          work_date_time: dataDto?.status_details?.work_date_time
-            ? new Date(dataDto.status_details.work_date_time)
-            : undefined,
-          work_start_date: dataDto?.status_details?.work_start_date
-            ? new Date(dataDto?.status_details?.work_start_date)
-            : undefined,
-          work_end_date: dataDto?.status_details?.work_end_date
-            ? new Date(dataDto?.status_details?.work_end_date)
-            : undefined,
-          description: dataDto?.status_details?.description,
-        };
+        },
+        work_date_time: dataDto?.status_details?.work_date_time
+          ? new Date(dataDto.status_details.work_date_time)
+          : undefined,
+        work_start_date: dataDto?.status_details?.work_start_date
+          ? new Date(dataDto?.status_details?.work_start_date)
+          : undefined,
+        work_end_date: dataDto?.status_details?.work_end_date
+          ? new Date(dataDto?.status_details?.work_end_date)
+          : undefined,
+        description: dataDto?.status_details?.description,
+      };
 
       console.log('workOrderStatus', workOrderStatus);
       const work_order_data: Prisma.work_ordersUpdateArgs = {
@@ -593,16 +593,16 @@ export class WorkOrdersService {
       };
       const deletedWorkOrderEvidences = dataDto.existing_work_order_evidences
         ? dataDto?.existing_work_order_evidences
-            .filter((x) => Boolean(x?.work_order_evidence_id))
-            .map((item) => {
-              return Number(item.work_order_evidence_id);
-            })
+          .filter((x) => Boolean(x?.work_order_evidence_id))
+          .map((item) => {
+            return Number(item.work_order_evidence_id);
+          })
         : undefined;
 
       const deletedWorkOrderTukang = dataDto.work_order_tukang
         ? dataDto?.work_order_tukang
-            .filter((x) => Boolean(x.id))
-            .map((x) => x.id)
+          .filter((x) => Boolean(x.id))
+          .map((x) => x.id)
         : undefined;
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -612,11 +612,11 @@ export class WorkOrdersService {
             where: {
               ...(deletedWorkOrderTukang
                 ? {
-                    id: {
-                      notIn: deletedWorkOrderTukang,
-                    },
-                    work_order_id: id,
-                  }
+                  id: {
+                    notIn: deletedWorkOrderTukang,
+                  },
+                  work_order_id: id,
+                }
                 : undefined),
             },
             data: {
@@ -629,11 +629,11 @@ export class WorkOrdersService {
             where: {
               ...(deletedWorkOrderEvidences
                 ? {
-                    id: {
-                      notIn: deletedWorkOrderEvidences,
-                    },
-                    work_order_id: id,
-                  }
+                  id: {
+                    notIn: deletedWorkOrderEvidences,
+                  },
+                  work_order_id: id,
+                }
                 : undefined),
             },
             data: {
@@ -689,10 +689,10 @@ export class WorkOrdersService {
           });
         })
       );
-      
 
 
- 
+
+
       return checkWorkOrder;
     } catch (error) {
       console.error(error);
@@ -733,11 +733,6 @@ export class WorkOrdersService {
               quotation: true,
             },
           },
-          // work_order_tukang: {
-          //   include: {
-          //     tukang: true,
-          //   },
-          // },
           vendor: true,
           work_order_status: {
             where: {
@@ -785,6 +780,13 @@ export class WorkOrdersService {
 
       const evidences = [].concat(evidencesBefore ?? [], evidencesAfter ?? []);
 
+      const deletedWorkOrderEvidences = updateData.existing_work_order_evidences
+        ? updateData?.existing_work_order_evidences
+          .filter((x) => Boolean(x?.work_order_evidence_id))
+          .map((item) => {
+            return Number(item.work_order_evidence_id);
+          })
+        : undefined;
       const recentWorkStatus = workOrder.work_order_status.find(
         (x) => x.status_id === NEW_STATUS.id,
       );
@@ -794,94 +796,112 @@ export class WorkOrdersService {
       const upsertItems: Prisma.work_order_itemsUpsertWithWhereUniqueWithoutWork_order_statusInput[] =
         updateData.work_order_items
           ? updateData.work_order_items.map((x) => ({
-              where: {
-                id: x?.id ?? 0,
-                work_order_status_id: recentWorkStatus?.id ?? 0,
-              },
-              create: {
-                item_id: x?.item_id ?? undefined,
-                name: x?.item_name ?? undefined,
-                tukang_id: x.tukang_id ?? undefined,
-                tukang_name: x.tukang_name ?? undefined,
-                type: x.type,
-                is_customer: Boolean(x.is_customer),
-                quantity: x.quantity ?? undefined,
-                unit: x?.unit ?? undefined,
-              },
-              update: {
-                item_id: x.item_id ?? undefined,
-                name: x.item_name ?? undefined,
-                tukang_id: x.tukang_id ?? undefined,
-                tukang_name: x.tukang_name ?? undefined,
-                type: x.type,
-                quantity: x.quantity ?? undefined,
-                is_customer: Boolean(x.is_customer),
-                unit: x?.unit ?? undefined,
-              },
-            }))
+            where: {
+              id: x?.id ?? 0,
+              work_order_status_id: recentWorkStatus?.id ?? 0,
+            },
+            create: {
+              item_id: x?.item_id ?? undefined,
+              name: x?.item_name ?? undefined,
+              tukang_id: x.tukang_id ?? undefined,
+              tukang_name: x.tukang_name ?? undefined,
+              type: x.type,
+              is_customer: Boolean(x.is_customer),
+              quantity: x.quantity ?? undefined,
+              unit: x?.unit ?? undefined,
+            },
+            update: {
+              item_id: x.item_id ?? undefined,
+              name: x.item_name ?? undefined,
+              tukang_id: x.tukang_id ?? undefined,
+              tukang_name: x.tukang_name ?? undefined,
+              type: x.type,
+              quantity: x.quantity ?? undefined,
+              is_customer: Boolean(x.is_customer),
+              unit: x?.unit ?? undefined,
+            },
+          }))
           : undefined;
       console.log(upsertItems, 'WORK ORDER ITEMS');
 
       const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
-        {
-          where: {
-            status_id: NEW_STATUS.id,
-            id: recentWorkStatus?.id ?? 0,
-          },
-          create: {
-            status_id: NEW_STATUS.id,
-            description: updateData.description,
-            work_start_date: updateData.work_end_date,
-            work_end_date: updateData.work_end_date,
-            work_date_time: updateData.work_date_time,
-            created_at: new Date(),
-            created_by: user.id,
-            ...(updateData.work_order_items
-              ? {
-                  work_order_items: {
-                    createMany: { data: upsertItems.map((x) => x.create) },
-                  },
-                }
-              : undefined),
-          },
-          update: {
-            description: updateData.description,
-            work_start_date: updateData.work_end_date,
-            work_end_date: updateData.work_end_date,
-            work_date_time: updateData.work_date_time,
-            updated_at: new Date(),
-            updated_by: user.id,
-            work_order_items: { upsert: upsertItems },
-          },
-        };
+      {
+        where: {
+          status_id: NEW_STATUS.id,
+          id: recentWorkStatus?.id ?? 0,
+        },
+        create: {
+          status_id: NEW_STATUS.id,
+          description: updateData.description,
+          work_start_date: updateData.work_end_date,
+          work_end_date: updateData.work_end_date,
+          work_date_time: updateData.work_date_time,
+          created_at: new Date(),
+          created_by: user.id,
+          ...(updateData.work_order_items
+            ? {
+              work_order_items: {
+                createMany: { data: upsertItems.map((x) => x.create) },
+              },
+            }
+            : undefined),
+        },
+        update: {
+          description: updateData.description,
+          work_start_date: updateData.work_end_date,
+          work_end_date: updateData.work_end_date,
+          work_date_time: updateData.work_date_time,
+          updated_at: new Date(),
+          updated_by: user.id,
+          work_order_items: { upsert: upsertItems },
+        },
+      };
 
-      console.log(workOrderStatusUpsert, 'WORK ORDER STATUS UPSERT');
 
       await this.dbService.$transaction([
         ...(updateData.work_order_items
           ? [
-              this.dbService.work_order_items.updateMany({
-                where: {
-                  id: {
-                    notIn: updateData.work_order_items
-                      .filter((x) => Boolean(x?.id))
-                      .map((x) => x.id),
-                  },
-                  work_order_status_id: recentWorkStatus?.id ?? 0,
-                  work_order_status: {
-                    status_id: NEW_STATUS?.id ?? 0,
-                    work_order: {
-                      id,
-                    },
+            this.dbService.work_order_items.updateMany({
+              where: {
+                id: {
+                  notIn: updateData.work_order_items
+                    .filter((x) => Boolean(x?.id))
+                    .map((x) => x.id),
+                },
+                work_order_status_id: recentWorkStatus?.id ?? 0,
+                work_order_status: {
+                  status_id: NEW_STATUS?.id ?? 0,
+                  work_order: {
+                    id,
                   },
                 },
-                data: {
-                  deleted_at: new Date(),
-                  deleted_by: user.id,
-                },
-              }),
-            ]
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user.id,
+              },
+            }),
+          ]
           : []),
+        ...(deletedWorkOrderEvidences
+          ? [
+            this.dbService.work_order_evidences.updateMany({
+              where: {
+                ...(deletedWorkOrderEvidences
+                  ? {
+                    id: {
+                      notIn: deletedWorkOrderEvidences,
+                    },
+                    work_order_id: id,
+                  }
+                  : undefined),
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            })
+          ] : []),
         // this.dbService.work_order_status.updateMany({
         //   where: {
         //     id: recentWorkStatus?.id ?? 0,
@@ -1010,12 +1030,11 @@ export class WorkOrdersService {
                   tukang_replace: item.tukang_id,
                   status: item.status,
                   notes: item.notes
-                    ? `${
-                        ReplaceTukangStatus[item.status]
-                      }: ${item.notes.replace(
-                        /\n/g,
-                        `\n${ReplaceTukangStatus[item.status]}: `,
-                      )}`
+                    ? `${ReplaceTukangStatus[item.status]
+                    }: ${item.notes.replace(
+                      /\n/g,
+                      `\n${ReplaceTukangStatus[item.status]}: `,
+                    )}`
                     : ReplaceTukangStatus[item.status],
                   updated_by: user.id,
                   updated_at: new Date(),
@@ -1133,49 +1152,49 @@ export class WorkOrdersService {
         AND: [
           search
             ? {
-                OR: [
-                  ...(isNaN(Date.parse(search))
-                    ? []
-                    : [
-                        { request_work_time: { equals: new Date(search) } },
-                        { survey_date: { equals: new Date(search) } },
-                        { work_start_date: { equals: new Date(search) } },
-                        { work_end_date: { equals: new Date(search) } },
-                      ]),
-                  {
-                    order: {
-                      members: {
-                        full_name: {
-                          contains: search,
-                        },
+              OR: [
+                ...(isNaN(Date.parse(search))
+                  ? []
+                  : [
+                    { request_work_time: { equals: new Date(search) } },
+                    { survey_date: { equals: new Date(search) } },
+                    { work_start_date: { equals: new Date(search) } },
+                    { work_end_date: { equals: new Date(search) } },
+                  ]),
+                {
+                  order: {
+                    members: {
+                      full_name: {
+                        contains: search,
                       },
                     },
                   },
-                ],
-              }
+                },
+              ],
+            }
             : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
-                vendor_id: vendor_id,
-              }
+              vendor_id: vendor_id,
+            }
             : undefined,
           tukang_id
             ? {
-                work_order_tukang: {
-                  some: {
-                    tukang_id: tukang_id,
-                  },
+              work_order_tukang: {
+                some: {
+                  tukang_id: tukang_id,
                 },
-              }
+              },
+            }
             : undefined,
           date_from && date_to
             ? {
-                created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }
+              created_at: {
+                gte: new Date(`${date_from}T00:00:00.000Z`),
+                lte: new Date(`${date_to}T23:59:59.000Z`),
+              },
+            }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,

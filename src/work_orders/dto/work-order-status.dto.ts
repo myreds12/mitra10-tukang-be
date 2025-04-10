@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsOptional, ValidateNested } from 'class-validator';
 import { CreateMaterialDto } from './create-material.dto';
+import { UpdatedWorkOrderEvidences } from './update.work-order-evidences.dto';
 
 export class StatusDetails {
   @Type(() => Number)
@@ -32,4 +33,10 @@ export class StatusDetails {
   @Type(() => CreateMaterialDto)
   @ValidateNested({ each: true })
   work_order_items?: Array<CreateMaterialDto>;
+
+  @ApiProperty({ type: [UpdatedWorkOrderEvidences] })
+  @IsOptional()
+  @Type(() => UpdatedWorkOrderEvidences)
+  @ValidateNested({ each: true })
+  existing_work_order_evidences: UpdatedWorkOrderEvidences[];
 }

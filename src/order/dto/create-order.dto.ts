@@ -1,16 +1,7 @@
-import {
-  IsEnum,
-  IsIn,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { IsIn, IsOptional, ValidateNested } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
-import { ApiBody, ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEitherRequired } from '../../common/decorator/is-either-required.decorator';
 import { OrderDetailDto } from './order-details.dto';
 import { OrderFollowUpDto } from './order-follow-up.dto';
 
@@ -77,7 +68,7 @@ export class CreateOrderDto {
   additional_fee: number;
 
   @IsOptional()
-  notes?:string;
+  notes?: string;
 
   @Type(() => OrderFollowUpDto)
   @ValidateNested({ each: true })
