@@ -19,7 +19,7 @@ export class CreateStoreDto {
 
   // @IsString()
   @IsOptional()
-  store_code: string;
+  zip_code: string;
 
   @IsOptional()
   // @IsString()

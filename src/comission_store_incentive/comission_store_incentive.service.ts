@@ -45,14 +45,14 @@ export class ComissionSalesIncentiveService {
             createComissionSalesIncentiveDto.tanggal_akhir,
           ),
         }));
-      const salesIncentiveUpdateArgs =
+        const salesIncentiveUpdateArgs =
         createComissionSalesIncentiveDto.store_incentive.length > 0
           ? createComissionSalesIncentiveDto.store_incentive.map(
               (item) => item.store_incentive_id,
             )
           : undefined;
       const comissionStoreIncentive =
-        await this.dbService.incentive_store.createMany({
+        await this.dbService.store_incentive.createMany({
           data: salesIncentiveData,
         });
 
@@ -70,14 +70,14 @@ export class ComissionSalesIncentiveService {
           },
         }),
       ]);
-      await this.dbService.incentive_store.updateMany({
+      await this.dbService.store_incentive.updateMany({
         where: {
           id: {
             in: salesIncentiveUpdateArgs,
           },
         },
         data: {
-          comission_store_incentiveId: comissionSalesIncentive.id,
+          comission_store_incentive_id: comissionSalesIncentive.id,
         },
       });
       return comissionSalesIncentive;

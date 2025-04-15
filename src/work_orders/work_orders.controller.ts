@@ -32,7 +32,7 @@ import { WorkOrderTukang } from './dto/wo-tukang.dto';
 @Controller('work-orders')
 @UseGuards(JwtAuthGuard)
 export class WorkOrdersController {
-  constructor(private readonly workOrdersService: WorkOrdersService) { }
+  constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Post('update-notes/:id')
   async updatTukangNotes(
@@ -153,25 +153,17 @@ export class WorkOrdersController {
     @Request() req: RequestWithUser,
     @UploadedFiles() work_order_evidences: Express.Multer.File[],
   ) {
-    return await this.workOrdersService.update(
+    console.log(
+      'work order update : ',
       id,
       dataDto,
       req.user,
       work_order_evidences,
     );
-  }
 
-  @Post(':id/replace-foto')
-  @UseInterceptors(FilesInterceptor('work_order_evidences', 10))
-  async updateFoto(
-    @Param('id') id: number,
-    @Request() req: RequestWithUser,
-    @UploadedFiles() work_order_evidences: Express.Multer.File[],
-  ) {
-    console.log('work order update : ', id, req.user, work_order_evidences);
-
-    return await this.workOrdersService.updateFoto(
+    return await this.workOrdersService.update(
       id,
+      dataDto,
       req.user,
       work_order_evidences,
     );

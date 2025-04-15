@@ -21,7 +21,6 @@ model bank {
   updated_by Int?
   deleted_by Int?
   sales      sales[]
-  manager    manager[]
   vendor     vendor[]
 }
 
@@ -336,7 +335,6 @@ model users {
   tukang        tukang[]
   pic_vendor    pic_vendor[]
   notifications notifications[]
-  manager       manager[]
 }
 
 model sales {
@@ -372,35 +370,6 @@ model sales {
   sales_categories sales_categories[]
   m_order_details  m_order_details[]
   sales_incentive  sales_incentive[]
-}
-
-model manager {
-  id       Int  @id @default(autoincrement())
-  store_id Int?
-  user_id  Int?
-
-  full_name      String  @db.VarChar(255)
-  nik            String? @default("") @db.VarChar(20)
-  bank_id        Int?
-  bank_branch    String? @db.VarChar(50)
-  account_name   String? @db.VarChar(255)
-  account_number String? @db.VarChar(255)
-  phone_number   String? @db.VarChar(50)
-  order_total    Int?    @default(0)
-
-  is_active Boolean @default(true)
-
-  created_at DateTime  @default(now()) @db.DateTime()
-  updated_at DateTime? @db.DateTime()
-  deleted_at DateTime? @db.DateTime()
-
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-
-  store store? @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users users? @relation(fields: [user_id], references: [id])
-  bank  bank?  @relation(fields: [bank_id], references: [id])
 }
 
 model brands {
@@ -497,16 +466,15 @@ model store {
   orders    orders[]
   quotation quotation[]
   members   members[]
-  manager   manager[]
 
-  area              area?               @relation(fields: [area_id], references: [id])
-  store_group       store_group?        @relation(fields: [store_group_id], references: [id])
-  price_stores      price_stores[]
-  vendor_store      vendor_store[]
-  users             users?              @relation(fields: [user_id], references: [id])
-  promotion_stores  promotion_stores[]
-  incentive_store   incentive_store[]
-  manager_incentive manager_incentive[]
+  area             area?              @relation(fields: [area_id], references: [id])
+  store_group      store_group?       @relation(fields: [store_group_id], references: [id])
+  price_stores     price_stores[]
+  vendor_store     vendor_store[]
+  users            users?             @relation(fields: [user_id], references: [id])
+  promotion_stores promotion_stores[]
+  incentive_store  incentive_store[]
+  store_incentive  store_incentive[]
 }
 
 model store_group {
@@ -1786,8 +1754,8 @@ model setting_incentive {
   min_order   Decimal @default(0) @map("minOrder") @db.Decimal(32, 2)
   max_order   Decimal @default(0) @map("maxOrder") @db.Decimal(32, 2)
   incentive   Decimal @default(0) @db.Decimal(32, 2)
-  min_invoice Decimal @default(0) @db.Decimal(32, 2)
-  is_manager  Boolean @default(false)
+  min_invoice Decimal @default(0) @map("minInvoice") @db.Decimal(32, 2)
+  is_manager  Boolean @default(true)
   type        Int?    @default(1) // 1 = Percentage, 2 = Nominal
 
   created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
@@ -1798,9 +1766,9 @@ model setting_incentive {
   updated_by Int? @map("updatedBy")
   deleted_by Int? @map("deletedBy")
 
-  salesIncentive    sales_incentive[]
-  stores            incentive_store[]
-  manager_incentive manager_incentive[]
+  salesIncentive  sales_incentive[]
+  stores          incentive_store[]
+  storesIncentive store_incentive[]
 }
 
 model sales_incentive {
@@ -1863,13 +1831,34 @@ model comission_sales_incentive_evidence {
 }
 
 model incentive_store {
-  id                          Int                        @id @default(autoincrement())
-  store_id                    Int                        @map("storeId")
-  incentive_id                Int                        @map("incentiveId")
-  comission_store_incentiveId Int?                       @map("comission_store_incentive_id")
-  store                       store                      @relation(fields: [store_id], references: [id])
-  incentive                   setting_incentive          @relation(fields: [incentive_id], references: [id])
-  comission_store_incentive   comission_store_incentive? @relation(fields: [comission_store_incentiveId], references: [id])
+  id           Int @id @default(autoincrement())
+  store_id     Int @map("storeId")
+  incentive_id Int @map("incentiveId")
+
+  store     store             @relation(fields: [store_id], references: [id])
+  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
+}
+
+model store_incentive {
+  id                           Int     @id @default(autoincrement())
+  comission_store_incentive_id Int?
+  store_id                     Int     @map("storeId")
+  incentive_id                 Int     @map("incentiveId")
+  status                       Int     @default(0) @db.Int()
+  total_amount                 Decimal @default(0) @db.Decimal(32, 2)
+  tanggal_awal                 DateTime?  @map("tanggal_awal")
+  tanggal_akhir                DateTime?  @map("tanggal_akhir")
+  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
+  updated_at DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+
+  created_by Int? @map("createdBy")
+  updated_by Int? @map("updatedBy")
+  deleted_by Int? @map("deletedBy")
+
+  store                     store                      @relation(fields: [store_id], references: [id])
+  incentive                 setting_incentive          @relation(fields: [incentive_id], references: [id])
+  comission_store_incentive comission_store_incentive? @relation(fields: [comission_store_incentive_id], references: [id])
 }
 
 model comission_store_incentive {
@@ -1887,7 +1876,7 @@ model comission_store_incentive {
   deleted_by Int? @map("deletedBy")
 
   comission_store_incentive_evidence comission_store_incentive_evidence[]
-  store_incentive                    incentive_store[]
+  store_incentive                    store_incentive[]
 }
 
 model comission_store_incentive_evidence {
@@ -1904,60 +1893,4 @@ model comission_store_incentive_evidence {
   updated_at                DateTime?                 @db.DateTime()
   deleted_at                DateTime?                 @db.DateTime()
   comission_store_incentive comission_store_incentive @relation(fields: [comission_store_incentive_id], references: [id])
-}
-
-model manager_incentive {
-  id                             Int     @id @default(autoincrement())
-  store_id                       Int     @map("storeId")
-  incentive_id                   Int     @map("incentiveId")
-  comission_manager_incentive_id Int?    @map("comission_store_incentive_id")
-  nominal                        Decimal @default(0) @db.Decimal(32, 2)
-  status                         Int     @default(0) @db.Int()
-  notes                          String? @default("") @db.Text()
-
-  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
-  updated_at DateTime? @map("updatedAt") @db.DateTime()
-  deleted_at DateTime? @map("deletedAt") @db.DateTime()
-
-  created_by Int? @map("createdBy")
-  updated_by Int? @map("updatedBy")
-  deleted_by Int? @map("deletedBy")
-
-  incentive                   setting_incentive            @relation(fields: [incentive_id], references: [id])
-  store                       store                        @relation(fields: [store_id], references: [id])
-  comission_manager_incentive comission_manager_incentive? @relation(fields: [comission_manager_incentive_id], references: [id])
-}
-
-model comission_manager_incentive {
-  id Int @id @default(autoincrement())
-
-  total_amount Decimal @default(0) @db.Decimal(32, 2)
-  status       Int     @default(0) @db.Int()
-
-  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
-  updated_at DateTime? @map("updatedAt") @db.DateTime()
-  deleted_at DateTime? @map("deletedAt") @db.DateTime()
-
-  created_by Int? @map("createdBy")
-  updated_by Int? @map("updatedBy")
-  deleted_by Int? @map("deletedBy")
-
-  comission_manager_incentive_evidence comission_manager_incentive_evidence[]
-  manager_incentive                    manager_incentive[]
-}
-
-model comission_manager_incentive_evidence {
-  id Int @id @default(autoincrement())
-
-  comission_manager_incentive_id Int
-  evidence_location              String
-
-  created_by Int?
-  updated_by Int?
-  deleted_by Int?
-
-  created_at                  DateTime                    @default(now()) @db.DateTime()
-  updated_at                  DateTime?                   @db.DateTime()
-  deleted_at                  DateTime?                   @db.DateTime()
-  comission_manager_incentive comission_manager_incentive @relation(fields: [comission_manager_incentive_id], references: [id])
 }

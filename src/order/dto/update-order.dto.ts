@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsEmpty,
+  IsString,
   IsOptional,
   IsNumber,
   IsEnum,
@@ -79,5 +81,5 @@ export class UpdateOrderDto {
   request_survey?: string;
 
   @IsOptional()
-  notes?: string;
+  notes?:string;
 }

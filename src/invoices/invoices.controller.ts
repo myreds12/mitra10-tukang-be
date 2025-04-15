@@ -35,6 +35,11 @@ export class InvoicesController {
   //   return await this.invoicesService.getOrderInvoice(query);
   // }
 
+  @Get('/order')
+  async getOrderInvoice(@Query() query: QueryParamsDto) {
+    return await this.invoicesService.getOrderInvoice(query);
+  }
+
   @Get('/:id/export-excel')
   async invoiceDetailsExportExcel(
     @Param('id') id: string,

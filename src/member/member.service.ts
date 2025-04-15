@@ -62,7 +62,7 @@ export class MemberService {
             : undefined,
           phone_number: createMemberDto.phone_number,
           whatsapp_number: createMemberDto.whatsapp_number,
-          zip_code: createMemberDto.store_code,
+          zip_code: createMemberDto.zip_code,
           //join location diisi dengan store id
           join_location: createMemberDto.join_location
             ? createMemberDto.join_location
@@ -220,14 +220,14 @@ export class MemberService {
         }
         const totalUnpaid = item.order
           .filter((order) =>
-            order?.quotation[0]?.receipt_quotation !== null
-          )
-          .reduce((total, order) => total + Number(order.grand_total), 0);
-
+          order?.quotation[0]?.receipt_quotation !== null
+        )
+        .reduce((total, order) => total + Number(order.grand_total), 0);
+        
         const totalPaid = item.order
-          .filter(
-            (order) =>
-              order?.quotation[0]?.receipt_quotation === null,
+        .filter(
+          (order) =>
+            order?.quotation[0]?.receipt_quotation === null,
           )
           .reduce((total, order) => total + Number(order.grand_total), 0);
 
@@ -303,7 +303,7 @@ export class MemberService {
             : undefined,
           phone_number: updateMemberDto.phone_number,
           whatsapp_number: updateMemberDto.whatsapp_number,
-          zip_code: updateMemberDto.store_code,
+          zip_code: updateMemberDto.zip_code,
           join_location: updateMemberDto.join_location
             ? updateMemberDto.join_location
             : undefined,
@@ -402,8 +402,8 @@ export class MemberService {
                     },
                   }
                   : {}),
-              },
-              include: {
+                },
+                include: {
                 quotation: true,
                 complaints: true,
                 status: true,

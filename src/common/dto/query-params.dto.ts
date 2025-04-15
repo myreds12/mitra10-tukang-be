@@ -16,6 +16,9 @@ export class QueryParamsDto {
   take?: number = 10;
 
   @IsOptional()
+  offset?: number;
+
+  @IsOptional()
   @IsNotEmpty()
   store_group_id?: number;
 
@@ -174,6 +177,10 @@ export class QueryParamsDto {
   @IsOptional()
   @IsNotEmpty()
   email_member: string;
+
+  @IsOptional()
+  @IsNotEmpty()
+  role_name: string;
 
   @IsOptional()
   @IsNotEmpty()

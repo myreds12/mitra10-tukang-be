@@ -56,7 +56,7 @@ export class StoreService {
           address: dto.address,
           additional_address: dto.additional_address,
           area_id: dto.area_id,
-          zip_code: dto.store_code,
+          zip_code: dto.zip_code,
           created_by: user_id,
         },
       });
@@ -288,7 +288,7 @@ export class StoreService {
           address: dto.address,
           additional_address: dto.additional_address,
           area_id: dto.area_id,
-          zip_code: dto.store_code,
+          zip_code: dto.zip_code,
           updated_by: user_id,
           updated_at: new Date(),
         },

@@ -12,7 +12,7 @@ import { compare, hash, hashSync } from 'bcrypt';
 import { JwtConfig } from 'src/jwt.config';
 import { omit } from 'lodash';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma, users } from '@prisma/client';
+import { Prisma, users, roles } from '@prisma/client';
 import { PermissionAction } from 'src/casl/enum/permission-action.enum';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -24,15 +24,13 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     try {
-
       const user = await this.dbService.users.findFirst({
         where: {
           username: dto.username,
-          deleted_at: null,
         },
       });
 
@@ -45,7 +43,9 @@ export class AuthService {
       const formattedUsername = dto.username.replace(/ /g, '_');
 
       if (formattedUsername.length > 20) {
-        throw new BadRequestException('Username tidak boleh lebih dari 20 karakter.');
+        throw new BadRequestException(
+          'Username tidak boleh lebih dari 20 karakter.',
+        );
       }
 
       const [createUser] = await this.dbService.$transaction([
@@ -57,18 +57,18 @@ export class AuthService {
             //FIXME: CHECK THIS CODE
             ...(dto.vendor_id
               ? {
-                pic_vendor: {
-                  create: {
-                    pic_name: dto.pic_name,
-                    vendor: {
-                      connect: {
-                        id: dto.vendor_id,
+                  pic_vendor: {
+                    create: {
+                      pic_name: dto.pic_name,
+                      vendor: {
+                        connect: {
+                          id: dto.vendor_id,
+                        },
                       },
+                      email_address: dto.email,
                     },
-                    email_address: dto.email,
                   },
-                },
-              }
+                }
               : undefined),
             employee: {
               create: {
@@ -78,13 +78,15 @@ export class AuthService {
                 birth: dto?.birth ? new Date(dto.birth) : undefined,
                 phone_number: dto?.phone_number ?? undefined,
                 whatsapp_number: dto?.whatsapp_number ?? undefined,
-                store: dto?.store_id ? {
-                  connect: {
-                    id: dto.store_id
-                  }
-                } : undefined
-              }
-            }
+                store: dto?.store_id
+                  ? {
+                      connect: {
+                        id: dto.store_id,
+                      },
+                    }
+                  : undefined,
+              },
+            },
           },
         }),
       ]);
@@ -96,7 +98,11 @@ export class AuthService {
     }
   }
 
-  async updateUser(id: number, dto: UpdateUserDto, files?: Express.Multer.File) {
+  async updateUser(
+    id: number,
+    dto: UpdateUserDto,
+    files?: Express.Multer.File,
+  ) {
     try {
       const user = await this.dbService.users.findFirst({
         where: {
@@ -117,22 +123,24 @@ export class AuthService {
           password: dto?.password ? await hash(dto.password, 12) : undefined,
           ...(dto.id_pic
             ? {
-              pic_vendor: {
-                update: {
-                  where: {
-                    id: dto.id_pic,
-                  },
-                  data: {
-                    pic_name: dto.pic_name,
-                    email_address: dto.email,
+                pic_vendor: {
+                  update: {
+                    where: {
+                      id: dto.id_pic,
+                    },
+                    data: {
+                      pic_name: dto.pic_name,
+                      email_address: dto.email,
+                    },
                   },
                 },
-              },
-            }
+              }
             : undefined),
-          ...(files ? {
-            profile_picture: files.filename
-          } : undefined),
+          ...(files
+            ? {
+                profile_picture: files.filename,
+              }
+            : undefined),
         },
       });
 
@@ -143,7 +151,7 @@ export class AuthService {
     }
   }
 
-  async updateAllUsersForTesting(take: number = 100) {
+  async updateAllUsersForTesting(take = 100) {
     try {
       let updatedUsers = [];
       let batchNumber = 0;
@@ -171,7 +179,7 @@ export class AuthService {
               },
             });
             return updatedUser;
-          })
+          }),
         );
 
         // Tambahkan hasil batch ke array total updatedUsers
@@ -195,14 +203,13 @@ export class AuthService {
           id,
         },
         include: {
-          roles: true
-        }
+          roles: true,
+        },
       });
 
       if (!user || user.deleted_at) {
         throw new NotFoundException('User tidak ada.');
       }
-
 
       const deleteUser = await this.dbService.users.update({
         where: {
@@ -210,7 +217,7 @@ export class AuthService {
         },
         data: {
           deleted_at: new Date(),
-        }
+        },
       });
       return deleteUser;
     } catch (error) {
@@ -237,8 +244,8 @@ export class AuthService {
               phone_number_1: true,
               phone_number_2: true,
               email: true,
-              area: true
-            }
+              area: true,
+            },
           },
           roles: {
             select: { id: true, name: true },
@@ -255,7 +262,7 @@ export class AuthService {
                 select: {
                   id: true,
                   store_name: true,
-                  area: true
+                  area: true,
                 },
               },
             },
@@ -303,27 +310,52 @@ export class AuthService {
       const roles = await this.dbService.roles.findFirst({
         where: {
           name: {
-            contains: 'sales'
-          }
-        }
+            contains: 'sales',
+          },
+        },
       });
 
       if (user.roles.id === roles.id) {
         const salesData = user.sales[0];
-        const requiredFields = ['id', 'full_name', 'bank_id', 'account_name', 'account_number', 'phone_number', 'sales_brand'];
+        const requiredFields = [
+          'id',
+          'full_name',
+          'bank_id',
+          'account_name',
+          'account_number',
+          'phone_number',
+          'sales_brand',
+        ];
 
-        const isSalesDataIncomplete = requiredFields.some(field => !salesData[field]);
+        const isSalesDataIncomplete = requiredFields.some(
+          (field) => !salesData[field],
+        );
         if (isSalesDataIncomplete || !salesData.store?.id) {
-
-          throw new HttpException('Data sales tidak lengkap, mohon untuk menghubungi admin toko', HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
+            HttpStatus.FORBIDDEN,
+          );
         }
         if (salesData.is_active === false) {
-          throw new HttpException('Akun anda tidak aktif, mohon hubungi admin toko', HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            'Akun anda tidak aktif, mohon hubungi admin toko',
+            HttpStatus.FORBIDDEN,
+          );
         }
 
         if (salesData.deleted_at) {
-          throw new HttpException('Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko', HttpStatus.FORBIDDEN);
+          throw new HttpException(
+            'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
+            HttpStatus.FORBIDDEN,
+          );
         }
+      }
+
+      if (user.deleted_at) {
+        throw new HttpException(
+          'Akun anda sudah dihapus, mohon untuk menghubungi kepada admin yang bersangkutan',
+          HttpStatus.FORBIDDEN,
+        );
       }
 
       return await this.generateJwt(
@@ -373,7 +405,7 @@ export class AuthService {
       if (
         user.forget_password &&
         new Date(user.forget_password) <
-        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+          new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
       ) {
         await this.dbService.users.update({
           where: {
@@ -477,50 +509,67 @@ export class AuthService {
 
   async findAll(query: QueryParamsDto) {
     try {
-      const { page, take, search, date_from, date_to, vendor_id, store_id } =
-        query;
+      const {
+        page,
+        take,
+        search,
+        date_from,
+        date_to,
+        vendor_id,
+        store_id,
+        role_name,
+      } = query;
       const skip = page * take - take;
 
       const where: Prisma.usersWhereInput = {
         AND: [
           ...(search
             ? [
-              {
-                OR: [{ username: { contains: search } }],
-              },
-            ]
+                {
+                  OR: [{ username: { contains: search } }],
+                },
+              ]
             : []),
           ...(vendor_id
             ? [
-              {
-                pic_vendor: {
-                  some: {
-                    vendor_id: vendor_id,
+                {
+                  pic_vendor: {
+                    some: {
+                      vendor_id: vendor_id,
+                    },
                   },
                 },
-              },
-            ]
+              ]
+            : []),
+          ...(role_name
+            ? [
+                {
+                  roles: {
+                    name: { contains: role_name },
+                  },
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                store: {
-                  some: {
-                    id: { in: store_id },
+                {
+                  store: {
+                    some: {
+                      id: { in: store_id },
+                    },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
