@@ -787,6 +787,8 @@ export class WorkOrdersService {
             return Number(item.work_order_evidence_id);
           })
         : undefined;
+
+      console.log(deletedWorkOrderEvidences, "DELETED WORK ORDER EVIDENCES")
       const recentWorkStatus = workOrder.work_order_status.find(
         (x) => x.status_id === NEW_STATUS.id,
       );
@@ -887,14 +889,10 @@ export class WorkOrdersService {
           ? [
             this.dbService.work_order_evidences.updateMany({
               where: {
-                ...(deletedWorkOrderEvidences
-                  ? {
-                    id: {
-                      notIn: deletedWorkOrderEvidences,
-                    },
-                    work_order_id: id,
-                  }
-                  : undefined),
+                id: {
+                  in: deletedWorkOrderEvidences,
+                },
+                work_order_id: id,
               },
               data: {
                 deleted_at: new Date(),
