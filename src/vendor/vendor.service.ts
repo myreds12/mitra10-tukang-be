@@ -45,7 +45,7 @@ export class VendorService {
             created_by: user_id,
           }))
           : undefined;
-          const vendorServiceData = createVendorDto.service_type_id?.map((service_type_id) => ({ service_type_id })) ?? [];
+      const vendorServiceData = createVendorDto.service_type_id?.map((service_type_id) => ({ service_type_id })) ?? [];
 
 
       //FIXME: CHECK THIS CODE
@@ -154,7 +154,7 @@ export class VendorService {
         }),
       ]);
 
-       this.emailQueue.add(
+      this.emailQueue.add(
         'send-credential-mail',
         {
           username: users.username,
@@ -292,66 +292,68 @@ export class VendorService {
         skip,
         take: take <= 0 ? undefined : take,
         include: {
-          orders: {
-            where: {
-              deleted_at: null,
-              ...(order_date_from && order_date_to ? {
-                created_at: {
-                  gte: new Date(order_date_from),
-                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                }
-              } : {}),
-              ...(is_paid === 1 ? {
+          ...(take > 0 && {
+            orders: {
+              where: {
+                deleted_at: null,
+                ...(order_date_from && order_date_to ? {
+                  created_at: {
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                  }
+                } : {}),
+                ...(is_paid === 1 ? {
+                  quotation: {
+                    some: {
+                      deleted_at: null,
+                      receipt_quotation: { not: null },
+                    },
+                  }
+                } : is_paid === 0 && {
+                  quotation: {
+                    some: {
+                      deleted_at: null,
+                      receipt_quotation: null,
+                    },
+                  }
+                }),
+                ...(is_promotion === 1 ? {
+                  payment_type: {
+                    not: 'survey'
+                  }
+                } : is_promotion === 0 ? {
+                  payment_type: 'survey'
+                } : {}),
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+              include: {
+                status: true,
                 quotation: {
-                  some: {
+                  where: {
                     deleted_at: null,
-                    receipt_quotation: { not: null },
+                    ...(is_paid === 1
+                      ? {
+                        receipt_quotation: {
+                          not: null
+                        }
+                      }
+                      : is_paid === 0 && {
+                        receipt_quotation: null
+                      }),
                   },
-                }
-              } : is_paid === 0 && {
-                quotation: {
-                  some: {
-                    deleted_at: null,
-                    receipt_quotation: null,
-                  },
-                }
-              }),
-              ...(is_promotion === 1 ? {
-                payment_type : {
-                  not: 'survey'
-                }
-              } : is_promotion === 0 ? {
-                payment_type: 'survey'
-              } : {} ),
-            },
-            orderBy: {
-              created_at: 'desc',
-            },
-            include: {
-              status: true,
-              quotation: {
-                where: {
-                  deleted_at: null,
-                  ...(is_paid === 1
-                    ? {
-                      receipt_quotation: {
-                        not: null
+                  include: {
+                    quotation_receipt: {
+                      where: {
+                        deleted_at: null
                       }
                     }
-                    : is_paid === 0 && {
-                      receipt_quotation: null
-                    }),
-                },
-                include: {
-                  quotation_receipt: {
-                    where: {
-                      deleted_at: null
-                    }
                   }
-                }
+                },
               },
-            },
-          },
+            }
+          }),
           tukang: {
             include: {
               work_order_tukang: {
@@ -536,7 +538,7 @@ export class VendorService {
 
 
         const paidOrders = item.orders.filter((order) =>
-          order.quotation.some((x) => x.receipt_quotation !== null) || order?.quotation[0]?.quotation_receipt.some ((x) => x.receipt_quotation !== null),
+          order.quotation.some((x) => x.receipt_quotation !== null) || order?.quotation[0]?.quotation_receipt.some((x) => x.receipt_quotation !== null),
         );
 
         const orderSurvey = item.orders.filter((order) =>
@@ -620,8 +622,8 @@ export class VendorService {
 
       if (Boolean(top_best)) {
         dataVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
-    }
-    
+      }
+
 
 
       const total = await this.dbService.vendor.count({ where });
