@@ -169,6 +169,59 @@ export class WorkOrdersController {
     );
   }
 
+  @Post(':id/replace-foto')
+  @UseInterceptors(FilesInterceptor('work_order_evidences', 10))
+  async updateFoto(
+    @Param('id') id: number,
+    @Request() req: RequestWithUser,
+    @UploadedFiles() work_order_evidences: Express.Multer.File[],
+  ) {
+    console.log('work order update : ', id, req.user, work_order_evidences);
+
+    return await this.workOrdersService.updateFoto(
+      id,
+      req.user,
+      work_order_evidences,
+    );
+  }
+
+  @Post(':id/add-foto-before')
+  @UseInterceptors(FilesInterceptor('work_order_before', 10))
+  async addFotoBefore(
+    @Param('id') id: number,
+    @Request() req: RequestWithUser,
+    @UploadedFiles() work_order_before: Express.Multer.File[],
+  ) {
+    console.log('work order update : ', id, req.user, work_order_before);
+
+    return await this.workOrdersService.addFotoBefore(
+      id,
+      req.user,
+      work_order_before,
+    );
+  }
+
+  @Post(':id/add-foto-after')
+  @UseInterceptors(FilesInterceptor('work_order_after', 10))
+  async addFotoAfter(
+    @Param('id') id: number,
+    @Request() req: RequestWithUser,
+    @UploadedFiles() work_order_after: Express.Multer.File[],
+  ) {
+    console.log('work order update : ', id, req.user, work_order_after);
+
+    return await this.workOrdersService.addFotoAfter(
+      id,
+      req.user,
+      work_order_after,
+    );
+  }
+  @Delete(':id/delete-foto')
+  async deleteFoto(@Param('id') id: number) {
+    console.log(id);
+    return await this.workOrdersService.deleteFoto(id);
+  }
+
   @Delete(':id')
   async delete(@Param('id') id: number, @Request() req) {
     const user_id = req.user.id;

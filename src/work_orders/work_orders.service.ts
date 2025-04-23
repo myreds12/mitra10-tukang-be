@@ -700,6 +700,91 @@ export class WorkOrdersService {
     }
   }
 
+
+  async addFotoBefore(
+    id: number,
+    user: users,
+    work_order_before?: Array<Express.Multer.File>,
+  ) {
+    try {
+  
+      const { id: user_id } = user;
+     const res =  await Promise.all(
+        work_order_before.map(async (evidence) => {
+          await this.dbService.work_order_evidences.create({
+            data: {
+              work_order_id: id,
+              evidence_location: evidence.filename,
+              created_by:user_id,
+              created_at:new Date(),
+              type: 2,
+            },
+          });
+        })
+      );
+
+
+
+
+      return res;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+  async addFotoAfter(
+    id: number,
+    user: users,
+    work_order_after?: Array<Express.Multer.File>,
+  ) {
+    try {
+  
+      const { id: user_id } = user;
+     const res =  await Promise.all(
+      work_order_after.map(async (evidence) => {
+          await this.dbService.work_order_evidences.create({
+            data: {
+              work_order_id: id,
+              evidence_location: evidence.filename,
+              created_by:user_id,
+              created_at:new Date(),
+              type: 3,
+            },
+          });
+        })
+      );
+
+
+
+
+      return res;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async deleteFoto(
+    id: number,
+  ) {
+    try {
+      const checkWorkOrder = await this.dbService.work_order_evidences.delete({
+        where: {
+          id,
+        },
+      });
+      console.log(checkWorkOrder);
+      
+      if (!checkWorkOrder)
+        throw new BadRequestException('Work Order Evidencae not exist');
+
+      return checkWorkOrder;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async setStatusWithMaterials(
     id: number,
     user: users,
