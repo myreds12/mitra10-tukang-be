@@ -269,7 +269,7 @@ export class OrderService {
     }
   }
 
-  async findAll(queryParams: QueryParamsDto) {
+  async findAll(queryParams: any) {
     try {
       const {
         take,
@@ -294,6 +294,7 @@ export class OrderService {
         promotion,
         is_promotion,
         history_status,
+      managers,
       } = queryParams;
 
       const skip = page * take - take;
@@ -399,6 +400,7 @@ export class OrderService {
               },
             ]
             : []),
+          ...(Boolean(managers)?[{ status: { category: {  not: 'CANCEL', } } },{ payment_type: { equals: 'survey' } }]:[]),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(work_order_status

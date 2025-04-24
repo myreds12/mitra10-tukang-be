@@ -12,6 +12,7 @@ import { BankModule } from './bank/bank.module';
 import { DataMasterModule } from './data_master/dataMaster.module';
 import { EmployeeModule } from './employee/employee.module';
 import { SalesModule } from './sales/sales.module';
+import { ManagerModule } from './manager/manager.module';
 import { ItemsModule } from './items/items.module';
 import { VendorModule } from './vendor/vendor.module';
 import { TukangModule } from './tukang/tukang.module';
@@ -159,6 +160,8 @@ import { CrmModule } from './crm/crm.module';
     ComissionStoreIncentiveModule,
     QuotationPromotionModule,
     CrmModule,
+    //manager
+    ManagerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
