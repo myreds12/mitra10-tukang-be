@@ -341,74 +341,75 @@ export class AuthService {
           },
         },
       });
-      if (user.roles.id === roles.id) {
-        const salesData = user.sales[0];
-        const requiredFields = [
-          'id',
-          'full_name',
-          'bank_id',
-          'account_name',
-          'account_number',
-          'phone_number',
-          'sales_brand',
-        ];
+      if (roles) {
+        if (user.roles.id === roles.id) {
+          const salesData = user.sales[0];
+          const requiredFields = [
+            'id',
+            'full_name',
+            'bank_id',
+            'account_name',
+            'account_number',
+            'phone_number',
+            'sales_brand',
+          ];
 
-        const isSalesDataIncomplete = requiredFields.some(
-          (field) => !salesData[field],
-        );
-        if (isSalesDataIncomplete || !salesData.store?.id) {
-          throw new HttpException(
-            'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
-            HttpStatus.FORBIDDEN,
+          const isSalesDataIncomplete = requiredFields.some(
+            (field) => !salesData[field],
           );
-        }
-        if (salesData.is_active === false) {
-          throw new HttpException(
-            'Akun anda tidak aktif, mohon hubungi admin toko',
-            HttpStatus.FORBIDDEN,
-          );
-        }
+          if (isSalesDataIncomplete || !salesData.store?.id) {
+            throw new HttpException(
+              'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
+              HttpStatus.FORBIDDEN,
+            );
+          }
+          if (salesData.is_active === false) {
+            throw new HttpException(
+              'Akun anda tidak aktif, mohon hubungi admin toko',
+              HttpStatus.FORBIDDEN,
+            );
+          }
 
-        if (salesData.deleted_at) {
-          throw new HttpException(
-            'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
-            HttpStatus.FORBIDDEN,
-          );
+          if (salesData.deleted_at) {
+            throw new HttpException(
+              'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
+              HttpStatus.FORBIDDEN,
+            );
+          }
         }
       }
-
-      if (user.roles.id === roles2.id) {
-        const salesData = user.manager[0];
-        const requiredFields = [
-          'id',
-          'full_name',
-          'bank_id',
-          'account_name',
-          'account_number',
-          'phone_number',
-        ];
-
-        const isSalesDataIncomplete = requiredFields.some(
-          (field) => !salesData[field],
-        );
-        if (isSalesDataIncomplete || !salesData.store?.id) {
-          throw new HttpException(
-            'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
-            HttpStatus.FORBIDDEN,
+      if (roles2) {
+        if (user.roles.id === roles2.id) {
+          const salesData = user.manager[0];
+          const requiredFields = [
+            'id',
+            'full_name',
+            'bank_id',
+            'account_name',
+            'account_number',
+            'phone_number',
+          ];
+          const isSalesDataIncomplete = requiredFields.some(
+            (field) => !salesData[field],
           );
-        }
-        if (salesData.is_active === false) {
-          throw new HttpException(
-            'Akun anda tidak aktif, mohon hubungi admin toko',
-            HttpStatus.FORBIDDEN,
-          );
-        }
-
-        if (salesData.deleted_at) {
-          throw new HttpException(
-            'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
-            HttpStatus.FORBIDDEN,
-          );
+          if (isSalesDataIncomplete || !salesData.store?.id) {
+            throw new HttpException(
+              'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
+              HttpStatus.FORBIDDEN,
+            );
+          }
+          if (salesData.is_active === false) {
+            throw new HttpException(
+              'Akun anda tidak aktif, mohon hubungi admin toko',
+              HttpStatus.FORBIDDEN,
+            );
+          }
+          if (salesData.deleted_at) {
+            throw new HttpException(
+              'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
+              HttpStatus.FORBIDDEN,
+            );
+          }
         }
       }
 
