@@ -242,7 +242,7 @@ export class EmailProcessor {
           cc: '',
           bcc: mailOptions.bcc,
         },
-        order.status.id,
+        1,
         data,
       );
       // console.log('Mail Sent');
@@ -576,7 +576,7 @@ export class EmailProcessor {
             cc: '',
             bcc: mailOptions.bcc,
           },
-          quotation.quotation_status,
+          1,
           data,
         );
       }
@@ -731,7 +731,7 @@ export class EmailProcessor {
             cc: '',
             bcc: mailOptions.bcc,
           },
-          quotation.quotation_status,
+          1,
           data,
         );
 
@@ -824,7 +824,7 @@ export class EmailProcessor {
           cc: '',
           bcc: '',
         },
-        order.status.id,
+        1,
         data,
       );
     } catch (error) {
@@ -1079,7 +1079,7 @@ export class EmailProcessor {
           cc: '',
           bcc: mailOptions.bcc,
         },
-        reschedule.status_id,
+        1,
         data,
       );
     } catch (error) {
@@ -1183,7 +1183,7 @@ export class EmailProcessor {
           cc: '',
           bcc: mailOptions.bcc,
         },
-        refund.refund_status,
+        1,
         data,
       );
     } catch (error) {
@@ -1282,7 +1282,7 @@ export class EmailProcessor {
           cc: '',
           bcc: uniqueBcc.join(','),
         },
-        complaint.complaint_status,
+        1,
         data,
       );
     } catch (error) {
@@ -1298,7 +1298,7 @@ export class EmailProcessor {
     data: any = null,
   ) {
     try {
-      await this.dbService.mail_logs.create({
+      const mail_logs = await this.dbService.mail_logs.create({
         data: {
           moduleId: moduleId,
           emailMessageId: emailMessageId,
@@ -1307,6 +1307,8 @@ export class EmailProcessor {
           data,
         },
       });
+
+      console.log('Mail Logs Created: ', mail_logs.id);
     } catch (error) {
       this.logger.error(error);
     }

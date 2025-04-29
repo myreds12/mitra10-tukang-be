@@ -294,7 +294,7 @@ export class OrderService {
         promotion,
         is_promotion,
         history_status,
-      managers,
+        managers,
       } = queryParams;
 
       const skip = page * take - take;
@@ -400,7 +400,7 @@ export class OrderService {
               },
             ]
             : []),
-          ...(Boolean(managers)?[{ status: { category: {  not: 'CANCEL', } } },{ payment_type: { equals: 'survey' } }]:[]),
+          ...(Boolean(managers) ? [{ status: { category: { not: 'CANCEL', } } }, { payment_type: { equals: 'survey' } }] : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
           ...(work_order_status
@@ -1269,6 +1269,8 @@ export class OrderService {
         },
       });
 
+      console.log('Logs Order Find One : ', logs);
+
       const mailLogs = logs.filter((item) => {
         try {
           const dataMailLogs = JSON.parse(item.data);
@@ -1278,6 +1280,8 @@ export class OrderService {
           return false;
         }
       });
+
+      console.log('Mail Logs Order Find One : ', mailLogs);
 
       const data = {
         ...ordersWithUser,
