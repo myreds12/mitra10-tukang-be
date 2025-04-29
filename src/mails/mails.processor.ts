@@ -243,7 +243,7 @@ export class EmailProcessor {
           bcc: mailOptions.bcc,
         },
         1,
-        data,
+        JSON.stringify(data),
       );
       // console.log('Mail Sent');
     } catch (error) {
