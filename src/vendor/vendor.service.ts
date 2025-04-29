@@ -188,181 +188,126 @@ export class VendorService {
         is_paid,
         is_promotion
       } = query;
-      // ...(Boolean(top_best)
-      //       ? {
-      //           order_total: 'desc',
-      //         }
-      //       : {
-      //           created_at: order_by,
-      //         }),
-      // now.setHours(0, 0, 0, 0);
+  
       const formattedDate = new Date().toISOString().split('T')[0];
-
       const skip = page * take - take;
-
+  
+      // Optimize the query by reducing the amount of parameters
       const where: Prisma.vendorWhereInput = {
-        AND: [
-          ...(search
-            ? [
-              {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { phone_number: { contains: search } },
-                  { email_address: { contains: search } },
-                  { company_name: { contains: search } },
-                  {
-                    pic_name: {
-                      contains: search
-                    }
-                  }
-                ],
-              },
-            ]
-            : []),
-          ...(store_id
-            ? [
-              {
-                vendor_store: { some: { store_id: { in: store_id } } },
-              },
-            ]
-            : []),
-          ...(date_from && date_to
-            ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              },
-            ]
-            : []),
-          ...(is_paid === 1
-            ? [
-              {
-                orders: {
-                  some: {
-                    deleted_at: null,
-                    quotation: {
-                      some: {
-                        deleted_at: null,
-                        receipt_quotation: { not: null },
-                      },
-                    },
-                  },
-                },
-              },
-            ]
-            : is_paid === 0 ? [
-              {
-                orders: {
-                  some: {
-                    deleted_at: null,
-                    quotation: {
-                      some: {
-                        deleted_at: null,
-                        receipt_quotation: null,
-                      },
-                    },
-                  },
-                },
-              },
-            ] : []),
-          ...(order_date_from && order_date_to ? [
-            {
-              orders: {
-                some: {
-                  deleted_at: null,
-                  created_at: {
-                    gte: new Date(order_date_from),
-                    lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                  }
-                }
-              }
-            }
-          ] : []),
-
-        ].filter(Boolean),
         deleted_at: null,
       };
-
-      let vendor = await this.dbService.vendor.findMany({
+  
+      // Handle search conditionally to avoid empty OR clauses
+      if (search) {
+        where.OR = [
+          !isNaN(+search) ? { id: +search } : undefined,
+          { phone_number: { contains: search } },
+          { email_address: { contains: search } },
+          { company_name: { contains: search } },
+          { pic_name: { contains: search } }
+        ].filter(Boolean);
+      }
+  
+      // Handle store_id filter conditionally
+      if (store_id) {
+        where.vendor_store = { some: { store_id: { in: store_id } } };
+      }
+  
+      // Handle date filters conditionally
+      if (date_from && date_to) {
+        where.created_at = {
+          gte: new Date(date_from),
+          lte: new Date(`${date_to}T23:59:59.000Z`),
+        };
+      }
+  
+      // Separate the complex nested filters to reduce parameters
+      const orderWhere: any = {
+        deleted_at: null,
+      };
+  
+      // Add order date filter to the orderWhere object
+      if (order_date_from && order_date_to) {
+        orderWhere.created_at = {
+          gte: new Date(order_date_from),
+          lte: new Date(`${order_date_to}T23:59:59.000Z`),
+        };
+      }
+  
+      // Handle is_paid filter with simpler conditions
+      if (is_paid === 1) {
+        orderWhere.quotation = {
+          some: {
+            deleted_at: null,
+            receipt_quotation: { not: null },
+          },
+        };
+      } else if (is_paid === 0) {
+        orderWhere.quotation = {
+          some: {
+            deleted_at: null,
+            receipt_quotation: null,
+          },
+        };
+      }
+  
+      // Handle promotion filter
+      if (is_promotion === 1) {
+        orderWhere.payment_type = { not: 'survey' };
+      } else if (is_promotion === 0) {
+        orderWhere.payment_type = 'survey';
+      }
+  
+      // Only add orders filter if we have conditions to apply, to reduce parameters
+      if (Object.keys(orderWhere).length > 1) { // More than just deleted_at
+        where.orders = { some: orderWhere };
+      }
+  
+      // Step 1: First query - Get just the vendor IDs with minimal include
+      const vendorIds = await this.dbService.vendor.findMany({
         where,
+        select: { id: true },
         skip,
         take: take <= 0 ? undefined : take,
+      });
+  
+      if (vendorIds.length === 0) {
+        return {
+          data: [],
+          meta: { total: 0, takeTotal: 0, page, take },
+        };
+      }
+  
+      // Step 2: Use the IDs to fetch detailed data with a WHERE IN clause
+      const detailedVendors = await this.dbService.vendor.findMany({
+        where: {
+          id: { in: vendorIds.map(v => v.id) },
+        },
         include: {
-          ...(take > 0 && {
-            orders: {
-              where: {
-                deleted_at: null,
-                ...(order_date_from && order_date_to ? {
-                  created_at: {
-                    gte: new Date(order_date_from),
-                    lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                  }
-                } : {}),
-                ...(is_paid === 1 ? {
-                  quotation: {
-                    some: {
-                      deleted_at: null,
-                      receipt_quotation: { not: null },
-                    },
-                  }
-                } : is_paid === 0 && {
-                  quotation: {
-                    some: {
-                      deleted_at: null,
-                      receipt_quotation: null,
-                    },
-                  }
-                }),
-                ...(is_promotion === 1 ? {
-                  payment_type: {
-                    not: 'survey'
-                  }
-                } : is_promotion === 0 ? {
-                  payment_type: 'survey'
-                } : {}),
-              },
-              orderBy: {
-                created_at: 'desc',
-              },
-              include: {
-                status: true,
-                quotation: {
-                  where: {
-                    deleted_at: null,
-                    ...(is_paid === 1
-                      ? {
-                        receipt_quotation: {
-                          not: null
-                        }
-                      }
-                      : is_paid === 0 && {
-                        receipt_quotation: null
-                      }),
-                  },
-                  include: {
-                    quotation_receipt: {
-                      where: {
-                        deleted_at: null
-                      }
-                    }
-                  }
+          orders: {
+            where: orderWhere,
+            orderBy: { created_at: 'desc' },
+            include: {
+              status: true,
+              quotation: {
+                where: {
+                  deleted_at: null,
+                  ...(is_paid === 1 ? { receipt_quotation: { not: null } } :
+                     is_paid === 0 ? { receipt_quotation: null } : {}),
                 },
+                include: {
+                  quotation_receipt: {
+                    where: { deleted_at: null }
+                  }
+                }
               },
-            }
-          }),
+            },
+          },
           tukang: {
             include: {
               work_order_tukang: {
-                where: {
-                  deleted_at: null,
-                },
-                orderBy: {
-                  created_at: 'desc',
-                },
+                where: { deleted_at: null },
+                orderBy: { created_at: 'desc' },
                 include: {
                   work_orders: {
                     include: {
@@ -391,27 +336,17 @@ export class VendorService {
             },
           },
           vendor_area: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              area: true,
-            },
+            where: { deleted_at: null },
+            include: { area: true },
           },
           bank: true,
           vendor_document: true,
           vendor_service: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              service_type: true,
-            },
+            where: { deleted_at: null },
+            include: { service_type: true },
           },
           vendor_store: {
-            where: {
-              deleted_at: null,
-            },
+            where: { deleted_at: null },
             select: {
               id: true,
               vendor_id: true,
@@ -435,34 +370,44 @@ export class VendorService {
               },
             },
           },
-          work_orders: {
-            where: {
-              // survey_date: new Date(),
-              deleted_at: null,
-              OR: [
-                {
-                  survey_date: {
-                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
-                    lte: new Date(`${formattedDate}T23:59:59.000Z`),
-                  },
-                },
-                {
-                  work_start_date: {
-                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
-                  },
-                  work_end_date: {
-                    lte: new Date(`${formattedDate}T23:59:59.000Z`),
-                  },
-                },
-              ],
-            },
-          },
         },
       });
+  
+      // Step 3: Process the work_orders separately to reduce parameter count
+      const workOrdersData = await this.dbService.work_orders.findMany({
+        where: {
+          vendor_id: { in: vendorIds.map(v => v.id) },
+          deleted_at: null,
+          OR: [
+            {
+              survey_date: {
+                gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                lte: new Date(`${formattedDate}T23:59:59.000Z`),
+              },
+            },
+            {
+              work_start_date: {
+                gte: new Date(`${formattedDate}T00:00:00.000Z`),
+              },
+              work_end_date: {
+                lte: new Date(`${formattedDate}T23:59:59.000Z`),
+              },
+            },
+          ],
+        },
+      });
+  
+      // Merge work_orders data with vendors
+      let vendor = detailedVendors.map(v => ({
+        ...v,
+        work_orders: workOrdersData.filter(wo => wo.vendor_id === v.id),
+      }));
+  
       if (take > 0) {
         vendor = vendor.slice(0, take);
       }
-
+  
+      // Process vendor data
       if (vendor_with_max_order) {
         vendor = vendor.filter((v) => {
           return v.tukang.some((t) => {
@@ -474,10 +419,10 @@ export class VendorService {
                 status,
                 created_at,
               } = item?.work_orders || {};
-
+  
               let startDate: Date;
               let endDate: Date;
-
+  
               if (work_start_date && work_end_date) {
                 startDate = new Date(work_start_date);
                 endDate = new Date(work_end_date);
@@ -488,9 +433,9 @@ export class VendorService {
                 startDate = new Date(created_at);
                 endDate = startDate;
               }
-
+  
               const currentDate = new Date().toISOString().split('T')[0];
-
+  
               const isWithinRange =
                 startDate.toISOString().split('T')[0] <= currentDate &&
                 endDate.toISOString().split('T')[0] >= currentDate;
@@ -500,12 +445,12 @@ export class VendorService {
                 isWithinRange
               );
             });
-
+  
             return dailySlots.length <= v.max_order;
           });
         });
       }
-
+  
       vendor = vendor.map((vendor) => {
         return {
           ...vendor,
@@ -514,14 +459,14 @@ export class VendorService {
               const orderDate = new Date(item.work_orders?.created_at ?? 0)
                 .toISOString()
                 .split('T')[0];
-
+  
               return (
                 item.work_orders?.status?.category !== 'SURVEYDONE' &&
                 item.work_orders?.status?.category !== 'WORKEND' &&
                 orderDate === formattedDate
               );
             });
-
+  
             return {
               ...tukangItem,
               slot_order: dailySlots.length,
@@ -529,48 +474,37 @@ export class VendorService {
           }),
         };
       });
+  
       const dataVendor = vendor.map((item) => {
         const totalOrder = item.orders.length;
-
+  
         const unpaidOrders = item.orders.filter((order) =>
           order.quotation.some((x) => x.receipt_quotation === null) || order?.quotation[0]?.quotation_receipt.every((x) => x.receipt_quotation === null)
         );
-
-
+  
         const paidOrders = item.orders.filter((order) =>
           order.quotation.some((x) => x.receipt_quotation !== null) || order?.quotation[0]?.quotation_receipt.some((x) => x.receipt_quotation !== null),
         );
-
+  
+        const surveyCategories = [
+          'surveyreq', 'tukangsurvey', 'surveydone', 'surveystart',
+          'resurveyreq', 'resurveystart', 'resurveydone', 'retukangsurvey'
+        ];
+  
+        const workCategories = [
+          'workstart', 'workreq', 'workdone', 'tukangwork',
+          'reworkstart', 'reworkend', 'reworkreq', 'reworkdone',
+          'retukangworkstart', 'retukangworkend', 'retukangworkreq', 'retukangworkdone'
+        ];
+  
         const orderSurvey = item.orders.filter((order) =>
-          [
-            'surveyreq',
-            'tukangsurvey',
-            'surveydone',
-            'surveystart',
-            'resurveyreq',
-            'resurveystart',
-            'resurveydone',
-            'retukangsurvey'
-          ].includes(order.status.category.toLocaleLowerCase()),
+          surveyCategories.includes(order.status.category.toLowerCase())
         );
+        
         const orderWork = item.orders.filter((order) =>
-          [
-            'workstart',
-            'workreq',
-            'workdone',
-            'tukangwork',
-            'reworkstart',
-            'reworkend',
-            'reworkreq',
-            'reworkdone',
-            'retukangworkstart',
-            'retukangworkend',
-            'retukangworkreq',
-            'retukangworkdone'
-          ].includes(order.status.category.toLocaleLowerCase()),
+          workCategories.includes(order.status.category.toLowerCase())
         );
-
-
+  
         const totalOrderSurveyValue = orderSurvey.reduce(
           (total, order) =>
             total +
@@ -579,7 +513,7 @@ export class VendorService {
             ) + Number(order?.grand_total ?? 0)),
           0,
         );
-
+  
         const totalOrderWorkValue = orderWork.reduce(
           (total, order) =>
             total +
@@ -587,9 +521,8 @@ export class VendorService {
               order?.quotation[0]?.quotation_grand_total ?? order.grand_total,
             ) + Number(order?.grand_total ?? 0)),
           0,
-        )
-
-
+        );
+  
         const totalUnpaid = unpaidOrders.reduce(
           (total, order) =>
             total +
@@ -598,7 +531,7 @@ export class VendorService {
             ),
           0,
         );
-
+  
         const totalPaid = paidOrders.reduce(
           (total, order) =>
             total +
@@ -607,7 +540,7 @@ export class VendorService {
             ) + Number(order?.grand_total ?? 0),
           0,
         );
-
+  
         return {
           ...item,
           total_order: totalOrder,
@@ -619,15 +552,13 @@ export class VendorService {
           total_order_work_value: totalOrderWorkValue,
         };
       });
-
+  
       if (Boolean(top_best)) {
         dataVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
       }
-
-
-
+  
       const total = await this.dbService.vendor.count({ where });
-
+  
       return {
         data: dataVendor,
         meta: { total, takeTotal: vendor.length, page, take },
