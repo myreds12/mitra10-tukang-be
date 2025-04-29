@@ -308,16 +308,15 @@ export class VendorService {
               work_order_tukang: {
                 where: { deleted_at: null },
                 orderBy: { created_at: 'desc' },
+                where: { deleted_at: null },
+                orderBy: { created_at: 'desc' },
                 include: {
                   work_orders: {
-                    include: {
-                      status: true,
-                      work_order_status: true,
-                    },
-                  },
-                },
-              },
-            },
+                    include: { status: true, work_order_status: true }
+                  }
+                }
+              }
+            }
           },
           pic_vendor: {
             include: {
@@ -325,15 +324,10 @@ export class VendorService {
                 select: {
                   id: true,
                   username: true,
-                  roles: {
-                    select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
-                },
-              },
-            },
+                  roles: { select: { id: true, name: true } }
+                }
+              }
+            }
           },
           vendor_area: {
             where: { deleted_at: null },
@@ -346,6 +340,7 @@ export class VendorService {
             include: { service_type: true },
           },
           vendor_store: {
+            where: { deleted_at: null },
             where: { deleted_at: null },
             select: {
               id: true,
@@ -365,10 +360,10 @@ export class VendorService {
                   phone_number_1: true,
                   phone_number_2: true,
                   area_id: true,
-                  area: true,
-                },
-              },
-            },
+                  area: true
+                }
+              }
+            }
           },
         },
       });
@@ -554,20 +549,27 @@ export class VendorService {
       });
   
       if (Boolean(top_best)) {
-        dataVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
+        finalVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
       }
   
       const total = await this.dbService.vendor.count({ where });
   
       return {
-        data: dataVendor,
-        meta: { total, takeTotal: vendor.length, page, take },
+        data: finalVendor,
+        meta: {
+          total,
+          takeTotal: finalVendor.length,
+          page,
+          take
+        }
       };
+
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
+
 
   async findOne(id: number) {
     try {
@@ -1051,7 +1053,289 @@ export class VendorService {
 
   async vendorExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const { data } = await this.findAll(queryParams);
+      const {
+        take,
+        page,
+        search,
+        date_from,
+        date_to,
+        store_id,
+        order_date_from,
+        order_date_to,
+        is_paid,
+        is_promotion
+      } = queryParams;
+      // ...(Boolean(top_best)
+      //       ? {
+      //           order_total: 'desc',
+      //         }
+      //       : {
+      //           created_at: order_by,
+      //         }),
+      // now.setHours(0, 0, 0, 0);
+      const formattedDate = new Date().toISOString().split('T')[0];
+
+      const skip = page * take - take;
+
+      const where: Prisma.vendorWhereInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { phone_number: { contains: search } },
+                  { email_address: { contains: search } },
+                  { company_name: { contains: search } },
+                  {
+                    pic_name: {
+                      contains: search
+                    }
+                  }
+                ],
+              },
+            ]
+            : []),
+          ...(store_id
+            ? [
+              {
+                vendor_store: { some: { store_id: { in: store_id } } },
+              },
+            ]
+            : []),
+          ...(date_from && date_to
+            ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23: 59: 59.000Z`),
+                },
+              },
+            ]
+            : []),
+          ...(is_paid === 1
+            ? [
+              {
+                orders: {
+                  some: {
+                    deleted_at: null,
+                    quotation: {
+                      some: {
+                        deleted_at: null,
+                        receipt_quotation: { not: null },
+                      },
+                    },
+                  },
+                },
+              },
+            ]
+            : is_paid === 0 ? [
+              {
+                orders: {
+                  some: {
+                    deleted_at: null,
+                    quotation: {
+                      some: {
+                        deleted_at: null,
+                        receipt_quotation: null,
+                      },
+                    },
+                  },
+                },
+              },
+            ] : []),
+          ...(order_date_from && order_date_to ? [
+            {
+              orders: {
+                some: {
+                  deleted_at: null,
+                  created_at: {
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23: 59: 59.000Z`),
+                  }
+                }
+              }
+            }
+          ] : []),
+
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+
+      const data = await this.dbService.vendor.findMany({
+        where,
+        skip,
+        take: take <= 0 ? undefined : take,
+        include: {
+          ...(take > 0 && {
+            orders: {
+              where: {
+                deleted_at: null,
+                ...(order_date_from && order_date_to ? {
+                  created_at: {
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23: 59: 59.000Z`),
+                  }
+                } : {}),
+                ...(is_paid === 1 ? {
+                  quotation: {
+                    some: {
+                      deleted_at: null,
+                      receipt_quotation: { not: null },
+                    },
+                  }
+                } : is_paid === 0 && {
+                  quotation: {
+                    some: {
+                      deleted_at: null,
+                      receipt_quotation: null,
+                    },
+                  }
+                }),
+                ...(is_promotion === 1 ? {
+                  payment_type: {
+                    not: 'survey'
+                  }
+                } : is_promotion === 0 ? {
+                  payment_type: 'survey'
+                } : {}),
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+              include: {
+                status: true,
+                quotation: {
+                  where: {
+                    deleted_at: null,
+                    ...(is_paid === 1
+                      ? {
+                        receipt_quotation: {
+                          not: null
+                        }
+                      }
+                      : is_paid === 0 && {
+                        receipt_quotation: null
+                      }),
+                  },
+                  include: {
+                    quotation_receipt: {
+                      where: {
+                        deleted_at: null
+                      }
+                    }
+                  }
+                },
+              },
+            }
+          }),
+          tukang: {
+            include: {
+              work_order_tukang: {
+                where: {
+                  deleted_at: null,
+                },
+                orderBy: {
+                  created_at: 'desc',
+                },
+                include: {
+                  work_orders: {
+                    include: {
+                      status: true,
+                      work_order_status: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          pic_vendor: {
+            include: {
+              users: {
+                select: {
+                  id: true,
+                  username: true,
+                  roles: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          vendor_area: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              area: true,
+            },
+          },
+          bank: true,
+          vendor_document: true,
+          vendor_service: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              service_type: true,
+            },
+          },
+          vendor_store: {
+            where: {
+              deleted_at: null,
+            },
+            select: {
+              id: true,
+              vendor_id: true,
+              created_at: true,
+              deleted_at: true,
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                  additional_address: true,
+                  address: true,
+                  bank_account: true,
+                  bank_name: true,
+                  bank_number: true,
+                  email: true,
+                  phone_number_1: true,
+                  phone_number_2: true,
+                  area_id: true,
+                  area: true,
+                },
+              },
+            },
+          },
+          work_orders: {
+            where: {
+              // survey_date: new Date(),
+              deleted_at: null,
+              OR: [
+                {
+                  survey_date: {
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                    lte: new Date(`${formattedDate}T23: 59: 59.000Z`),
+                  },
+                },
+                {
+                  work_start_date: {
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                  },
+                  work_end_date: {
+                    lte: new Date(`${formattedDate}T23: 59: 59.000Z`),
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
 
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Order', {

@@ -17,6 +17,14 @@ export class MemberService {
   //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
+      const store = await this.dbService.store.findFirst({
+        where: {
+          id: createMemberDto.join_location,
+          deleted_at: null,
+        },
+      });
+      if (!store) throw new BadRequestException('Store not found!');
+
       const email_check = await this.dbService.members.findFirst({
         where: {
           email: createMemberDto.email,
@@ -220,14 +228,14 @@ export class MemberService {
         }
         const totalUnpaid = item.order
           .filter((order) =>
-          order?.quotation[0]?.receipt_quotation !== null
-        )
-        .reduce((total, order) => total + Number(order.grand_total), 0);
-        
+            order?.quotation[0]?.receipt_quotation !== null
+          )
+          .reduce((total, order) => total + Number(order.grand_total), 0);
+
         const totalPaid = item.order
-        .filter(
-          (order) =>
-            order?.quotation[0]?.receipt_quotation === null,
+          .filter(
+            (order) =>
+              order?.quotation[0]?.receipt_quotation === null,
           )
           .reduce((total, order) => total + Number(order.grand_total), 0);
 
@@ -402,8 +410,8 @@ export class MemberService {
                     },
                   }
                   : {}),
-                },
-                include: {
+              },
+              include: {
                 quotation: true,
                 complaints: true,
                 status: true,

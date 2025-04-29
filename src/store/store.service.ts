@@ -114,7 +114,6 @@ export class StoreService {
 
     const skip = take > 0 ? page * take - take : 0;
 
-    // 1. Ambil data store dengan hanya 10 order terbaru
     const stores = await this.dbService.store.findMany({
       where,
       skip,
