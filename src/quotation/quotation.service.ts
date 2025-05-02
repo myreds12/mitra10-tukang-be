@@ -628,15 +628,14 @@ export class QuotationService {
       // console.log('PAYLOAD', updateQuotationDto);
 
       const promotion =
-        updateQuotationDto?.promotion_id || quotationForUpdate?.promotion_id
+        (updateQuotationDto?.promotion_id ?? quotationForUpdate?.promotion?.id) > 0
           ? await this.dbService.promotion.findFirstOrThrow({
             where: {
-              id:
-                updateQuotationDto?.promotion_id ??
-                quotationForUpdate?.promotion?.id,
+              id: updateQuotationDto?.promotion_id ?? quotationForUpdate?.promotion?.id,
             },
           })
           : undefined;
+
 
       const quotationfiles =
         quotation_files?.map((item) => ({
