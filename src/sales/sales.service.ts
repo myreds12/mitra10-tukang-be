@@ -274,12 +274,12 @@ export class SalesService {
                 }
               } : undefined),
               ...(is_promotion === 1 ? {
-                payment_type : {
+                payment_type: {
                   not: 'survey'
                 }
               } : is_promotion === 0 ? {
                 payment_type: 'survey'
-              } : {} ),
+              } : {}),
             },
           },
           bank: true,
@@ -385,7 +385,6 @@ export class SalesService {
             ({ id, category_id, commission }) => ({
               where: {
                 id: id ?? 0,
-                category_id,
               },
               update: {
                 category_id,

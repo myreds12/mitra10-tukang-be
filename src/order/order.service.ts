@@ -1527,6 +1527,7 @@ export class OrderService {
           }
           : { additional_fee: 0 }),
         member_id: updateOrderDto?.member_id ?? undefined,
+        sales_id: updateOrderDto?.sales_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
         vendor_id: updateOrderDto?.vendor_id ?? undefined,
         project_address: updateOrderDto?.project_address ?? undefined,
