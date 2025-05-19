@@ -35,7 +35,6 @@ export class InvoicesService {
     try {
       const { id: user_id } = user;
 
-      // Prepare evidences if available
       const evidences = invoice_evidences?.length
         ? invoice_evidences.map((item) => ({
           evidence_location: item.filename,
@@ -49,11 +48,8 @@ export class InvoicesService {
         },
       });
 
-      // Get provided order IDs
       const providedOrder = createInvoiceDto.invoice_details
-        ? [...new Set(
-          createInvoiceDto.invoice_details.map(({ order_id }) => Number(order_id))
-        )]
+        ? [...new Set(createInvoiceDto.invoice_details.map(({ order_id }) => Number(order_id)))]
         : [];
 
       if (providedOrder.length === 0) {
@@ -61,52 +57,55 @@ export class InvoicesService {
         throw new Error('No Order Id Provided');
       }
 
+      const existingInvoiceDetails = await this.dbService.invoice_details.findMany({
+        where: {
+          order_id: {
+            in: providedOrder,
+          },
+        },
+        select: {
+          order_id: true,
+          type: true,
+        },
+      });
+
+      const existingCombinationSet = new Set(
+        existingInvoiceDetails.map((item) => `${item.order_id}-${item.type}`)
+      );
+
+      for (const detail of createInvoiceDto.invoice_details) {
+        const key = `${detail.order_id}-${detail.type}`;
+        if (existingCombinationSet.has(key)) {
+          this.logger.error(`Invoice untuk Order ID ${detail.order_id} dengan tipe ${detail.type} sudah ada`);
+          throw new Error(`Invoice untuk Order ID ${detail.order_id} dan tipe tersebut sudah pernah dibuat`);
+        }
+      }
+
       const orders = await this.dbService.orders.findMany({
         where: {
           id: {
             in: providedOrder,
           },
-          // invoice_details: {
-          //   none: {},
-          // },
-          // work_orders: {
-          //   status: {
-          //     category: {
-          //       in: ['SURVEYDONE' ,'WORKEND', 'DONE'],
-          //     },
-          //   },
-          // },
         },
         include: {
           m_order_details: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              item: true,
-            },
+            where: { deleted_at: null },
+            include: { item: true },
           },
           quotation: {
-            where: {
-              deleted_at: null,
-            },
+            where: { deleted_at: null },
             include: {
               quotation_details: {
-                where: {
-                  deleted_at: null,
-                },
+                where: { deleted_at: null },
               },
             },
           },
           work_orders: true,
           invoice_details: {
-            select: {
-              id: true,
-            },
+            select: { id: true },
           },
         },
       });
-
 
       let totalGrandTotal = 0;
       const invoiceDetails = [];
@@ -126,177 +125,77 @@ export class InvoicesService {
             );
 
             if (!isDuplicate) {
-              if (order.payment_type === 'survey' && detail.type === 1) {
-                const totalMargin =
-                  (vendor.nominal_survey ? Number(vendor.nominal_survey) : 75000) +
-                  Number(order.additional_fee);
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
-                totalGrandTotal += totalMargin || 0;
-              } else if (order.payment_type === 'survey' && detail.type === 2) {
-                const totalMargin =
-                  vendor.margin_type === 1
-                    ? (+vendor.margin_nominal / 100) *
-                    Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0
-                      )
-                    )
-                    : Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0
-                      )
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
+              const quotationTotal = order?.quotation[0]?.quotation_details.reduce(
+                (acc, curr) => acc + Number(curr.final_price),
+                0
+              ) || 0;
 
-                totalGrandTotal += totalMargin || 0;
-              } else if (order.payment_type === 'survey' && detail.type === 3) {
-                const totalMargin =
-                  (vendor.margin_type === 1
-                    ? ((+vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0
-                        )
-                      ) *
-                      25) /
-                    100
-                    : Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0
-                      )
-                    ) +
-                    +vendor.margin_nominal) +
-                  Number(order.additional_fee);
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
+              let totalMargin = 0;
 
-                totalGrandTotal += totalMargin || 0;
-              } else if (order.payment_type === 'survey' && detail.type === 4) {
-                const totalMargin =
-                  vendor.margin_type === 1
-                    ? ((+vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0
-                        )
-                      ) *
-                      50) /
-                    100
-                    : Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0
-                      )
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
-
-                totalGrandTotal += totalMargin || 0;
-              } else if (order.payment_type === 'survey' && detail.type === 5) {
-                const totalMargin =
-                  vendor.margin_type === 1
-                    ? ((+vendor.margin_nominal / 100) *
-                      Number(
-                        order?.quotation[0]?.quotation_details.reduce(
-                          (acc, curr) => acc + Number(curr.final_price),
-                          0
-                        )
-                      ) *
-                      25) /
-                    100
-                    : Number(
-                      order?.quotation[0]?.quotation_details.reduce(
-                        (acc, curr) => acc + Number(curr.final_price),
-                        0
-                      )
-                    ) +
-                    +vendor.margin_nominal +
-                    Number(order.additional_fee);
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
-
-                totalGrandTotal += totalMargin || 0;
+              if (order.payment_type === 'survey') {
+                switch (detail.type) {
+                  case 1:
+                    totalMargin = (vendor.nominal_survey ? Number(vendor.nominal_survey) : 75000) +
+                      Number(order.additional_fee);
+                    break;
+                  case 2:
+                    totalMargin =
+                      vendor.margin_type === 1
+                        ? (+vendor.margin_nominal / 100) * quotationTotal
+                        : quotationTotal + +vendor.margin_nominal + Number(order.additional_fee);
+                    break;
+                  case 3:
+                    totalMargin =
+                      (vendor.margin_type === 1
+                        ? ((+vendor.margin_nominal / 100) * quotationTotal * 25) / 100
+                        : quotationTotal + +vendor.margin_nominal) + Number(order.additional_fee);
+                    break;
+                  case 4:
+                    totalMargin =
+                      (vendor.margin_type === 1
+                        ? ((+vendor.margin_nominal / 100) * quotationTotal * 50) / 100
+                        : quotationTotal + +vendor.margin_nominal) + Number(order.additional_fee);
+                    break;
+                  case 5:
+                    totalMargin =
+                      (vendor.margin_type === 1
+                        ? ((+vendor.margin_nominal / 100) * quotationTotal * 25) / 100
+                        : quotationTotal + +vendor.margin_nominal) + Number(order.additional_fee);
+                    break;
+                }
               } else if (order.payment_type === 'pemasangan_tanpa_survey') {
-                const totalMargin =
+                totalMargin =
                   (vendor.margin_type === 1
                     ? order.m_order_details
                       .filter((i) => i.item.type === 2)
-                      .reduce((acc, curr) => {
-                        const nominal = Number(curr?.item?.invoice_nominal || 0);
-                        const quantity = Number(curr?.quantity || 0);
-                        return acc + nominal * quantity;
-                      }, 0)
+                      .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0) * Number(curr?.quantity || 0), 0)
                     : +vendor.margin_nominal *
                     order.m_order_details
                       .filter((i) => i.item.type === 2)
-                      .reduce(
-                        (acc, curr) => acc + Number(curr?.quantity || 0),
-                        0
-                      )) + Number(order.additional_fee);
-
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
-                totalGrandTotal += totalMargin || 0;
+                      .reduce((acc, curr) => acc + Number(curr?.quantity || 0), 0)) +
+                  Number(order.additional_fee);
               } else if (order.payment_type === 'gratis') {
-                const totalMargin =
+                totalMargin =
                   order.m_order_details
                     .filter((i) => i.item.type === 1)
-                    .reduce((acc, curr) => {
-                      const nominal = Number(curr?.item?.invoice_nominal || 0);
-                      const quantity = Number(curr?.quantity || 0);
-                      return acc + nominal * quantity;
-                    }, 0) +
+                    .reduce((acc, curr) => acc + Number(curr?.item?.invoice_nominal || 0) * Number(curr?.quantity || 0), 0) +
                   Number(order.additional_fee);
-                invoiceDetails.push({
-                  order_id: order.id,
-                  total: totalMargin,
-                  invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
-                  type: detail.type,
-                });
-                totalGrandTotal += totalMargin || 0;
               }
+
+              invoiceDetails.push({
+                order_id: order.id,
+                total: totalMargin,
+                invoice_number: `INV${formatDateToMonthYear(order.created_at)}`,
+                type: detail.type,
+              });
+
+              totalGrandTotal += totalMargin || 0;
             }
           }
         });
       });
 
-      const pkpNominal =
-        vendor.type === 1 ? totalGrandTotal * (+vendor.pkp_nominal / 100) : 0;
+      const pkpNominal = vendor.type === 1 ? totalGrandTotal * (+vendor.pkp_nominal / 100) : 0;
       const pphNominal = createInvoiceDto.pph_nominal
         ? totalGrandTotal * (+createInvoiceDto.pph_nominal / 100)
         : 0;
@@ -304,17 +203,11 @@ export class InvoicesService {
         ? totalGrandTotal * (+createInvoiceDto.ppn_nominal / 100)
         : 0;
 
-      const totalAmount =
-        totalGrandTotal + pkpNominal + pphNominal + ppnNominal;
-
+      const totalAmount = totalGrandTotal + pkpNominal + pphNominal + ppnNominal;
       const invoicesCount = (await this.dbService.invoices.count()) + 1;
 
       const data = {
-        vendor: {
-          connect: {
-            id: vendor.id,
-          },
-        },
+        vendor: { connect: { id: vendor.id } },
         pkp_nominal: pkpNominal,
         pph_nominal: pphNominal,
         ppn_nominal: ppnNominal,
@@ -323,16 +216,12 @@ export class InvoicesService {
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
         invoice_evidence: {
-          createMany: {
-            data: evidences,
-          },
+          createMany: { data: evidences },
         },
         ...(invoiceDetails.length > 0
           ? {
             invoice_details: {
-              createMany: {
-                data: invoiceDetails,
-              },
+              createMany: { data: invoiceDetails },
             },
           }
           : {}),
@@ -342,9 +231,10 @@ export class InvoicesService {
       const [invoices] = await this.dbService.$transaction([
         this.dbService.invoices.create({ data }),
       ]);
+
       if (invoices) {
         await this.notifService.create(
-          { invoices: invoices },
+          { invoices },
           'CREATE',
           invoices.created_by,
           moduleTypeNotification.INVOICE,
@@ -354,13 +244,14 @@ export class InvoicesService {
       }
 
       await this.invoiceLogs(invoices.id, invoices);
-      this.logger.log(`Invoice successfully create with ID: ${invoices.id}`);
+      this.logger.log(`Invoice successfully created with ID: ${invoices.id}`);
       return invoices;
     } catch (error) {
       console.error('Error creating invoice:', error);
       throw error;
     }
   }
+
 
   async findAll(query: QueryParamsDto) {
     try {
