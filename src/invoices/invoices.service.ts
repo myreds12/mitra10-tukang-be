@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -62,6 +63,14 @@ export class InvoicesService {
           order_id: {
             in: providedOrder,
           },
+          invoices: {
+            status: {
+              notIn: [
+                InvoiceStatus.INVOICE_DITOLAK,
+                InvoiceStatus.DOKUMEN_DITOLAK,
+              ],
+            }
+          }
         },
         select: {
           order_id: true,
@@ -77,7 +86,7 @@ export class InvoicesService {
         const key = `${detail.order_id}-${detail.type}`;
         if (existingCombinationSet.has(key)) {
           this.logger.error(`Invoice untuk Order ID ${detail.order_id} dengan tipe ${detail.type} sudah ada`);
-          throw new Error(`Invoice untuk Order ID ${detail.order_id} dan tipe tersebut sudah pernah dibuat`);
+          throw new BadRequestException(`Invoice untuk Order ID ${detail.order_id} dan tipe tersebut sudah pernah dibuat`);
         }
       }
 
