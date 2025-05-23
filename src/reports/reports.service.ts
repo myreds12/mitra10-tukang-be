@@ -182,15 +182,15 @@ export class ReportsService {
                 OR: [
                   {
                     store: {
-                      store_name:search
+                      store_name: search
                     },
-      
+
                   },
                 ],
               },
             ]
             : []),
-    
+
         ].filter(Boolean),
         // comission_sales_incentive: {
         //   deleted_at:{
@@ -203,27 +203,27 @@ export class ReportsService {
         where,
         skip,
         take: take > 0 ? take : undefined,
-     
+
         include: {
           store: {
-            include:{
-              quotation:{
-                where:{
-                  order:{
-                          created_at: {
+            include: {
+              quotation: {
+                where: {
+                  order: {
+                    created_at: {
                       gte: new Date(date_from),
                       lte: new Date(`${date_to}T23:59:59.000Z`),
                     },
-                    status:{
-           
+                    status: {
+
                       category: "WORKEND",
-                    
+
                     }
                   }
                 }
               }
               // orders:{
-                
+
               //   where:{
               //       created_at: {
               //         gte: new Date(date_from),
@@ -237,7 +237,7 @@ export class ReportsService {
               //     status:true,
               //     quotation:true
               //   }
-             
+
               // }
             }
           },
@@ -248,24 +248,24 @@ export class ReportsService {
         where,
         include: {
           store: {
-            include:{
-              quotation:{
-                where:{
-                  order:{
-                          created_at: {
+            include: {
+              quotation: {
+                where: {
+                  order: {
+                    created_at: {
                       gte: new Date(date_from),
                       lte: new Date(`${date_to}T23:59:59.000Z`),
                     },
-                    status:{
-           
+                    status: {
+
                       category: "WORKEND",
-                    
+
                     }
                   }
                 }
               }
               // orders:{
-                
+
               //   where:{
               //       created_at: {
               //         gte: new Date(date_from),
@@ -279,7 +279,7 @@ export class ReportsService {
               //     status:true,
               //     quotation:true
               //   }
-             
+
               // }
             }
           },
@@ -291,15 +291,15 @@ export class ReportsService {
       );
       const filteredSalesIncentiveCount = [];
       const storeSet = new Set();
-      
+
       salesIncetiveCount.forEach((item) => {
         if (item.store.quotation.length > 1 && !storeSet.has(item.store.id)) {
           storeSet.add(item.store.id);
           filteredSalesIncentiveCount.push(item);
         }
       });
-    
-      
+
+
       // const totalIncentive = await this.dbService.sales_incentive.aggregate({
       //   where,
       //   _sum: {
@@ -444,6 +444,7 @@ export class ReportsService {
         totalComplaint: ['INVESTIGATED'],
         totalReschedule: ['RESCHEDULE'],
         totalRefund: [
+          'REFUND',
           'CANCELREFUND',
           'REFUNDAPPROVEDBYHO',
           'REFUNDREJECTEDBYHO',
@@ -2133,13 +2134,13 @@ export class ReportsService {
         2,
       );
 
-      
+
       startOfMonth.setHours(0, 0, 0, 0);
       endOfMonth.setHours(0, 0, 0, 0);
       nextMonth.setHours(0, 0, 0, 0);
       endOfNextMonth.setHours(0, 0, 0, 0);
-      console.log('NEXT MONTH' ,nextMonth);
-      console.log('END OF NEXT MONTH' ,endOfNextMonth);
+      console.log('NEXT MONTH', nextMonth);
+      console.log('END OF NEXT MONTH', endOfNextMonth);
       const statusPending = [
         'SURVEYSTART',
         'TUKANGSURVEY',
