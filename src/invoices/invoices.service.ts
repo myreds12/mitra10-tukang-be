@@ -800,8 +800,8 @@ export class InvoicesService {
           ? [
             this.dbService.refund.updateMany({
               where: {
-                orders: {
-                  vendor_id: invoice.vendor.id,
+                approval_number: {
+                  not: null,
                 },
                 paid_status: 0,
               },
@@ -817,7 +817,11 @@ export class InvoicesService {
               where: {
                 orders: {
                   vendor_id: invoice.vendor.id,
+                  id: {
+                    in: invoice.invoice_details.map((x) => x.order_id),
+                  },
                 },
+
                 paid_status: 1,
               },
               data: {
