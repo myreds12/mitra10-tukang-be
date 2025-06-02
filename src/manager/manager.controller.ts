@@ -150,6 +150,10 @@ export class ManagerController {
   ): Promise<any> {
     return await this.salesService.getInsentive(query);
   }
+  @Get('/insentive-manager/:id')
+  async findOneInsetif(@Param('id') id: number): Promise<any> {
+    return await this.salesService.findOneInsetif(id);
+  }
 
   @Get()
   async findAll(

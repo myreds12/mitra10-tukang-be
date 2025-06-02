@@ -371,9 +371,42 @@ export class ManagerService {
       throw error;
     }
   }
+  async findOneInsetif(id: number) {
+    try {
 
+      const incetiveDetail = await this.dbService.manager_incentive.findFirst({
+        where:{
+          id: id
+        }
+      })
+      // console.log(incetiveDetail);
+      
+      const sales = await this.dbService.manager.findFirst({
+        where: {
+          id: incetiveDetail.manager_id,
+        },
+        include: {
+          bank: true,
+          store: true,
+      
+          users: true,
+        },
+      });
+      const data ={
+        ...incetiveDetail,
+        ...sales
+      }
+      return data;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
   async findOne(id: number) {
     try {
+
+     
+      
       const sales = await this.dbService.manager.findFirst({
         where: {
           id,
