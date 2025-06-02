@@ -540,7 +540,6 @@ export class TukangService {
       };
 
       const data = await this.dbService.$transaction([
-        
         ...(updateTukangDto.is_active != null
           ? [
             this.dbService.tukang_document.updateMany({
@@ -554,39 +553,39 @@ export class TukangService {
             }),
           ]
           : []),
-          ...(updateTukangDto.tukang_area
-            ? [
-              this.dbService.tukang_area.deleteMany({
-                ...(updateTukangDto.tukang_area
-                  ? {
-                    where: {
-                      tukang_id: id,
-                    },
-                  }
-                  : undefined),
-              }),
-            ]
-            : []),
-            ...(updateTukangDto.service_types
-              ? [
-                this.dbService.tukang_service.deleteMany({
-                  ...(updateTukangDto.service_types
-                    ? {
-                      where: {
-                        tukang_id: id,
-                      },
-                    }
-                    : undefined),
-                  
-                }),
-              ]
-              : []),
-          this.dbService.tukang.update({
-            where: {
-              id,
-            },
-            data: tukangUpdate,
-          }),
+        ...(updateTukangDto.tukang_area
+          ? [
+            this.dbService.tukang_area.deleteMany({
+              ...(updateTukangDto.tukang_area
+                ? {
+                  where: {
+                    tukang_id: id,
+                  },
+                }
+                : undefined),
+            }),
+          ]
+          : []),
+        ...(updateTukangDto.service_types
+          ? [
+            this.dbService.tukang_service.deleteMany({
+              ...(updateTukangDto.service_types
+                ? {
+                  where: {
+                    tukang_id: id,
+                  },
+                }
+                : undefined),
+
+            }),
+          ]
+          : []),
+        this.dbService.tukang.update({
+          where: {
+            id,
+          },
+          data: tukangUpdate,
+        }),
       ]);
       const formattedUsername = updateTukangDto?.username
         ? updateTukangDto?.username.replace(/ /g, '_')

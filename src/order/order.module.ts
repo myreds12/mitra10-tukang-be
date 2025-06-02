@@ -24,6 +24,7 @@ import { fileFilter } from 'src/common/filters/file-filter';
         },
       }),
       fileFilter: fileFilter
+
     }),
     BullModule.registerQueue({
       name: 'email',
@@ -34,4 +35,4 @@ import { fileFilter } from 'src/common/filters/file-filter';
     }),
   ],
 })
-export class OrderModule {}
+export class OrderModule { }

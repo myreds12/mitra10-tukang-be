@@ -35,7 +35,9 @@ export default class QuotationDetails {
 
   @Transform(({ value }) => {
     if (typeof value === 'string' && value.includes(',')) {
-      throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+      throw new BadRequestException(
+        'Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.',
+      );
     }
     return parseFloat(value); // atau Number(value)
   })
@@ -43,7 +45,9 @@ export default class QuotationDetails {
 
   @Transform(({ value }) => {
     if (typeof value === 'string' && value.includes(',')) {
-      throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+      throw new BadRequestException(
+        'Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.',
+      );
     }
     return parseFloat(value); // atau Number(value)
   })

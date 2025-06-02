@@ -30,7 +30,6 @@ export class MemberService {
         throw new BadRequestException('Email wajib diisi!');
       }
       
-      // Gabungkan seluruh validasi dalam satu query
       const existingMember = await this.dbService.members.findFirst({
         where: {
           join_location: createMemberDto.join_location,
@@ -46,7 +45,6 @@ export class MemberService {
           ],
         },
       });
-      
       if (existingMember) {
         if (existingMember.email === createMemberDto.email) {
           throw new BadRequestException('Email sudah terdaftar di toko ini!');
@@ -64,12 +62,10 @@ export class MemberService {
           throw new BadRequestException('Nomor WhatsApp sudah terdaftar di toko ini!');
         }
       }
-      
 
       const numberMember =
         createMemberDto.phone_number ?? createMemberDto.whatsapp_number;
 
-      // TODO : add condition for numberMember when phone_number or whatsapp_number filled, use that instead
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,

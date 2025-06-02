@@ -26,7 +26,21 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 @Controller('tukang')
 @UseGuards(JwtAuthGuard)
 export class TukangController {
-  constructor(private readonly tukangService: TukangService) {}
+  constructor(private readonly tukangService: TukangService) { }
+
+  @Post('/delete-duplicate/:id')
+  async tukangDeleteDuplicateRelation(
+    @Param('id') id: number,
+    @Body('type') type: 'service_type' | 'area',
+    @Body('take') take: number,
+  ) {
+    const data = await this.tukangService.deleteDuplicateRelationTukang(
+      id,
+      type,
+      take,
+    );
+    return data;
+  }
 
   @Post('/delete-duplicate/:id')
   async tukangDeleteDuplicateRelation(

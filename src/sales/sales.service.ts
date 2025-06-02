@@ -234,9 +234,9 @@ export class SalesService {
               },
             ]
             : []),
-            ...(is_active ? [{
-              is_active: Boolean(is_active)
-            }] : []),
+          ...(is_active ? [{
+            is_active: Boolean(is_active)
+          }] : []),
           ...(date_from && date_to
             ? [
               {

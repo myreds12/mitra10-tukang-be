@@ -1502,15 +1502,15 @@ export class OrderService {
                     },
                   }
                   : undefined),
-                  ...(updateOrderDto.sales_id
-                    ? {
-                      sales: {
-                        connect: {
-                          id: updateOrderDto.sales_id ?? order.sales_id,
-                        },
+                ...(updateOrderDto.sales_id
+                  ? {
+                    sales: {
+                      connect: {
+                        id: updateOrderDto.sales_id ?? order.sales_id,
                       },
-                    }
-                    : undefined),
+                    },
+                  }
+                  : undefined),
                 item_name: item?.item_name ?? '',
                 item_code: item?.item_code ?? '',
                 quantity: item?.quantity,

@@ -752,7 +752,7 @@ export class QuotationService {
       let grandTotal = 0;
       let grandTotalNoPromotion = 0;
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
-        (item, i) => {
+        (item) => {
 
           if (typeof item.price === 'string' && item.price.includes(',')) {
             throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
