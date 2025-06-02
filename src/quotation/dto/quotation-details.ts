@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsOptional, ValidateIf } from 'class-validator';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 import { MarginType } from './margin-type.enum';
+import { BadRequestException } from '@nestjs/common';
 
 export default class QuotationDetails {
   @Type(() => Number)
@@ -32,10 +33,20 @@ export default class QuotationDetails {
   name: string;
   unit: string;
 
-  @Transform(({ value }) => Number(value))
+  @Transform(({ value }) => {
+    if (typeof value === 'string' && value.includes(',')) {
+      throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+    }
+    return parseFloat(value); // atau Number(value)
+  })
   price: string | number;
 
-  @Transform(({ value }) => Number(value))
+  @Transform(({ value }) => {
+    if (typeof value === 'string' && value.includes(',')) {
+      throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+    }
+    return parseFloat(value); // atau Number(value)
+  })
   margin: string | number;
 
   @Transform(({ value }) => Number(value))

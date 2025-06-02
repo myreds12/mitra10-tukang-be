@@ -143,6 +143,8 @@ export class ManagerService {
   async create(createSalesDto: CreateManagerDto, user: users) {
     try {
       const { id: user_id } = user;
+      console.log(user_id);
+      console.log(createSalesDto);
       let bank = null;
       if (createSalesDto.bank_id) {
         bank = await this.dbService.bank.findFirst({
@@ -171,7 +173,7 @@ export class ManagerService {
           },
         },
       });
-  
+ 
       // Deactivate other managers at this store
       await this.dbService.manager.updateMany({
         where: {
@@ -190,7 +192,7 @@ export class ManagerService {
   
       const formattedUsername =
         createSalesDto?.username?.replace(/ /g, '_') ?? null;
-  
+       
       const sales_data: Prisma.salesCreateInput = {
         full_name: createSalesDto.full_name,
         bank_branch: createSalesDto?.bank_branch,
@@ -239,7 +241,8 @@ export class ManagerService {
         
         is_active: true, // Ensure the new manager is active
       };
-  
+ 
+      
       const [sales] = await this.dbService.$transaction([
         this.dbService.manager.create({
           data: { ...sales_data },

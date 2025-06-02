@@ -7,6 +7,7 @@ import { extname } from 'path';
 import { BullModule } from '@nestjs/bull';
 import { PdfService } from 'src/common/service/pdf.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { fileFilter } from 'src/common/filters/file-filter';
 
 @Module({
   controllers: [OrderController],
@@ -22,6 +23,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
           callback(null, filename);
         },
       }),
+      fileFilter: fileFilter
     }),
     BullModule.registerQueue({
       name: 'email',

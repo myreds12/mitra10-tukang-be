@@ -96,7 +96,8 @@ export class StoreService {
       top_best,
       order_date_from,
       order_date_to,
-      is_promotion
+      is_promotion,
+      is_free
     } = query;
 
     const where: Prisma.storeWhereInput = {
@@ -128,7 +129,7 @@ export class StoreService {
             ...(order_date_from && order_date_to ? {
               created_at: { gte: new Date(order_date_from), lte: new Date(`${order_date_to}T23:59:59.000Z`) }
             } : {}),
-            ...(is_promotion === 1 ? { payment_type: { not: "survey" } } : is_promotion === 0 ? { payment_type: "survey" } : {})
+            ...(is_promotion === 1 ? { payment_type: "pemasangan_tanpa_survey" } : is_promotion === 0 ? { payment_type: "survey" } : {}),
           },
           orderBy: { created_at: "desc" },
           take: 10,
@@ -157,31 +158,77 @@ export class StoreService {
           ...(order_date_from && order_date_to ? {
             created_at: { gte: new Date(order_date_from), lte: new Date(`${order_date_to}T23:59:59.000Z`) }
           } : {}),
-          ...(is_promotion === 1 ? { payment_type: { not: "survey" } } : is_promotion === 0 ? { payment_type: "survey" } : {})
         },
         _count: { id: true },
         _sum: { grand_total: true }
       }),
       this.dbService.orders.groupBy({
-        by: ["store_id"],
+        by: ["store_id", "payment_type", "receipt_number"],
         where: {
           store_id: { in: storeIds },
           deleted_at: null,
-          quotation: { some: { quotation_receipt: { none: {} } } } // Tidak ada receipt = unpaid
+          ...(order_date_from && order_date_to
+            ? {
+              created_at: {
+                gte: new Date(order_date_from),
+                lte: new Date(`${order_date_to}T23:59:59.000Z`),
+              },
+            }
+            : {}),
+          ...(is_promotion === 1
+            ? {
+              receipt_number: null,
+              payment_type: { not: "survey" },
+            }
+            : is_promotion === 0
+              ? {
+                payment_type: "survey",
+                quotation: {
+                  some: {
+                    receipt_quotation: null,
+                    quotation_receipt: { none: {} },
+                  },
+                },
+              }
+              : {}),
         },
         _count: { id: true },
-        _sum: { grand_total: true }
+        _sum: { grand_total: true },
       }),
       this.dbService.orders.groupBy({
-        by: ["store_id"],
+        by: ["store_id", "payment_type", "receipt_number"],
         where: {
           store_id: { in: storeIds },
           deleted_at: null,
-          quotation: { some: { quotation_receipt: { some: {} } } } // Ada receipt = paid
+          ...(order_date_from && order_date_to
+            ? {
+              created_at: {
+                gte: new Date(order_date_from),
+                lte: new Date(`${order_date_to}T23:59:59.000Z`),
+              },
+            }
+            : {}),
+          ...(is_promotion === 1
+            ? {
+              receipt_number: { not: null },
+              payment_type: { not: "survey" },
+            }
+            : is_promotion === 0
+              ? {
+                payment_type: "survey",
+                quotation: {
+                  some: {
+                    receipt_quotation: { not: null },
+                    quotation_receipt: { some: {} },
+                  },
+                },
+              }
+              : {}),
         },
         _count: { id: true },
-        _sum: { grand_total: true }
-      })
+        _sum: { grand_total: true },
+      }),
+
     ]);
 
     // 3. Konversi hasil aggregate ke map untuk akses cepat
@@ -209,8 +256,9 @@ export class StoreService {
 
     // Jika `top_best` diaktifkan, urutkan berdasarkan jumlah order terbanyak
     if (Boolean(top_best)) {
-      dataStore.sort((a, b) => b.total_order - a.total_order);
+      dataStore.sort((a, b) => Number(b.total_paid_value) - Number(a.total_paid_value));
     }
+    
 
     const total = await this.dbService.store.count({ where });
 
