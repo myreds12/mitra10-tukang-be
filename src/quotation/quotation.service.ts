@@ -86,8 +86,17 @@ export class QuotationService {
 
       let quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
+          if (typeof item.price === 'string' && item.price.includes(',')) {
+            throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+          }
+          if (typeof item.margin === 'string' && item.margin.includes(',')) {
+            throw new BadRequestException('Margin tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+          }
+
           const prices = Number(item?.is_customer ? 0 : item?.price ?? 0);
           const quantity = item.quantity;
+
+
           const margin =
             item.margin_type === MarginType.PERCENTAGE
               ? +item.margin <= 100
@@ -743,7 +752,15 @@ export class QuotationService {
       let grandTotal = 0;
       let grandTotalNoPromotion = 0;
       const updatedQuotationDetails = updateQuotationDto.quotation_details.map(
-        (item, i) => {
+        (item) => {
+
+          if (typeof item.price === 'string' && item.price.includes(',')) {
+            throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+          }
+          if (typeof item.margin === 'string' && item.margin.includes(',')) {
+            throw new BadRequestException('Margin tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
+          }
+
           let price = 0;
           const quantity = item.quantity ? Number(item.quantity) : 0;
           let final_price = 0;

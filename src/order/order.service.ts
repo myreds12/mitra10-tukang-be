@@ -1412,7 +1412,7 @@ export class OrderService {
 
       const salesUser = await this.dbService.sales.findFirst({
         where: {
-          id: order.sales_id,
+          id: order.sales_id ?? updateOrderDto.sales_id,
         },
         include: {
           sales_categories: true,
@@ -1502,9 +1502,15 @@ export class OrderService {
                     },
                   }
                   : undefined),
-                sales: {
-                  connect: { id: updateOrderDto.sales_id ?? order.sales_id },
-                },
+                ...(updateOrderDto.sales_id
+                  ? {
+                    sales: {
+                      connect: {
+                        id: updateOrderDto.sales_id ?? order.sales_id,
+                      },
+                    },
+                  }
+                  : undefined),
                 item_name: item?.item_name ?? '',
                 item_code: item?.item_code ?? '',
                 quantity: item?.quantity,
@@ -1566,6 +1572,7 @@ export class OrderService {
             return Number(item.order_file_id);
           })
         : undefined;
+
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [syncDetails, syncFiles, orderQuery] =

@@ -14,7 +14,6 @@ import * as path from 'path';
 export class MemberService {
   constructor(private readonly dbService: PrismaService) { }
 
-  //TODO: NAMBAHIN MEMBER NUMBER
   async create(createMemberDto: CreateMemberDto, user_id) {
     try {
       const store = await this.dbService.store.findFirst({
@@ -23,41 +22,52 @@ export class MemberService {
           deleted_at: null,
         },
       });
-      if (!store) throw new BadRequestException('Store not found!');
+      if (!store) {
+        throw new BadRequestException('Toko tidak ditemukan!');
+      }
 
-      const email_check = await this.dbService.members.findFirst({
+      if (!createMemberDto.email) {
+        throw new BadRequestException('Email wajib diisi!');
+      }
+
+      const existingMember = await this.dbService.members.findFirst({
         where: {
-          email: createMemberDto.email,
           join_location: createMemberDto.join_location,
           deleted_at: null,
+          OR: [
+            { email: createMemberDto.email },
+            ...(createMemberDto.phone_number
+              ? [{ phone_number: createMemberDto.phone_number }]
+              : []),
+            ...(createMemberDto.whatsapp_number
+              ? [{ whatsapp_number: createMemberDto.whatsapp_number }]
+              : []),
+          ],
         },
       });
 
-      // const phone_wa_check = await this.dbService.members.findFirst({
-      //   where: {
-      //     OR: [
-      //       ...(createMemberDto?.phone_number
-      //         ? [{ phone_number: createMemberDto.phone_number }]
-      //         : null),
-      //       ...(createMemberDto?.whatsapp_number
-      //         ? [{ whatsapp_number: createMemberDto.whatsapp_number }]
-      //         : null),
-      //     ].filter(Boolean),
-      //   },
-      // });
+      if (existingMember) {
+        if (existingMember.email === createMemberDto.email) {
+          throw new BadRequestException('Email sudah terdaftar di toko ini!');
+        }
+        if (
+          createMemberDto.phone_number &&
+          existingMember.phone_number === createMemberDto.phone_number
+        ) {
+          throw new BadRequestException('Nomor telepon sudah terdaftar di toko ini!');
+        }
+        if (
+          createMemberDto.whatsapp_number &&
+          existingMember.whatsapp_number === createMemberDto.whatsapp_number
+        ) {
+          throw new BadRequestException('Nomor WhatsApp sudah terdaftar di toko ini!');
+        }
+      }
 
-      if (email_check) throw new BadRequestException('Email already exist!');
-      // if (phone_wa_check)
-      //   throw new BadRequestException(
-      //     'Phone or WhatsApp number already exist!',
-      //   );
-      if (!createMemberDto.email)
-        throw new BadRequestException('Email must be fill');
 
       const numberMember =
         createMemberDto.phone_number ?? createMemberDto.whatsapp_number;
 
-      // TODO : add condition for numberMember when phone_number or whatsapp_number filled, use that instead
       const member = await this.dbService.members.create({
         data: {
           full_name: createMemberDto.full_name,

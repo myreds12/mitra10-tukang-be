@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateTukangDto } from './dto/create-tukang.dto';
 import { UpdateTukangDto } from './dto/update-tukang.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -540,12 +540,7 @@ export class TukangService {
       };
 
       const data = await this.dbService.$transaction([
-        this.dbService.tukang.update({
-          where: {
-            id,
-          },
-          data: tukangUpdate,
-        }),
+
         ...(updateTukangDto.is_active != null
           ? [
             this.dbService.tukang_document.updateMany({
@@ -559,29 +554,39 @@ export class TukangService {
             }),
           ]
           : []),
+        ...(updateTukangDto.tukang_area
+          ? [
+            this.dbService.tukang_area.deleteMany({
+              ...(updateTukangDto.tukang_area
+                ? {
+                  where: {
+                    tukang_id: id,
+                  },
+                }
+                : undefined),
+            }),
+          ]
+          : []),
         ...(updateTukangDto.service_types
           ? [
-            this.dbService.tukang_service.updateMany({
+            this.dbService.tukang_service.deleteMany({
               ...(updateTukangDto.service_types
                 ? {
                   where: {
                     tukang_id: id,
-                    NOT: updateTukangDto.service_types.map((item) => {
-                      return {
-                        service_type_id: item.service_type_id,
-                        id: item?.id,
-                      };
-                    }),
                   },
                 }
                 : undefined),
-              data: {
-                deleted_at: new Date(),
-                deleted_by: user_id,
-              },
+
             }),
           ]
           : []),
+        this.dbService.tukang.update({
+          where: {
+            id,
+          },
+          data: tukangUpdate,
+        }),
       ]);
       const formattedUsername = updateTukangDto?.username
         ? updateTukangDto?.username.replace(/ /g, '_')
@@ -1051,4 +1056,70 @@ export class TukangService {
       throw error;
     }
   }
+
+  async deleteDuplicateRelationTukang(
+    tukang_id: number,
+    type: 'service_type' | 'area',
+    take: number,
+  ) {
+    try {
+      if (type === 'service_type') {
+        const tukangServiceTypes = await this.dbService.tukang_service.findMany({
+          where: {
+            tukang_id,
+          },
+          take: take > 0 ? take : undefined,
+        });
+
+        const uniqueServiceTypes = new Set();
+        const duplicateServiceTypes = [];
+
+        for (const serviceType of tukangServiceTypes) {
+          if (uniqueServiceTypes.has(serviceType.service_type_id)) {
+            duplicateServiceTypes.push(serviceType.id);
+          } else {
+            uniqueServiceTypes.add(serviceType.service_type_id);
+          }
+        }
+
+        if (duplicateServiceTypes.length > 0) {
+          await this.dbService.tukang_service.deleteMany({
+            where: {
+              id: { in: duplicateServiceTypes },
+            },
+          });
+        }
+      } else if (type === 'area') {
+        const tukangAreas = await this.dbService.tukang_area.findMany({
+          where: {
+            tukang_id,
+          },
+          take: take > 0 ? take : undefined,
+        });
+
+        const uniqueAreas = new Set();
+        const duplicateAreas = [];
+
+        for (const area of tukangAreas) {
+          if (uniqueAreas.has(area.area_id)) {
+            duplicateAreas.push(area.id);
+          } else {
+            uniqueAreas.add(area.area_id);
+          }
+        }
+
+        if (duplicateAreas.length > 0) {
+          await this.dbService.tukang_area.deleteMany({
+            where: {
+              id: { in: duplicateAreas },
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
 }

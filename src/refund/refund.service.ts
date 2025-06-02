@@ -287,7 +287,7 @@ export class RefundService {
           status: true,
         },
       });
-      const totalPenalty = refund.reduce((acc, refund) => acc + Number(refund.penalty_nominal), 0);
+      const totalPenalty = refund.filter((x) => x.paid_status === 0).reduce((acc, refund) => acc + Number(refund.penalty_nominal), 0);
 
       const count = await this.dbService.refund.count();
 
