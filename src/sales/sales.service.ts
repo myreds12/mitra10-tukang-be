@@ -1352,6 +1352,9 @@ export class SalesService {
 
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lt: endOfMonth,
+          },
           orders: {
             every: {
               created_at: {
@@ -1427,6 +1430,9 @@ export class SalesService {
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lt: endOfMonth,
+          },
           orders: {
             every: {
               created_at: {
