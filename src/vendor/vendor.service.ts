@@ -335,7 +335,76 @@ export class VendorService {
         }
       });
 
-      const vendorIds = vendorList.map(v => v.id);
+      let vendor = vendorList;
+      if (vendor_with_max_order) {
+        vendor = vendorList.filter((v) => {
+          return v.tukang.some((t) => {
+            const dailySlots = t.work_order_tukang.filter((item) => {
+              const {
+                work_start_date,
+                work_end_date,
+                survey_date,
+                status,
+                created_at,
+              } = item?.work_orders || {};
+
+              let startDate: Date;
+              let endDate: Date;
+
+              if (work_start_date && work_end_date) {
+                startDate = new Date(work_start_date);
+                endDate = new Date(work_end_date);
+              } else if (survey_date) {
+                startDate = new Date(survey_date);
+                endDate = startDate;
+              } else {
+                startDate = new Date(created_at);
+                endDate = startDate;
+              }
+
+              const currentDate = new Date().toISOString().split('T')[0];
+
+              const isWithinRange =
+                startDate.toISOString().split('T')[0] <= currentDate &&
+                endDate.toISOString().split('T')[0] >= currentDate;
+              return (
+                status?.category !== 'SURVEYDONE' &&
+                status?.category !== 'WORKEND' &&
+                isWithinRange
+              );
+            });
+
+            return dailySlots.length <= v.max_order;
+          });
+        });
+      }
+
+      vendor = vendorList.map((vendor) => {
+        return {
+          ...vendor,
+          tukang: vendor.tukang.map((tukangItem) => {
+            const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+              const orderDate = new Date(item.work_orders?.created_at ?? 0)
+                .toISOString()
+                .split('T')[0];
+
+              return (
+                item.work_orders?.status?.category !== 'SURVEYDONE' &&
+                item.work_orders?.status?.category !== 'WORKEND' &&
+                orderDate === formattedDate
+              );
+            });
+
+            return {
+              ...tukangItem,
+              slot_order: dailySlots.length,
+            };
+          }),
+        };
+      });
+
+
+      const vendorIds = vendor.map(v => v.id);
 
       const [ordersAggregate, unpaidAggregate, paidAggregate, surveyAggregate, workAggregate] = await Promise.all([
         this.dbService.orders.groupBy({
@@ -349,7 +418,7 @@ export class VendorService {
                 lte: new Date(`${order_date_to}T23:59:59.000Z`)
               }
             } : {}),
-            ...(is_promotion === 1 ? { payment_type: { not: "survey" } } : is_promotion === 0 ? { payment_type: "survey" } : {})
+            ...(is_promotion === 1 ? { payment_type: "pemasangan_tanpa_survey" } : is_promotion === 2 ? { payment_type: "survey" } :  is_promotion === 3 ? { payment_type: "gratis" } : {} )
           },
           _count: { id: true },
           _sum: { grand_total: true }
@@ -359,27 +428,33 @@ export class VendorService {
           where: {
             vendor_id: { in: vendorIds },
             deleted_at: null,
-            quotation: {
-              some: {
-                deleted_at: null,
-                receipt_quotation: null
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
               }
-            }
-          },
-          _count: { id: true },
-          _sum: { grand_total: true }
-        }),
-        this.dbService.orders.groupBy({
-          by: ["vendor_id"],
-          where: {
-            vendor_id: { in: vendorIds },
-            deleted_at: null,
-            quotation: {
-              some: {
-                deleted_at: null,
-                receipt_quotation: { not: null }
+              : {}),
+            ...(is_promotion === 1
+              ? {
+                receipt_number: null,
+                payment_type: "pemasangan_tanpa_survey",
               }
-            }
+              : is_promotion === 2
+                ? {
+                  payment_type: "survey",
+                  quotation: {
+                    some: {
+                      receipt_quotation: null,
+                      quotation_receipt: { none: {} },
+                    },
+                  },
+                }
+                :  is_promotion === 3 ? {
+                  receipt_number: null,
+                  payment_type: "gratis",
+                } : {}),
           },
           _count: { id: true },
           _sum: { grand_total: true }
@@ -389,6 +464,50 @@ export class VendorService {
           where: {
             vendor_id: { in: vendorIds },
             deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
+            ...(is_promotion === 1
+              ? {
+                receipt_number: null,
+                payment_type: "pemasangan_tanpa_survey",
+              }
+              : is_promotion === 0
+                ? {
+                  payment_type: "survey",
+                  quotation: {
+                    some: {
+                      receipt_quotation: null,
+                      quotation_receipt: { none: {} },
+                    },
+                  },
+                }
+                :  is_promotion === 3 ? {
+                  receipt_number: null,
+                  payment_type: "gratis",
+                } : {}),
+          },
+          _count: { id: true },
+          _sum: { grand_total: true }
+        }),
+        this.dbService.orders.groupBy({
+          by: ["vendor_id"],
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
             status: {
               category: { in: ['SURVEYREQ', 'TUKANGSURVEY', 'SURVEYSTART', 'SURVEYDONE', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'RETUKANGSURVEY'] }
             }
@@ -401,6 +520,14 @@ export class VendorService {
           where: {
             vendor_id: { in: vendorIds },
             deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
             status: {
               category: { in: ['WORKSTART', 'WORKREQ', 'WORKDONE', 'TUKANGWORK', 'REWORKSTART', 'REWORKEND', 'REWORKREQ', 'REWORKDONE', 'RETUKANGWORKSTART', 'RETUKANGWORKEND', 'RETUKANGWORKREQ', 'RETUKANGWORKDONE'] }
             }
@@ -418,7 +545,7 @@ export class VendorService {
       const surveyMap = aggMap(surveyAggregate);
       const workMap = aggMap(workAggregate);
 
-      const finalVendor = vendorList.map(vendor => {
+      const finalVendor = vendor.map(vendor => {
         const id = vendor.id;
         return {
           ...vendor,

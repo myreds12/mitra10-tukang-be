@@ -97,7 +97,6 @@ export class StoreService {
       order_date_from,
       order_date_to,
       is_promotion,
-      is_free
     } = query;
 
     const where: Prisma.storeWhereInput = {
@@ -129,7 +128,7 @@ export class StoreService {
             ...(order_date_from && order_date_to ? {
               created_at: { gte: new Date(order_date_from), lte: new Date(`${order_date_to}T23:59:59.000Z`) }
             } : {}),
-            ...(is_promotion === 1 ? { payment_type: "pemasangan_tanpa_survey" } : is_promotion === 0 ? { payment_type: "survey" } : {}),
+            ...(is_promotion === 1 ? { payment_type: "pemasangan_tanpa_survey" } : is_promotion === 2 ? { payment_type: "survey" } :  is_promotion === 3 ? { payment_type: "gratis" } : {}),
           },
           orderBy: { created_at: "desc" },
           take: 10,
@@ -178,9 +177,9 @@ export class StoreService {
           ...(is_promotion === 1
             ? {
               receipt_number: null,
-              payment_type: { not: "survey" },
+              payment_type: "pemasangan_tanpa_survey",
             }
-            : is_promotion === 0
+            : is_promotion === 2
               ? {
                 payment_type: "survey",
                 quotation: {
@@ -190,7 +189,10 @@ export class StoreService {
                   },
                 },
               }
-              : {}),
+              :  is_promotion === 3 ? {
+                receipt_number: null,
+                payment_type: "gratis",
+              } : {}),
         },
         _count: { id: true },
         _sum: { grand_total: true },
@@ -211,9 +213,9 @@ export class StoreService {
           ...(is_promotion === 1
             ? {
               receipt_number: { not: null },
-              payment_type: { not: "survey" },
+              payment_type: "pemasangan_tanpa_survey",
             }
-            : is_promotion === 0
+            : is_promotion === 2
               ? {
                 payment_type: "survey",
                 quotation: {
@@ -223,7 +225,10 @@ export class StoreService {
                   },
                 },
               }
-              : {}),
+              :  is_promotion === 3 ? {
+                receipt_number: { not: null },
+                payment_type: "gratis",
+              } : {}),
         },
         _count: { id: true },
         _sum: { grand_total: true },
@@ -256,7 +261,7 @@ export class StoreService {
 
     // Jika `top_best` diaktifkan, urutkan berdasarkan jumlah order terbanyak
     if (Boolean(top_best)) {
-      dataStore.sort((a, b) => Number(b.total_paid_value) - Number(a.total_paid_value));
+      dataStore.sort((a, b) => b.total_paid_order - a.total_paid_order);
     }
     
 
@@ -501,7 +506,7 @@ export class StoreService {
                 payment_type: {
                   not: 'survey'
                 }
-              } : is_promotion === 0 ? {
+              } : is_promotion === 2 ? {
                 payment_type: 'survey'
               } : {}),
             },
