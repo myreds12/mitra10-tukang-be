@@ -43,6 +43,22 @@ export class InvoicesService {
         }))
         : [];
 
+        const refund = await this.dbService.refund.findMany({
+        where: {
+          orders: {
+            vendor_id: createInvoiceDto.vendor_id,
+          },
+          paid_status: 0,
+          
+        },
+      });
+
+
+      const penaltyNominal = refund.length > 0 ? refund?.reduce(
+        (acc, curr) => acc + Number(curr?.penalty_nominal),
+        0,
+      ): 0
+
       const vendor = await this.dbService.vendor.findFirst({
         where: {
           id: createInvoiceDto.vendor_id,
@@ -220,7 +236,7 @@ export class InvoicesService {
         pkp_nominal: pkpNominal,
         pph_nominal: pphNominal,
         ppn_nominal: ppnNominal,
-        penalty_nominal: 0,
+        penalty_nominal: penaltyNominal,
         status: createInvoiceDto.status,
         invoice_number: `${invoicesCount}`,
         total_amount: totalAmount,
@@ -552,9 +568,6 @@ export class InvoicesService {
             vendor_id: invoice.vendor.id,
           },
           paid_status: 0,
-          approval_number: {
-            not: null,
-          },
         },
       });
 
@@ -800,9 +813,6 @@ export class InvoicesService {
           ? [
             this.dbService.refund.updateMany({
               where: {
-                approval_number: {
-                  not: null,
-                },
                 paid_status: 0,
               },
               data: {
