@@ -22,7 +22,7 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 @UseGuards(JwtAuthGuard)
 @Controller('csi')
 export class CsiController {
-  constructor(private readonly csiService: CsiService) { }
+  constructor(private readonly csiService: CsiService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -73,8 +73,8 @@ export class CsiController {
 
   @Get(':id/csi-answers')
   @HttpCode(HttpStatus.OK)
-  async getCsiAnswers(@Param('id') id: string) {
-    return await this.csiService.findCsiAnswers(+id);
+  async getCsiAnswers(@Param('id') id: string, @Query() query: QueryParamsDto) {
+    return await this.csiService.findCsiAnswers(+id, query);
   }
 
   @Delete(':id')

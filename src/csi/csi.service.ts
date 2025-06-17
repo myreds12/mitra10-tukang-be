@@ -15,7 +15,7 @@ export class CsiService {
     @InjectQueue('email') private emailQueue: Queue,
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
-  ) { }
+  ) {}
 
   private readonly logger = new Logger(CsiService.name);
 
@@ -47,13 +47,13 @@ export class CsiService {
           AND: [
             ...(date_from && date_to
               ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  {
+                    created_at: {
+                      gte: new Date(date_from),
+                      lte: new Date(`${date_to}T23:59:59.000Z`),
+                    },
                   },
-                },
-              ]
+                ]
               : []),
           ].filter(Boolean),
           deleted_at: null,
@@ -105,13 +105,22 @@ export class CsiService {
     }
   }
 
-  async findCsiAnswers(id: number) {
+  async findCsiAnswers(id: number, query: QueryParamsDto) {
     try {
+      const { take, page, date_from, date_to, order_by } = query;
+      const total = await this.dbService.csi_answers.count({
+        where: {
+          csi_template_id: id,
+          deleted_at: null,
+        },
+      });
       const data = await this.dbService.csi_answers.findMany({
         where: {
           csi_template_id: id,
           deleted_at: null,
         },
+        skip: page * take - take,
+        take: take > 0 ? take : undefined,
         orderBy: {
           created_at: 'asc',
         },
@@ -119,7 +128,15 @@ export class CsiService {
 
       if (!data) throw new NotFoundException('CSI Answers Not Found');
 
-      return data;
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          take,
+          takeTotal: data.length,
+        },
+      };
     } catch (error) {
       console.error(error);
       throw error;
