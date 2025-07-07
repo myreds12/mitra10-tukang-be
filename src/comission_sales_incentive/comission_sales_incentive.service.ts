@@ -173,6 +173,9 @@ export class ComissionSalesIncentiveService {
                   },
                 }
               : undefined,
+            {
+              comission_sales_incentive_id: null,
+            },
           ].filter(Boolean),
           deleted_at: null,
         };
