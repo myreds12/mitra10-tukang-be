@@ -206,7 +206,7 @@ export class VendorService {
             }]
             : []),
           ...(store_id
-            ? [{ vendor_store: { some: { store_id: { in: store_id } } } }]
+            ? [{ vendor_store: { some: { store_id: { in: store_id }, deleted_at: null } } }]
             : []),
           ...(date_from && date_to
             ? [{ created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) } }]
@@ -291,7 +291,7 @@ export class VendorService {
             include: { service_type: true }
           },
           vendor_store: {
-            where: { deleted_at: null },
+            where: { store_id: {in: store_id} ,deleted_at: null },
             select: {
               id: true,
               vendor_id: true,
