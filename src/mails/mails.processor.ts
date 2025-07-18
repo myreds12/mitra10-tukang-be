@@ -21,7 +21,7 @@ export class EmailProcessor {
     private readonly mailerService: MailerService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) { }
+  ) {}
   private readonly logger = new Logger(EmailProcessor.name);
 
   private async getMessage(mailType: MailType, id?: number) {
@@ -195,13 +195,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -294,9 +294,9 @@ export class EmailProcessor {
       const to = users.username.includes('@')
         ? users.username
         : users.employee?.email ??
-        users.pic_vendor[0]?.email_address ??
-        users.tukang[0]?.email ??
-        'example@example.com';
+          users.pic_vendor[0]?.email_address ??
+          users.tukang[0]?.email ??
+          'example@example.com';
       const data = {
         users,
         message,
@@ -541,13 +541,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
       const uniqueBcc = [...new Set(defaultBcc)];
 
@@ -696,13 +696,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
       const uniqueBcc = [...new Set(defaultBcc)];
 
@@ -783,6 +783,7 @@ export class EmailProcessor {
         include: {
           information_detail: true,
           terms_detail: true,
+          email_message_image: true,
         },
       });
       if (!message) throw new NotFoundException('message not found!');
@@ -790,6 +791,7 @@ export class EmailProcessor {
         csi,
         order,
         message,
+        apiUrl: this.configService.get<string>('API_URL'),
       };
       // const { bcc, cc } = message;
       // const vendor = tukang.vendor.email_address;
@@ -1033,13 +1035,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -1137,13 +1139,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -1236,13 +1238,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
