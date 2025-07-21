@@ -217,7 +217,7 @@ export class EmailProcessor {
       const mailOptions = {
         to: order.members.email,
         // cc: data.order.members.email,
-        from: 'noreply@mitra10.com',
+        from: 'instalasi@mitra10.com',
         subject: message.title,
         template: 'index',
         bcc,
@@ -304,7 +304,7 @@ export class EmailProcessor {
 
       await this.mailerService.sendMail({
         to,
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         subject: 'Email Reset Password', // Subject line
         template: 'reset-password',
         context: { data },
@@ -384,7 +384,7 @@ export class EmailProcessor {
       const uniqueBcc = [...new Set(bcc)];
       await this.mailerService.sendMail({
         to,
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         subject, // Subject line
         template: 'credential-mail',
         context: { data },
@@ -554,7 +554,7 @@ export class EmailProcessor {
       if (quotation.order.members.email) {
         const mailOptions = {
           to: defaultTo,
-          from: 'noreply@mitra10.com',
+          from: 'instalasi@mitra10.com',
           subject: message.title,
           template: 'quotation',
           bcc,
@@ -709,7 +709,7 @@ export class EmailProcessor {
       if (quotation.order.members.email) {
         const mailOptions = {
           to: defaultTo,
-          from: 'noreply@mitra10.com',
+          from: 'instalasi@mitra10.com',
           subject: message.title,
           template: 'quotation',
           bcc,
@@ -811,7 +811,7 @@ export class EmailProcessor {
       if (order.members.email) {
         await this.mailerService.sendMail({
           to: data.order.members.email, // list of receivers
-          from: 'noreply@mitra10.com', // sender address
+          from: 'instalasi@mitra10.com', // sender address
           // bcc: uniqueBcc.join(','),
           subject: message.title, // Subject line
           template: 'csi',
@@ -879,7 +879,7 @@ export class EmailProcessor {
       if (tukang.email) {
         await this.mailerService.sendMail({
           to: data.tukang.email, // list of receivers
-          from: data.tukang.vendor.email_address ?? 'noreply@mitra10.com', // sender address
+          from: data.tukang.vendor.email_address ?? 'instalasi@mitra10.com', // sender address
           bcc: uniqueBcc.join(','),
           subject: message.title, // Subject line
           template: 'replace-tukang-from-vendor',
@@ -951,7 +951,7 @@ export class EmailProcessor {
       if (users.tukang[0].vendor.email_address) {
         await this.mailerService.sendMail({
           to: data.users.tukang[0].vendor.email_address, // list of receivers
-          from: data.users.tukang[0].email ?? 'noreply@mitra10.com', // sender address
+          from: data.users.tukang[0].email ?? 'instalasi@mitra10.com', // sender address
           bcc: uniqueBcc.join(','),
           subject: message.title, // Subject line
           template: 'replace-tukang-from-tukang',
@@ -1056,7 +1056,7 @@ export class EmailProcessor {
 
       const mailOptions = {
         to: data.reschedule.order.members.email, // list of receivers
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         bcc,
         subject: message.title, // Subject line
         template: 'reschedule',
@@ -1160,7 +1160,7 @@ export class EmailProcessor {
 
       const mailOptions = {
         to: data.refund.orders.members.email, // list of receivers
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         bcc,
         subject: message.title, // Subject line
         template: 'refund',
@@ -1259,7 +1259,7 @@ export class EmailProcessor {
 
       const mailOptions = {
         to: data.complaint.orders.members.email, // list of receivers
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         bcc,
         subject: message.title, // Subject line
         template: 'complaint',
