@@ -64,8 +64,17 @@ export class CsiController {
 
   @Post(':id/send/:orderId')
   @HttpCode(HttpStatus.OK)
-  async sendcsimail(@Param('id') id: number,@Param('orderId') orderId: number) {
+  async sendcsimail(
+    @Param('id') id: number,
+    @Param('orderId') orderId: number,
+  ) {
     await this.csiService.sendCsiMail(id, orderId);
+  }
+
+  @Get(':id/csi-answers')
+  @HttpCode(HttpStatus.OK)
+  async getCsiAnswers(@Param('id') id: string, @Query() query: QueryParamsDto) {
+    return await this.csiService.findCsiAnswers(+id, query);
   }
 
   @Delete(':id')

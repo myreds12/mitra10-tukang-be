@@ -105,6 +105,44 @@ export class CsiService {
     }
   }
 
+  async findCsiAnswers(id: number, query: QueryParamsDto) {
+    try {
+      const { take, page, date_from, date_to, order_by } = query;
+      const total = await this.dbService.csi_answers.count({
+        where: {
+          csi_template_id: id,
+          deleted_at: null,
+        },
+      });
+      const data = await this.dbService.csi_answers.findMany({
+        where: {
+          csi_template_id: id,
+          deleted_at: null,
+        },
+        skip: page * take - take,
+        take: take > 0 ? take : undefined,
+        orderBy: {
+          created_at: 'asc',
+        },
+      });
+
+      if (!data) throw new NotFoundException('CSI Answers Not Found');
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          take,
+          takeTotal: data.length,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async update(id: number, updateCsiDto: UpdateCsiDto) {
     try {
       const data = await this.dbService.csi_template.update({

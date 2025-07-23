@@ -1352,6 +1352,9 @@ export class SalesService {
 
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lt: endOfMonth,
+          },
           orders: {
             every: {
               created_at: {
@@ -1427,6 +1430,9 @@ export class SalesService {
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lt: endOfMonth,
+          },
           orders: {
             every: {
               created_at: {
@@ -1465,7 +1471,7 @@ export class SalesService {
 
       console.log("SALES UPDATED", salesIncentive);
 
-      const usersUpdate = await this.dbService.users.updateMany({
+      const usersUpdate = await this.dbService.users.deleteMany({
         where: {
           sales: {
             some: {
@@ -1474,11 +1480,7 @@ export class SalesService {
               },
             },
           },
-        },
-        data: {
-          is_active: false,
-          deleted_at: new Date(),
-        },
+        }
       });
 
       console.log("USERS UPDATED", usersUpdate);
