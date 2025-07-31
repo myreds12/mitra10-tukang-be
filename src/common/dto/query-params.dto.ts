@@ -294,4 +294,8 @@ export class QueryParamsDto {
   @IsOptional()
   // @IsIn([0, 1])
   is_manager?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  id_vendor?: any;
 }

@@ -186,7 +186,8 @@ export class VendorService {
         order_date_from,
         order_date_to,
         is_paid,
-        is_promotion
+        is_promotion,
+        id_vendor
       } = query;
 
       const formattedDate = new Date().toISOString().split('T')[0];
@@ -207,6 +208,9 @@ export class VendorService {
             : []),
           ...(store_id
             ? [{ vendor_store: { some: { store_id: { in: store_id }, deleted_at: null } } }]
+            : []),
+               ...(id_vendor && !isNaN(+id_vendor)
+            ? [{ id: +id_vendor }]
             : []),
           ...(date_from && date_to
             ? [{ created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) } }]
@@ -250,6 +254,9 @@ export class VendorService {
         ],
         deleted_at: null
       };
+
+      console.log(where);
+      
 
       const vendorList = await this.dbService.vendor.findMany({
         where,
