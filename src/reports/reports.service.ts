@@ -18,7 +18,7 @@ export class ReportsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly httpService: HttpService,
-  ) { }
+  ) {}
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
@@ -37,68 +37,71 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    quotation: {
-                      order_id: !isNaN(+search) ? +search : undefined,
+                {
+                  OR: [
+                    {
+                      quotation: {
+                        order_id: !isNaN(+search) ? +search : undefined,
+                      },
                     },
-                  },
-                  {
-                    quotation: {
-                      order: {
-                        members: {
-                          full_name: {
-                            contains: search,
+                    {
+                      quotation: {
+                        order: {
+                          members: {
+                            full_name: {
+                              contains: search,
+                            },
                           },
                         },
                       },
                     },
-                  },
-                  {
-                    sales: {
-                      full_name: {
-                        contains: search,
+                    {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    nominal: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    quotation: {
-                      quotation_grand_total: !isNaN(+search)
-                        ? +search
-                        : undefined,
+                    {
+                      nominal: !isNaN(+search) ? +search : undefined,
                     },
-                  },
-                ],
-              },
-            ]
+                    {
+                      quotation: {
+                        quotation_grand_total: !isNaN(+search)
+                          ? +search
+                          : undefined,
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                sales: {
-                  store_id: {
-                    in: store_id,
+                {
+                  sales: {
+                    store_id: {
+                      in: store_id,
+                    },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { in: status } }] : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
+          {
+            comission_sales_incentive_id: null,
+          },
         ].filter(Boolean),
         // comission_sales_incentive: {
         //   deleted_at:{
@@ -166,31 +169,23 @@ export class ReportsService {
 
   async storeComissionReport(query: QueryParamsDto) {
     try {
-      const {
-        page,
-        take,
-        date_from,
-        date_to,
-        search,
-      } = query;
+      const { page, take, date_from, date_to, search } = query;
       const skip = page * take - take;
       const where: Prisma.incentive_storeWhereInput = {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    store: {
-                      store_name: search
+                {
+                  OR: [
+                    {
+                      store: {
+                        store_name: search,
+                      },
                     },
-
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
-
         ].filter(Boolean),
         // comission_sales_incentive: {
         //   deleted_at:{
@@ -215,13 +210,11 @@ export class ReportsService {
                       lte: new Date(`${date_to}T23:59:59.000Z`),
                     },
                     status: {
-
-                      category: "WORKEND",
-
-                    }
-                  }
-                }
-              }
+                      category: 'WORKEND',
+                    },
+                  },
+                },
+              },
               // orders:{
 
               //   where:{
@@ -239,7 +232,7 @@ export class ReportsService {
               //   }
 
               // }
-            }
+            },
           },
           incentive: true,
         },
@@ -257,13 +250,11 @@ export class ReportsService {
                       lte: new Date(`${date_to}T23:59:59.000Z`),
                     },
                     status: {
-
-                      category: "WORKEND",
-
-                    }
-                  }
-                }
-              }
+                      category: 'WORKEND',
+                    },
+                  },
+                },
+              },
               // orders:{
 
               //   where:{
@@ -281,13 +272,13 @@ export class ReportsService {
               //   }
 
               // }
-            }
+            },
           },
           incentive: true,
         },
       });
       const filteredSalesIncentive = salesIncetive.filter(
-        (item) => item.store.quotation.length > 1
+        (item) => item.store.quotation.length > 1,
       );
       const filteredSalesIncentiveCount = [];
       const storeSet = new Set();
@@ -298,7 +289,6 @@ export class ReportsService {
           filteredSalesIncentiveCount.push(item);
         }
       });
-
 
       // const totalIncentive = await this.dbService.sales_incentive.aggregate({
       //   where,
@@ -320,7 +310,6 @@ export class ReportsService {
       throw error;
     }
   }
-
 
   async reportOrder(query: QueryParamsDto) {
     try {
@@ -387,9 +376,19 @@ export class ReportsService {
           'TUKANGWORKSTEPTHREE',
         ],
         totalOrderComplaint: ['WARRANTYCLAIM'],
-        totalRework: ['REWORKREQ', 'REWORKSTART', 'REWORKEND', 'RETUKANGSURVEY'],
+        totalRework: [
+          'REWORKREQ',
+          'REWORKSTART',
+          'REWORKEND',
+          'RETUKANGSURVEY',
+        ],
         totalReworkDone: ['REWORKEND'],
-        totalResurvey: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'RETUKANGSURVEY'],
+        totalResurvey: [
+          'RESURVEYREQ',
+          'RESURVEYSTART',
+          'RESURVEYDONE',
+          'RETUKANGSURVEY',
+        ],
         totalResurveyDone: ['RESURVEYDONE'],
         totalOrderDone: [
           'WORKEND',
@@ -436,9 +435,19 @@ export class ReportsService {
           'REWORKEND',
         ],
         totalResurveyComplaintDone: ['RESURVEYDONE'],
-        totalReworkComplaint: ['REWORKREQ', 'REWORKSTART', 'REWORKEND', 'RETUKANGSURVEY'],
+        totalReworkComplaint: [
+          'REWORKREQ',
+          'REWORKSTART',
+          'REWORKEND',
+          'RETUKANGSURVEY',
+        ],
         totalReworkComplaintDone: ['REWORKEND'],
-        totalResurveyComplaint: ['RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'RETUKANGSURVEY'],
+        totalResurveyComplaint: [
+          'RESURVEYREQ',
+          'RESURVEYSTART',
+          'RESURVEYDONE',
+          'RETUKANGSURVEY',
+        ],
         totalComplaintApprovedByHo: ['COMPLAINTAPPROVEDBYHO'],
         totalComplaintRejectedByHo: ['COMPLAINTREJECTEDBYHO'],
         totalComplaint: ['INVESTIGATED'],
@@ -490,8 +499,8 @@ export class ReportsService {
       const periods = isSameDay
         ? allHours
         : isSameMonth
-          ? allDaysInMonth
-          : allMonths;
+        ? allDaysInMonth
+        : allMonths;
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -542,24 +551,24 @@ export class ReportsService {
         AND: [
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { request_survey: { equals: new Date(search) } },
-                  { members: { full_name: { contains: search } } },
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    { request_survey: { equals: new Date(search) } },
+                    { members: { full_name: { contains: search } } },
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(member_id ? [{ member_id: { equals: member_id } }] : []),
@@ -568,28 +577,28 @@ export class ReportsService {
           ...(store_id ? [{ store_id: { in: store_id } }] : []),
           ...(vendor_id
             ? [
-              {
-                vendor: {
-                  id: {
-                    equals: vendor_id,
+                {
+                  vendor: {
+                    id: {
+                      equals: vendor_id,
+                    },
+                    deleted_at: null,
                   },
-                  deleted_at: null,
                 },
-              },
-            ]
+              ]
             : []),
           ...(tukang_id
             ? [
-              {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -640,14 +649,14 @@ export class ReportsService {
 
         const period = isSameDay
           ? orderTimeInWIB.toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-          })
+              hour: '2-digit',
+              hour12: false,
+            })
           : isSameMonth
-            ? orderTimeInWIB.toLocaleString('id-ID', {
+          ? orderTimeInWIB.toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : orderTimeInWIB.toLocaleString('id-ID', {
+          : orderTimeInWIB.toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -824,8 +833,8 @@ export class ReportsService {
       const periods = isSameDay
         ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
         : isSameMonth
-          ? allDaysInMonth
-          : Array.from({ length: 12 }, (_, i) =>
+        ? allDaysInMonth
+        : Array.from({ length: 12 }, (_, i) =>
             new Date(0, i).toLocaleString('id-ID', { month: 'long' }),
           );
 
@@ -839,108 +848,108 @@ export class ReportsService {
           status ? { status: { id: { in: status } } } : undefined,
           search
             ? {
-              OR: [
-                !isNaN(Number(search))
-                  ? {
-                    id: {
-                      equals: Number(search),
+                OR: [
+                  !isNaN(Number(search))
+                    ? {
+                        id: {
+                          equals: Number(search),
+                        },
+                      }
+                    : undefined,
+                  !isNaN(Number(search))
+                    ? {
+                        order_id: Number(search),
+                      }
+                    : undefined,
+                  {
+                    complaint_channels: {
+                      name: { contains: search },
                     },
-                  }
-                  : undefined,
-                !isNaN(Number(search))
-                  ? {
-                    order_id: Number(search),
-                  }
-                  : undefined,
-                {
-                  complaint_channels: {
-                    name: { contains: search },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      full_name: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    store: {
-                      store_name: search,
-                    },
-                  },
-                },
-                {
-                  orders: {
-                    sales: {
-                      full_name: {
-                        contains: search,
+                  {
+                    orders: {
+                      store: {
+                        store_name: search,
                       },
                     },
                   },
-                },
-              ],
-            }
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                  },
+                ],
+              }
             : undefined,
           store_id
             ? {
-              orders: {
-                store_id: {
-                  in: store_id,
+                orders: {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           vendor_id
             ? {
-              orders: {
-                vendor_id: {
-                  equals: vendor_id,
+                orders: {
+                  vendor_id: {
+                    equals: vendor_id,
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           tukang_id
             ? {
-              orders: {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                orders: {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            }
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ].filter((condition) => Boolean(condition)),
         deleted_at: null,
@@ -968,14 +977,14 @@ export class ReportsService {
 
         const period = isSameDay
           ? complaintWib.toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-          })
+              hour: '2-digit',
+              hour12: false,
+            })
           : isSameMonth
-            ? complaintWib.toLocaleString('id-ID', {
+          ? complaintWib.toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : complaintWib.toLocaleString('id-ID', {
+          : complaintWib.toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -1141,8 +1150,8 @@ export class ReportsService {
       const periods = isSameDay
         ? allHours
         : isSameMonth
-          ? allDaysInMonth
-          : allMonths;
+        ? allDaysInMonth
+        : allMonths;
 
       // Initialize summary template and summary object
       const summaryTemplate = {
@@ -1169,79 +1178,79 @@ export class ReportsService {
         AND: [
           search
             ? {
-              OR: [
-                ...(isNaN(Date.parse(search))
-                  ? []
-                  : [
-                    { request_work_time: { equals: new Date(search) } },
-                    { survey_date: { equals: new Date(search) } },
-                    { work_start_date: { equals: new Date(search) } },
-                    { work_end_date: { equals: new Date(search) } },
-                  ]),
-                {
-                  id: !isNaN(+search) ? +search : undefined,
-                },
-                {
-                  orders: {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                OR: [
+                  ...(isNaN(Date.parse(search))
+                    ? []
+                    : [
+                        { request_work_time: { equals: new Date(search) } },
+                        { survey_date: { equals: new Date(search) } },
+                        { work_start_date: { equals: new Date(search) } },
+                        { work_end_date: { equals: new Date(search) } },
+                      ]),
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  {
+                    orders: {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                  {
+                    orders: {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  order: {
-                    members: {
-                      full_name: {
-                        contains: search,
+                  {
+                    order: {
+                      members: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-                {
-                  orders: {
-                    sales: {
-                      full_name: {
-                        contains: search,
+                  {
+                    orders: {
+                      sales: {
+                        full_name: {
+                          contains: search,
+                        },
                       },
                     },
                   },
-                },
-              ],
-            }
+                ],
+              }
             : undefined,
           status ? { status: { id: { in: status } } } : undefined,
           vendor_id
             ? {
-              vendor_id: vendor_id,
-            }
+                vendor_id: vendor_id,
+              }
             : undefined,
           tukang_id
             ? {
-              work_order_tukang: {
-                some: {
-                  tukang_id: tukang_id,
+                work_order_tukang: {
+                  some: {
+                    tukang_id: tukang_id,
+                  },
                 },
-              },
-            }
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ].filter(Boolean),
         deleted_at: null,
@@ -1249,7 +1258,6 @@ export class ReportsService {
           deleted_at: null,
         },
       };
-
 
       const work_orders = await this.dbService.work_orders.findMany({
         skip,
@@ -1330,14 +1338,14 @@ export class ReportsService {
       work_orders.forEach((order) => {
         const period = isSameDay
           ? new Date(order.created_at).toLocaleString('id-ID', {
-            hour: '2-digit',
-            hour12: false,
-          })
+              hour: '2-digit',
+              hour12: false,
+            })
           : isSameMonth
-            ? new Date(order.created_at).toLocaleString('id-ID', {
+          ? new Date(order.created_at).toLocaleString('id-ID', {
               day: '2-digit',
             })
-            : new Date(order.created_at).toLocaleString('id-ID', {
+          : new Date(order.created_at).toLocaleString('id-ID', {
               month: 'long',
             });
 
@@ -1421,86 +1429,86 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  {
-                    tukang_area: {
-                      some: {
-                        area: {
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    {
+                      tukang_area: {
+                        some: {
                           area: {
-                            contains: search,
+                            area: {
+                              contains: search,
+                            },
                           },
                         },
                       },
                     },
-                  },
-                  { address: { contains: search } },
-                  { email: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { full_name: { contains: search } },
-                  { ktp_number: { contains: search } },
-                  {
-                    full_name: {
-                      contains: search,
-                    },
-                  },
-                  { vendor: { company_name: { contains: search } } },
-                  {
-                    tukang_service: {
-                      some: {
-                        service_type: { service_type: { contains: search } },
+                    { address: { contains: search } },
+                    { email: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { full_name: { contains: search } },
+                    { ktp_number: { contains: search } },
+                    {
+                      full_name: {
+                        contains: search,
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                    { vendor: { company_name: { contains: search } } },
+                    {
+                      tukang_service: {
+                        some: {
+                          service_type: { service_type: { contains: search } },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           service_types
             ? {
-              tukang_service: {
-                some: {
-                  service_type_id: {
-                    in: service_types,
+                tukang_service: {
+                  some: {
+                    service_type_id: {
+                      in: service_types,
+                    },
                   },
                 },
-              },
-            }
+              }
             : undefined,
           area_id
             ? {
-              tukang_area: {
-                some: {
-                  area_id: {
-                    in: area_id,
+                tukang_area: {
+                  some: {
+                    area_id: {
+                      in: area_id,
+                    },
                   },
                 },
-              },
-            }
+              }
             : undefined,
           vendor_id
             ? {
-              vendor_id: vendor_id,
-            }
+                vendor_id: vendor_id,
+              }
             : undefined,
           search_date_from && search_date_to
             ? {
-              join_date: {
-                gte: new Date(`${search_date_from}T00:00:00.000Z`),
-                lte: new Date(`${search_date_to}T23:59:59.000Z`),
-              },
-            }
+                join_date: {
+                  gte: new Date(`${search_date_from}T00:00:00.000Z`),
+                  lte: new Date(`${search_date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
           date_from && date_to
             ? {
-              created_at: {
-                gte: new Date(`${date_from}T00:00:00.000Z`),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
-              },
-            }
+                created_at: {
+                  gte: new Date(`${date_from}T00:00:00.000Z`),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                },
+              }
             : undefined,
         ],
         deleted_at: null,
@@ -1651,100 +1659,100 @@ export class ReportsService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { receipt_number: { contains: search } },
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
+                {
+                  OR: [
+                    { receipt_number: { contains: search } },
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { members: { full_name: { contains: search } } },
+                    {
+                      store: {
+                        store_name: {
+                          contains: search,
+                        },
+                      },
+                    },
+                    {
+                      project_number: {
                         contains: search,
                       },
                     },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                  {
-                    vendor: {
-                      company_name: {
-                        contains: search,
+                    {
+                      vendor: {
+                        company_name: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      phone_number: {
-                        contains: search,
+                    {
+                      members: {
+                        phone_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                  {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
+                    {
+                      members: {
+                        whatsapp_number: {
+                          contains: search,
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(history_status
             ? [
-              {
-                order_history: {
-                  some: {
-                    status_id: {
-                      in: history_status,
+                {
+                  order_history: {
+                    some: {
+                      status_id: {
+                        in: history_status,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_promotion
             ? [
-              {
-                OR: [
-                  {
-                    AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                {
+                  OR: [
+                    {
+                      AND: [
+                        {
+                          payment_type: 'gratis',
                         },
-                      },
-                    ],
-                  },
-                  {
-                    AND: [
-                      {
-                        quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      AND: [
+                        {
+                          quotation: {
+                            some: {
+                              promotion_id: {
+                                not: null,
+                              },
                             },
                           },
                         },
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
+                        {
+                          status: {
+                            category: 'WORKEND',
+                          },
                         },
-                      },
-                    ],
-                  },
-                ],
-              },
-            ]
+                      ],
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(sales_id ? [{ sales_id: { equals: sales_id } }] : []),
           ...(status ? [{ status: { id: { in: status } } }] : []),
@@ -1754,134 +1762,134 @@ export class ReportsService {
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
           store_id
             ? {
-              store_id: {
-                in: store_id,
-              },
-            }
+                store_id: {
+                  in: store_id,
+                },
+              }
             : undefined,
           vendor_id
             ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
+                vendor: {
+                  id: vendor_id,
+                  deleted_at: null,
+                },
+              }
             : undefined,
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(tukang_id
             ? [
-              {
-                work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
+                {
+                  work_orders: {
+                    work_order_tukang: {
+                      some: {
+                        tukang_id: tukang_id,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_invoice)
             ? [
-              {
-                invoice_details: {
-                  none: {
-                    deleted_at: null,
-                  },
-                },
-              },
-            ]
-            : []),
-          ...(Boolean(is_active_warranty)
-            ? [
-              {
-                work_orders: {
-                  work_order_status: {
-                    some: {
-                      status: {
-                        category: 'WORKEND',
-                      },
-                      created_at: {
-                        gte: sevenDaysAgo,
-                      },
+                {
+                  invoice_details: {
+                    none: {
+                      deleted_at: null,
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
-          ...(Boolean(is_expired_warranty)
+          ...(Boolean(is_active_warranty)
             ? [
-              {
-                OR: [
-                  {
-                    work_orders: {
-                      work_order_status: {
-                        some: {
-                          status: {
-                            category: 'WORKEND',
-                          },
-                          created_at: {
-                            lt: sevenDaysAgo,
-                          },
+                {
+                  work_orders: {
+                    work_order_status: {
+                      some: {
+                        status: {
+                          category: 'WORKEND',
+                        },
+                        created_at: {
+                          gte: sevenDaysAgo,
                         },
                       },
                     },
                   },
-                  {
-                    complaints: {
-                      some: {
-                        deleted_at: null,
+                },
+              ]
+            : []),
+          ...(Boolean(is_expired_warranty)
+            ? [
+                {
+                  OR: [
+                    {
+                      work_orders: {
+                        work_order_status: {
+                          some: {
+                            status: {
+                              category: 'WORKEND',
+                            },
+                            created_at: {
+                              lt: sevenDaysAgo,
+                            },
+                          },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                    {
+                      complaints: {
+                        some: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
+                },
+              ]
             : []),
           ...(Boolean(is_receipt)
             ? [
-              {
-                receipt_number: {
-                  not: null,
+                {
+                  receipt_number: {
+                    not: null,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(is_receipt_quotation
             ? [
-              {
-                quotation: {
-                  some: {
-                    receipt_quotation: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      receipt_quotation: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(promotion)
             ? [
-              {
-                quotation: {
-                  some: {
-                    promotion_id: {
-                      not: null,
+                {
+                  quotation: {
+                    some: {
+                      promotion_id: {
+                        not: null,
+                      },
                     },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
@@ -2105,8 +2113,13 @@ export class ReportsService {
 
       const orderDone2 = data.filter(
         ({ status, payment_type }) =>
-          ['WORKREQ', 'WORKSTART', 'TUKANGWORK', 'REWORKSTART', 'RETUKANGWORK'].includes(status.category) &&
-          payment_type === 'survey',
+          [
+            'WORKREQ',
+            'WORKSTART',
+            'TUKANGWORK',
+            'REWORKSTART',
+            'RETUKANGWORK',
+          ].includes(status.category) && payment_type === 'survey',
       ).length;
       console.log('ORDER DONE 2', orderDone2);
 
@@ -2133,7 +2146,6 @@ export class ReportsService {
         currentDate.getMonth() + 2,
         2,
       );
-
 
       startOfMonth.setHours(0, 0, 0, 0);
       endOfMonth.setHours(0, 0, 0, 0);
@@ -2172,8 +2184,6 @@ export class ReportsService {
         const isInDateRange = isWithinDateRange(request_survey);
         return statusPending.includes(status.category) && isInDateRange;
       }).length;
-
-
 
       const orderPending2 = data.filter(
         ({ status, payment_type, request_survey }) =>
@@ -2243,7 +2253,6 @@ export class ReportsService {
           !totalProgressOrder.includes(status.category) &&
           isWithinNextMonth(request_survey),
       ).length;
-
 
       const orderSurvey = data.filter(
         (x) => x.payment_type === 'survey',
@@ -2482,8 +2491,9 @@ export class ReportsService {
         const item = allItems[i] || ({} as Item);
         const itemName =
           item.itemName && item.orderCount
-            ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY '}${item.itemName
-            }: ${item.orderCount}`
+            ? `${item.type === 1 ? 'FREE ' : 'PEMASANGAN TANPA SURVEY '}${
+                item.itemName
+              }: ${item.orderCount}`
             : '';
         const quantity = item.quantity ? `Quantity: ${item.quantity}` : '';
 
