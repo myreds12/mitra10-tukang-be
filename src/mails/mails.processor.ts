@@ -21,7 +21,7 @@ export class EmailProcessor {
     private readonly mailerService: MailerService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-  ) { }
+  ) {}
   private readonly logger = new Logger(EmailProcessor.name);
 
   private async getMessage(mailType: MailType, id?: number) {
@@ -195,13 +195,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -217,7 +217,7 @@ export class EmailProcessor {
       const mailOptions = {
         to: order.members.email,
         // cc: data.order.members.email,
-        from: 'noreply@mitra10.com',
+        from: 'instalasi@mitra10.com',
         subject: message.title,
         template: 'index',
         bcc,
@@ -294,9 +294,9 @@ export class EmailProcessor {
       const to = users.username.includes('@')
         ? users.username
         : users.employee?.email ??
-        users.pic_vendor[0]?.email_address ??
-        users.tukang[0]?.email ??
-        'example@example.com';
+          users.pic_vendor[0]?.email_address ??
+          users.tukang[0]?.email ??
+          'example@example.com';
       const data = {
         users,
         message,
@@ -304,7 +304,7 @@ export class EmailProcessor {
 
       await this.mailerService.sendMail({
         to,
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         subject: 'Email Reset Password', // Subject line
         template: 'reset-password',
         context: { data },
@@ -384,7 +384,7 @@ export class EmailProcessor {
       const uniqueBcc = [...new Set(bcc)];
       await this.mailerService.sendMail({
         to,
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         subject, // Subject line
         template: 'credential-mail',
         context: { data },
@@ -541,20 +541,20 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
       const uniqueBcc = [...new Set(defaultBcc)];
 
       if (quotation.order.members.email) {
         const mailOptions = {
           to: defaultTo,
-          from: 'noreply@mitra10.com',
+          from: 'instalasi@mitra10.com',
           subject: message.title,
           template: 'quotation',
           bcc,
@@ -696,20 +696,20 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
       const uniqueBcc = [...new Set(defaultBcc)];
 
       if (quotation.order.members.email) {
         const mailOptions = {
           to: defaultTo,
-          from: 'noreply@mitra10.com',
+          from: 'instalasi@mitra10.com',
           subject: message.title,
           template: 'quotation',
           bcc,
@@ -783,6 +783,7 @@ export class EmailProcessor {
         include: {
           information_detail: true,
           terms_detail: true,
+          email_message_image: true,
         },
       });
       if (!message) throw new NotFoundException('message not found!');
@@ -790,6 +791,7 @@ export class EmailProcessor {
         csi,
         order,
         message,
+        apiUrl: this.configService.get<string>('API_URL'),
       };
       // const { bcc, cc } = message;
       // const vendor = tukang.vendor.email_address;
@@ -809,7 +811,7 @@ export class EmailProcessor {
       if (order.members.email) {
         await this.mailerService.sendMail({
           to: data.order.members.email, // list of receivers
-          from: 'noreply@mitra10.com', // sender address
+          from: 'instalasi@mitra10.com', // sender address
           // bcc: uniqueBcc.join(','),
           subject: message.title, // Subject line
           template: 'csi',
@@ -877,7 +879,7 @@ export class EmailProcessor {
       if (tukang.email) {
         await this.mailerService.sendMail({
           to: data.tukang.email, // list of receivers
-          from: data.tukang.vendor.email_address ?? 'noreply@mitra10.com', // sender address
+          from: data.tukang.vendor.email_address ?? 'instalasi@mitra10.com', // sender address
           bcc: uniqueBcc.join(','),
           subject: message.title, // Subject line
           template: 'replace-tukang-from-vendor',
@@ -949,7 +951,7 @@ export class EmailProcessor {
       if (users.tukang[0].vendor.email_address) {
         await this.mailerService.sendMail({
           to: data.users.tukang[0].vendor.email_address, // list of receivers
-          from: data.users.tukang[0].email ?? 'noreply@mitra10.com', // sender address
+          from: data.users.tukang[0].email ?? 'instalasi@mitra10.com', // sender address
           bcc: uniqueBcc.join(','),
           subject: message.title, // Subject line
           template: 'replace-tukang-from-tukang',
@@ -1033,13 +1035,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -1054,7 +1056,7 @@ export class EmailProcessor {
 
       const mailOptions = {
         to: data.reschedule.order.members.email, // list of receivers
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         bcc,
         subject: message.title, // Subject line
         template: 'reschedule',
@@ -1137,13 +1139,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -1158,7 +1160,7 @@ export class EmailProcessor {
 
       const mailOptions = {
         to: data.refund.orders.members.email, // list of receivers
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         bcc,
         subject: message.title, // Subject line
         template: 'refund',
@@ -1236,13 +1238,13 @@ export class EmailProcessor {
 
       const defaultBcc = bcc
         ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
+            .split(',')
+            .concat(
+              this.configService.get<string>('MAIL_BCC_LIST').split(','),
+              storeMail,
+              adminHo,
+            )
+            .filter((email) => email && email.trim() !== '')
         : [];
 
       // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
@@ -1257,7 +1259,7 @@ export class EmailProcessor {
 
       const mailOptions = {
         to: data.complaint.orders.members.email, // list of receivers
-        from: 'noreply@mitra10.com', // sender address
+        from: 'instalasi@mitra10.com', // sender address
         bcc,
         subject: message.title, // Subject line
         template: 'complaint',

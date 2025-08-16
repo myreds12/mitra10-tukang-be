@@ -2,117 +2,153 @@ doctype html
 html(lang="en")
   head
     meta(charset="UTF-8")
-    meta(name="viewport" content="width=device-width, initial-scale=1.0")
-    title Template Email
-    style.
-      * {
-        margin: 0;
-        padding: 0;
-      }
-      h1 {
-        padding: 4px;
-        font-size: 20px;
-      }
-      h2 {
-        padding: 4px;
-        font-size: 18px;
-      }
-      h3 {
-        padding: 4px;
-        font-size: 16px;
-      }
-      .fw-bold {
-        font-weight: bold;
-      }
-      .fw-normal {
-        font-weight: normal;
-      }
-      #preview-email {
-        display: block;
-        margin: auto;
-        width: 900px;
-        font-family: Arial, Helvetica, sans-serif;
-      }
-      #preview-email .card {
-        margin: 20px;
-        box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.25);
-      }
-      #preview-email .card-header {
-        border-radius: 5px 5px 0px 0px;
-        width: 100%;
-      }
-      #preview-email .card-body {
-        margin: 20px;
-      }
-      #preview-email img.logo-mitra {
-        width: 100px;
-        height: fit-content;
-      }
-      #preview-email .header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
-      }
-      #preview-email .header .logo {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      #preview-email .card-footer {
-        border-radius: 0px 0px 5px 5px;
-        width: 100%;
-      }
-      #preview-email .button-csi {
-        margin: 20px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      #preview-email img.link-csi {
-        width: fit-content;
-        height: 90px;
-      }
-
-      @media screen and (max-width: 576px) {
-        #preview-email .header .logo {
-          margin-bottom: 20px;
-        }
-        #preview-email .card-body .header {
-          display: flex;
-          flex-direction: column;
-          align-items: start;
-          margin-bottom: 20px;
-        }
-      }
-  body
-    section#preview-email
-      .card
-        img.card-header(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co.com/DpFCt8g/Whats-App-Image-2024-10-10-at-15-42-16-3d05600b.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
-        .card-body
-          .header
-            .logo
-              img.logo-mitra(src='https://csahome.com/wp-content/uploads/2020/06/mitra10.png' alt='Logo Mitra10')
-              h1 Instalasi & Service Mitra 10
-            .description
-              h3.fw-bold
-                | Tanggal Order :
-                - var formateCreatedAt = new Date(data.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-                span.fw-normal #{formateCreatedAt}
-              h3.fw-bold
-                | Request Survey :
-                - var formatRequestSurvey = new Date(data.order.request_survey).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-                span.fw-normal #{formatRequestSurvey}
-              h3
-                | Order ID :
-                span.fw-normal #{data.order.id}
-          .content
-            h3.fw-normal #{data.message.welcome_header}, #{data.order.members.full_name}
-            h3.fw-bold Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
-
-            .button-csi
-              a.button-csi(href=data.csi.survey_link target="_blank")
-                img.link-csi(src="https://i.ibb.co.com/qxBpmkK/gambar-button-csi.png" alt="Mitra10")
-            h3.fw-bold Hormat Kami, Mitra10
-            h3.fw-normal
-              | #{data.message.footer}
-        img.card-footer(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title CSI EMAIL
+    link(href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&amp;display=swap", rel="stylesheet")
+  style.
+    table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    }
+    
+    table.table-responsive-header {
+    display: none;
+    }
+    
+    table.table-desktop {
+    display: table;
+    }
+    
+    table.table-responsive {
+    display: none;
+    }
+    
+    @media (max-width: 600px) {
+    h1 {
+    font-size: 24px;
+    }
+    
+    p {
+    font-size: 16px;
+    }
+    
+    th,
+    td {
+    font-size: 18px;
+    }
+    
+    table.table-responsive-header {
+    display: table;
+    }
+    
+    table.table-desktop {
+    display: none;
+    }
+    
+    table.table-responsive {
+    display: table;
+    margin-top: 15px;
+    }
+    }
+  body(style=`
+			background-color: rgb(242, 242, 242);
+			font-family: 'Poppins', sans-serif;
+			line-height: 1.6;
+			letter-spacing: normal;
+		`)
+    .container(style=`
+				max-width: 768px;
+				margin: 0 auto;
+				background-color: #ffffff;
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+				border-radius: 0.5rem;
+				overflow: hidden;
+			`)
+      .header
+        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : ''}` alt="Header Email Image", style="width: 100%; height: auto")
+      .order-details(style="padding-left: 16px; padding-right: 16px")
+        table.table-desktop(style="width: 100%; border-collapse: collapse")
+          tr
+            td(style="text-align: left")
+              img(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png", alt="Mitra 10 Logo", style="height: 48px")
+            td(style="text-align: center")
+              p(style="font-size: 1.25rem; font-weight: 600")
+                | Instalasi &amp; Service Mitra 10
+            td(style="text-align: right")
+              .order-id
+                p(style=`
+										font-size: 1.125rem;
+										font-weight: 600;
+										margin: 0 !important;
+									`)
+                  | Order ID : #{data.order.id}
+                p(style=`
+										font-size: 0.875rem;
+										margin: 0 !important;
+									`)
+                - var formateCreatedAt = new Date(data.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
+                  | Tanggal Order : #{formateCreatedAt}
+                p(style=`
+										font-size: 0.875rem;
+										margin: 0 !important;
+									`)
+                - var formateCreatedAt = new Date(data.order.request_survey).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
+                  | Request Survey : #{formateCreatedAt}
+      .divider(style="border-top: 1px solid #e5e7eb")
+      .content(style=`
+					padding-top: 16px;
+					padding-left: 24px;
+					padding-right: 24px;
+				`)
+        p(style="color: #4a5568") #{data.message.welcome_header}, #{data.order.members.full_name}.
+        p(style=`
+						color: #4a5568;
+						font-weight: 600;
+						margin: 0 !important;
+					`)
+          | #{data.message.greetings}
+      .csi-button(style="text-align: center; padding-top: 16px; padding-left: 24px; padding-right: 24px;")
+        a(href=data.csi.survey_link, target="_blank", style="display: inline-block;")
+          img.csi-button-image(src="https://instalasitraining.mitra10.com/api/public/mails-image/1752817999377.png", alt="Button CSI Image", style="height: 90px; width: auto; display: block;")
+      .footer-notes(style=`
+					padding-top: 16px;
+					padding-left: 24px;
+					padding-right: 24px;
+				`)
+        p(style=`
+						color: #4a5568;
+						font-weight: 600;
+						margin-top: 0;
+						margin-bottom: 0;
+					`)
+          | #{data.message.footer}
+        p(style=`
+						color: #4a5568;
+						font-weight: 600;
+						margin: 0 !important;
+					`)
+          | Ini adalah email yang dikirimkan oleh sistem. Mohon untuk
+          | tidak membalas email ini.
+      .footer(style=`
+					background-color: #edf2f7;
+					padding: 20px;
+					text-align: center;
+				`)
+        p(style=`
+						font-size: 0.875rem;
+						font-weight: 600;
+						margin: 0 !important;
+					`)
+          | Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi
+          | kami di customer.relation@mitra10.com
+        p(style=`
+						font-size: 0.875rem;
+						font-weight: 600;
+						margin: 0 !important;
+					`)
+          - var formateCreatedAt = new Date().toLocaleDateString('id-ID', { year: 'numeric' });
+          | &copy; #{formateCreatedAt} Mitra10. All rights reserved.
+      .footer-banner
+        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : ''}` alt="Footer Email Image", style="width: 100%; height: auto")

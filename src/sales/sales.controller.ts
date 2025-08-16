@@ -15,9 +15,7 @@ import {
   Req,
   BadRequestException,
 } from '@nestjs/common';
-import {
-  Request as IExpressRequest,
-} from 'express';
+import { Request as IExpressRequest } from 'express';
 import { SalesService } from './sales.service';
 import { CreateSalesDto } from './dto/create-sales.dto';
 import { UpdateSalesDto } from './dto/update-sales.dto';
@@ -46,7 +44,8 @@ export class SalesController {
 
   @Post('/sales-user-management/:range_date')
   async apiSalesUSerManagement(@Param('range_date') range_date: 7 | 4) {
-    if(range_date !== 7 && range_date !== 4) throw new BadRequestException('Range date must be 7 or 4');
+    if (range_date !== 7 && range_date !== 4)
+      throw new BadRequestException('Range date must be 7 or 4');
     return await this.salesService.apiManagementSales(range_date);
   }
 
@@ -90,13 +89,11 @@ export class SalesController {
         file.path,
         req.user,
       );
-      return res
-        .status(200)
-        .json({
-          statusCode: 200,
-          message: 'Successfully Update Comission',
-          data: result,
-        });
+      return res.status(200).json({
+        statusCode: 200,
+        message: 'Successfully Update Comission',
+        data: result,
+      });
     } catch (error) {
       console.error('Error uploading and processing Excel file:', error);
       throw error;
@@ -158,8 +155,7 @@ export class SalesController {
   }
 
   @Delete('/:id')
-  async remove(@Param('id') id: number, @Request() req: RequestWithUser) {
-    const user = req.user;
-    return await this.salesService.remove(id, user);
+  async remove(@Param('id') id: number) {
+    return await this.salesService.remove(id);
   }
 }

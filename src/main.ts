@@ -31,7 +31,7 @@ async function bootstrap() {
     new HttpExceptionFilter(),
     new PrismaExceptionFilter(),
     new PrismaValidationFilter(),
-    new NotFoundExceptionFilter()
+    new NotFoundExceptionFilter(),
   );
   app.useGlobalInterceptors(new TransformInterceptor());
 

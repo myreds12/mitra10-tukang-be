@@ -31,7 +31,7 @@ export class SalesService {
     private readonly authService: AuthService,
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
 
   async getCode() {
     try {
@@ -116,17 +116,17 @@ export class SalesService {
         },
         bank: bank
           ? {
-            connect: {
-              id: createSalesDto.bank_id,
-            },
-          }
+              connect: {
+                id: createSalesDto.bank_id,
+              },
+            }
           : undefined,
         sales_categories: sales_categories?.length
           ? {
-            createMany: {
-              data: sales_categories,
-            },
-          }
+              createMany: {
+                data: sales_categories,
+              },
+            }
           : undefined,
         users: {
           connectOrCreate: {
@@ -136,8 +136,8 @@ export class SalesService {
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                    .toLowerCase()
-                    .replace(/ /g, '_')}`,
+                  .toLowerCase()
+                  .replace(/ /g, '_')}`,
               id: 0,
             },
             create: {
@@ -146,8 +146,8 @@ export class SalesService {
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                    .toLowerCase()
-                    .replace(/ /g, '_')}`,
+                  .toLowerCase()
+                  .replace(/ /g, '_')}`,
               password: saltedPassword,
               role_id: SALES_ROLES.id,
             },
@@ -194,7 +194,7 @@ export class SalesService {
         store_id,
         order_date_from,
         order_date_to,
-        is_promotion
+        is_promotion,
       } = query;
 
       const skip = page * take - take;
@@ -202,53 +202,56 @@ export class SalesService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { full_name: { contains: search } },
-                  { sales_brand: { contains: search } },
-                  { account_name: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { account_number: { contains: search } },
-                  { nik: { contains: search } },
-                  { bank_branch: { contains: search } },
-                  {
-                    sales_categories: {
-                      some: {
-                        categories: { category_name: { contains: search } },
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { full_name: { contains: search } },
+                    { sales_brand: { contains: search } },
+                    { account_name: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { account_number: { contains: search } },
+                    { nik: { contains: search } },
+                    { bank_branch: { contains: search } },
+                    {
+                      sales_categories: {
+                        some: {
+                          categories: { category_name: { contains: search } },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                store_id: {
-                  in: store_id,
+                {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
-          ...(is_active ? [{
-            is_active: Boolean(is_active)
-          }] : []),
+          ...(is_active
+            ? [
+                {
+                  is_active: Boolean(is_active),
+                },
+              ]
+            : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
-        deleted_at: null,
       };
 
       const count = await this.dbService.sales.count({
@@ -269,21 +272,26 @@ export class SalesService {
         include: {
           orders: {
             where: {
-
               deleted_at: null,
-              ...(order_date_from && order_date_to ? {
-                created_at: {
-                  gte: new Date(order_date_from),
-                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
-                }
-              } : undefined),
-              ...(is_promotion === 1 ? {
-                payment_type: {
-                  not: 'survey'
-                }
-              } : is_promotion === 0 ? {
-                payment_type: 'survey'
-              } : {}),
+              ...(order_date_from && order_date_to
+                ? {
+                    created_at: {
+                      gte: new Date(order_date_from),
+                      lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                    },
+                  }
+                : undefined),
+              ...(is_promotion === 1
+                ? {
+                    payment_type: {
+                      not: 'survey',
+                    },
+                  }
+                : is_promotion === 0
+                ? {
+                    payment_type: 'survey',
+                  }
+                : {}),
             },
           },
           bank: true,
@@ -307,9 +315,9 @@ export class SalesService {
 
         return {
           ...item,
-          sales_total_order: totalOrder
-        }
-      })
+          sales_total_order: totalOrder,
+        };
+      });
 
       if (Boolean(top_best)) {
         dataSales.sort((a, b) => b.sales_total_order - a.sales_total_order);
@@ -386,89 +394,100 @@ export class SalesService {
       const upsertSalesCategories: Prisma.sales_categoriesUpsertWithWhereUniqueWithoutSalesInput[] =
         updateSalesDto.sales_categories
           ? updateSalesDto.sales_categories.map(
-            ({ id, category_id, commission }) => ({
-              where: {
-                id: id ?? 0,
-              },
-              update: {
-                category_id,
-                commission,
-                updated_at: new Date(),
-                updated_by: user_id,
-              },
-              create: {
-                category_id,
-                commission,
-                created_at: new Date(),
-                created_by: user_id,
-              },
-            }),
-          )
+              ({ id, category_id, commission }) => ({
+                where: {
+                  id: id ?? 0,
+                },
+                update: {
+                  category_id,
+                  commission,
+                  updated_at: new Date(),
+                  updated_by: user_id,
+                },
+                create: {
+                  category_id,
+                  commission,
+                  created_at: new Date(),
+                  created_by: user_id,
+                },
+              }),
+            )
           : undefined;
 
       const salesUsername = updateSalesDto.full_name
         ? `${updateSalesDto.full_name
-          .toLowerCase()
-          .replace(/ /g, '_')}_${sales.store.store_name
+            .toLowerCase()
+            .replace(/ /g, '_')}_${sales.store.store_name
             .toLowerCase()
             .replace(/ /g, '_')}`
         : sales?.users?.username;
+
       const salesPassword = updateSalesDto.password
         ? await hash(updateSalesDto.password, 12)
         : sales?.users?.password
-          ? sales.users.password
-          : await hash('password', 12);
+        ? sales.users.password
+        : await hash('password', 12);
 
       const salesData: Prisma.salesUpdateInput = {
-        // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
-        ...(sales.users && updateSalesDto.username && updateSalesDto.password
+        users: sales.users
           ? {
-            users: {
               update: {
                 where: {
-                  id: sales?.user_id,
+                  id: sales.user_id,
                 },
                 data: {
-                  username: updateSalesDto?.username ?? salesUsername,
-                  password: salesPassword,
+                  ...(updateSalesDto.username && {
+                    username: updateSalesDto.username,
+                  }),
+                  ...(updateSalesDto.password && {
+                    password: salesPassword,
+                  }),
+                  ...(updateSalesDto.is_active !== null && {
+                    is_active: Boolean(updateSalesDto.is_active),
+                    ...(updateSalesDto.is_active === 1
+                      ? { deleted_at: null }
+                      : { deleted_at: new Date(), deleted_by: user_id }),
+                  }),
                   updated_at: new Date(),
                   updated_by: user_id,
                 },
               },
-            },
-          }
-          : updateSalesDto.username && updateSalesDto.password
-            ? {
-              users: {
-                create: {
-                  username: updateSalesDto?.username
-                    ? updateSalesDto.username
-                    : salesUsername,
-                  password: salesPassword,
-                  created_by: user_id,
-                  created_at: new Date(),
-                  role_id: SALES_ROLES.id,
+            }
+          : updateSalesDto.username || updateSalesDto.password
+          ? {
+              create: {
+                username: updateSalesDto.username
+                  ? updateSalesDto.username
+                  : salesUsername,
+                password: salesPassword,
+                created_by: user_id,
+                created_at: new Date(),
+                role_id: SALES_ROLES.id,
+                is_active: Boolean(updateSalesDto.is_active),
+                ...(updateSalesDto.is_active === 1
+                  ? { deleted_at: null }
+                  : { deleted_at: new Date() }),
+              },
+            }
+          : undefined,
+
+        ...(updateSalesDto.bank_id
+          ? {
+              bank: {
+                connect: {
+                  id: updateSalesDto.bank_id,
                 },
               },
             }
-            : undefined),
-        ...(updateSalesDto.bank_id
-          ? {
-            bank: {
-              connect: {
-                id: updateSalesDto.bank_id,
-              },
-            },
-          }
           : undefined),
         ...(updateSalesDto.store_id
           ? {
-            store: {
-              connect: {
-                id: updateSalesDto.store_id,
+              store: {
+                connect: {
+                  id: updateSalesDto.store_id,
+                },
               },
-            },
-          }
+            }
           : undefined),
         account_name: updateSalesDto.account_name,
         account_number: updateSalesDto.account_number,
@@ -483,6 +502,15 @@ export class SalesService {
         is_active: Boolean(updateSalesDto.is_active),
         updated_at: new Date(),
         updated_by: user_id,
+        ...(updateSalesDto.is_active === 1
+          ? {
+              deleted_at: null,
+              deleted_by: null,
+            }
+          : {
+              deleted_at: new Date(),
+              deleted_by: user_id,
+            }),
       };
 
       const updatedSales = await this.dbService.$transaction([
@@ -497,21 +525,21 @@ export class SalesService {
         }),
         ...(updateSalesDto.sales_categories
           ? [
-            this.dbService.sales_categories.updateMany({
-              where: {
-                sales_id: id,
-                id: {
-                  notIn: updateSalesDto.sales_categories.map(
-                    ({ category_id }) => category_id,
-                  ),
+              this.dbService.sales_categories.updateMany({
+                where: {
+                  sales_id: id,
+                  id: {
+                    notIn: updateSalesDto.sales_categories.map(
+                      ({ category_id }) => category_id,
+                    ),
+                  },
                 },
-              },
-              data: {
-                deleted_at: new Date(),
-                deleted_by: user_id,
-              },
-            }),
-          ]
+                data: {
+                  deleted_at: new Date(),
+                  deleted_by: user_id,
+                },
+              }),
+            ]
           : []),
       ]);
 
@@ -605,26 +633,38 @@ export class SalesService {
     }
   }
 
-  async remove(id: number, user: users) {
+  async remove(id: number) {
     try {
-      const sales = await this.dbService.sales.update({
-        where: {
-          id,
-        },
-        data: {
-          deleted_at: new Date(),
-          deleted_by: user.id,
-          is_active: false,
-        },
+      const salesToDelete = await this.dbService.sales.findUnique({
+        where: { id },
+        select: { user_id: true },
       });
 
-      return sales;
+      if (!salesToDelete) {
+        throw new Error(`Sales with ID ${id} not found.`);
+      }
+
+      await this.dbService.$transaction([
+        this.dbService.users.delete({
+          where: { id: salesToDelete.user_id },
+        }),
+        this.dbService.sales.delete({
+          where: { id },
+        }),
+        this.dbService.sales_categories.deleteMany({
+          where: { sales_id: id },
+        }),
+        this.dbService.notifications.deleteMany({
+          where: { user_id: salesToDelete.user_id },
+        }),
+      ]);
+
+      return salesToDelete;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
-
 
   async templateDefaultExcel(res: Response, query: QueryParamsDto) {
     try {
@@ -696,33 +736,33 @@ export class SalesService {
         AND: [
           ...(status
             ? [
-              {
-                status: {
-                  in: status,
+                {
+                  status: {
+                    in: status,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                sales: {
-                  store_id: {
-                    in: store_id,
+                {
+                  sales: {
+                    store_id: {
+                      in: store_id,
+                    },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -966,52 +1006,46 @@ export class SalesService {
 
   async salesExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const {
-        search,
-        date_from,
-        date_to,
-        order_by,
-        top_best,
-        store_id,
-      } = queryParams;
+      const { search, date_from, date_to, order_by, top_best, store_id } =
+        queryParams;
       // const skip = page * take - take;
       const where: Prisma.salesWhereInput = {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { full_name: { contains: search } },
-                  { sales_brand: { contains: search } },
-                  {
-                    sales_categories: {
-                      some: {
-                        categories: { category_name: { contains: search } },
+                {
+                  OR: [
+                    { full_name: { contains: search } },
+                    { sales_brand: { contains: search } },
+                    {
+                      sales_categories: {
+                        some: {
+                          categories: { category_name: { contains: search } },
+                        },
                       },
                     },
-                  },
-                ],
-              },
-            ]
+                  ],
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                store_id: {
-                  in: store_id,
+                {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -1036,11 +1070,11 @@ export class SalesService {
           orderBy: {
             ...(Boolean(top_best)
               ? {
-                order_total: 'desc',
-              }
+                  order_total: 'desc',
+                }
               : {
-                created_at: order_by,
-              }),
+                  created_at: order_by,
+                }),
           },
           include: {
             orders: {
@@ -1075,11 +1109,11 @@ export class SalesService {
           orderBy: {
             ...(Boolean(top_best)
               ? {
-                order_total: 'desc',
-              }
+                  order_total: 'desc',
+                }
               : {
-                created_at: order_by,
-              }),
+                  created_at: order_by,
+                }),
           },
           include: {
             bank: true,
@@ -1161,13 +1195,13 @@ export class SalesService {
         };
       });
 
-
       dataExcel.forEach((sales) => {
-        const salesCategories = sales?.sales_categories?.length > 0
-          ? sales.sales_categories
-            .map((category) => category.categories.category_name)
-            .join(',')
-          : '';
+        const salesCategories =
+          sales?.sales_categories?.length > 0
+            ? sales.sales_categories
+                .map((category) => category.categories.category_name)
+                .join(',')
+            : '';
         const formattedDateTime = (dateTime) =>
           `${dateTime.toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -1178,9 +1212,10 @@ export class SalesService {
             minute: '2-digit',
           })}`;
         const currentMonth = new Date();
-        const orderDate = sales?.orders?.length > 0
-          ? new Date(sales.orders[0].created_at)
-          : sales.created_at;
+        const orderDate =
+          sales?.orders?.length > 0
+            ? new Date(sales.orders[0].created_at)
+            : sales.created_at;
 
         const monthDifference =
           (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 +
@@ -1200,9 +1235,10 @@ export class SalesService {
           sales_categories: salesCategories,
           username: sales?.users ? sales.users.username : '',
           created_at: formattedDateTime(sales?.created_at),
-          order_date: sales?.order?.length > 0
-            ? formattedDateTime(sales?.order[0]?.created_at)
-            : 'Tidak Ada Order',
+          order_date:
+            sales?.order?.length > 0
+              ? formattedDateTime(sales?.order[0]?.created_at)
+              : 'Tidak Ada Order',
           date_diff: `${monthDifference} Bulan`,
           is_active: sales?.is_active ? 'Aktif' : 'Tidak Aktif',
         });
@@ -1362,7 +1398,7 @@ export class SalesService {
               },
             },
           },
-          is_active: true
+          is_active: true,
         },
         select: {
           id: true,
@@ -1370,15 +1406,12 @@ export class SalesService {
         take: batchSize,
       });
 
-
-
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
       if (salesIds.length === 0) {
-        console.log("No sales to update in this batch.");
+        console.log('No sales to update in this batch.');
         return;
       }
-
 
       const salesUpdate = await this.dbService.sales.updateMany({
         where: {
@@ -1390,7 +1423,6 @@ export class SalesService {
           is_active: false,
         },
       });
-
 
       const usersUpdate = await this.dbService.users.updateMany({
         where: {
@@ -1406,7 +1438,6 @@ export class SalesService {
           is_active: false,
         },
       });
-
 
       return { salesUpdate, usersUpdate };
     } catch (error) {
@@ -1440,7 +1471,7 @@ export class SalesService {
               },
             },
           },
-          is_active: true
+          is_active: true,
         },
         select: {
           id: true,
@@ -1451,11 +1482,11 @@ export class SalesService {
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
       if (salesIds.length === 0) {
-        console.log("No sales to update in this batch.");
+        console.log('No sales to update in this batch.');
         return;
       }
 
-      console.log("SALES TO UPDATE (BATCH):", salesIds);
+      console.log('SALES TO UPDATE (BATCH):', salesIds);
 
       const salesIncentive = await this.dbService.sales.updateMany({
         where: {
@@ -1469,7 +1500,7 @@ export class SalesService {
         },
       });
 
-      console.log("SALES UPDATED", salesIncentive);
+      console.log('SALES UPDATED', salesIncentive);
 
       const usersUpdate = await this.dbService.users.deleteMany({
         where: {
@@ -1480,10 +1511,10 @@ export class SalesService {
               },
             },
           },
-        }
+        },
       });
 
-      console.log("USERS UPDATED", usersUpdate);
+      console.log('USERS UPDATED', usersUpdate);
 
       return { salesIncentive, usersUpdate };
     } catch (error) {
@@ -1513,7 +1544,7 @@ export class SalesService {
               },
             },
           },
-          is_active: true
+          is_active: true,
         },
         select: {
           id: true,
@@ -1524,13 +1555,12 @@ export class SalesService {
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
       if (salesIds.length === 0) {
-        console.log("No sales to update in this batch.");
+        console.log('No sales to update in this batch.');
         return;
       }
 
-
       // Step 2: Update sales dengan batch size
-      let salesUser: any, usersUpdate: any
+      let salesUser: any, usersUpdate: any;
       if (range_date === 7) {
         salesUser = await this.dbService.sales.updateMany({
           where: {
@@ -1571,7 +1601,6 @@ export class SalesService {
           },
         });
 
-
         usersUpdate = await this.dbService.users.updateMany({
           where: {
             sales: {
@@ -1601,11 +1630,11 @@ export class SalesService {
         where: {
           deleted_at: null,
           status: 2,
-          id: id
+          id: id,
         },
         include: {
           incentive: true,
-          quotation: true
+          quotation: true,
         },
       });
       const quotationSalesIncentive = await this.dbService.quotation.findFirst({
@@ -1618,42 +1647,46 @@ export class SalesService {
               order_history: {
                 where: {
                   status: {
-                    category: 'WORKEND'
-                  }
+                    category: 'WORKEND',
+                  },
                 },
                 orderBy: {
-                  created_at: 'desc'
+                  created_at: 'desc',
                 },
                 include: {
-                  status: true
-                }
-              }
-            }
-          }
-        }
+                  status: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       let comission = 0;
       if (salesIncentive.incentive.type === 1) {
-        comission += Number(salesIncentive.quotation.quotation_grand_total) * (Number(salesIncentive.incentive.incentive) / 100);
+        comission +=
+          Number(salesIncentive.quotation.quotation_grand_total) *
+          (Number(salesIncentive.incentive.incentive) / 100);
       } else if (salesIncentive.incentive.type === 2) {
         comission += Number(salesIncentive.incentive.incentive);
       }
 
       const updateSalesIncentive = await this.dbService.sales_incentive.update({
         where: {
-          id: id
+          id: id,
         },
         data: {
           nominal: Math.floor(comission),
-          created_at: new Date(quotationSalesIncentive.order.order_history[0].created_at)
-        }
-      })
+          created_at: new Date(
+            quotationSalesIncentive.order.order_history[0].created_at,
+          ),
+        },
+      });
 
-      return updateSalesIncentive
+      return updateSalesIncentive;
     } catch (error) {
       console.error(error);
-      throw error
+      throw error;
     }
   }
 
@@ -1661,14 +1694,14 @@ export class SalesService {
     try {
       const deleteSalesIncentive = await this.dbService.sales_incentive.delete({
         where: {
-          id: id
+          id: id,
         },
       });
 
-      return deleteSalesIncentive
+      return deleteSalesIncentive;
     } catch (error) {
       console.error(error);
-      throw error
+      throw error;
     }
   }
 }
