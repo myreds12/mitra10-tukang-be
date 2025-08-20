@@ -155,7 +155,8 @@ export class SalesController {
   }
 
   @Delete('/:id')
-  async remove(@Param('id') id: number) {
-    return await this.salesService.remove(id);
+  async remove(@Param('id') id: number, @Request() req: RequestWithUser) {
+    const user = req.user;
+    return await this.salesService.remove(id, user);
   }
 }
