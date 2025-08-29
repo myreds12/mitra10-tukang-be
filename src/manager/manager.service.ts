@@ -31,7 +31,7 @@ export class ManagerService {
     private readonly authService: AuthService,
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
 
   async getCode() {
     try {
@@ -67,7 +67,7 @@ export class ManagerService {
           },
         }),
       ]);
-      
+
       return sales;
     } catch (error) {
       console.error(error);
@@ -76,26 +76,20 @@ export class ManagerService {
   }
   async getInsentive(query: QueryParamsDto) {
     try {
-      const {
-        search,
-        take,
-        page,
-        date_from,
-        date_to,
-      } = query;
+      const { search, take, page, date_from, date_to } = query;
 
       const skip = page * take - take;
       const where: Prisma.manager_incentiveWhereInput = {
-        AND: [ 
+        AND: [
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -106,7 +100,7 @@ export class ManagerService {
       });
 
       const getTake = () => {
-        if (take <= 0 ) {
+        if (take <= 0) {
           return 100;
         }
         return take;
@@ -116,16 +110,13 @@ export class ManagerService {
         where,
         skip,
         take: getTake(),
-  
       });
 
       const dataSales = sales.map((item) => {
-    
-
         return {
           ...item,
-        }
-      })
+        };
+      });
 
       return {
         data: dataSales,
@@ -150,20 +141,20 @@ export class ManagerService {
             id: createSalesDto.bank_id,
           },
         });
-  
+
         if (bank.is_active == false)
           throw new HttpException(
             'Bank is not available',
             HttpStatus.BAD_REQUEST,
           );
       }
-  
+
       const store = await this.dbService.store.findFirst({
         where: {
           id: createSalesDto.store_id,
         },
       });
-  
+
       const SALES_ROLES = await this.dbService.roles.findFirst({
         where: {
           name: {
@@ -171,7 +162,7 @@ export class ManagerService {
           },
         },
       });
-  
+
       // Deactivate other managers at this store
       await this.dbService.manager.updateMany({
         where: {
@@ -182,15 +173,15 @@ export class ManagerService {
           is_active: false,
         },
       });
-  
+
       const saltedPassword = hashSync(
         createSalesDto?.password ?? 'password',
         12,
       );
-  
+
       const formattedUsername =
         createSalesDto?.username?.replace(/ /g, '_') ?? null;
-  
+
       const sales_data: Prisma.salesCreateInput = {
         full_name: createSalesDto.full_name,
         bank_branch: createSalesDto?.bank_branch,
@@ -206,10 +197,10 @@ export class ManagerService {
         },
         bank: bank
           ? {
-            connect: {
-              id: createSalesDto.bank_id,
-            },
-          }
+              connect: {
+                id: createSalesDto.bank_id,
+              },
+            }
           : undefined,
         users: {
           connectOrCreate: {
@@ -219,8 +210,8 @@ export class ManagerService {
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                    .toLowerCase()
-                    .replace(/ /g, '_')}`,
+                  .toLowerCase()
+                  .replace(/ /g, '_')}`,
               id: 0,
             },
             create: {
@@ -229,17 +220,17 @@ export class ManagerService {
                 `${createSalesDto.full_name
                   .toLowerCase()
                   .replace(/ /g, '_')}_${store.store_name
-                    .toLowerCase()
-                    .replace(/ /g, '_')}`,
+                  .toLowerCase()
+                  .replace(/ /g, '_')}`,
               password: saltedPassword,
               role_id: SALES_ROLES.id,
             },
           },
         },
-        
+
         is_active: true, // Ensure the new manager is active
       };
-  
+
       const [sales] = await this.dbService.$transaction([
         this.dbService.manager.create({
           data: { ...sales_data },
@@ -248,7 +239,7 @@ export class ManagerService {
           },
         }),
       ]);
-      
+
       this.emailQueue.add(
         'send-credential-mail',
         {
@@ -259,7 +250,7 @@ export class ManagerService {
           attempts: 3,
         },
       );
-  
+
       return sales;
     } catch (error) {
       console.error(error);
@@ -279,7 +270,7 @@ export class ManagerService {
         store_id,
         order_date_from,
         order_date_to,
-        is_promotion
+        is_promotion,
       } = query;
 
       const skip = page * take - take;
@@ -287,39 +278,39 @@ export class ManagerService {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
-                  { full_name: { contains: search } },
-   
-                  { account_name: { contains: search } },
-                  { phone_number: { contains: search } },
-                  { account_number: { contains: search } },
-                  { nik: { contains: search } },         
-                ],
-              },
-            ]
+                {
+                  OR: [
+                    {
+                      id: !isNaN(+search) ? +search : undefined,
+                    },
+                    { full_name: { contains: search } },
+
+                    { account_name: { contains: search } },
+                    { phone_number: { contains: search } },
+                    { account_number: { contains: search } },
+                    { nik: { contains: search } },
+                  ],
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                store_id: {
-                  in: store_id,
+                {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -341,22 +332,18 @@ export class ManagerService {
         skip,
         take: getTake(),
         include: {
- 
           bank: true,
           store: true,
-   
-   
+
           users: true,
         },
       });
 
       const dataSales = sales.map((item) => {
-    
-
         return {
           ...item,
-        }
-      })
+        };
+      });
 
       return {
         data: dataSales,
@@ -381,7 +368,7 @@ export class ManagerService {
         include: {
           bank: true,
           store: true,
-      
+
           users: true,
         },
       });
@@ -405,11 +392,11 @@ export class ManagerService {
           store: true,
         },
       });
-      
+
       if (!sales) {
         throw new NotFoundException('Sales not found');
       }
-  
+
       const SALES_ROLES: roles = await this.dbService.roles.findFirst({
         where: {
           name: {
@@ -417,9 +404,9 @@ export class ManagerService {
           },
         },
       });
-  
+
       // Check if we're activating this manager
-      if (updateSalesDto.is_active === 1 ) {
+      if (updateSalesDto.is_active === 1) {
         // Deactivate other managers at this store
         await this.dbService.manager.updateMany({
           where: {
@@ -434,40 +421,40 @@ export class ManagerService {
           },
         });
       }
-  
+
       const salesUsername = updateSalesDto.full_name
         ? `${updateSalesDto.full_name
-          .toLowerCase()
-          .replace(/ /g, '_')}_${sales.store.store_name
+            .toLowerCase()
+            .replace(/ /g, '_')}_${sales.store.store_name
             .toLowerCase()
             .replace(/ /g, '_')}`
         : sales?.users?.username;
       const salesPassword = updateSalesDto.password
         ? await hash(updateSalesDto.password, 12)
         : sales?.users?.password
-          ? sales.users.password
-          : await hash('password', 12);
-  
+        ? sales.users.password
+        : await hash('password', 12);
+
       const salesData: Prisma.salesUpdateInput = {
         // ...(usersConnectOrCreate ? { users: usersConnectOrCreate } : {}),
         ...(sales.users && updateSalesDto.username && updateSalesDto.password
           ? {
-            users: {
-              update: {
-                where: {
-                  id: sales?.user_id,
-                },
-                data: {
-                  username: updateSalesDto?.username ?? salesUsername,
-                  password: salesPassword,
-                  updated_at: new Date(),
-                  updated_by: user_id,
+              users: {
+                update: {
+                  where: {
+                    id: sales?.user_id,
+                  },
+                  data: {
+                    username: updateSalesDto?.username ?? salesUsername,
+                    password: salesPassword,
+                    updated_at: new Date(),
+                    updated_by: user_id,
+                  },
                 },
               },
-            },
-          }
+            }
           : updateSalesDto.username && updateSalesDto.password
-            ? {
+          ? {
               users: {
                 create: {
                   username: updateSalesDto?.username
@@ -480,35 +467,38 @@ export class ManagerService {
                 },
               },
             }
-            : undefined),
+          : undefined),
         ...(updateSalesDto.bank_id
           ? {
-            bank: {
-              connect: {
-                id: updateSalesDto.bank_id,
+              bank: {
+                connect: {
+                  id: updateSalesDto.bank_id,
+                },
               },
-            },
-          }
+            }
           : undefined),
         ...(updateSalesDto.store_id
           ? {
-            store: {
-              connect: {
-                id: updateSalesDto.store_id,
+              store: {
+                connect: {
+                  id: updateSalesDto.store_id,
+                },
               },
-            },
-          }
+            }
           : undefined),
         account_name: updateSalesDto.account_name,
         account_number: updateSalesDto.account_number,
         phone_number: updateSalesDto.phone_number,
         full_name: updateSalesDto.full_name,
         nik: updateSalesDto.nik,
-        is_active: updateSalesDto.is_active !== undefined ? Boolean(updateSalesDto.is_active) : sales.is_active,
+        is_active:
+          updateSalesDto.is_active !== undefined
+            ? Boolean(updateSalesDto.is_active)
+            : sales.is_active,
         updated_at: new Date(),
         updated_by: user_id,
       };
-  
+
       const updatedSales = await this.dbService.$transaction([
         this.dbService.manager.update({
           where: {
@@ -520,7 +510,7 @@ export class ManagerService {
           },
         }),
       ]);
-  
+
       this.emailQueue.add(
         'send-credential-mail',
         {
@@ -531,7 +521,7 @@ export class ManagerService {
           attempts: 3,
         },
       );
-  
+
       return updatedSales[0];
     } catch (error) {
       console.error(error);
@@ -545,14 +535,14 @@ export class ManagerService {
         take: 10,
         where: {
           store_id,
-          is_active: true
+          is_active: true,
         },
         include: {
           users: true,
           store: true,
         },
       });
-   
+
       return sales;
     } catch (error) {
       console.error(error);
@@ -579,7 +569,6 @@ export class ManagerService {
       throw error;
     }
   }
-
 
   async templateDefaultExcel(res: Response, query: QueryParamsDto) {
     try {
@@ -651,33 +640,33 @@ export class ManagerService {
         AND: [
           ...(status
             ? [
-              {
-                status: {
-                  in: status,
+                {
+                  status: {
+                    in: status,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                sales: {
-                  store_id: {
-                    in: store_id,
+                {
+                  sales: {
+                    store_id: {
+                      in: store_id,
+                    },
                   },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -921,46 +910,36 @@ export class ManagerService {
 
   async salesExportExcel(res: Response, queryParams: QueryParamsDto) {
     try {
-      const {
-        search,
-        date_from,
-        date_to,
-        order_by,
-        top_best,
-        store_id,
-      } = queryParams;
+      const { search, date_from, date_to, order_by, top_best, store_id } =
+        queryParams;
       // const skip = page * take - take;
       const where: Prisma.managerWhereInput = {
         AND: [
           ...(search
             ? [
-              {
-                OR: [
-                  { full_name: { contains: search } },
-              
-              
-                ],
-              },
-            ]
+                {
+                  OR: [{ full_name: { contains: search } }],
+                },
+              ]
             : []),
           ...(store_id
             ? [
-              {
-                store_id: {
-                  in: store_id,
+                {
+                  store_id: {
+                    in: store_id,
+                  },
                 },
-              },
-            ]
+              ]
             : []),
           ...(date_from && date_to
             ? [
-              {
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(date_to),
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                    lte: new Date(date_to),
+                  },
                 },
-              },
-            ]
+              ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
@@ -982,12 +961,11 @@ export class ManagerService {
           where,
           skip: skipData,
           take: takeData,
- 
+
           include: {
-      
             bank: true,
             store: true,
-       
+
             users: true,
           },
         });
@@ -999,13 +977,12 @@ export class ManagerService {
           where,
           skip: skipData,
           take: count - dataExcel.length,
-    
+
           include: {
             bank: true,
             store: true,
-      
+
             users: true,
-   
           },
         });
         dataExcel = [...dataExcel, ...data];
@@ -1061,9 +1038,7 @@ export class ManagerService {
         };
       });
 
-
       dataExcel.forEach((sales) => {
-  
         const formattedDateTime = (dateTime) =>
           `${dateTime.toLocaleDateString('id-ID', {
             day: 'numeric',
@@ -1074,9 +1049,10 @@ export class ManagerService {
             minute: '2-digit',
           })}`;
         const currentMonth = new Date();
-        const orderDate = sales?.orders?.length > 0
-          ? new Date(sales.orders[0].created_at)
-          : sales.created_at;
+        const orderDate =
+          sales?.orders?.length > 0
+            ? new Date(sales.orders[0].created_at)
+            : sales.created_at;
 
         const monthDifference =
           (currentMonth.getFullYear() - orderDate.getFullYear()) * 12 +
@@ -1091,11 +1067,10 @@ export class ManagerService {
           account_name: sales?.account_name ? sales.account_name : '',
           number_account: sales?.account_number ? sales.account_number : '',
           phone_number: sales?.phone_number ? sales.phone_number : '',
- 
-        
+
           username: sales?.users ? sales.users.username : '',
           created_at: formattedDateTime(sales?.created_at),
-     
+
           date_diff: `${monthDifference} Bulan`,
           is_active: sales?.is_active ? 'Aktif' : 'Tidak Aktif',
         });
@@ -1252,7 +1227,7 @@ export class ManagerService {
               },
             },
           },
-          is_active: true
+          is_active: true,
         },
         select: {
           id: true,
@@ -1260,15 +1235,12 @@ export class ManagerService {
         take: batchSize,
       });
 
-
-
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
       if (salesIds.length === 0) {
-        console.log("No sales to update in this batch.");
+        console.log('No sales to update in this batch.');
         return;
       }
-
 
       const salesUpdate = await this.dbService.sales.updateMany({
         where: {
@@ -1280,7 +1252,6 @@ export class ManagerService {
           is_active: false,
         },
       });
-
 
       const usersUpdate = await this.dbService.users.updateMany({
         where: {
@@ -1296,7 +1267,6 @@ export class ManagerService {
           is_active: false,
         },
       });
-
 
       return { salesUpdate, usersUpdate };
     } catch (error) {
@@ -1327,7 +1297,7 @@ export class ManagerService {
               },
             },
           },
-          is_active: true
+          is_active: true,
         },
         select: {
           id: true,
@@ -1338,11 +1308,11 @@ export class ManagerService {
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
       if (salesIds.length === 0) {
-        console.log("No sales to update in this batch.");
+        console.log('No sales to update in this batch.');
         return;
       }
 
-      console.log("SALES TO UPDATE (BATCH):", salesIds);
+      console.log('SALES TO UPDATE (BATCH):', salesIds);
 
       const salesIncentive = await this.dbService.sales.updateMany({
         where: {
@@ -1356,7 +1326,7 @@ export class ManagerService {
         },
       });
 
-      console.log("SALES UPDATED", salesIncentive);
+      console.log('SALES UPDATED', salesIncentive);
 
       const usersUpdate = await this.dbService.users.updateMany({
         where: {
@@ -1374,7 +1344,7 @@ export class ManagerService {
         },
       });
 
-      console.log("USERS UPDATED", usersUpdate);
+      console.log('USERS UPDATED', usersUpdate);
 
       return { salesIncentive, usersUpdate };
     } catch (error) {
@@ -1391,20 +1361,22 @@ export class ManagerService {
       const targetYear = rangeMonthAgo.getFullYear();
       const targetMonth = rangeMonthAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
-          is_active: true
+          is_active: true,
         },
         select: {
           id: true,
@@ -1415,13 +1387,12 @@ export class ManagerService {
       const salesIds = salesToUpdate.map((sales) => sales.id);
 
       if (salesIds.length === 0) {
-        console.log("No sales to update in this batch.");
+        console.log('No sales to update in this batch.');
         return;
       }
 
-
       // Step 2: Update sales dengan batch size
-      let salesUser: any, usersUpdate: any
+      let salesUser: any, usersUpdate: any;
       if (range_date === 7) {
         salesUser = await this.dbService.sales.updateMany({
           where: {
@@ -1462,7 +1433,6 @@ export class ManagerService {
           },
         });
 
-
         usersUpdate = await this.dbService.users.updateMany({
           where: {
             sales: {
@@ -1492,11 +1462,11 @@ export class ManagerService {
         where: {
           deleted_at: null,
           status: 2,
-          id: id
+          id: id,
         },
         include: {
           incentive: true,
-          quotation: true
+          quotation: true,
         },
       });
       const quotationSalesIncentive = await this.dbService.quotation.findFirst({
@@ -1509,42 +1479,46 @@ export class ManagerService {
               order_history: {
                 where: {
                   status: {
-                    category: 'WORKEND'
-                  }
+                    category: 'WORKEND',
+                  },
                 },
                 orderBy: {
-                  created_at: 'desc'
+                  created_at: 'desc',
                 },
                 include: {
-                  status: true
-                }
-              }
-            }
-          }
-        }
+                  status: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       let comission = 0;
       if (salesIncentive.incentive.type === 1) {
-        comission += Number(salesIncentive.quotation.quotation_grand_total) * (Number(salesIncentive.incentive.incentive) / 100);
+        comission +=
+          Number(salesIncentive.quotation.quotation_grand_total) *
+          (Number(salesIncentive.incentive.incentive) / 100);
       } else if (salesIncentive.incentive.type === 2) {
         comission += Number(salesIncentive.incentive.incentive);
       }
 
       const updateSalesIncentive = await this.dbService.sales_incentive.update({
         where: {
-          id: id
+          id: id,
         },
         data: {
           nominal: Math.floor(comission),
-          created_at: new Date(quotationSalesIncentive.order.order_history[0].created_at)
-        }
-      })
+          created_at: new Date(
+            quotationSalesIncentive.order.order_history[0].created_at,
+          ),
+        },
+      });
 
-      return updateSalesIncentive
+      return updateSalesIncentive;
     } catch (error) {
       console.error(error);
-      throw error
+      throw error;
     }
   }
 
@@ -1552,14 +1526,14 @@ export class ManagerService {
     try {
       const deleteSalesIncentive = await this.dbService.sales_incentive.delete({
         where: {
-          id: id
+          id: id,
         },
       });
 
-      return deleteSalesIncentive
+      return deleteSalesIncentive;
     } catch (error) {
       console.error(error);
-      throw error
+      throw error;
     }
   }
 }
