@@ -1159,6 +1159,7 @@ export class SalesService {
         { header: 'Sales Id', key: 'id', width: 10 },
         { header: 'Nama Toko', key: 'store_name', width: 35 },
         { header: 'Nama Sales', key: 'full_name', width: 35 },
+        { header: 'NIK', key: 'nik', width: 35 },
         { header: 'Nama Bank', key: 'bank_name', width: 35 },
         { header: 'Nama Akun Bank', key: 'account_name', width: 35 },
         { header: 'Nomor Akun Bank', key: 'number_account', width: 35 },
@@ -1196,15 +1197,20 @@ export class SalesService {
                 .map((category) => category.categories.category_name)
                 .join(',')
             : '';
+
         const formattedDateTime = (dateTime) =>
           `${dateTime.toLocaleDateString('id-ID', {
-            day: 'numeric',
+            day: '2-digit',
             month: 'long',
             year: 'numeric',
+            timeZone: 'Asia/Jakarta',
           })}, ${dateTime.toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit',
+            timeZone: 'Asia/Jakarta',
+            hour12: false,
           })}`;
+
         const currentMonth = new Date();
         const orderDate =
           sales?.orders?.length > 0
@@ -1220,6 +1226,7 @@ export class SalesService {
           id: sales.id,
           store_name: sales?.store ? sales.store.store_name : '',
           full_name: sales?.full_name ? sales.full_name : '',
+          nik: sales?.nik ? sales.nik : '',
           bank_name: sales?.bank ? sales.bank.bank_name : '',
           account_name: sales?.account_name ? sales.account_name : '',
           number_account: sales?.account_number ? sales.account_number : '',
@@ -1370,25 +1377,24 @@ export class SalesService {
   async salesUserManagement() {
     try {
       const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 4);
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
       const targetYear = threeMonthsAgo.getFullYear();
       const targetMonth = threeMonthsAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 100;
 
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          created_at: {
-            lt: endOfMonth,
-          },
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
@@ -1444,24 +1450,23 @@ export class SalesService {
   async managementSalesSixMonth() {
     try {
       const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 7);
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
       const targetYear = sixMonthsAgo.getFullYear();
       const targetMonth = sixMonthsAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          created_at: {
-            lt: endOfMonth,
-          },
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
@@ -1496,7 +1501,7 @@ export class SalesService {
 
       console.log('SALES UPDATED', salesIncentive);
 
-      const usersUpdate = await this.dbService.users.deleteMany({
+      const usersUpdate = await this.dbService.users.updateMany({
         where: {
           sales: {
             some: {
@@ -1505,6 +1510,10 @@ export class SalesService {
               },
             },
           },
+        },
+        data: {
+          is_active: false,
+          deleted_at: new Date(),
         },
       });
 
@@ -1525,16 +1534,18 @@ export class SalesService {
       const targetYear = rangeMonthAgo.getFullYear();
       const targetMonth = rangeMonthAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
