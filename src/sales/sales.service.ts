@@ -1421,25 +1421,11 @@ export class SalesService {
         },
         data: {
           is_active: false,
+          deleted_at: new Date(),
         },
       });
 
-      const usersUpdate = await this.dbService.users.updateMany({
-        where: {
-          sales: {
-            some: {
-              id: {
-                in: salesIds,
-              },
-            },
-          },
-        },
-        data: {
-          is_active: false,
-        },
-      });
-
-      return { salesUpdate, usersUpdate };
+      return salesUpdate;
     } catch (error) {
       console.error(error);
       throw error;
@@ -1603,21 +1589,7 @@ export class SalesService {
           },
           data: {
             is_active: false,
-          },
-        });
-
-        usersUpdate = await this.dbService.users.updateMany({
-          where: {
-            sales: {
-              some: {
-                id: {
-                  in: salesIds,
-                },
-              },
-            },
-          },
-          data: {
-            is_active: false,
+            deleted_at: new Date(),
           },
         });
       }
