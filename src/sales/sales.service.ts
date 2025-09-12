@@ -1421,7 +1421,6 @@ export class SalesService {
         },
         data: {
           is_active: false,
-          deleted_at: new Date(),
         },
       });
 
@@ -1589,7 +1588,6 @@ export class SalesService {
           },
           data: {
             is_active: false,
-            deleted_at: new Date(),
           },
         });
       }
