@@ -23,7 +23,8 @@ import { fileFilter } from 'src/common/filters/file-filter';
           callback(null, filename);
         },
       }),
-      fileFilter: fileFilter,
+      fileFilter: fileFilter
+
     }),
     BullModule.registerQueue({
       name: 'email',

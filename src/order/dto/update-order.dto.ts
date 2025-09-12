@@ -64,9 +64,7 @@ export class UpdateOrderDto {
   receipt_number?: string;
 
   @ApiProperty({ enum: PAYMENT_TYPE })
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.toLocaleLowerCase() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLocaleLowerCase() : value))
   @IsEnum(PAYMENT_TYPE)
   @IsOptional()
   payment_type?: PAYMENT_TYPE;

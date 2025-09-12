@@ -162,7 +162,7 @@ export class QuotationService {
 
       let quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
-          if (typeof item.price === 'string' && item.price.includes(',')) {
+          if (typeof item.price === 'string'  && item.price.includes(',')) {
             throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
           }
           if (typeof item.margin === 'string' && item.margin.includes(',')) {
@@ -172,7 +172,7 @@ export class QuotationService {
           const prices = Number(item?.is_customer ? 0 : item?.price ?? 0);
           const quantity = item.quantity;
 
-
+          
           const margin =
             item.margin_type === MarginType.PERCENTAGE
               ? +item.margin <= 100

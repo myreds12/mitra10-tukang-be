@@ -263,6 +263,7 @@ export class StoreService {
     if (Boolean(top_best)) {
       dataStore.sort((a, b) => b.total_paid_order - a.total_paid_order);
     }
+    
 
     const total = await this.dbService.store.count({ where });
 

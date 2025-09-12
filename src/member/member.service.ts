@@ -25,11 +25,11 @@ export class MemberService {
       if (!store) {
         throw new BadRequestException('Toko tidak ditemukan!');
       }
-
+      
       if (!createMemberDto.email) {
         throw new BadRequestException('Email wajib diisi!');
       }
-
+      
       const existingMember = await this.dbService.members.findFirst({
         where: {
           join_location: createMemberDto.join_location,
@@ -45,7 +45,6 @@ export class MemberService {
           ],
         },
       });
-
       if (existingMember) {
         if (existingMember.email === createMemberDto.email) {
           throw new BadRequestException('Email sudah terdaftar di toko ini!');
@@ -63,7 +62,6 @@ export class MemberService {
           throw new BadRequestException('Nomor WhatsApp sudah terdaftar di toko ini!');
         }
       }
-
 
       const numberMember =
         createMemberDto.phone_number ?? createMemberDto.whatsapp_number;
