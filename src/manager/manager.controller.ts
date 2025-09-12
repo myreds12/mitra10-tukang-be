@@ -138,7 +138,7 @@ export class ManagerController {
   }
   @Get('/insentive-manager/:id')
   async findOneInsetif(@Param('id') id: number): Promise<any> {
-    return await this.salesService.findOneInsetif(id);
+    return await this.managerService.findOneInsetif(id);
   }
 
   @Get()

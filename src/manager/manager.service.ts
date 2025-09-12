@@ -137,7 +137,6 @@ export class ManagerService {
     try {
       const { id: user_id } = user;
       console.log(user_id);
-      console.log(createSalesDto);
       let bank = null;
 
       if (createManagerDto.bank_id) {
