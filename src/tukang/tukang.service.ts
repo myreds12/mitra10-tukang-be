@@ -265,6 +265,9 @@ export class TukangService {
                 },
               }
             : undefined,
+          {
+            deleted_at: null,
+          },
         ],
       };
 
@@ -586,9 +589,11 @@ export class TukangService {
           data: tukangUpdate,
         }),
       ]);
+
       const formattedUsername = updateTukangDto?.username
         ? updateTukangDto?.username.replace(/ /g, '_')
         : tukang.users.username;
+
       const saltedPassword = updateTukangDto.password
         ? hashSync(updateTukangDto?.password, 12)
         : tukang.users.password;
@@ -614,38 +619,24 @@ export class TukangService {
 
   async remove(id: number, user_id: number) {
     try {
-      const tukangToDelete = await this.dbService.tukang.findUnique({
-        where: { id },
-        select: { user_id: true },
+      const tukangToDelete = await this.dbService.tukang.update({
+        where: {
+          id,
+        },
+        data: {
+          is_active: false,
+          deleted_at: new Date(),
+          deleted_by: user_id,
+
+          users: {
+            update: {
+              is_active: false,
+              deleted_at: new Date(),
+              deleted_by: user_id,
+            },
+          },
+        },
       });
-
-      if (!tukangToDelete) {
-        throw new Error(`Tukang with ID ${id} not found.`);
-      }
-
-      await this.dbService.$transaction([
-        this.dbService.tukang_document.deleteMany({
-          where: { tukang_id: id },
-        }),
-        this.dbService.tukang_area.deleteMany({
-          where: { tukang_id: id },
-        }),
-        this.dbService.tukang_service.deleteMany({
-          where: { tukang_id: id },
-        }),
-        this.dbService.request_tukang.deleteMany({
-          where: { request_tukang: id },
-        }),
-        this.dbService.tukang.delete({
-          where: { id },
-        }),
-        this.dbService.notifications.deleteMany({
-          where: { user_id: tukangToDelete.user_id },
-        }),
-        this.dbService.users.delete({
-          where: { id: tukangToDelete.user_id },
-        }),
-      ]);
 
       return tukangToDelete;
     } catch (error) {
