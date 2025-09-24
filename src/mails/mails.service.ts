@@ -1,8 +1,5 @@
 /* eslint-disable prettier/prettier */
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { Prisma } from '@prisma/client';
@@ -19,11 +16,15 @@ export class MailsService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+  ) {}
 
   private readonly logger = new Logger(MailsService.name);
 
-  async create(createEmailMessageDto: CreateEmailMessageDto, user_id: number, files: { [name: string]: Express.Multer.File[] }) {
+  async create(
+    createEmailMessageDto: CreateEmailMessageDto,
+    user_id: number,
+    files: { [name: string]: Express.Multer.File[] },
+  ) {
     const { header_files, footer_files } = files;
     const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
       header_files?.map((item) => ({
@@ -37,7 +38,7 @@ export class MailsService {
         path: item.filename,
         created_by: user_id,
       }));
-    const evidence = [...header || [], ...footer || []];
+    const evidence = [...(header || []), ...(footer || [])];
     const termsDetail: Prisma.terms_detailCreateManyEmail_messagesInput[] =
       createEmailMessageDto.terms_detail.map((item) => {
         return {
@@ -62,9 +63,12 @@ export class MailsService {
           data: termsDetail,
         },
       },
-      email_message_image: header_files || footer_files ? {
-        createMany: {data: evidence}
-      } : undefined,
+      email_message_image:
+        header_files || footer_files
+          ? {
+              createMany: { data: evidence },
+            }
+          : undefined,
       information_detail: {
         createMany: {
           data: informationDetail,
@@ -73,10 +77,10 @@ export class MailsService {
       title: createEmailMessageDto?.title,
       trigger: createEmailMessageDto?.trigger_id
         ? {
-          connect: {
-            id: createEmailMessageDto.trigger_id,
-          },
-        }
+            connect: {
+              id: createEmailMessageDto.trigger_id,
+            },
+          }
         : undefined,
       bcc: createEmailMessageDto?.bcc
         .split(',')
@@ -88,10 +92,10 @@ export class MailsService {
         .join(','),
       csi_template: createEmailMessageDto?.csi_id
         ? {
-          connect: {
-            id: createEmailMessageDto.csi_id,
-          },
-        }
+            connect: {
+              id: createEmailMessageDto.csi_id,
+            },
+          }
         : undefined,
     };
 
@@ -110,12 +114,12 @@ export class MailsService {
       AND: [
         ...(type_email_message
           ? [
-            {
-              email_type: {
-                equals: Number(type_email_message),
+              {
+                email_type: {
+                  equals: Number(type_email_message),
+                },
               },
-            },
-          ]
+            ]
           : []),
       ],
       deleted_at: null,
@@ -141,6 +145,11 @@ export class MailsService {
         },
         csi_template: true,
         trigger: true,
+        email_message_image: {
+          where: {
+            deleted_at: null,
+          },
+        },
       },
     });
 
@@ -177,9 +186,9 @@ export class MailsService {
         trigger: true,
         email_message_image: {
           where: {
-            deleted_at: null
-          }
-        }
+            deleted_at: null,
+          },
+        },
       },
     });
 
@@ -190,7 +199,7 @@ export class MailsService {
     id: number,
     updateEmailMessageDto: UpdateEmailMessageDto,
     user_id: number,
-    files: { [name: string]: Express.Multer.File[] } = {}
+    files: { [name: string]: Express.Multer.File[] } = {},
   ) {
     try {
       const { header_files = [], footer_files = [] } = files || {};
@@ -213,51 +222,51 @@ export class MailsService {
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
           ? updateEmailMessageDto.terms_detail.map((item) => {
-            return {
-              where: {
-                id: item.id ?? 0,
-              },
-              update: {
-                terms: item.term,
-              },
-              create: {
-                terms: item.term,
-              },
-            };
-          })
+              return {
+                where: {
+                  id: item.id ?? 0,
+                },
+                update: {
+                  terms: item.term,
+                },
+                create: {
+                  terms: item.term,
+                },
+              };
+            })
           : undefined;
 
       const informationDetail: Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.information_detail
           ? updateEmailMessageDto.information_detail.map((item) => {
-            return {
-              where: {
-                id: item.id ?? 0,
-              },
-              update: {
-                information: item.information,
-              },
-              create: {
-                information: item.information,
-              },
-            };
-          })
+              return {
+                where: {
+                  id: item.id ?? 0,
+                },
+                update: {
+                  information: item.information,
+                },
+                create: {
+                  information: item.information,
+                },
+              };
+            })
           : undefined;
 
       const deletedInformationId = updateEmailMessageDto.information_detail
         ? updateEmailMessageDto.information_detail
-          .filter((x) => Boolean(x?.id))
-          .map((item) => {
-            return item.id;
-          })
+            .filter((x) => Boolean(x?.id))
+            .map((item) => {
+              return item.id;
+            })
         : undefined;
 
       const deletedTermsDetailsId = updateEmailMessageDto.terms_detail
         ? updateEmailMessageDto.terms_detail
-          .filter((x) => Boolean(x?.id))
-          .map((item) => {
-            return item.id;
-          })
+            .filter((x) => Boolean(x?.id))
+            .map((item) => {
+              return item.id;
+            })
         : undefined;
 
       const data: Prisma.email_messagesUpdateInput = {
@@ -267,7 +276,7 @@ export class MailsService {
         footer: updateEmailMessageDto.footer,
         is_active: Boolean(updateEmailMessageDto.is_active),
         email_message_image: {
-          createMany: {data: evidence}
+          createMany: { data: evidence },
         },
         updated_at: new Date(),
         updated_by: user_id,
@@ -279,59 +288,58 @@ export class MailsService {
         },
         trigger: updateEmailMessageDto?.trigger_id
           ? {
-            connect: {
-              id: updateEmailMessageDto.trigger_id,
-            },
-          }
+              connect: {
+                id: updateEmailMessageDto.trigger_id,
+              },
+            }
           : undefined,
         title: updateEmailMessageDto?.title,
         bcc: updateEmailMessageDto?.bcc
           ? updateEmailMessageDto?.bcc
-            .split(',')
-            .map((s) => s.trim())
-            .join(',')
+              .split(',')
+              .map((s) => s.trim())
+              .join(',')
           : undefined,
         cc: updateEmailMessageDto?.cc
           ? updateEmailMessageDto?.cc
-            .split(',')
-            .map((s) => s.trim())
-            .join(',')
+              .split(',')
+              .map((s) => s.trim())
+              .join(',')
           : undefined,
         csi_template: updateEmailMessageDto?.csi_id
           ? {
-            connect: {
-              id: updateEmailMessageDto.csi_id,
-            },
-          }
+              connect: {
+                id: updateEmailMessageDto.csi_id,
+              },
+            }
           : undefined,
-
       };
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       await this.dbService.$transaction([
         ...(header_files?.length || footer_files?.length
           ? [
-            this.dbService.email_message_image.deleteMany({
-              where: {
-                email_message_id: id,
-                ...(header_files?.length && !footer_files?.length
-                  ? { type: 1 }
-                  : {}),
-                ...(footer_files?.length && !header_files?.length
-                  ? { type: 2 }
-                  : {}),
-              },
-            }),
-          ]
+              this.dbService.email_message_image.deleteMany({
+                where: {
+                  email_message_id: id,
+                  ...(header_files?.length && !footer_files?.length
+                    ? { type: 1 }
+                    : {}),
+                  ...(footer_files?.length && !header_files?.length
+                    ? { type: 2 }
+                    : {}),
+                },
+              }),
+            ]
           : []),
         this.dbService.terms_detail.updateMany({
           where: {
             ...(deletedTermsDetailsId && deletedTermsDetailsId.length
               ? {
-                id: {
-                  notIn: deletedTermsDetailsId,
-                },
-              }
+                  id: {
+                    notIn: deletedTermsDetailsId,
+                  },
+                }
               : undefined),
             email_messages_id: id,
           },
@@ -344,10 +352,10 @@ export class MailsService {
           where: {
             ...(deletedInformationId && deletedInformationId.length
               ? {
-                id: {
-                  notIn: deletedInformationId,
-                },
-              }
+                  id: {
+                    notIn: deletedInformationId,
+                  },
+                }
               : undefined),
             email_messages_id: id,
           },
@@ -384,9 +392,9 @@ export class MailsService {
           trigger: true,
           email_message_image: {
             where: {
-              deleted_at: null
-            }
-          }
+              deleted_at: null,
+            },
+          },
         },
       });
 
@@ -485,7 +493,6 @@ export class MailsService {
 
   async handleOrderTriggers(template_id: number, status_id: number) {
     try {
-
       const orders = await this.dbService.orders.findMany({
         where: {
           project_status_id: status_id,
@@ -502,64 +509,69 @@ export class MailsService {
         select: { id: true },
       });
 
-    if (!orders.length) {
-      this.logger.verbose(`Order not found for status id ${status_id}`);
-      return;
-    }
-
-    this.logger.log(`Order found for status id ${status_id} [${orders.length}]`);
-
-    const sentEmailLogs = await this.dbService.mail_logs.findMany({
-      where: {
-        moduleId: { in: orders.map(order => order.id) },
-        emailMessageId: template_id,
-        status: 1,
-      },
-      select: { moduleId: true }, 
-    });
-    const sentEmailIds = new Set(sentEmailLogs.map(log => log.moduleId));
-
-    const jobs: {
-      name?: string;
-      data: OrderMailInterface;
-      opts?: JobOptions;
-    }[] = [];
-
-    let delay = 5000;
-
-    const jobPromises = orders.map(async (order) => {
-      const jobId = `send-order-mail-${order.id}-${template_id}`;
-      const jobExist = await this.emailQueue.getJob(jobId);
-
-      if (!sentEmailIds.has(order.id) && !jobExist) {
-        this.logger.log(`Scheduling email for order ${order.id} status ${status_id}`);
-        jobs.push({
-          name: 'send-order-mail',
-          data: {
-            module_id: order.id,
-            template_id,
-          },
-          opts: {
-            jobId,
-            delay,
-          },
-        });
-        delay += 5000; 
+      if (!orders.length) {
+        this.logger.verbose(`Order not found for status id ${status_id}`);
+        return;
       }
-    });
 
-    await Promise.all(jobPromises); 
+      this.logger.log(
+        `Order found for status id ${status_id} [${orders.length}]`,
+      );
 
-    if (jobs.length > 0) {
-      this.logger.verbose(`Jobs triggered [${jobs.length}]`);
-      await this.emailQueue.addBulk(jobs); 
+      const sentEmailLogs = await this.dbService.mail_logs.findMany({
+        where: {
+          moduleId: { in: orders.map((order) => order.id) },
+          emailMessageId: template_id,
+          status: 1,
+        },
+        select: { moduleId: true },
+      });
+      const sentEmailIds = new Set(sentEmailLogs.map((log) => log.moduleId));
+
+      const jobs: {
+        name?: string;
+        data: OrderMailInterface;
+        opts?: JobOptions;
+      }[] = [];
+
+      let delay = 5000;
+
+      const jobPromises = orders.map(async (order) => {
+        const jobId = `send-order-mail-${order.id}-${template_id}`;
+        const jobExist = await this.emailQueue.getJob(jobId);
+
+        if (!sentEmailIds.has(order.id) && !jobExist) {
+          this.logger.log(
+            `Scheduling email for order ${order.id} status ${status_id}`,
+          );
+          jobs.push({
+            name: 'send-order-mail',
+            data: {
+              module_id: order.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
+      });
+
+      await Promise.all(jobPromises);
+
+      if (jobs.length > 0) {
+        this.logger.verbose(`Jobs triggered [${jobs.length}]`);
+        await this.emailQueue.addBulk(jobs);
+      }
+    } catch (error) {
+      console.error(error);
+      this.logger.error(
+        `Error processing orders for template_id ${template_id}, status_id ${status_id}`,
+      );
     }
-  } catch (error) {
-    console.error(error);
-    this.logger.error(`Error processing orders for template_id ${template_id}, status_id ${status_id}`);
   }
-}
-
 
   async handleQuotationTriggers(template_id: number, status_id: number) {
     const quotations = await this.dbService.quotation.findMany({
@@ -571,11 +583,10 @@ export class MailsService {
       take: 50,
       orderBy: {
         created_at: 'desc',
-      }
+      },
     });
 
     if (quotations.length) {
-
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay = 2000;
 
@@ -635,7 +646,7 @@ export class MailsService {
       take: 50,
       orderBy: {
         created_at: 'desc',
-      }
+      },
     });
 
     if (quotations.length) {
@@ -684,7 +695,6 @@ export class MailsService {
     }
   }
 
-
   async handleComplaintTriggers(template_id: number, status_id: number) {
     const complaints = await this.dbService.complaints.findMany({
       where: {
@@ -694,8 +704,8 @@ export class MailsService {
       },
       take: 10,
       orderBy: {
-        created_at: 'desc'
-      }
+        created_at: 'desc',
+      },
     });
 
     if (complaints.length) {
@@ -813,7 +823,7 @@ export class MailsService {
       take: 10,
       orderBy: {
         created_at: 'desc',
-      }
+      },
     });
 
     if (refunds.length) {
@@ -874,7 +884,7 @@ export class MailsService {
       take: 50,
       orderBy: {
         created_at: 'desc',
-      }
+      },
     });
 
     const csi = await this.dbService.csi_template.findFirst({
@@ -937,7 +947,7 @@ export class MailsService {
     const emailMessage = await this.dbService.mail_logs.delete({
       where: {
         id,
-      }
+      },
     });
 
     return emailMessage;
