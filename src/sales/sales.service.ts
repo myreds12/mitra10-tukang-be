@@ -252,6 +252,7 @@ export class SalesService {
               ]
             : []),
         ].filter(Boolean),
+        deleted_at: null,
       };
 
       const count = await this.dbService.sales.count({
@@ -444,9 +445,6 @@ export class SalesService {
                   }),
                   ...(updateSalesDto.is_active !== null && {
                     is_active: Boolean(updateSalesDto.is_active),
-                    ...(updateSalesDto.is_active === 1
-                      ? { deleted_at: null }
-                      : { deleted_at: new Date(), deleted_by: user_id }),
                   }),
                   updated_at: new Date(),
                   updated_by: user_id,
@@ -464,9 +462,6 @@ export class SalesService {
                 created_at: new Date(),
                 role_id: SALES_ROLES.id,
                 is_active: Boolean(updateSalesDto.is_active),
-                ...(updateSalesDto.is_active === 1
-                  ? { deleted_at: null }
-                  : { deleted_at: new Date() }),
               },
             }
           : undefined,
@@ -502,15 +497,6 @@ export class SalesService {
         is_active: Boolean(updateSalesDto.is_active),
         updated_at: new Date(),
         updated_by: user_id,
-        ...(updateSalesDto.is_active === 1
-          ? {
-              deleted_at: null,
-              deleted_by: null,
-            }
-          : {
-              deleted_at: new Date(),
-              deleted_by: user_id,
-            }),
       };
 
       const updatedSales = await this.dbService.$transaction([
@@ -633,33 +619,41 @@ export class SalesService {
     }
   }
 
-  async remove(id: number) {
+  async remove(id: number, user: users) {
     try {
-      const salesToDelete = await this.dbService.sales.findUnique({
-        where: { id },
-        select: { user_id: true },
+      const { id: user_id } = user;
+
+      const sales = await this.dbService.sales.findUnique({
+        where: {
+          id,
+        },
       });
 
-      if (!salesToDelete) {
-        throw new Error(`Sales with ID ${id} not found.`);
+      if (!sales) {
+        throw new NotFoundException('Sales not found');
       }
 
-      await this.dbService.$transaction([
-        this.dbService.users.delete({
-          where: { id: salesToDelete.user_id },
-        }),
-        this.dbService.sales.delete({
+      const [deletedSales, deletedUser] = await this.dbService.$transaction([
+        this.dbService.sales.update({
           where: { id },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+            is_active: false,
+          },
         }),
-        this.dbService.sales_categories.deleteMany({
-          where: { sales_id: id },
-        }),
-        this.dbService.notifications.deleteMany({
-          where: { user_id: salesToDelete.user_id },
+
+        this.dbService.users.update({
+          where: { id: sales.user_id },
+          data: {
+            deleted_at: new Date(),
+            deleted_by: user_id,
+            is_active: false,
+          },
         }),
       ]);
 
-      return salesToDelete;
+      return deletedSales;
     } catch (error) {
       console.error(error);
       throw error;
@@ -1165,6 +1159,7 @@ export class SalesService {
         { header: 'Sales Id', key: 'id', width: 10 },
         { header: 'Nama Toko', key: 'store_name', width: 35 },
         { header: 'Nama Sales', key: 'full_name', width: 35 },
+        { header: 'NIK', key: 'nik', width: 35 },
         { header: 'Nama Bank', key: 'bank_name', width: 35 },
         { header: 'Nama Akun Bank', key: 'account_name', width: 35 },
         { header: 'Nomor Akun Bank', key: 'number_account', width: 35 },
@@ -1202,15 +1197,20 @@ export class SalesService {
                 .map((category) => category.categories.category_name)
                 .join(',')
             : '';
+
         const formattedDateTime = (dateTime) =>
           `${dateTime.toLocaleDateString('id-ID', {
-            day: 'numeric',
+            day: '2-digit',
             month: 'long',
             year: 'numeric',
+            timeZone: 'Asia/Jakarta',
           })}, ${dateTime.toLocaleTimeString('id-ID', {
             hour: '2-digit',
             minute: '2-digit',
+            timeZone: 'Asia/Jakarta',
+            hour12: false,
           })}`;
+
         const currentMonth = new Date();
         const orderDate =
           sales?.orders?.length > 0
@@ -1226,6 +1226,7 @@ export class SalesService {
           id: sales.id,
           store_name: sales?.store ? sales.store.store_name : '',
           full_name: sales?.full_name ? sales.full_name : '',
+          nik: sales?.nik ? sales.nik : '',
           bank_name: sales?.bank ? sales.bank.bank_name : '',
           account_name: sales?.account_name ? sales.account_name : '',
           number_account: sales?.account_number ? sales.account_number : '',
@@ -1376,25 +1377,24 @@ export class SalesService {
   async salesUserManagement() {
     try {
       const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 4);
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
       const targetYear = threeMonthsAgo.getFullYear();
       const targetMonth = threeMonthsAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 100;
 
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          created_at: {
-            lt: endOfMonth,
-          },
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
@@ -1424,22 +1424,7 @@ export class SalesService {
         },
       });
 
-      const usersUpdate = await this.dbService.users.updateMany({
-        where: {
-          sales: {
-            some: {
-              id: {
-                in: salesIds,
-              },
-            },
-          },
-        },
-        data: {
-          is_active: false,
-        },
-      });
-
-      return { salesUpdate, usersUpdate };
+      return salesUpdate;
     } catch (error) {
       console.error(error);
       throw error;
@@ -1450,24 +1435,23 @@ export class SalesService {
   async managementSalesSixMonth() {
     try {
       const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 7);
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
       const targetYear = sixMonthsAgo.getFullYear();
       const targetMonth = sixMonthsAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          created_at: {
-            lt: endOfMonth,
-          },
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
@@ -1502,7 +1486,7 @@ export class SalesService {
 
       console.log('SALES UPDATED', salesIncentive);
 
-      const usersUpdate = await this.dbService.users.deleteMany({
+      const usersUpdate = await this.dbService.users.updateMany({
         where: {
           sales: {
             some: {
@@ -1511,6 +1495,10 @@ export class SalesService {
               },
             },
           },
+        },
+        data: {
+          is_active: false,
+          deleted_at: new Date(),
         },
       });
 
@@ -1531,16 +1519,18 @@ export class SalesService {
       const targetYear = rangeMonthAgo.getFullYear();
       const targetMonth = rangeMonthAgo.getMonth();
 
-      const endOfMonth = new Date(targetYear, targetMonth + 1, 0);
-      endOfMonth.setHours(23, 59, 59, 999);
+      const endOfTargetMonth = new Date(targetYear, targetMonth + 1, 0);
+      endOfTargetMonth.setHours(23, 59, 59, 999);
 
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
-          orders: {
-            every: {
-              created_at: {
-                lt: endOfMonth,
+          NOT: {
+            orders: {
+              some: {
+                created_at: {
+                  gte: endOfTargetMonth,
+                },
               },
             },
           },
@@ -1594,21 +1584,6 @@ export class SalesService {
           where: {
             id: {
               in: salesIds,
-            },
-          },
-          data: {
-            is_active: false,
-          },
-        });
-
-        usersUpdate = await this.dbService.users.updateMany({
-          where: {
-            sales: {
-              some: {
-                id: {
-                  in: salesIds,
-                },
-              },
             },
           },
           data: {

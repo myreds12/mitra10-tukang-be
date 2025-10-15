@@ -101,7 +101,7 @@ export class ComplaintsService {
           complaint.id,
           complaint.complaint_status
         ),
-        this.crmService.syncAnswer(complaint.id),
+        // this.crmService .syncAnswer(complaint.id),
         this.orderService.setStatus(complaint.order_id, complaint.complaint_status, user),
       ]);
 

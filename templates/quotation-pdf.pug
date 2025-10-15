@@ -24,17 +24,18 @@ html(lang="en")
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
-        h2(style="font-size:1.1rem; font-weight: bold; margin-bottom: 16px;") Informasi Pelanggan
+        h2(style="font-size:1.1rem; font-weight: bold; margin-bottom: 12px;") Informasi Pelanggan
         p(style="color: #4a5568;font-size:0.9rem;margin: 5px !important") Nama: #{data.quotation.order.members.full_name}
-        p(style="color: #4a5568;font-size:0.9rem;margin: 5px !important") Email: #{data.quotation.order.project_number}
-        p(style="color: #4a5568;font-size:0.9rem;margin: 5px !important") Nomor Telepon: #{data.quotation.order.project_address}
+        p(style="color: #4a5568;font-size:0.9rem;margin: 5px !important") Email: #{data.quotation.order.members.email}
+        p(style="color: #4a5568;font-size:0.9rem;margin: 5px !important") Nomor Telepon: #{data.quotation.order.project_number}
         p(style="color: #4a5568;font-size:0.9rem;margin: 5px !important") Alamat: #{data.quotation.order.project_address}
+        
         p(style="color: #4a5568;font-size:0.9rem;margin-top:20px;margin-bottom:2px" ) #{data.message.welcome_header}, #{data.quotation.order.members.full_name}
         p(style="color: #4a5568; font-weight: bold; margin: 0 !important;font-size:0.9rem") Terima kasih telah melakukan order Layanan Jasa Instalasi & Service Mitra10
         p(style="color: #4a5568; font-weight: bold; margin: 0 !important;font-size:0.9rem") Berikut detail pemesanan Anda:
 
       .order-info(style="padding: 20px;")
-        h1(style="font-size:1.1rem; font-weight: bold; margin-bottom: 16px;") Informasi Survei
+        h1(style="font-size:1.1rem; font-weight: bold; margin-bottom: 12px;") Informasi Survei
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin: 5px  !important;")
           thead
             tr
@@ -54,7 +55,7 @@ html(lang="en")
               - var formattedSurveyPrice = 'Rp. ' + data.quotation.order.grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedSurveyPrice}
         .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;") Konfirmasi Quotation
+        h1(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;") Konfirmasi Quotation
         table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
           thead
             tr
@@ -108,12 +109,8 @@ html(lang="en")
               - var formattedGrandTotal = 'Rp. ' + data.quotation.quotation_grand_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               td(style="border: 1px solid #e2e8f0; padding: 8px;") #{formattedGrandTotal}
 
-
       .divider(style="border-top: 1px solid #e5e7eb;")
 
-
-      .divider(style="border-top: 1px solid #e5e7eb;")
-        div(style="page-break-after: always;")
       .payment-instructions(style="padding: 20px; margin-top: 1px")
         h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 2px;") Intruksi Pembayaran
         p(style="margin-bottom: 2px; color: #4a5568; font-weight: 600; font-size:0.9rem") 1. Silahkan melakukan pembayaran di account di bawah ini:
@@ -129,16 +126,16 @@ html(lang="en")
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .information(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
+        h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;") Informasi
         each item, index in data.message.information_detail
-          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
+          p(style="margin-bottom: 8px; color: #4a5568;font-size:0.9rem") #{index + 1 + '. ' + item.information}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .terms-conditions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat & Ketentuan
+        h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;") Syarat & Ketentuan
         each item, index in data.message.terms_detail
-          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
+          p(style="margin-bottom: 8px; color: #4a5568;font-size:0.9rem") #{index + 1 + '. ' + item.terms}
         img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
 
 
