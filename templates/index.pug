@@ -104,158 +104,166 @@ html(lang="en")
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
-        p(style="color: #4a5568;") #{data.message.welcome_header}, #{data.order.members.full_name}. #{data.message.greetings}
-        p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") #{data.message.greetings}
+        p(style="color: #4a5568;") #{data.message.welcome_header} #{data.order.members.full_name}. #{data.message.greetings}
+        //- p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") #{data.message.greetings}
         p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
-
-      .order-info(style="padding: 20px;")
-        h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Order
-        table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
-          thead
-            tr
-              th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
-              th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
-              th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
-          tbody
-            each item, index in data.order.order_details
+      if !['WORKREQ', 'WORKSTART', 'BOOKED', 'SURVEYSTART'].includes(data.order.status.category)
+        .order-info(style="padding: 20px;")
+          h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Order
+          table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
+            thead
               tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;") #{item.item_code === 'null' ? '-' : (item.item_code || '-')}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item_name === 'null' ? '-' : (item.item_name || '-')}
-                td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.service_name || '-'}
-                td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || 0}
-            tr
-              td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
-              td(style="border: 1px solid #e2e8f0; padding: 8px;") #{Number(data.order.grand_total).toLocaleString('id')}
+                th(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px;") Kode Item
+                th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Item
+                th(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px;") Nama Jasa Pemasangan
+                th(style="border: 1px solid #e2e8f0; padding: 8px;") QTY Pemasangan
+            tbody
+              each item, index in data.order.order_details
+                tr
+                  td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item_code || '-'}
+                  td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.item_name || '-'}
+                  td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.service_name || '-'}
+                  td(style="border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;") #{item.quantity || 0}
+              tr
+                td(colspan="3" style="border: 1px solid #e2e8f0; padding: 8px; text-align: end; font-size: 0.875rem; font-weight: 600;") Biaya Survey
+                td(style="border: 1px solid #e2e8f0; padding: 8px;") #{Number(data.order.grand_total).toLocaleString('id')}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
-      .customer-info.ui-mobile(style='padding: 20px')
-        h2(style='\
-        font-size: 1.25rem;\
-        font-weight: 600;\
-        margin-bottom: 16px;\
-        ')
-          | Informasi Pelanggan
-        table.table-responsive(style='\
-        width: 100%;\
-        text-align: left;\
-        border-collapse: collapse;\
-        margin-bottom: 24px;\
-        ')
-          tr(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
+      if !['WORKREQ', 'WORKSTART', 'BOOKED', 'SURVEYSTART'].includes(data.order.status.category)
+        .customer-info.ui-mobile(style='padding: 20px')
+          h2(style='\
+          font-size: 1.25rem;\
+          font-weight: 600;\
+          margin-bottom: 16px;\
           ')
-            th(style='\
-            min-width: 144px;\
-            max-width: 144px;\
-            border: 1px solid #e2e8f0;\
-            padding: 8px;\
-            background-color: #eef1f5b0;\
-            ')
-              | Nama
-            td(style='\
-            min-width: 144px;\
-            max-width: 144px;\
-            border: 1px solid #e2e8f0;\
-            padding: 8px;\
-            word-break: break-word;\
-            font-size: 0.875rem;\
-            ')
-              | #{data.order.members.full_name}
-          tr(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
+            | Informasi Pelanggan
+          table.table-responsive(style='\
+          width: 100%;\
+          text-align: left;\
+          border-collapse: collapse;\
+          margin-bottom: 24px;\
           ')
-            th(style='\
+            tr(style='\
             min-width: 144px;\
             max-width: 144px;\
             border: 1px solid #e2e8f0;\
             padding: 8px;\
-            background-color: #eef1f5b0;\
             ')
-              | Email
-            td(style='\
+              th(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              background-color: #eef1f5b0;\
+              ')
+                | Nama
+              td(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              word-break: break-word;\
+              font-size: 0.875rem;\
+              ')
+                | #{data.order.members.full_name}
+            tr(style='\
             min-width: 144px;\
             max-width: 144px;\
             border: 1px solid #e2e8f0;\
             padding: 8px;\
-            word-break: break-word;\
-            font-size: 0.875rem;\
             ')
-              | #{data.order.members.email}
-          tr(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          ')
-            th(style='\
+              th(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              background-color: #eef1f5b0;\
+              ')
+                | Email
+              td(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              word-break: break-word;\
+              font-size: 0.875rem;\
+              ')
+                | #{data.order.members.email}
+            tr(style='\
             min-width: 144px;\
             max-width: 144px;\
             border: 1px solid #e2e8f0;\
             padding: 8px;\
-            background-color: #eef1f5b0;\
             ')
-              | Nomor Telepon
-            td(style='\
+              th(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              background-color: #eef1f5b0;\
+              ')
+                | Nomor Telepon
+              td(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              word-break: break-word;\
+              font-size: 0.875rem;\
+              ')
+                | #{data.order.project_number}
+            tr(style='\
             min-width: 144px;\
             max-width: 144px;\
             border: 1px solid #e2e8f0;\
             padding: 8px;\
-            word-break: break-word;\
-            font-size: 0.875rem;\
             ')
-              | #{data.order.project_number}
-          tr(style='\
-          min-width: 144px;\
-          max-width: 144px;\
-          border: 1px solid #e2e8f0;\
-          padding: 8px;\
-          ')
-            th(style='\
-            min-width: 144px;\
-            max-width: 144px;\
-            border: 1px solid #e2e8f0;\
-            padding: 8px;\
-            background-color: #eef1f5b0;\
-            ')
-              | Alamat
-            td(style='\
-            min-width: 144px;\
-            max-width: 144px;\
-            border: 1px solid #e2e8f0;\
-            padding: 8px;\
-            word-break: break-word;\
-            font-size: 0.875rem;\
-            ')
-              | #{data.order.project_address}
+              th(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              background-color: #eef1f5b0;\
+              ')
+                | Alamat
+              td(style='\
+              min-width: 144px;\
+              max-width: 144px;\
+              border: 1px solid #e2e8f0;\
+              padding: 8px;\
+              word-break: break-word;\
+              font-size: 0.875rem;\
+              ')
+                | #{data.order.project_address}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
-
-      .payment-instructions(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Bank: #{data.order.store.bank_name}
-          li(style="color: #4a5568;") Nomor Akun: #{data.order.store.bank_number}
-          li(style="color: #4a5568;") Nama Akun: #{data.order.store.bank_account}
-        p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
-        ul(style="list-style-type: disc; margin-left: 5px;")
-          li(style="color: #4a5568;") Email: #{data.order.store.email ? data.order.store.email : 'Email belum tersedia'}
-          li(style="color: #4a5568;") Whatsapp: #{data.order.store.phone_number_1 ? data.order.store.phone_number_1 : data.order.store.phone_number_2}
+      if data.order.status.category !== 'BOOKED' && !['WORKREQ', 'WORKSTART', 'SURVEYSTART'].includes(data.order.status.category)
+        .payment-instructions(style="padding: 20px;")
+          h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Intruksi Pembayaran
+          p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 1. Silahkan melakukan pembayaran di account di bawah ini:
+          ul(style="list-style-type: disc; margin-left: 5px;")
+            li(style="color: #4a5568;") Bank: #{data.order.store.bank_name}
+            li(style="color: #4a5568;") Nomor Akun: #{data.order.store.bank_number}
+            li(style="color: #4a5568;") Nama Akun: #{data.order.store.bank_account}
+          p(style="margin-bottom: 8px; color: #4a5568; font-weight: 600;") 2. Silahkan kirim bukti bayar anda melalui:
+          ul(style="list-style-type: disc; margin-left: 5px;")
+            li(style="color: #4a5568;") Email: #{data.order.store.email ? data.order.store.email : 'Email belum tersedia'}
+            li(style="color: #4a5568;") Whatsapp: #{data.order.store.phone_number_1 ? data.order.store.phone_number_1 : data.order.store.phone_number_2}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .information(style="padding: 20px;")
-        h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-        each item, index in data.message.information_detail
-          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
+        if data.order.status.category === 'SURVEYSTART'
+          h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Survey
+          p(style="margin-bottom: 8px; color: #4a5568;") Catatan kondisi lapangan:
+          ul(style="list-style-type: disc; margin-left: 20px;")
+            li Pastikan lokasi pemasangan dapat diakses dan produk yang akan dipasang sudah tersedia di lokasi.
+            li Jika Anda belum membeli produk, tim kami akan menginformasikan kebutuhan material saat survey.
+        else
+          h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
+          each item, index in data.message.information_detail
+            p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
@@ -267,7 +275,6 @@ html(lang="en")
 
       .notes(style="padding: 20px;")
         p(style="color: #4a5568; font-weight: 600; margin-top: 10px; margin-bottom: 0px;") #{data.message.footer}
-        p(style="color: #4a5568; margin: 0 !important;") Ini adalah email yang dikirimkan oleh sistem. Mohon untuk tidak membalas email ini.
 
       .footer(style="background-color: #edf2f7; padding: 20px; text-align: center;")
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
