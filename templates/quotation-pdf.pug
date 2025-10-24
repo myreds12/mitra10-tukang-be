@@ -82,7 +82,10 @@ html(lang="en")
           tbody
             each item, index in data.quotation.quotation_details.filter((x) => x.item_type === 1)
               tr
-                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")= item.name ? item.name : '-' + (item.is_customer === true ? '( Disediakan oleh customer )' : '')
+                td(style="min-width: 144px; max-width: 144px; border: 1px solid #e2e8f0; padding: 8px; word-break: break-word; font-size: 0.875rem;")
+                  span= item.name ? item.name : '-'
+                    if item.is_customer === true
+                      span(style="font-size: 0.75rem; color: #10B981; font-weight: bold; margin-left: 5px;") (Disediakan oleh customer)
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.quantity ? (item.quantity ) : '-' 
                 td(style="min-width: 176px; max-width: 176px; border: 1px solid #e2e8f0; padding: 8px; font-size: 0.875rem;")= item.unit ? item.unit : '-' 
                 - var formattedFinalPriceItem = 'Rp. ' + item.final_price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
