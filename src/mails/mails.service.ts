@@ -16,7 +16,7 @@ export class MailsService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) {}
+  ) { }
 
   private readonly logger = new Logger(MailsService.name);
 
@@ -66,8 +66,8 @@ export class MailsService {
       email_message_image:
         header_files || footer_files
           ? {
-              createMany: { data: evidence },
-            }
+            createMany: { data: evidence },
+          }
           : undefined,
       information_detail: {
         createMany: {
@@ -77,10 +77,10 @@ export class MailsService {
       title: createEmailMessageDto?.title,
       trigger: createEmailMessageDto?.trigger_id
         ? {
-            connect: {
-              id: createEmailMessageDto.trigger_id,
-            },
-          }
+          connect: {
+            id: createEmailMessageDto.trigger_id,
+          },
+        }
         : undefined,
       bcc: createEmailMessageDto?.bcc
         .split(',')
@@ -92,10 +92,10 @@ export class MailsService {
         .join(','),
       csi_template: createEmailMessageDto?.csi_id
         ? {
-            connect: {
-              id: createEmailMessageDto.csi_id,
-            },
-          }
+          connect: {
+            id: createEmailMessageDto.csi_id,
+          },
+        }
         : undefined,
     };
 
@@ -114,12 +114,12 @@ export class MailsService {
       AND: [
         ...(type_email_message
           ? [
-              {
-                email_type: {
-                  equals: Number(type_email_message),
-                },
+            {
+              email_type: {
+                equals: Number(type_email_message),
               },
-            ]
+            },
+          ]
           : []),
       ],
       deleted_at: null,
@@ -222,51 +222,51 @@ export class MailsService {
       const termsDetail: Prisma.terms_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.terms_detail
           ? updateEmailMessageDto.terms_detail.map((item) => {
-              return {
-                where: {
-                  id: item.id ?? 0,
-                },
-                update: {
-                  terms: item.term,
-                },
-                create: {
-                  terms: item.term,
-                },
-              };
-            })
+            return {
+              where: {
+                id: item.id ?? 0,
+              },
+              update: {
+                terms: item.term,
+              },
+              create: {
+                terms: item.term,
+              },
+            };
+          })
           : undefined;
 
       const informationDetail: Prisma.information_detailUpsertWithWhereUniqueWithoutEmail_messagesInput[] =
         updateEmailMessageDto.information_detail
           ? updateEmailMessageDto.information_detail.map((item) => {
-              return {
-                where: {
-                  id: item.id ?? 0,
-                },
-                update: {
-                  information: item.information,
-                },
-                create: {
-                  information: item.information,
-                },
-              };
-            })
+            return {
+              where: {
+                id: item.id ?? 0,
+              },
+              update: {
+                information: item.information,
+              },
+              create: {
+                information: item.information,
+              },
+            };
+          })
           : undefined;
 
       const deletedInformationId = updateEmailMessageDto.information_detail
         ? updateEmailMessageDto.information_detail
-            .filter((x) => Boolean(x?.id))
-            .map((item) => {
-              return item.id;
-            })
+          .filter((x) => Boolean(x?.id))
+          .map((item) => {
+            return item.id;
+          })
         : undefined;
 
       const deletedTermsDetailsId = updateEmailMessageDto.terms_detail
         ? updateEmailMessageDto.terms_detail
-            .filter((x) => Boolean(x?.id))
-            .map((item) => {
-              return item.id;
-            })
+          .filter((x) => Boolean(x?.id))
+          .map((item) => {
+            return item.id;
+          })
         : undefined;
 
       const data: Prisma.email_messagesUpdateInput = {
@@ -288,30 +288,30 @@ export class MailsService {
         },
         trigger: updateEmailMessageDto?.trigger_id
           ? {
-              connect: {
-                id: updateEmailMessageDto.trigger_id,
-              },
-            }
+            connect: {
+              id: updateEmailMessageDto.trigger_id,
+            },
+          }
           : undefined,
         title: updateEmailMessageDto?.title,
         bcc: updateEmailMessageDto?.bcc
           ? updateEmailMessageDto?.bcc
-              .split(',')
-              .map((s) => s.trim())
-              .join(',')
+            .split(',')
+            .map((s) => s.trim())
+            .join(',')
           : undefined,
         cc: updateEmailMessageDto?.cc
           ? updateEmailMessageDto?.cc
-              .split(',')
-              .map((s) => s.trim())
-              .join(',')
+            .split(',')
+            .map((s) => s.trim())
+            .join(',')
           : undefined,
         csi_template: updateEmailMessageDto?.csi_id
           ? {
-              connect: {
-                id: updateEmailMessageDto.csi_id,
-              },
-            }
+            connect: {
+              id: updateEmailMessageDto.csi_id,
+            },
+          }
           : undefined,
       };
 
@@ -319,27 +319,27 @@ export class MailsService {
       await this.dbService.$transaction([
         ...(header_files?.length || footer_files?.length
           ? [
-              this.dbService.email_message_image.deleteMany({
-                where: {
-                  email_message_id: id,
-                  ...(header_files?.length && !footer_files?.length
-                    ? { type: 1 }
-                    : {}),
-                  ...(footer_files?.length && !header_files?.length
-                    ? { type: 2 }
-                    : {}),
-                },
-              }),
-            ]
+            this.dbService.email_message_image.deleteMany({
+              where: {
+                email_message_id: id,
+                ...(header_files?.length && !footer_files?.length
+                  ? { type: 1 }
+                  : {}),
+                ...(footer_files?.length && !header_files?.length
+                  ? { type: 2 }
+                  : {}),
+              },
+            }),
+          ]
           : []),
         this.dbService.terms_detail.updateMany({
           where: {
             ...(deletedTermsDetailsId && deletedTermsDetailsId.length
               ? {
-                  id: {
-                    notIn: deletedTermsDetailsId,
-                  },
-                }
+                id: {
+                  notIn: deletedTermsDetailsId,
+                },
+              }
               : undefined),
             email_messages_id: id,
           },
@@ -352,10 +352,10 @@ export class MailsService {
           where: {
             ...(deletedInformationId && deletedInformationId.length
               ? {
-                  id: {
-                    notIn: deletedInformationId,
-                  },
-                }
+                id: {
+                  notIn: deletedInformationId,
+                },
+              }
               : undefined),
             email_messages_id: id,
           },
@@ -574,24 +574,38 @@ export class MailsService {
   }
 
   async handleQuotationTriggers(template_id: number, status_id: number) {
-    const quotations = await this.dbService.quotation.findMany({
-      where: {
-        quotation_status: status_id,
-        deleted_at: null,
-        deleted_by: null,
-      },
-      take: 50,
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+    // this.logger.log(
+    //   `[QuotationTrigger] Starting process for template_id=${template_id}, status_id=${status_id}`,
+    // );
 
-    if (quotations.length) {
+    try {
+      const quotations = await this.dbService.quotation.findMany({
+        where: {
+          quotation_status: status_id,
+          deleted_at: null,
+          deleted_by: null,
+        },
+        take: 50,
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      if (!quotations.length) {
+        this.logger.verbose(
+          `[QuotationTrigger] No quotations found for status_id=${status_id}`,
+        );
+        return;
+      }
+
+      // this.logger.log(
+      //   `[QuotationTrigger] Found ${quotations.length} quotations for status_id=${status_id}`,
+      // );
+
       const jobs: { name?: string; data: object; opts?: JobOptions }[] = [];
       let delay = 2000;
 
-      for (let index = 0; index < quotations.length; index++) {
-        const quotation = quotations[index];
+      for (const quotation of quotations) {
         const countSendedEmail = await this.countMailLogs(
           quotation.order_id,
           template_id,
@@ -600,37 +614,76 @@ export class MailsService {
         const jobId = `send-quotation-mail-${quotation.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
 
-        if (countSendedEmail < 2 && !jobExist) {
-          this.logger.log(
-            `Sending email for quotation ${quotation.id} - ${template_id}`,
+        // this.logger.debug(
+        //   `[QuotationTrigger] Quotation ${quotation.id}: countMailLogs=${countSendedEmail}, jobExist=${!!jobExist}`,
+        // );
+
+        // Log detail untuk memastikan filter-nya benar
+        if (countSendedEmail >= 2) {
+          this.logger.verbose(
+            `[QuotationTrigger] Skipping quotation ${quotation.id}: already sent ${countSendedEmail} emails.`,
           );
-          const jobData = {
-            module_id: quotation.id,
-            template_id: template_id,
-          };
-          jobs.push({
-            name: 'send-quotation-mail',
-            data: jobData,
-            opts: {
-              jobId,
-              delay,
-            },
-          });
-          delay += 5000;
+          continue;
         }
+
+        if (jobExist) {
+          this.logger.verbose(
+            `[QuotationTrigger] Skipping quotation ${quotation.id}: job already exists in queue.`,
+          );
+          continue;
+        }
+
+        // Jika memenuhi syarat => buat job baru
+        const jobData = {
+          module_id: quotation.id,
+          template_id,
+        };
+
+        jobs.push({
+          name: 'send-quotation-mail',
+          data: jobData,
+          opts: {
+            jobId,
+            delay,
+          },
+        });
+
+        this.logger.log(
+          `[QuotationTrigger] Queued job for quotation ${quotation.id} with delay=${delay}ms`,
+        );
+
+        delay += 5000;
       }
 
+      // Kirim semua job ke Redis
       if (jobs.length > 0) {
         this.logger.verbose(
-          `Jobs triggered [${jobs.length}] => ${JSON.stringify(jobs)}`,
+          `[QuotationTrigger] Dispatching ${jobs.length} jobs to queue "email"`,
         );
-        await this.emailQueue.addBulk(jobs);
-        // console.log('Jobs added to the queue:', jobs); // Confirm jobs are added
+
+        const result = await this.emailQueue.addBulk(jobs);
+
+        this.logger.log(
+          `[QuotationTrigger] Successfully added ${result.length} jobs to queue.`,
+        );
+
+        // Detail job yang dikirim
+        result.forEach((job) => {
+          this.logger.debug(
+            `[QuotationTrigger] Added jobId=${job.id}, name=${job.name}`,
+          );
+        });
+      } else {
+        this.logger.verbose(`[QuotationTrigger] No new jobs to queue.`);
       }
-    } else {
-      this.logger.verbose(`Quotation not found for status id ${status_id}`);
+    } catch (error) {
+      this.logger.error(
+        `[QuotationTrigger] Error processing quotations for template_id=${template_id}, status_id=${status_id}: ${error.message}`,
+        error.stack,
+      );
     }
   }
+
   async handleQuotationPaymentTriggers(template_id: number, status_id: number) {
     // console.log("QUOTATION PAYMENT SEND EMAIL")
     const quotations = await this.dbService.quotation.findMany({
