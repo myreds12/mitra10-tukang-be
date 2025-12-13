@@ -25,6 +25,7 @@ export class MailsService {
     user_id: number,
     files: { [name: string]: Express.Multer.File[] },
   ) {
+    console.log(createEmailMessageDto, "EMAIL DTO");
     const { header_files, footer_files } = files;
     const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
       header_files?.map((item) => ({
@@ -93,7 +94,7 @@ export class MailsService {
       csi_template: createEmailMessageDto?.csi_id
         ? {
           connect: {
-            id: createEmailMessageDto.csi_id,
+            id: Number(createEmailMessageDto.csi_id),
           },
         }
         : undefined,
@@ -423,6 +424,7 @@ export class MailsService {
   @Cron(CronExpression.EVERY_5_SECONDS)
   async mailTriggerScheduler() {
     try {
+      console.log("CHECK 1");
       this.logger.verbose('Initiate mail trigger checks');
       const mail_messages = await this.dbService.email_messages.findMany({
         where: {
@@ -432,13 +434,16 @@ export class MailsService {
         },
       });
 
+      console.log(mail_messages.length, `MAIL MESSAGE LENGTH`);
+
       if (!mail_messages.length) {
         this.logger.verbose('No triggers found');
         return;
       }
 
-      for (let index = 0; index < mail_messages.length; index++) {
+      for (let index = 2; index < mail_messages.length; index++) {
         const template = mail_messages[index];
+        console.log(template, `TEMPLATE ${index}`);
         if (template.trigger_id) {
           switch (template.email_type) {
             case MailType.ORDER:
@@ -471,6 +476,7 @@ export class MailsService {
               break;
 
             case MailType.CSI:
+              console.log("CSI NIH BOSS");
               await this.handleCsiTriggers(template.id, template.trigger_id);
               break;
 
@@ -619,19 +625,19 @@ export class MailsService {
         // );
 
         // Log detail untuk memastikan filter-nya benar
-        if (countSendedEmail >= 2) {
-          this.logger.verbose(
-            `[QuotationTrigger] Skipping quotation ${quotation.id}: already sent ${countSendedEmail} emails.`,
-          );
-          continue;
-        }
+        // if (countSendedEmail >= 2) {
+        //   this.logger.verbose(
+        //     `[QuotationTrigger] Skipping quotation ${quotation.id}: already sent ${countSendedEmail} emails.`,
+        //   );
+        //   continue;
+        // }
 
-        if (jobExist) {
-          this.logger.verbose(
-            `[QuotationTrigger] Skipping quotation ${quotation.id}: job already exists in queue.`,
-          );
-          continue;
-        }
+        // if (jobExist) {
+        //   this.logger.verbose(
+        //     `[QuotationTrigger] Skipping quotation ${quotation.id}: job already exists in queue.`,
+        //   );
+        //   continue;
+        // }
 
         // Jika memenuhi syarat => buat job baru
         const jobData = {
@@ -928,6 +934,8 @@ export class MailsService {
   }
 
   async handleCsiTriggers(template_id: number, status_id: number) {
+
+    console.log(template_id, `CSI SEND EMAIL`, status_id);
     const orders = await this.dbService.orders.findMany({
       where: {
         project_status_id: status_id,
@@ -939,6 +947,8 @@ export class MailsService {
         created_at: 'desc',
       },
     });
+
+    console.log(orders, "ORDERS CSI");
 
     const csi = await this.dbService.csi_template.findFirst({
       where: {
@@ -967,24 +977,25 @@ export class MailsService {
         const jobId = `send-csi-mail-${order.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
 
-        if (!countSendedEmail && !jobExist) {
-          this.logger.log(
-            `Sending email for csi ${order.id} status ${status_id}`,
-          );
-          jobs.push({
-            name: 'send-csi-mail',
-            data: {
-              module_id: csi.id,
-              order_id: order.id,
-              template_id,
-            },
-            opts: {
-              jobId,
-              delay,
-            },
-          });
-          delay += 5000;
-        }
+        // if (!countSendedEmail && !jobExist) {
+        this.logger.log(
+          `Sending email for csi ${order.id} status ${status_id}`,
+        );
+        console.log("PUSH EMAIL CSI");
+        jobs.push({
+          name: 'send-csi-mail',
+          data: {
+            module_id: csi.id,
+            order_id: order.id,
+            template_id,
+          },
+          opts: {
+            jobId,
+            delay,
+          },
+        });
+        delay += 5000;
+        // }
       }
 
       if (jobs.length > 0) {
