@@ -27,12 +27,10 @@ export class UpdateOrderDto {
   @ApiProperty()
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
   member_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
   @IsOptional()
   store_id?: number;
 
@@ -41,13 +39,11 @@ export class UpdateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
   @IsOptional()
   sales_id?: number;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
   @IsOptional()
   vendor_id?: number;
 
@@ -56,7 +52,6 @@ export class UpdateOrderDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber()
   @IsOptional()
   project_status_id?: number;
 
