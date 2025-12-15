@@ -708,9 +708,6 @@ export class WorkOrdersService {
   ) {
     try {
 
-      if (!work_order_before)
-        throw new BadRequestException('Work Order Before not exist');
-
       const { id: user_id } = user;
       const res = await Promise.all(
         work_order_before.map(async (evidence) => {
@@ -735,16 +732,12 @@ export class WorkOrdersService {
       throw error;
     }
   }
-
   async addFotoAfter(
     id: number,
     user: users,
     work_order_after?: Array<Express.Multer.File>,
   ) {
     try {
-
-      if (!work_order_after)
-        throw new BadRequestException('Work Order After not exist');
 
       const { id: user_id } = user;
       const res = await Promise.all(
@@ -803,10 +796,10 @@ export class WorkOrdersService {
   ): Promise<work_orders> {
     try {
       console.log(user);
+
       console.log('PAYLOAD', updateData);
 
       const { id: user_id } = user;
-
       const workOrder = await this.dbService.work_orders.findFirst({
         where: {
           id,
@@ -845,28 +838,11 @@ export class WorkOrdersService {
             },
           },
           status: true,
-          work_order_evidences: {
-            where: {
-              deleted_at: null, // Hanya yang tidak di-delete
-              deleted_by: null,
-            },
-          },
+          work_order_evidences: true,
         },
       });
 
       if (!workOrder) throw new BadRequestException('Work Order not exist');
-
-      const existingBeforeEvidences = workOrder.work_order_evidences.filter(
-        evidence => evidence.type === 2
-      );
-
-      const hasExistingBeforeEvidence = existingBeforeEvidences.length > 0;
-
-      if (!hasExistingBeforeEvidence && (!files.work_order_before || files.work_order_before.length === 0)) {
-        throw new BadRequestException(
-          'Work order before evidence is required for this status update. Please upload at least one "before" photo.'
-        );
-      }
 
       const [NEW_STATUS] = await this.dbService.status.findMany({
         where: { id: updateData.status_id },
@@ -878,37 +854,26 @@ export class WorkOrdersService {
           evidence_location: evidences.filename,
           created_by: user_id,
           type: 2,
-        })) ?? [];
+        }));
 
       const evidencesAfter: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
         files.work_order_after?.map((evidences) => ({
           evidence_location: evidences.filename,
           created_by: user_id,
           type: 3,
-        })) ?? [];
+        }));
 
-      const evidences = [...evidencesBefore, ...evidencesAfter];
+      const evidences = [].concat(evidencesBefore ?? [], evidencesAfter ?? []);
 
       const deletedWorkOrderEvidences = updateData.existing_work_order_evidences
-        ? updateData.existing_work_order_evidences
+        ? updateData?.existing_work_order_evidences
           .filter((x) => Boolean(x?.work_order_evidence_id))
-          .map((item) => Number(item.work_order_evidence_id))
+          .map((item) => {
+            return Number(item.work_order_evidence_id);
+          })
         : undefined;
 
-      console.log(deletedWorkOrderEvidences, "DELETED WORK ORDER EVIDENCES");
-
-      if (hasExistingBeforeEvidence && deletedWorkOrderEvidences) {
-        const remainingBeforeEvidences = existingBeforeEvidences.filter(
-          evidence => !deletedWorkOrderEvidences.includes(evidence.id)
-        );
-
-        if (remainingBeforeEvidences.length === 0 && evidencesBefore.length === 0) {
-          throw new BadRequestException(
-            'Cannot delete all "before" evidences without uploading new ones. At least one "before" evidence is required.'
-          );
-        }
-      }
-
+      console.log(deletedWorkOrderEvidences, "DELETED WORK ORDER EVIDENCES")
       const recentWorkStatus = workOrder.work_order_status.find(
         (x) => x.status_id === NEW_STATUS.id,
       );
@@ -944,7 +909,6 @@ export class WorkOrdersService {
             },
           }))
           : undefined;
-
       console.log(upsertItems, 'WORK ORDER ITEMS');
 
       const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
@@ -979,6 +943,7 @@ export class WorkOrdersService {
           work_order_items: { upsert: upsertItems },
         },
       };
+
 
       await this.dbService.$transaction([
         ...(updateData.work_order_items
@@ -1020,13 +985,21 @@ export class WorkOrdersService {
               },
             })
           ] : []),
+        // this.dbService.work_order_status.updateMany({
+        //   where: {
+        //     id: recentWorkStatus?.id ?? 0,
+        //     work_order_id: id,
+        //   },
+        //   data: {
+        //     deleted_at: new Date(),
+        //     deleted_by: user.id,
+        //   },
+        // }),
         this.dbService.work_orders.update({
           where: { id },
           data: {
             status_id: NEW_STATUS.id,
-            ...(evidences.length > 0 ? {
-              work_order_evidences: { createMany: { data: evidences } },
-            } : {}),
+            work_order_evidences: { createMany: { data: evidences } },
             updated_at: new Date(),
             updated_by: user.id,
             work_order_status: {
