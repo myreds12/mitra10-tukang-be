@@ -25,7 +25,6 @@ export class MailsService {
     user_id: number,
     files: { [name: string]: Express.Multer.File[] },
   ) {
-    console.log(createEmailMessageDto, "EMAIL DTO");
     const { header_files, footer_files } = files;
     const header: Array<Prisma.email_message_imageCreateManyEmail_messageInput> =
       header_files?.map((item) => ({
@@ -434,7 +433,6 @@ export class MailsService {
         },
       });
 
-      console.log(mail_messages.length, `MAIL MESSAGE LENGTH`);
 
       if (!mail_messages.length) {
         this.logger.verbose('No triggers found');
@@ -443,7 +441,6 @@ export class MailsService {
 
       for (let index = 2; index < mail_messages.length; index++) {
         const template = mail_messages[index];
-        console.log(template, `TEMPLATE ${index}`);
         if (template.trigger_id) {
           switch (template.email_type) {
             case MailType.ORDER:
@@ -476,7 +473,6 @@ export class MailsService {
               break;
 
             case MailType.CSI:
-              console.log("CSI NIH BOSS");
               await this.handleCsiTriggers(template.id, template.trigger_id);
               break;
 
@@ -674,11 +670,11 @@ export class MailsService {
         );
 
         // Detail job yang dikirim
-        result.forEach((job) => {
-          this.logger.debug(
-            `[QuotationTrigger] Added jobId=${job.id}, name=${job.name}`,
-          );
-        });
+        // result.forEach((job) => {
+        //   this.logger.debug(
+        //     `[QuotationTrigger] Added jobId=${job.id}, name=${job.name}`,
+        //   );
+        // });
       } else {
         this.logger.verbose(`[QuotationTrigger] No new jobs to queue.`);
       }
@@ -935,7 +931,6 @@ export class MailsService {
 
   async handleCsiTriggers(template_id: number, status_id: number) {
 
-    console.log(template_id, `CSI SEND EMAIL`, status_id);
     const orders = await this.dbService.orders.findMany({
       where: {
         project_status_id: status_id,
@@ -948,7 +943,6 @@ export class MailsService {
       },
     });
 
-    console.log(orders, "ORDERS CSI");
 
     const csi = await this.dbService.csi_template.findFirst({
       where: {
@@ -981,7 +975,6 @@ export class MailsService {
         this.logger.log(
           `Sending email for csi ${order.id} status ${status_id}`,
         );
-        console.log("PUSH EMAIL CSI");
         jobs.push({
           name: 'send-csi-mail',
           data: {
