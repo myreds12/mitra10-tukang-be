@@ -496,7 +496,18 @@ export class RefundService {
   }
 
   async remove(id: number) {
-    return `This action removes a #${id} refund`;
+    try {
+      const refund = await this.dbService.refund.update({
+        where: { id },
+        data: {
+          deleted_at: new Date(),
+        },
+      });
+      return refund;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   async refundExportExcel(res: Response, queryParams: QueryParamsDto) {
