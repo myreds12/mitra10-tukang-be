@@ -26,14 +26,14 @@ import { Response } from 'express';
 @UseGuards(JwtAuthGuard)
 @Controller('member')
 export class MemberController {
-  constructor(private readonly memberService: MemberService) {}
+  constructor(private readonly memberService: MemberService) { }
 
   @Get('/order-export-excel')
   async memberOrderExportExcel(
     @Query() query: QueryParamsDto,
     @Res() res: Response) {
-      const data = await this.memberService.orderMemberExportExcel(res, query);
-      return data;
+    const data = await this.memberService.orderMemberExportExcel(res, query);
+    return data;
   }
 
   @Get('/export-excel')
@@ -41,8 +41,8 @@ export class MemberController {
   async memberExportExcel(
     @Query() query: QueryParamsDto,
     @Res() res: Response) {
-      const data = await this.memberService.memberExportExcel(res, query);
-      return data;
+    const data = await this.memberService.memberExportExcel(res, query);
+    return data;
   }
 
   @Post('/')
@@ -53,6 +53,11 @@ export class MemberController {
   ) {
     const user_id = req.user.id;
     return this.memberService.create(createMemberDto, user_id);
+  }
+
+  @Get('/')
+  normalizeNumber() {
+    return this.memberService.normalizePhoneNumbers();
   }
 
   @Get('/')

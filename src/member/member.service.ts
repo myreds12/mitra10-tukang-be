@@ -25,11 +25,30 @@ export class MemberService {
       if (!store) {
         throw new BadRequestException('Toko tidak ditemukan!');
       }
-      
+
       if (!createMemberDto.email) {
         throw new BadRequestException('Email wajib diisi!');
       }
-      
+
+      //buat kan agar phone number dan whatsapp number menggunakan format 08 di awal dengan mengubah nya dan bukan sebuah validasi, dengan contoh input +628 dan diubah menjadi 08 
+      const formatPhoneNumber = (number: string) => {
+        if (number.startsWith('+62')) {
+          return '0' + number.slice(3);
+        } else if (number.startsWith('62')) {
+          return '0' + number.slice(2);
+        } else {
+          return number;
+        }
+      };
+
+      const formattedPhoneNumber = createMemberDto.phone_number
+        ? formatPhoneNumber(createMemberDto.phone_number)
+        : null;
+      const formattedWhatsappNumber = createMemberDto.whatsapp_number
+        ? formatPhoneNumber(createMemberDto.whatsapp_number)
+        : null;
+      createMemberDto.phone_number = formattedPhoneNumber;
+      createMemberDto.whatsapp_number = formattedWhatsappNumber;
       const existingMember = await this.dbService.members.findFirst({
         where: {
           join_location: createMemberDto.join_location,
@@ -97,6 +116,78 @@ export class MemberService {
       throw error;
     }
   }
+
+
+  normalizePhone(value?: string | null): string | null {
+    if (!value) return null;
+
+    let v = value.trim();
+
+    if (v === '') return null;
+
+    v = v.replace(/[^0-9+]/g, '');
+
+    if (v.startsWith('+62')) {
+      return '08' + v.slice(3);
+    }
+
+    if (v.startsWith('62')) {
+      return '08' + v.slice(2);
+    }
+
+    if (v.startsWith('08')) {
+      return v;
+    }
+
+    return v;
+  }
+
+  async normalizePhoneNumbers(batchSize = 300) {
+    let lastId = 0;
+    let success = 0;
+    let failed = 0;
+
+    while (true) {
+      const members = await this.dbService.members.findMany({
+        where: { id: { gt: lastId } },
+        orderBy: { id: 'asc' },
+        take: batchSize,
+      });
+
+      if (members.length === 0) break;
+
+      for (const m of members) {
+        lastId = m.id;
+
+        try {
+          const memberNumber = this.normalizePhone(m.member_number);
+          const whatsapp = this.normalizePhone(m.whatsapp_number);
+          const phone = this.normalizePhone(m.phone_number);
+
+          await this.dbService.members.update({
+            where: { id: m.id },
+            data: {
+              member_number: memberNumber,
+              whatsapp_number: whatsapp,
+              phone_number: phone,
+            },
+          });
+
+          success++;
+        } catch (err) {
+          failed++;
+          console.log('Gagal update id', m.id, err.message);
+        }
+      }
+    }
+
+    return {
+      success,
+      failed,
+    };
+  }
+
+
 
   async findAll(query: QueryParamsDto) {
     try {
