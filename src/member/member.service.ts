@@ -122,17 +122,16 @@ export class MemberService {
     if (!value) return null;
 
     let v = value.trim();
-
     if (v === '') return null;
 
-    v = v.replace(/[^0-9+]/g, '');
+    v = v.replace(/[^0-9]/g, '');
 
-    if (v.startsWith('+62')) {
-      return '08' + v.slice(3);
+    while (v.startsWith('62')) {
+      v = v.slice(2);
     }
 
-    if (v.startsWith('62')) {
-      return '08' + v.slice(2);
+    if (v.startsWith('8')) {
+      return '0' + v;
     }
 
     if (v.startsWith('08')) {
@@ -142,10 +141,11 @@ export class MemberService {
     return v;
   }
 
-  async normalizePhoneNumbers(batchSize = 300) {
+  async normalizePhoneNumbers(batchSize = 100) {
     let lastId = 0;
     let success = 0;
     let failed = 0;
+    let skipped = 0;
 
     while (true) {
       const members = await this.dbService.members.findMany({
@@ -164,6 +164,15 @@ export class MemberService {
           const whatsapp = this.normalizePhone(m.whatsapp_number);
           const phone = this.normalizePhone(m.phone_number);
 
+          if (
+            memberNumber === m.member_number &&
+            whatsapp === m.whatsapp_number &&
+            phone === m.phone_number
+          ) {
+            skipped++;
+            continue;
+          }
+
           await this.dbService.members.update({
             where: { id: m.id },
             data: {
@@ -176,7 +185,7 @@ export class MemberService {
           success++;
         } catch (err) {
           failed++;
-          console.log('Gagal update id', m.id, err.message);
+          console.log('Gagal update id', m.id, err?.message);
         }
       }
     }
@@ -184,9 +193,9 @@ export class MemberService {
     return {
       success,
       failed,
+      skipped,
     };
   }
-
 
 
   async findAll(query: QueryParamsDto) {
