@@ -55,7 +55,7 @@ export class MemberController {
     return this.memberService.create(createMemberDto, user_id);
   }
 
-  @Get('/')
+  @Get('/normalize-number')
   normalizeNumber() {
     return this.memberService.normalizePhoneNumbers();
   }
