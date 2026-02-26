@@ -272,8 +272,8 @@ export class OrderService {
   async findAll(queryParams: any) {
     try {
       const {
-        take,
-        page,
+        take: rawTake,
+        page: rawPage,
         search,
         status,
         date_from,
@@ -297,10 +297,19 @@ export class OrderService {
         managers,
       } = queryParams;
 
-      const skip = page * take - take;
+      // ============================================================
+      // SAFE PARSE — queryParams dari HTTP selalu string
+      // ============================================================
+      const take = Number(rawTake) || 0;
+      const page = Number(rawPage) || 1;
+      const skip = take > 0 ? page * take - take : 0;
+
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+      // ============================================================
+      // WHERE CLAUSE
+      // ============================================================
       const where: Prisma.ordersWhereInput = {
         AND: [
           ...(search
@@ -308,43 +317,13 @@ export class OrderService {
               {
                 OR: [
                   { receipt_number: { contains: search } },
-                  {
-                    id: !isNaN(+search) ? +search : undefined,
-                  },
+                  { id: !isNaN(+search) ? +search : undefined },
                   { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
-                        contains: search,
-                      },
-                    },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
-                  {
-                    vendor: {
-                      company_name: {
-                        contains: search,
-                      },
-                    },
-                  },
-                  {
-                    members: {
-                      phone_number: {
-                        contains: search,
-                      },
-                    },
-                  },
-                  {
-                    members: {
-                      whatsapp_number: {
-                        contains: search,
-                      },
-                    },
-                  },
+                  { store: { store_name: { contains: search } } },
+                  { project_number: { contains: search } },
+                  { vendor: { company_name: { contains: search } } },
+                  { members: { phone_number: { contains: search } } },
+                  { members: { whatsapp_number: { contains: search } } },
                 ],
               },
             ]
@@ -353,11 +332,7 @@ export class OrderService {
             ? [
               {
                 order_history: {
-                  some: {
-                    status_id: {
-                      in: history_status,
-                    },
-                  },
+                  some: { status_id: { in: history_status } },
                 },
               },
             ]
@@ -368,32 +343,18 @@ export class OrderService {
                 OR: [
                   {
                     AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
-                        },
-                      },
+                      { payment_type: 'gratis' },
+                      { status: { category: 'WORKEND' } },
                     ],
                   },
                   {
                     AND: [
                       {
                         quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
-                            },
-                          },
+                          some: { promotion_id: { not: null } },
                         },
                       },
-                      {
-                        status: {
-                          category: 'WORKEND',
-                        },
-                      },
+                      { status: { category: 'WORKEND' } },
                     ],
                   },
                 ],
@@ -412,21 +373,10 @@ export class OrderService {
             ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
             : []),
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
-          store_id
-            ? {
-              store_id: {
-                in: store_id,
-              },
-            }
-            : undefined,
-          vendor_id
-            ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
-            : undefined,
+          ...(store_id ? [{ store_id: { in: store_id } }] : []),
+          ...(vendor_id
+            ? [{ vendor: { id: vendor_id, deleted_at: null } }]
+            : []),
           ...(date_from && date_to
             ? [
               {
@@ -441,25 +391,13 @@ export class OrderService {
             ? [
               {
                 work_orders: {
-                  work_order_tukang: {
-                    some: {
-                      tukang_id: tukang_id,
-                    },
-                  },
+                  work_order_tukang: { some: { tukang_id: tukang_id } },
                 },
               },
             ]
             : []),
           ...(Boolean(is_invoice)
-            ? [
-              {
-                invoice_details: {
-                  none: {
-                    deleted_at: null,
-                  },
-                },
-              },
-            ]
+            ? [{ invoice_details: { none: { deleted_at: null } } }]
             : []),
           ...(Boolean(is_active_warranty)
             ? [
@@ -467,12 +405,8 @@ export class OrderService {
                 work_orders: {
                   work_order_status: {
                     some: {
-                      status: {
-                        category: 'WORKEND',
-                      },
-                      created_at: {
-                        gte: sevenDaysAgo,
-                      },
+                      status: { category: 'WORKEND' },
+                      created_at: { gte: sevenDaysAgo },
                     },
                   },
                 },
@@ -487,77 +421,29 @@ export class OrderService {
                     work_orders: {
                       work_order_status: {
                         some: {
-                          status: {
-                            category: 'WORKEND',
-                          },
-                          created_at: {
-                            lt: sevenDaysAgo,
-                          },
+                          status: { category: 'WORKEND' },
+                          created_at: { lt: sevenDaysAgo },
                         },
                       },
                     },
                   },
-                  {
-                    complaints: {
-                      some: {
-                        deleted_at: null,
-                      },
-                    },
-                  },
+                  { complaints: { some: { deleted_at: null } } },
                 ],
               },
             ]
             : []),
-          ...(is_receipt === 1
-            ? [
-              {
-                receipt_number: {
-                  not: null,
-                },
-              },
-            ]
-            : is_receipt === 0
-              ? [
-                {
-                  receipt_number: null,
-                },
-              ]
+          ...(is_receipt === 1 || is_receipt === '1'
+            ? [{ receipt_number: { not: null } }]
+            : is_receipt === 0 || is_receipt === '0'
+              ? [{ receipt_number: null }]
               : []),
-          ...(is_receipt_quotation === 1
-            ? [
-              {
-                quotation: {
-                  some: {
-                    receipt_quotation: {
-                      not: null,
-                    },
-                  },
-                },
-              },
-            ]
-            : is_receipt_quotation === 0
-              ? [
-                {
-                  quotation: {
-                    some: {
-                      receipt_quotation: null,
-                    },
-                  },
-                },
-              ]
+          ...(is_receipt_quotation === 1 || is_receipt_quotation === '1'
+            ? [{ quotation: { some: { receipt_quotation: { not: null } } } }]
+            : is_receipt_quotation === 0 || is_receipt_quotation === '0'
+              ? [{ quotation: { some: { receipt_quotation: null } } }]
               : []),
           ...(Boolean(promotion)
-            ? [
-              {
-                quotation: {
-                  some: {
-                    promotion_id: {
-                      not: null,
-                    },
-                  },
-                },
-              },
-            ]
+            ? [{ quotation: { some: { promotion_id: { not: null } } } }]
             : []),
           ...(Boolean(is_used_warranty)
             ? [{ complaints: { some: { deleted_at: null } } }]
@@ -566,287 +452,259 @@ export class OrderService {
         deleted_at: null,
       };
 
-      const orders = await this.dbService.orders.findMany({
-        skip,
-        take: take > 0 ? take : undefined,
-        where,
-        orderBy: {
-          created_at: order_by,
-        },
-        include: {
-          order_follow_up: {
-            where: {
-              deleted_at: null,
-            },
-            orderBy: {
-              created_at: 'desc',
-            },
+      // ============================================================
+      // WHERE KHUSUS UNTUK PAID GRAND TOTAL
+      // Reuse filter utama + tambah syarat receipt_quotation
+      // ============================================================
+      const wherePaid: Prisma.ordersWhereInput = {
+        AND: [
+          ...(Array.isArray(where.AND) ? where.AND : []),
+          {
+            quotation: { some: { receipt_quotation: { not: null } } },
           },
-          members: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              area_id: true,
-              area: true,
-              join_location: true,
-              member_number: true,
-              full_name: true,
-              email: true,
-              phone_number: true,
-              whatsapp_number: true,
-              address_1: true,
-              address_2: true,
-              zip_code: true,
-              rating: true,
-              join_date: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          reschedule: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              reschedule_tukang: {
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-                include: {
-                  tukang: true,
-                },
-              },
-              status: true,
-              reschedule_status: {
-                include: {
-                  status: true,
-                },
-              },
-              reschedule_evidences: {
-                where: {
-                  deleted_at: null,
-                },
-              },
-            },
-          },
-          invoice_details: {
-            where: {
-              deleted_at: null,
-            },
-            select: {
-              invoice_number: true,
-              total: true,
-              type: true,
-              invoices: {
-                select: {
-                  id: true,
-                  status: true,
-                  total_amount: true,
-                  invoice_logs: true,
-                  description: true,
-                  vendor: true,
-                },
-              },
-            },
-          },
-          sales: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              store_id: true,
-              user_id: true,
-              full_name: true,
-              nik: true,
-              bank_id: true,
-              bank_branch: true,
-              account_name: true,
-              is_active: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          store: {
-            select: {
-              id: true,
-              store_name: true,
-              address: true,
-              area_id: true,
-              area: true,
-              zip_code: true,
-              created_at: true,
-              updated_at: true,
-              created_by: true,
-              updated_by: true,
-            },
-          },
-          status: {
-            select: {
-              id: true,
-              category: true,
-              description: true,
-            },
-          },
-          complaints: {
-            include: {
-              complaint_histories: {
-                include: {
-                  complaint_evidence: true,
-                },
-              },
-            },
-          },
-          vendor: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              company_name: true,
-              address: true,
-              phone_number: true,
-              is_active: true,
-              work_orders: {
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-              },
-            },
-          },
-          order_history: {
-            ...(history_status
-              ? {
-                where: {
-                  status_id: {
-                    in: history_status,
-                  },
-                },
-              }
-              : undefined),
-            select: {
-              order_id: true,
-              created_at: true,
-              status: {
-                select: {
-                  id: true,
-                  category: true,
-                  description: true,
-                },
-              },
-            },
-          },
-          m_order_details: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            select: {
-              id: true,
-              order_id: true,
-              item_code: true,
-              item_name: true,
-              item_notes: true,
-              item_id: true,
-              item: {
-                select: {
-                  id: true,
-                  item_name: true,
-                  category: true,
-                  default_price: true,
-                  service_name: true,
-                  invoice_nominal: true,
-                },
-              },
-              sales: true,
-              unit_price: true,
-              quantity: true,
-              total: true,
-              comission: true,
-              created_by: true,
-              created_at: true,
-            },
-          },
-          quotation: {
-            where: {
-              deleted_at: null,
-              deleted_by: null,
-            },
-            include: {
-              promotion: true,
-              quotation_receipt: true,
-              quotation_details: {
-                include: {
-                  item: true,
-                },
-              },
-              quotation_files: true,
-            },
-          },
-          work_orders: {
-            where: {
-              deleted_at: null,
-            },
-            include: {
-              request_tukang: {
-                include: {
-                  tukang_to_request_tukang: true,
-                  tukang_to_replace_tukang: true,
-                },
-              },
-              vendor: true,
-              work_order_evidences: true,
-              work_order_tukang: {
-                include: {
-                  tukang: true,
-                },
-                where: {
-                  deleted_at: null,
-                  deleted_by: null,
-                },
-              },
-              work_order_status: {
-                include: {
-                  status: true,
-                  work_order_items: {
-                    include: {
-                      item: true,
-                    },
-                    where: {
-                      deleted_at: null,
-                      deleted_by: null,
-                    },
-                  },
-                },
-                orderBy: {
-                  created_at: 'desc',
-                },
-              },
-            },
-          },
-          order_files: true,
-        },
-      });
+        ],
+      };
 
+      // ============================================================
+      // JALANKAN SEMUA QUERY SECARA PARALEL
+      // count + grand total aggregasi + data utama
+      // ============================================================
+      const [orders, count, orderGrandTotalData, orderPaidGrandTotalData] =
+        await Promise.all([
+          // 1. Data utama dengan pagination
+          this.dbService.orders.findMany({
+            skip: take > 0 ? skip : undefined,
+            take: take > 0 ? take : undefined,
+            where,
+            orderBy: { created_at: (order_by as 'asc' | 'desc') ?? 'desc' },
+            include: {
+              order_follow_up: {
+                where: { deleted_at: null },
+                orderBy: { created_at: 'desc' },
+              },
+              members: {
+                where: { deleted_at: null, deleted_by: null },
+                select: {
+                  id: true,
+                  area_id: true,
+                  area: true,
+                  join_location: true,
+                  member_number: true,
+                  full_name: true,
+                  email: true,
+                  phone_number: true,
+                  whatsapp_number: true,
+                  address_1: true,
+                  address_2: true,
+                  zip_code: true,
+                  rating: true,
+                  join_date: true,
+                  created_at: true,
+                  updated_at: true,
+                  created_by: true,
+                  updated_by: true,
+                },
+              },
+              reschedule: {
+                where: { deleted_at: null },
+                include: {
+                  reschedule_tukang: {
+                    where: { deleted_at: null, deleted_by: null },
+                    include: { tukang: true },
+                  },
+                  status: true,
+                  reschedule_status: { include: { status: true } },
+                  reschedule_evidences: { where: { deleted_at: null } },
+                },
+              },
+              invoice_details: {
+                where: { deleted_at: null },
+                select: {
+                  invoice_number: true,
+                  total: true,
+                  type: true,
+                  invoices: {
+                    select: {
+                      id: true,
+                      status: true,
+                      total_amount: true,
+                      invoice_logs: true,
+                      description: true,
+                      vendor: true,
+                    },
+                  },
+                },
+              },
+              sales: {
+                where: { deleted_at: null, deleted_by: null },
+                select: {
+                  id: true,
+                  store_id: true,
+                  user_id: true,
+                  full_name: true,
+                  nik: true,
+                  bank_id: true,
+                  bank_branch: true,
+                  account_name: true,
+                  is_active: true,
+                  created_at: true,
+                  updated_at: true,
+                  created_by: true,
+                  updated_by: true,
+                },
+              },
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                  address: true,
+                  area_id: true,
+                  area: true,
+                  zip_code: true,
+                  created_at: true,
+                  updated_at: true,
+                  created_by: true,
+                  updated_by: true,
+                },
+              },
+              status: {
+                select: { id: true, category: true, description: true },
+              },
+              complaints: {
+                include: {
+                  complaint_histories: {
+                    include: { complaint_evidence: true },
+                  },
+                },
+              },
+              vendor: {
+                where: { deleted_at: null, deleted_by: null },
+                select: {
+                  id: true,
+                  company_name: true,
+                  address: true,
+                  phone_number: true,
+                  is_active: true,
+                  work_orders: {
+                    where: { deleted_at: null, deleted_by: null },
+                  },
+                },
+              },
+              order_history: {
+                ...(history_status
+                  ? { where: { status_id: { in: history_status } } }
+                  : undefined),
+                select: {
+                  order_id: true,
+                  created_at: true,
+                  status: {
+                    select: { id: true, category: true, description: true },
+                  },
+                },
+              },
+              m_order_details: {
+                where: { deleted_at: null, deleted_by: null },
+                select: {
+                  id: true,
+                  order_id: true,
+                  item_code: true,
+                  item_name: true,
+                  item_notes: true,
+                  item_id: true,
+                  item: {
+                    select: {
+                      id: true,
+                      item_name: true,
+                      category: true,
+                      default_price: true,
+                      service_name: true,
+                      invoice_nominal: true,
+                    },
+                  },
+                  sales: true,
+                  unit_price: true,
+                  quantity: true,
+                  total: true,
+                  comission: true,
+                  created_by: true,
+                  created_at: true,
+                },
+              },
+              quotation: {
+                where: { deleted_at: null, deleted_by: null },
+                include: {
+                  promotion: true,
+                  quotation_receipt: true,
+                  quotation_details: { include: { item: true } },
+                  quotation_files: true,
+                },
+              },
+              work_orders: {
+                where: { deleted_at: null },
+                include: {
+                  request_tukang: {
+                    include: {
+                      tukang_to_request_tukang: true,
+                      tukang_to_replace_tukang: true,
+                    },
+                  },
+                  vendor: true,
+                  work_order_evidences: true,
+                  work_order_tukang: {
+                    include: { tukang: true },
+                    where: { deleted_at: null, deleted_by: null },
+                  },
+                  work_order_status: {
+                    include: {
+                      status: true,
+                      work_order_items: {
+                        include: { item: true },
+                        where: { deleted_at: null, deleted_by: null },
+                      },
+                    },
+                    orderBy: { created_at: 'desc' },
+                  },
+                },
+              },
+              order_files: true,
+            },
+          }),
+
+          // 2. Count total record
+          this.dbService.orders.count({ where }),
+
+          // 3. Grand total semua order — hanya field yang diperlukan
+          this.dbService.orders.findMany({
+            where,
+            select: {
+              grand_total: true,
+              payment_type: true,
+              quotation: {
+                select: { quotation_grand_total: true },
+              },
+            },
+          }),
+
+          // 4. Grand total order yang sudah paid (ada receipt_quotation)
+          this.dbService.orders.findMany({
+            where: wherePaid,
+            select: {
+              grand_total: true,
+              payment_type: true,
+              quotation: {
+                select: { quotation_grand_total: true },
+              },
+            },
+          }),
+        ]);
+
+      // ============================================================
+      // MAP USER IDs
+      // ============================================================
       const userIds = [
         ...new Set(
           orders
-            .flatMap((order) => [
-              order.created_by,
-              order.updated_by,
-              order.deleted_by,
-            ])
+            .flatMap((o) => [o.created_by, o.updated_by, o.deleted_by])
             .filter(Boolean),
         ),
       ];
@@ -857,112 +715,37 @@ export class OrderService {
       });
 
       const userMap = users.reduce(
-        (acc, user) => ({
-          ...acc,
-          [user.id]: user,
-        }),
-        {},
+        (acc, user) => ({ ...acc, [user.id]: user }),
+        {} as Record<string, any>,
       );
 
       const ordersWithUser = orders.map((order) => ({
         ...order,
-        created_by: order.created_by ? userMap[order.created_by] || null : null,
-        updated_by: order.updated_by ? userMap[order.updated_by] || null : null,
-        deleted_by: order.deleted_by ? userMap[order.deleted_by] || null : null,
+        created_by: order.created_by ? userMap[order.created_by] ?? null : null,
+        updated_by: order.updated_by ? userMap[order.updated_by] ?? null : null,
+        deleted_by: order.deleted_by ? userMap[order.deleted_by] ?? null : null,
       }));
-      const count = await this.dbService.orders.count({
-        where,
-      });
 
-
-      const [orderGrandTotalData, orderPaidGrandTotalData] = await Promise.all([
-        this.dbService.orders.findMany({
-          where,
-          select: {
-            grand_total: true,
-            payment_type: true,
-            quotation: {
-              select: {
-                quotation_grand_total: true,
-              },
-            },
-          },
-        }),
-        this.dbService.orders.findMany({
-          where: {
-            AND: [
-              ...(search ? [{
-                OR: [
-                  { receipt_number: { contains: search } },
-                  { id: !isNaN(+search) ? +search : undefined },
-                  { members: { full_name: { contains: search } } },
-                  { store: { store_name: { contains: search } } },
-                  { project_number: { contains: search } },
-                  { vendor: { company_name: { contains: search } } },
-                  { members: { phone_number: { contains: search } } },
-                  { members: { whatsapp_number: { contains: search } } },
-                ]
-              }] : []),
-              store_id ? { store_id: { in: store_id } } : undefined,
-              vendor_id ? { vendor: { id: vendor_id, deleted_at: null } } : undefined,
-              ...(date_from && date_to ? [{
-                created_at: {
-                  gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
-                },
-              }] : []),
-            ].filter(Boolean),
-            deleted_at: null,
-            quotation: { some: { receipt_quotation: { not: null } } },
-          },
-          select: {
-            grand_total: true,
-            payment_type: true,
-            quotation: {
-              select: {
-                quotation_grand_total: true,
-              },
-            },
-          },
-        }),
-      ]);
-
-      const orderGrandTotal = orderGrandTotalData.reduce((total, order) => {
-        let grandTotal = Number(order.grand_total) || 0;
-
-        if (order.payment_type === 'survey' && order.quotation) {
-          const quotationGrandTotal = order.quotation.reduce(
-            (qTotal, quotation) => {
-              return qTotal + Number(quotation.quotation_grand_total);
-            },
-            0,
-          );
-
-          grandTotal += quotationGrandTotal;
-        }
-
-        return total + grandTotal;
-      }, 0);
-
-      const orderPaidGrandTotal = orderPaidGrandTotalData.reduce(
-        (total, order) => {
+      // ============================================================
+      // HITUNG GRAND TOTAL
+      // ============================================================
+      const calcGrandTotal = (
+        data: { grand_total: any; payment_type: string; quotation: any[] }[],
+      ): number => {
+        return data.reduce((total, order) => {
           let grandTotal = Number(order.grand_total) || 0;
-
-          if (order.payment_type === 'survey' && order.quotation) {
-            const quotationGrandTotal = order.quotation.reduce(
-              (qTotal, quotation) => {
-                return qTotal + Number(quotation.quotation_grand_total);
-              },
+          if (order.payment_type === 'survey' && order.quotation?.length) {
+            grandTotal += order.quotation.reduce(
+              (qTotal, q) => qTotal + (Number(q.quotation_grand_total) || 0),
               0,
             );
-
-            grandTotal += quotationGrandTotal;
           }
-
           return total + grandTotal;
-        },
-        0,
-      );
+        }, 0);
+      };
+
+      const orderGrandTotal = calcGrandTotal(orderGrandTotalData);
+      const orderPaidGrandTotal = calcGrandTotal(orderPaidGrandTotalData);
 
       return {
         data: ordersWithUser,
@@ -2036,6 +1819,9 @@ export class OrderService {
         is_promotion,
       } = queryParams;
 
+      // ============================================================
+      // WHERE CLAUSE
+      // ============================================================
       const where: Prisma.ordersWhereInput = {
         AND: [
           ...(search
@@ -2044,18 +1830,8 @@ export class OrderService {
                 OR: [
                   { receipt_number: { contains: search } },
                   { members: { full_name: { contains: search } } },
-                  {
-                    store: {
-                      store_name: {
-                        contains: search,
-                      },
-                    },
-                  },
-                  {
-                    project_number: {
-                      contains: search,
-                    },
-                  },
+                  { store: { store_name: { contains: search } } },
+                  { project_number: { contains: search } },
                 ],
               },
             ]
@@ -2066,21 +1842,10 @@ export class OrderService {
             ? [{ work_orders: { status: { id: { in: work_order_status } } } }]
             : []),
           ...(payment_type ? [{ payment_type: { equals: payment_type } }] : []),
-          store_id
-            ? {
-              store_id: {
-                in: store_id,
-              },
-            }
-            : undefined,
-          vendor_id
-            ? {
-              vendor: {
-                id: vendor_id,
-                deleted_at: null,
-              },
-            }
-            : undefined,
+          ...(store_id ? [{ store_id: { in: store_id } }] : []),
+          ...(vendor_id
+            ? [{ vendor: { id: vendor_id, deleted_at: null } }]
+            : []),
           ...(date_from && date_to
             ? [
               {
@@ -2097,32 +1862,18 @@ export class OrderService {
                 OR: [
                   {
                     AND: [
-                      {
-                        payment_type: 'gratis',
-                      },
-                      {
-                        status: {
-                          category: 'WORKEND',
-                        },
-                      },
+                      { payment_type: 'gratis' },
+                      { status: { category: 'WORKEND' } },
                     ],
                   },
                   {
                     AND: [
                       {
                         quotation: {
-                          some: {
-                            promotion_id: {
-                              not: null,
-                            },
-                          },
+                          some: { promotion_id: { not: null } },
                         },
                       },
-                      {
-                        status: {
-                          category: 'WORKEND',
-                        },
-                      },
+                      { status: { category: 'WORKEND' } },
                     ],
                   },
                 ],
@@ -2133,407 +1884,84 @@ export class OrderService {
         deleted_at: null,
       };
 
-      const count = await this.dbService.orders.count({
-        where,
-      });
-
-      let dataExcel = [];
-      const takeData = 900;
-      let skipData = 0;
-      const countTake = Math.floor(count / takeData);
-
-      for (let i = 0; i < countTake; i++) {
-        skipData = i * takeData;
-        const data = await this.dbService.orders.findMany({
-          where,
-          skip: skipData,
-          take: takeData,
-          orderBy: {
-            created_at: order_by,
+      // ============================================================
+      // MINIMAL SELECT — hanya field yang dibutuhkan untuk kolom Excel
+      // ============================================================
+      const minimalSelect = {
+        id: true,
+        created_at: true,
+        request_survey: true,
+        payment_type: true,
+        receipt_number: true,
+        grand_total: true,
+        members: {
+          where: { deleted_at: null, deleted_by: null },
+          select: {
+            full_name: true,
+            phone_number: true,
+            whatsapp_number: true,
           },
-          include: {
-            members: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
+        },
+        sales: {
+          where: { deleted_at: null, deleted_by: null },
+          select: { full_name: true },
+        },
+        store: {
+          select: { store_name: true },
+        },
+        status: {
+          select: { description: true },
+        },
+        vendor: {
+          where: { deleted_at: null, deleted_by: null },
+          select: { company_name: true },
+        },
+        m_order_details: {
+          where: { deleted_at: null, deleted_by: null },
+          select: {
+            item_name: true,
+            quantity: true,
+            item: {
               select: {
-                id: true,
-                area_id: true,
-                area: true,
-                join_location: true,
-                member_number: true,
-                full_name: true,
-                email: true,
-                phone_number: true,
-                whatsapp_number: true,
-                address_1: true,
-                address_2: true,
-                zip_code: true,
-                rating: true,
-                join_date: true,
-                created_at: true,
-                updated_at: true,
-                created_by: true,
-                updated_by: true,
-              },
-            },
-            sales: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                store_id: true,
-                user_id: true,
-                full_name: true,
-                nik: true,
-                bank_id: true,
-                bank_branch: true,
-                account_name: true,
-                is_active: true,
-                created_at: true,
-                updated_at: true,
-                created_by: true,
-                updated_by: true,
-              },
-            },
-            store: {
-              select: {
-                id: true,
-                store_name: true,
-                address: true,
-                area_id: true,
-                area: true,
-                zip_code: true,
-                created_at: true,
-                updated_at: true,
-                created_by: true,
-                updated_by: true,
-              },
-            },
-            status: {
-              select: {
-                id: true,
-                category: true,
-                description: true,
-              },
-            },
-
-            vendor: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                company_name: true,
-                address: true,
-                phone_number: true,
-                is_active: true,
-                work_orders: {
-                  where: {
-                    deleted_at: null,
-                    deleted_by: null,
-                  },
-                },
-              },
-            },
-            m_order_details: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                order_id: true,
-                item_code: true,
-                item_name: true,
-                item_notes: true,
-                item_id: true,
-                item: {
-                  select: {
-                    id: true,
-                    item_name: true,
-                    category: true,
-                    default_price: true,
-                    service_name: true,
-                  },
-                },
-                sales: true,
-                unit_price: true,
-                quantity: true,
-                total: true,
-                comission: true,
-                created_by: true,
-                created_at: true,
-              },
-            },
-            quotation: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              include: {
-                promotion: true,
-                quotation_details: {
-                  include: {
-                    item: true,
-                  },
-                },
-                quotation_files: true,
-              },
-            },
-            work_orders: {
-              where: {
-                deleted_at: null,
-              },
-              include: {
-                request_tukang: {
-                  include: {
-                    tukang_to_request_tukang: true,
-                    tukang_to_replace_tukang: true,
-                  },
-                },
-                vendor: true,
-                work_order_evidences: true,
-                work_order_tukang: {
-                  include: {
-                    tukang: true,
-                  },
-                },
-                work_order_status: {
-                  include: {
-                    status: true,
-                    work_order_items: {
-                      include: {
-                        item: true,
-                      },
-                      where: {
-                        deleted_at: null,
-                        deleted_by: null,
-                      },
-                    },
-                  },
-                  orderBy: {
-                    created_at: 'desc',
-                  },
+                category: {
+                  select: { category_name: true },
                 },
               },
             },
           },
-        });
-        dataExcel = [...dataExcel, ...data];
-      }
-
-      if (count != dataExcel.length) {
-        const data = await this.dbService.orders.findMany({
-          where,
-          skip: skipData,
-          take: takeData,
-          orderBy: {
-            created_at: order_by,
+        },
+        quotation: {
+          where: { deleted_at: null, deleted_by: null },
+          select: {
+            receipt_quotation: true,
+            quotation_grand_total: true,
           },
-          include: {
-            members: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
+        },
+        work_orders: {
+          where: { deleted_at: null },
+          select: {
+            survey_date: true,
+            work_start_date: true,
+            work_end_date: true,
+            work_order_tukang: {
+              where: { deleted_at: null, deleted_by: null },
               select: {
-                id: true,
-                area_id: true,
-                area: true,
-                join_location: true,
-                member_number: true,
-                full_name: true,
-                email: true,
-                phone_number: true,
-                whatsapp_number: true,
-                address_1: true,
-                address_2: true,
-                zip_code: true,
-                rating: true,
-                join_date: true,
-                created_at: true,
-                updated_at: true,
-                created_by: true,
-                updated_by: true,
-              },
-            },
-            sales: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                store_id: true,
-                user_id: true,
-                full_name: true,
-                nik: true,
-                bank_id: true,
-                bank_branch: true,
-                account_name: true,
-                is_active: true,
-                created_at: true,
-                updated_at: true,
-                created_by: true,
-                updated_by: true,
-              },
-            },
-            store: {
-              select: {
-                id: true,
-                store_name: true,
-                address: true,
-                area_id: true,
-                area: true,
-                zip_code: true,
-                created_at: true,
-                updated_at: true,
-                created_by: true,
-                updated_by: true,
-              },
-            },
-            status: {
-              select: {
-                id: true,
-                category: true,
-                description: true,
-              },
-            },
-            complaints: true,
-            vendor: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                company_name: true,
-                address: true,
-                phone_number: true,
-                is_active: true,
-                work_orders: {
-                  where: {
-                    deleted_at: null,
-                    deleted_by: null,
-                  },
+                tukang: {
+                  select: { full_name: true },
                 },
               },
             },
-            order_history: {
-              select: {
-                order_id: true,
-                created_at: true,
-                status: {
-                  select: {
-                    id: true,
-                    category: true,
-                    description: true,
-                  },
-                },
-              },
-            },
-            m_order_details: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                order_id: true,
-                item_code: true,
-                item_name: true,
-                item_notes: true,
-                item_id: true,
-                item: {
-                  select: {
-                    id: true,
-                    item_name: true,
-                    category: true,
-                    default_price: true,
-                    service_name: true,
-                  },
-                },
-                sales: true,
-                unit_price: true,
-                quantity: true,
-                total: true,
-                comission: true,
-                created_by: true,
-                created_at: true,
-              },
-            },
-            quotation: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              include: {
-                promotion: true,
-                quotation_details: {
-                  include: {
-                    item: true,
-                  },
-                },
-                quotation_files: true,
-              },
-            },
-            work_orders: {
-              where: {
-                deleted_at: null,
-              },
-              include: {
-                request_tukang: {
-                  include: {
-                    tukang_to_request_tukang: true,
-                    tukang_to_replace_tukang: true,
-                  },
-                },
-                vendor: true,
-                work_order_evidences: true,
-                work_order_tukang: {
-                  include: {
-                    tukang: true,
-                  },
-                },
-                work_order_status: {
-                  include: {
-                    status: true,
-                    work_order_items: {
-                      include: {
-                        item: true,
-                      },
-                      where: {
-                        deleted_at: null,
-                        deleted_by: null,
-                      },
-                    },
-                  },
-                  orderBy: {
-                    created_at: 'desc',
-                  },
-                },
-              },
-            },
-            order_files: true,
           },
-        });
-        dataExcel = [...dataExcel, ...data];
-      }
+        },
+      };
 
-      // Log data to verify it is fetched correctly
-      // console.log('Fetched Data:', data);
-
+      // ============================================================
+      // SETUP WORKBOOK & WORKSHEET
+      // ============================================================
       const workbook = new exceljs.Workbook();
       const worksheet = workbook.addWorksheet('Data Order', {
         properties: {
-          tabColor: {
-            argb: 'FF00FF00',
-          },
+          tabColor: { argb: 'FF00FF00' },
           outlineLevelCol: 2,
           outlineLevelRow: 40,
         },
@@ -2552,7 +1980,7 @@ export class OrderService {
       worksheet.columns = [
         { header: 'Order Id', key: 'id', width: 10 },
         { header: 'Nama Toko', key: 'store_name', width: 25 },
-        { header: 'Order Dibuat ', key: 'created_at', width: 30 },
+        { header: 'Order Dibuat', key: 'created_at', width: 30 },
         { header: 'Tanggal Request', key: 'request_survey', width: 35 },
         { header: 'Nama Customer', key: 'full_name', width: 40 },
         { header: 'Phone Number', key: 'phone_number', width: 30 },
@@ -2569,14 +1997,11 @@ export class OrderService {
         { header: 'Nama Sales', key: 'sales_name', width: 35 },
         { header: 'Nama Tukang', key: 'tukang_name', width: 30 },
         { header: 'Grand Total Survey', key: 'grand_total_survey', width: 30 },
-        {
-          header: 'Quotation Grand Total ',
-          key: 'quotation_grand_total',
-          width: 30,
-        },
+        { header: 'Quotation Grand Total', key: 'quotation_grand_total', width: 30 },
         { header: 'Grand Total', key: 'grand_total', width: 25 },
       ];
 
+      // Style header row
       worksheet.getRow(1).eachCell((cell) => {
         cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
         cell.fill = {
@@ -2592,136 +2017,188 @@ export class OrderService {
           right: { style: 'thin' },
         };
       });
+
+      // ============================================================
+      // HELPER FUNCTIONS
+      // ============================================================
+      const formattedDateTime = (dateTime: Date | string): string => {
+        const d = new Date(dateTime);
+        return `${d.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}, ${d.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+      };
+
+      const formatPaymentType = (type: string): string => {
+        const map: Record<string, string> = {
+          pemasangan_tanpa_survey: 'Pemasangan Tanpa Survey',
+          survey: 'Survey',
+          gratis: 'Gratis',
+        };
+        return map[type] ?? 'N/a';
+      };
+
+      const applyRowStyle = (row: exceljs.Row) => {
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      };
+
+      // ============================================================
+      // FETCH & TULIS DATA PER BATCH — cursor-based pagination
+      // FIX: tidak simpan semua data ke array (memory overflow)
+      // FIX: loop logic lama Math.floor menyebabkan data terakhir hilang
+      // ============================================================
+      const BATCH_SIZE = 300;
+      let lastId: number | undefined = undefined;
+      let hasMore = true;
       let totalGrandTotalValue = 0;
 
-      dataExcel.forEach((order) => {
-        let isFirstDetail = true;
-
-        order.m_order_details.forEach((detail) => {
-          const itemName = detail.item_name || 'Item belum ditentukan';
-          const categoryName = detail?.item?.category?.category_name ?? '';
-          const quantity = detail?.quantity || 'Quantity Belum ditentukan';
-          const tukangName = order?.work_orders?.work_order_tukang
-            ? [
-              ...new Set(
-                order.work_orders.work_order_tukang.map(
-                  (item) => item?.tukang?.full_name,
-                ),
-              ),
-            ].join(', ')
-            : 'Tukang belum ditugaskan';
-          const formattedDateTime = (dateTime) =>
-            `${new Date(dateTime).toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}, ${new Date(dateTime).toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}`;
-          const grandTotal = Number(order.grand_total);
-          const formattedGrandTotal: number = grandTotal ? grandTotal : 0;
-          let grandTotalValue = formattedGrandTotal;
-
-          let grandTotalSurveyValue = 0;
-          let quotationGrandTotalValue = 0;
-
-          if (order.payment_type === 'survey') {
-            const grandTotalSurvey = Number(order.grand_total);
-            const quotationGrandTotal =
-              order && order.quotation && order.quotation.length > 0
-                ? Math.ceil(
-                  Number(order.quotation[0]?.quotation_grand_total || 0),
-                )
-                : 0;
-
-            if (!isNaN(grandTotalSurvey) && !isNaN(quotationGrandTotal)) {
-              if (isFirstDetail) {
-                grandTotalSurveyValue = grandTotalSurvey;
-                quotationGrandTotalValue = quotationGrandTotal;
-                totalGrandTotalValue += grandTotalSurvey + quotationGrandTotal;
-                grandTotalValue = grandTotalSurvey + quotationGrandTotal;
-              } else {
-                grandTotalSurveyValue = 0;
-                quotationGrandTotalValue = 0;
-              }
-            } else {
-              grandTotalValue = 0;
-            }
+      while (hasMore) {
+        const batchWhere: Prisma.ordersWhereInput = lastId
+          ? {
+            ...where,
+            AND: [
+              ...(Array.isArray(where.AND) ? where.AND : []),
+              { id: { gt: lastId } },
+            ],
           }
+          : where;
 
-          totalGrandTotalValue +=
-            !isNaN(Number()) && order.payment_type != 'survey'
-              ? Number(grandTotal)
-              : 0;
-
-          const row = worksheet.addRow({
-            id: order.id,
-            store_name: order.store ? order.store.store_name : 'N/a',
-            created_at: formattedDateTime(order.created_at),
-            request_survey: order.request_survey
-              ? formattedDateTime(order.request_survey)
-              : 'N/a',
-            full_name: order.members ? order.members.full_name : 'N/a',
-            phone_number:
-              order?.members?.phone_number ??
-              order?.members?.whatsapp_number ??
-              'N/a',
-            item_name: itemName,
-            category_name: categoryName,
-            quantity: quantity,
-            payment_type:
-              order.payment_type === 'pemasangan_tanpa_survey'
-                ? 'Pemasangan Tanpa Survey'
-                : order.payment_type === 'survey'
-                  ? 'Survey'
-                  : order.payment_type === 'gratis'
-                    ? 'Gratis'
-                    : 'N/a',
-            receipt_number: order.receipt_number
-              ? order.receipt_number
-              : 'Receipt belum terbit',
-            receipt_quotation:
-              order.payment_type === 'survey' &&
-                order?.quotation[0]?.receipt_quotation
-                ? order?.quotation[0]?.receipt_quotation
-                : 'Receipt Quotation tidak ada',
-            status_order:
-              order?.status?.description ?? 'Order Tidak Memiliki Status',
-            survey_date: order?.work_orders?.survey_date
-              ? formattedDateTime(order.work_orders.survey_date)
-              : 'Order Tidak Ada Tanggal Survey',
-            work_date:
-              order?.work_orders?.work_start_date &&
-                order?.work_orders?.work_end_date
-                ? `${formattedDateTime(
-                  order.work_orders.work_start_date,
-                )} - ${formattedDateTime(order.work_orders.work_end_date)}`
-                : 'Order Tidak Ada Tanggal Pengerjaan',
-            company_name: order.vendor
-              ? order.vendor.company_name
-              : 'Vendor Belum Ditentukan',
-            sales_name: order.sales ? order.sales.full_name : '',
-            tukang_name: tukangName,
-            grand_total_survey: grandTotalSurveyValue,
-            quotation_grand_total: quotationGrandTotalValue,
-            grand_total: grandTotalValue,
-          });
-
-          row.eachCell((cell) => {
-            cell.alignment = { vertical: 'middle', horizontal: 'left' };
-            cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' },
-            };
-          });
-
-          isFirstDetail = false;
+        const batch = await this.dbService.orders.findMany({
+          where: batchWhere,
+          take: BATCH_SIZE,
+          orderBy: { id: 'asc' },
+          select: minimalSelect,
         });
-      });
 
+        if (batch.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        // ── Proses setiap order langsung ke worksheet ──────────────
+        for (const order of batch) {
+          // Fallback jika order tidak punya detail item
+          const details =
+            order.m_order_details?.length > 0
+              ? order.m_order_details
+              : [{ item_name: null, quantity: null, item: null }];
+
+          // Kumpulkan nama tukang sekali per order
+          const tukangName =
+            (order.work_orders as any)?.work_order_tukang?.length > 0
+              ? [
+                ...new Set(
+                  (order.work_orders as any).work_order_tukang
+                    .map((wot: any) => wot?.tukang?.full_name)
+                    .filter(Boolean),
+                ),
+              ].join(', ')
+              : 'Tukang belum ditugaskan';
+
+          const workOrders = order.work_orders as any;
+          let isFirstDetail = true;
+
+          for (const detail of details) {
+            const itemName = detail?.item_name ?? 'Item belum ditentukan';
+            const categoryName =
+              (detail?.item as any)?.category?.category_name ?? '';
+            const quantity = detail?.quantity ?? 'Quantity Belum ditentukan';
+
+            // ── Kalkulasi Grand Total ────────────────────────────
+            const grandTotal = Number(order.grand_total) || 0;
+            let grandTotalValue = 0;
+            let grandTotalSurveyValue = 0;
+            let quotationGrandTotalValue = 0;
+
+            if (isFirstDetail) {
+              if (order.payment_type === 'survey') {
+                // FIX: ambil semua quotation, bukan hanya [0]
+                const quotationGrandTotal =
+                  order.quotation?.reduce(
+                    (sum: number, q: any) =>
+                      sum + Math.ceil(Number(q.quotation_grand_total) || 0),
+                    0,
+                  ) ?? 0;
+
+                grandTotalSurveyValue = grandTotal;
+                quotationGrandTotalValue = quotationGrandTotal;
+                grandTotalValue = grandTotal + quotationGrandTotal;
+                totalGrandTotalValue += grandTotalValue;
+              } else {
+                // FIX: sebelumnya `!isNaN(Number())` selalu true karena Number() = 0
+                // Akibatnya non-survey dihitung 2x (di dalam if survey dan di luar)
+                grandTotalValue = grandTotal;
+                totalGrandTotalValue += grandTotal;
+              }
+            }
+            // Detail ke-2 dst: semua 0 agar tidak double count
+
+            worksheet.addRow({
+              id: order.id,
+              store_name: order.store?.store_name ?? 'N/a',
+              created_at: formattedDateTime(order.created_at),
+              request_survey: order.request_survey
+                ? formattedDateTime(order.request_survey)
+                : 'N/a',
+              full_name: order.members?.full_name ?? 'N/a',
+              phone_number:
+                order.members?.phone_number ??
+                order.members?.whatsapp_number ??
+                'N/a',
+              item_name: itemName,
+              category_name: categoryName,
+              quantity: quantity,
+              payment_type: formatPaymentType(order.payment_type),
+              receipt_number: order.receipt_number ?? 'Receipt belum terbit',
+              receipt_quotation:
+                order.payment_type === 'survey' &&
+                  order.quotation?.[0]?.receipt_quotation
+                  ? order.quotation[0].receipt_quotation
+                  : 'Receipt Quotation tidak ada',
+              status_order:
+                order.status?.description ?? 'Order Tidak Memiliki Status',
+              survey_date: workOrders?.survey_date
+                ? formattedDateTime(workOrders.survey_date)
+                : 'Order Tidak Ada Tanggal Survey',
+              work_date:
+                workOrders?.work_start_date && workOrders?.work_end_date
+                  ? `${formattedDateTime(workOrders.work_start_date)} - ${formattedDateTime(workOrders.work_end_date)}`
+                  : 'Order Tidak Ada Tanggal Pengerjaan',
+              company_name: order.vendor?.company_name ?? 'Vendor Belum Ditentukan',
+              sales_name: order.sales?.full_name ?? '',
+              tukang_name: tukangName,
+              grand_total_survey: grandTotalSurveyValue,
+              quotation_grand_total: quotationGrandTotalValue,
+              grand_total: grandTotalValue,
+            });
+
+            applyRowStyle(worksheet.lastRow);
+            isFirstDetail = false;
+          }
+        }
+
+        lastId = batch[batch.length - 1].id as number;
+
+        if (batch.length < BATCH_SIZE) {
+          hasMore = false;
+        }
+      }
+
+      // ============================================================
+      // TOTAL ROW
+      // ============================================================
       const totalRow = worksheet.addRow({
         id: 'Total',
         store_name: '',
@@ -2743,7 +2220,7 @@ export class OrderService {
         tukang_name: '',
         grand_total_survey: '',
         quotation_grand_total: '',
-        grand_total: Number(totalGrandTotalValue),
+        grand_total: totalGrandTotalValue,
       });
 
       totalRow.eachCell((cell) => {
@@ -2758,10 +2235,12 @@ export class OrderService {
       });
 
       totalRow.height = 30;
-
       worksheet.mergeCells(`A${totalRow.number}:T${totalRow.number}`);
 
-      const getFormattedDate = () => {
+      // ============================================================
+      // GENERATE FILE & SEND RESPONSE
+      // ============================================================
+      const getFormattedDate = (): string => {
         const now = new Date();
         const tahun = now.getFullYear();
         const bulan = String(now.getMonth() + 1).padStart(2, '0');
@@ -2769,48 +2248,30 @@ export class OrderService {
         return `${tahun}-${bulan}-${tanggal}`;
       };
 
-      const createExcelFilePath = (baseName: string) => {
-        const folderPath = './storage/excel/order';
-        if (!existsSync(folderPath)) {
-          mkdirSync(folderPath, { recursive: true });
-        }
-        const now = Date.now();
+      const folderPath = './storage/excel/order';
+      if (!existsSync(folderPath)) {
+        mkdirSync(folderPath, { recursive: true });
+      }
 
-        const excelFileName = `${baseName}-${now}.xlsx`;
-        return join(folderPath, excelFileName);
-      };
+      const excelFileName = `DataOrder-${getFormattedDate()}-${Date.now()}.xlsx`;
+      const excelFilePath = join(folderPath, excelFileName);
 
-      const writeWorkbookAndSendResponse = async (
-        workbook: exceljs.Workbook,
-        excelFilePath: string,
-        res: Response,
-      ) => {
-        await workbook.xlsx.writeFile(excelFilePath);
+      await workbook.xlsx.writeFile(excelFilePath);
 
-        res.setHeader(
-          'Content-Type',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        );
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename=${basename(excelFilePath)}`,
-        );
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=${basename(excelFilePath)}`,
+      );
 
-        const fileStream = createReadStream(excelFilePath);
-        fileStream.pipe(res);
-      };
+      const fileStream = createReadStream(excelFilePath);
+      fileStream.pipe(res);
 
-      const generateExcelFile = async (res) => {
-        const formattedDate = getFormattedDate();
-        const baseName = `DataOrder-${formattedDate}`;
-        const excelFilePath = createExcelFilePath(baseName);
-
-        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
-      };
-
-      return await generateExcelFile(res);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error orderExportExcel:', error);
       throw error;
     }
   }
