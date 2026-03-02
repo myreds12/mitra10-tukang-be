@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   BadRequestException,
   HttpException,
@@ -24,7 +25,7 @@ export class AuthService {
   constructor(
     private readonly dbService: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: CreateRegisterDto, role_id?: number | null) {
     try {
@@ -57,18 +58,18 @@ export class AuthService {
             //FIXME: CHECK THIS CODE
             ...(dto.vendor_id
               ? {
-                  pic_vendor: {
-                    create: {
-                      pic_name: dto.pic_name,
-                      vendor: {
-                        connect: {
-                          id: dto.vendor_id,
-                        },
+                pic_vendor: {
+                  create: {
+                    pic_name: dto.pic_name,
+                    vendor: {
+                      connect: {
+                        id: dto.vendor_id,
                       },
-                      email_address: dto.email,
                     },
+                    email_address: dto.email,
                   },
-                }
+                },
+              }
               : undefined),
             employee: {
               create: {
@@ -80,10 +81,10 @@ export class AuthService {
                 whatsapp_number: dto?.whatsapp_number ?? undefined,
                 store: dto?.store_id
                   ? {
-                      connect: {
-                        id: dto.store_id,
-                      },
-                    }
+                    connect: {
+                      id: dto.store_id,
+                    },
+                  }
                   : undefined,
               },
             },
@@ -123,23 +124,23 @@ export class AuthService {
           password: dto?.password ? await hash(dto.password, 12) : undefined,
           ...(dto.id_pic
             ? {
-                pic_vendor: {
-                  update: {
-                    where: {
-                      id: dto.id_pic,
-                    },
-                    data: {
-                      pic_name: dto.pic_name,
-                      email_address: dto.email,
-                    },
+              pic_vendor: {
+                update: {
+                  where: {
+                    id: dto.id_pic,
+                  },
+                  data: {
+                    pic_name: dto.pic_name,
+                    email_address: dto.email,
                   },
                 },
-              }
+              },
+            }
             : undefined),
           ...(files
             ? {
-                profile_picture: files.filename,
-              }
+              profile_picture: files.filename,
+            }
             : undefined),
         },
       });
@@ -475,7 +476,7 @@ export class AuthService {
       if (
         user.forget_password &&
         new Date(user.forget_password) <
-          new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
+        new Date(new Date().getTime() - 2 * 60 * 60 * 1000)
       ) {
         await this.dbService.users.update({
           where: {
@@ -512,18 +513,46 @@ export class AuthService {
   ) {
     const { id, username, role_id } = user;
 
+    const role = await this.dbService.roles
+      .findFirst({
+        where: {
+          id: role_id,
+        },
+      })
+      .then((res) => res.name);
+    //Bisakah anda menambahkan store_id atau vendor_id di token jwt jika user memiliki relasi dengan store atau vendor? Jika bisa tolong tambahkan, karena ini akan sangat membantu untuk implementasi fitur selanjutnya
+
+    const store = await this.dbService.store.findFirst({
+      where: { user_id: id },
+      select: { id: true },
+    });
+
+    const vendor = await this.dbService.vendor.findFirst({
+      where: {
+        pic_vendor: {
+          some: {
+            user_id: id,
+          }
+        }
+      },
+      select: { id: true },
+    });
+
     const accessToken = this.jwtService.sign(
       {
-        id: id,
+        id,
         username,
         role_id,
+        role,
+        store_id: store?.id ?? null,   // null jika tidak punya relasi store
+        vendor_id: vendor?.id ?? null, // null jika tidak punya relasi vendor
       },
       {
         expiresIn: expired,
         secret,
       },
     );
-    const role = '';
+
     const permission = '';
 
     return {
@@ -595,51 +624,51 @@ export class AuthService {
         AND: [
           ...(search
             ? [
-                {
-                  OR: [{ username: { contains: search } }],
-                },
-              ]
+              {
+                OR: [{ username: { contains: search } }],
+              },
+            ]
             : []),
           ...(vendor_id
             ? [
-                {
-                  pic_vendor: {
-                    some: {
-                      vendor_id: vendor_id,
-                    },
+              {
+                pic_vendor: {
+                  some: {
+                    vendor_id: vendor_id,
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(role_name
             ? [
-                {
-                  roles: {
-                    name: { contains: role_name },
-                  },
+              {
+                roles: {
+                  name: { contains: role_name },
                 },
-              ]
+              },
+            ]
             : []),
           ...(store_id
             ? [
-                {
-                  store: {
-                    some: {
-                      id: { in: store_id },
-                    },
+              {
+                store: {
+                  some: {
+                    id: { in: store_id },
                   },
                 },
-              ]
+              },
+            ]
             : []),
           ...(date_from && date_to
             ? [
-                {
-                  created_at: {
-                    gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
-                  },
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23:59:59.000Z`),
                 },
-              ]
+              },
+            ]
             : []),
         ].filter(Boolean),
         deleted_at: null,
