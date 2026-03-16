@@ -1061,11 +1061,11 @@ export class OrderService {
   ) {
     try {
       const { id: user_id } = user;
-      // for (const key of Object.keys(updateOrderDto)) {
-      //   if (Array.isArray(updateOrderDto[key])) {
-      //     updateOrderDto[key] = updateOrderDto[key][0];
-      //   }
-      // }
+      for (const key of Object.keys(updateOrderDto)) {
+        if (Array.isArray(updateOrderDto[key])) {
+          updateOrderDto[key] = updateOrderDto[key][0];
+        }
+      }
       if (updateOrderDto.receipt_number) {
         const existingOrder = await this.dbService.orders.findFirst({
           where: {
