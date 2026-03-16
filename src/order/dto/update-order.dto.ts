@@ -6,6 +6,7 @@ import {
   IsEnum,
   ValidateNested,
   IsIn,
+  IsString,
 } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { OrderDetailDto } from './order-details.dto';
@@ -63,7 +64,7 @@ export class UpdateOrderDto {
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => Array.isArray(value) ? value[0] : value)
+  @Transform(({ value }) => (Array.isArray(value) ? value[0] : value))
   receipt_number?: string;
 
   @ApiProperty({ enum: PAYMENT_TYPE })
