@@ -24,9 +24,12 @@ export class UpdateOrderDto {
   @IsIn([0, 1])
   is_overdistance?: number;
 
-  @ApiProperty()
-  @Type(() => Number)
   @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => {
+    const val = Array.isArray(value) ? value[0] : value;
+    return Number(val);
+  })
   member_id?: number;
 
   @ApiProperty()
@@ -37,9 +40,12 @@ export class UpdateOrderDto {
   @IsOptional()
   request_work?: string;
 
-  @ApiProperty()
-  @Type(() => Number)
   @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => {
+    const val = Array.isArray(value) ? value[0] : value;
+    return Number(val);
+  })
   sales_id?: number;
 
   @ApiProperty()
@@ -55,11 +61,15 @@ export class UpdateOrderDto {
   @IsOptional()
   project_status_id?: number;
 
-  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => Array.isArray(value) ? value[0] : value)
   receipt_number?: string;
 
   @ApiProperty({ enum: PAYMENT_TYPE })
-  @Transform(({ value }) => (typeof value === 'string' ? value.toLocaleLowerCase() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toLocaleLowerCase() : value,
+  )
   // @IsEnum(PAYMENT_TYPE)
   @IsOptional()
   payment_type?: PAYMENT_TYPE;
@@ -74,5 +84,7 @@ export class UpdateOrderDto {
   request_survey?: string;
 
   @IsOptional()
+  @IsString()
+  @Transform(({ value }) => Array.isArray(value) ? value[0] : value)
   notes?: string;
 }
