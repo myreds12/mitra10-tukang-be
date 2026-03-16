@@ -6,7 +6,6 @@ import {
   IsEnum,
   ValidateNested,
   IsIn,
-  IsString,
 } from 'class-validator';
 import { PAYMENT_TYPE } from '../enum/payment_type.enum';
 import { OrderDetailDto } from './order-details.dto';
@@ -25,12 +24,9 @@ export class UpdateOrderDto {
   @IsIn([0, 1])
   is_overdistance?: number;
 
+  @ApiProperty()
+  @Type(() => Number)
   @IsOptional()
-  @IsNumber()
-  @Transform(({ value }) => {
-    const val = Array.isArray(value) ? value[0] : value;
-    return Number(val);
-  })
   member_id?: number;
 
   @ApiProperty()
@@ -41,12 +37,9 @@ export class UpdateOrderDto {
   @IsOptional()
   request_work?: string;
 
+  @ApiProperty()
+  @Type(() => Number)
   @IsOptional()
-  @IsNumber()
-  @Transform(({ value }) => {
-    const val = Array.isArray(value) ? value[0] : value;
-    return Number(val);
-  })
   sales_id?: number;
 
   @ApiProperty()
@@ -62,9 +55,7 @@ export class UpdateOrderDto {
   @IsOptional()
   project_status_id?: number;
 
-  @IsOptional()
-  @IsString()
-  @Transform(({ value }) => (Array.isArray(value) ? value[0] : value))
+  @ApiProperty()
   receipt_number?: string;
 
   @ApiProperty({ enum: PAYMENT_TYPE })
@@ -85,7 +76,5 @@ export class UpdateOrderDto {
   request_survey?: string;
 
   @IsOptional()
-  @IsString()
-  @Transform(({ value }) => Array.isArray(value) ? value[0] : value)
   notes?: string;
 }
