@@ -1061,11 +1061,44 @@ export class OrderService {
   ) {
     try {
       const { id: user_id } = user;
+      const arrayFields = ['order_details', 'existing_order_files'];
+
+      // Normalisasi duplikat field scalar
       for (const key of Object.keys(updateOrderDto)) {
-        if (Array.isArray(updateOrderDto[key])) {
+        if (!arrayFields.includes(key) && Array.isArray(updateOrderDto[key])) {
           updateOrderDto[key] = updateOrderDto[key][0];
         }
       }
+
+      // ✅ Normalisasi existing_order_files jika duplikat
+      // Payload duplikat 3x → existing_order_files bisa jadi array of arrays
+      if (Array.isArray(updateOrderDto.existing_order_files)) {
+        // Flatten jika nested array akibat duplikat
+        const flattened = updateOrderDto.existing_order_files.flat();
+
+        // Deduplikasi berdasarkan order_file_id
+        const seen = new Set<number>();
+        updateOrderDto.existing_order_files = flattened.filter((item) => {
+          const fileId = Number(item?.order_file_id);
+          if (seen.has(fileId)) return false;
+          seen.add(fileId);
+          return true;
+        });
+      }
+
+      // ✅ Normalisasi order_details jika duplikat (sama seperti existing_order_files)
+      if (Array.isArray(updateOrderDto.order_details)) {
+        const flattened = updateOrderDto.order_details.flat();
+
+        const seen = new Set<number>();
+        updateOrderDto.order_details = flattened.filter((item) => {
+          const detailId = Number(item?.id ?? item?.item_id);
+          if (seen.has(detailId)) return false;
+          seen.add(detailId);
+          return true;
+        });
+      }
+
 
       if (updateOrderDto.receipt_number) {
         const existingOrder = await this.dbService.orders.findFirst({
