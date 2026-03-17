@@ -1058,7 +1058,6 @@ export class OrderService {
         }
       });
 
-      console.log('Mail Logs Order Find One : ', mailLogs);
 
       const data = {
         ...ordersWithUser,
