@@ -423,7 +423,6 @@ export class MailsService {
   @Cron(CronExpression.EVERY_5_SECONDS)
   async mailTriggerScheduler() {
     try {
-      console.log("CHECK 1");
       this.logger.verbose('Initiate mail trigger checks');
       const mail_messages = await this.dbService.email_messages.findMany({
         where: {
@@ -593,12 +592,12 @@ export class MailsService {
         },
       });
 
-      if (!quotations.length) {
-        this.logger.verbose(
-          `[QuotationTrigger] No quotations found for status_id=${status_id}`,
-        );
-        return;
-      }
+      // if (!quotations.length) {
+      //   this.logger.verbose(
+      //     `[QuotationTrigger] No quotations found for status_id=${status_id}`,
+      //   );
+      //   return;
+      // }
 
       // this.logger.log(
       //   `[QuotationTrigger] Found ${quotations.length} quotations for status_id=${status_id}`,
@@ -650,24 +649,24 @@ export class MailsService {
           },
         });
 
-        this.logger.log(
-          `[QuotationTrigger] Queued job for quotation ${quotation.id} with delay=${delay}ms`,
-        );
+        // this.logger.log(
+        //   `[QuotationTrigger] Queued job for quotation ${quotation.id} with delay=${delay}ms`,
+        // );
 
         delay += 5000;
       }
 
       // Kirim semua job ke Redis
       if (jobs.length > 0) {
-        this.logger.verbose(
-          `[QuotationTrigger] Dispatching ${jobs.length} jobs to queue "email"`,
-        );
+        // this.logger.verbose(
+        //   `[QuotationTrigger] Dispatching ${jobs.length} jobs to queue "email"`,
+        // );
 
         const result = await this.emailQueue.addBulk(jobs);
 
-        this.logger.log(
-          `[QuotationTrigger] Successfully added ${result.length} jobs to queue.`,
-        );
+        // this.logger.log(
+        //   `[QuotationTrigger] Successfully added ${result.length} jobs to queue.`,
+        // );
 
         // Detail job yang dikirim
         // result.forEach((job) => {
@@ -676,7 +675,7 @@ export class MailsService {
         //   );
         // });
       } else {
-        this.logger.verbose(`[QuotationTrigger] No new jobs to queue.`);
+        // this.logger.verbose(`[QuotationTrigger] No new jobs to queue.`);
       }
     } catch (error) {
       this.logger.error(
@@ -720,9 +719,9 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
 
         if (countSendedEmail > 2 && !jobExist) {
-          this.logger.log(
-            `Sending email for quotation ${quotation.id} - ${template_id}`,
-          );
+          // this.logger.log(
+          //   `Sending email for quotation ${quotation.id} - ${template_id}`,
+          // );
           const jobData = {
             module_id: quotation.id,
             template_id: template_id,
@@ -784,9 +783,9 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
 
         if (!countSendedEmail && !jobExist) {
-          this.logger.log(
-            `Sending email for complaint ${complaint.id} status ${status_id}`,
-          );
+          // this.logger.log(
+          //   `Sending email for complaint ${complaint.id} status ${status_id}`,
+          // );
           jobs.push({
             name: 'send-complaint-mail',
             data: {
@@ -841,9 +840,9 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
 
         if (!countSendedEmail && !jobExist) {
-          this.logger.log(
-            `Sending email for reschedule ${reschedule.id} status ${status_id}`,
-          );
+          // this.logger.log(
+          //   `Sending email for reschedule ${reschedule.id} status ${status_id}`,
+          // );
           jobs.push({
             name: 'send-reschedule-mail',
             data: {
@@ -902,9 +901,9 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
 
         if (!countSendedEmail && !jobExist) {
-          this.logger.log(
-            `Sending email for refund ${refund.id} status ${status_id}`,
-          );
+          // this.logger.log(
+          //   `Sending email for refund ${refund.id} status ${status_id}`,
+          // );
           jobs.push({
             name: 'send-refund-mail',
             data: {
@@ -972,9 +971,9 @@ export class MailsService {
         const jobExist = await this.emailQueue.getJob(jobId);
 
         // if (!countSendedEmail && !jobExist) {
-        this.logger.log(
-          `Sending email for csi ${order.id} status ${status_id}`,
-        );
+        // this.logger.log(
+        //   `Sending email for csi ${order.id} status ${status_id}`,
+        // );
         jobs.push({
           name: 'send-csi-mail',
           data: {
