@@ -31,7 +31,34 @@ export class OrderService {
     private pdfService: PdfService,
     private notifService: NotificationsService,
     private configService: ConfigService,
+
   ) { }
+  // Tambahkan sebagai private method di dalam OrderService
+  private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        const isConnectionError =
+          error?.message?.includes('TokenError') ||
+          error?.message?.includes('ConnectorError') ||
+          error?.code === 'P1001' ||
+          error?.code === 'P1002';
+
+        if (isConnectionError && attempt < retries) {
+          console.warn(`⚠️ DB error, retrying ${attempt}/${retries}...`);
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          await this.dbService.$disconnect();
+          await this.dbService.$connect();
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  // Lalu di method update(), wrap bagian items.findMany:
+
 
   async create(
     createOrderDto: CreateOrderDto,
@@ -1170,22 +1197,25 @@ export class OrderService {
         }
         : undefined;
 
-      const items = await this.dbService.items.findMany({
-        where: {
-          ...whereItems,
-          deleted_at: null,
-          is_active: true,
-        },
-        include: {
-          category: true,
-          prices: {
-            where: {
-              periodic_start: { lte: new Date() },
-              periodic_end: { gte: new Date() },
+      // ✅ GANTI items.findMany YANG LAMA DENGAN INI
+      const items = await this.withRetry(() =>
+        this.dbService.items.findMany({
+          where: {
+            ...whereItems,
+            deleted_at: null,
+            is_active: true,
+          },
+          include: {
+            category: true,
+            prices: {
+              where: {
+                periodic_start: { lte: new Date() },
+                periodic_end: { gte: new Date() },
+              },
             },
           },
-        },
-      });
+        }),
+      );
 
       if (updateOrderDto.order_details) {
         const checkOrderDetailIds = orderdetailsIds.filter(
@@ -1447,6 +1477,8 @@ export class OrderService {
       throw error;
     }
   }
+
+
 
   async remove(id: number) {
     return await this.dbService.orders.update({
