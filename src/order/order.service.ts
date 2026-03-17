@@ -1203,23 +1203,31 @@ export class OrderService {
         })()
         : undefined;
 
-      const items = await this.dbService.items.findMany({
-        where: {
-          // ✅ Spread hanya jika whereItems ada nilainya
-          ...(whereItems ? whereItems : {}),
-          deleted_at: null,
-          is_active: true,
-        },
-        include: {
-          category: true,
-          prices: {
-            where: {
-              periodic_start: { lte: new Date() },
-              periodic_end: { gte: new Date() },
+      const items = updateOrderDto.order_details &&
+        updateOrderDto.order_details.length > 0 &&
+        updateOrderDto.order_details.some(x => Boolean(x.item_id))
+        ? await this.dbService.items.findMany({
+          where: {
+            id: {
+              in: updateOrderDto.order_details
+                .filter((x) => Boolean(x.item_id))
+                .map((x) => Number(x.item_id))
+                .filter((x) => !isNaN(x) && x > 0),
+            },
+            deleted_at: null,
+            is_active: true,
+          },
+          include: {
+            category: true,
+            prices: {
+              where: {
+                periodic_start: { lte: new Date() },
+                periodic_end: { gte: new Date() },
+              },
             },
           },
-        },
-      });
+        })
+        : [];
 
       if (updateOrderDto.order_details) {
         const checkOrderDetailIds = orderdetailsIds.filter(
