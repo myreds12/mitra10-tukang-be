@@ -1066,6 +1066,7 @@ export class OrderService {
           updateOrderDto[key] = updateOrderDto[key][0];
         }
       }
+
       if (updateOrderDto.receipt_number) {
         const existingOrder = await this.dbService.orders.findFirst({
           where: {
