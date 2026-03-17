@@ -1163,59 +1163,64 @@ export class OrderService {
       const orderdetailsIds = updateOrderDto.order_details
         ? updateOrderDto.order_details
           .filter((x) => Boolean(x.id))
-          .map((x) => x.id)
+          .map((x) => Number(x.id))
+          .filter((x) => !isNaN(x) && x > 0)
         : undefined;
 
-      const orderDetail = await this.dbService.m_order_details.findMany({
-        where: {
-          id: {
-            in: orderdetailsIds,
+      // ✅ Guard: hanya query jika ada ID yang valid
+      const orderDetail = orderdetailsIds && orderdetailsIds.length > 0
+        ? await this.dbService.m_order_details.findMany({
+          where: {
+            id: { in: orderdetailsIds },
           },
-        },
-        include: {
-          item: {
-            include: {
-              category: true,
-              prices: {
-                where: {
-                  periodic_start: { lte: new Date() },
-                  periodic_end: { gte: new Date() },
+          include: {
+            item: {
+              include: {
+                category: true,
+                prices: {
+                  where: {
+                    periodic_start: { lte: new Date() },
+                    periodic_end: { gte: new Date() },
+                  },
                 },
               },
             },
           },
-        },
-      });
+        })
+        : [];
 
+      // ✅ Perbaikan: guard jika order_details tidak ada atau item_id kosong semua
       const whereItems = updateOrderDto.order_details
-        ? {
-          id: {
-            in: updateOrderDto.order_details
-              .filter((x) => Boolean(x.item_id))
-              .map((x) => x.item_id),
-          },
-        }
+        ? (() => {
+          const itemIds = updateOrderDto.order_details
+            .filter((x) => Boolean(x.item_id))
+            .map((x) => Number(x.item_id))
+            .filter((x) => !isNaN(x) && x > 0);
+
+          // ✅ Jika tidak ada item_id sama sekali, return undefined
+          return itemIds.length > 0
+            ? { id: { in: itemIds } }
+            : undefined;
+        })()
         : undefined;
 
-      // ✅ GANTI items.findMany YANG LAMA DENGAN INI
-      const items = await this.withRetry(() =>
-        this.dbService.items.findMany({
-          where: {
-            ...whereItems,
-            deleted_at: null,
-            is_active: true,
-          },
-          include: {
-            category: true,
-            prices: {
-              where: {
-                periodic_start: { lte: new Date() },
-                periodic_end: { gte: new Date() },
-              },
+      const items = await this.dbService.items.findMany({
+        where: {
+          // ✅ Spread hanya jika whereItems ada nilainya
+          ...(whereItems ? whereItems : {}),
+          deleted_at: null,
+          is_active: true,
+        },
+        include: {
+          category: true,
+          prices: {
+            where: {
+              periodic_start: { lte: new Date() },
+              periodic_end: { gte: new Date() },
             },
           },
-        }),
-      );
+        },
+      });
 
       if (updateOrderDto.order_details) {
         const checkOrderDetailIds = orderdetailsIds.filter(
