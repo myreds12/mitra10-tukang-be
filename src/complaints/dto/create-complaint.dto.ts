@@ -11,14 +11,23 @@ export class CreateComplaintDto {
   @IsOptional()
   crm_type?: number;
 
+  // ✅ Tidak ada batasan panjang — bisa terima teks panjang
+  @IsOptional()
+  @IsString()
   description: string;
 
+  @IsOptional()
+  @IsString()
   feedback_name: string;
+
+  @IsOptional()
+  @IsString()
   feedback_role: string;
 
   @IsOptional()
+  @IsString()
   pic_name?: string;
-  
+
   @Type(() => Number)
   complaint_channel: number;
 
@@ -26,7 +35,7 @@ export class CreateComplaintDto {
 
   @IsOptional()
   complaint_received_date?: string;
-  
+
   @Type(() => Number)
   @IsNotEmpty()
   @IsNumber()
@@ -42,6 +51,7 @@ export class CreateComplaintDto {
   @Type(() => CreateComplaintHistoriesDto)
   complaint_histories?: CreateComplaintHistoriesDto;
 
-  @ApiProperty({ type: Array<Express.Multer.File>, format: 'array' })
+  // ✅ Tidak perlu dekorator khusus — file dihandle Multer
+  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' } })
   complaint_evidences: Array<Express.Multer.File>;
 }

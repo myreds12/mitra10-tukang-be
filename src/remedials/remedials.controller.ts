@@ -20,11 +20,13 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @UseGuards(JwtAuthGuard)
 @Controller('remedials')
 export class RemedialsController {
-  constructor(private readonly remedialsService: RemedialsService) {}
+  constructor(private readonly remedialsService: RemedialsService) { }
 
   @Post('/')
   @UseInterceptors(FilesInterceptor('remedial_evidences'))
@@ -51,7 +53,31 @@ export class RemedialsController {
   }
 
   @Post('/:id')
-  @UseInterceptors(FilesInterceptor('remedial_evidences'))
+  @UseInterceptors(
+    FilesInterceptor('remedial_evidences', 20, {
+      // ✅ Maksimal 20 file
+      storage: diskStorage({
+        destination: './uploads/remedials',
+        filename: (req, file, cb) => {
+          const uniqueName = `${Date.now()}-${Math.round(
+            Math.random() * 1e9,
+          )}${extname(file.originalname)}`;
+          cb(null, uniqueName);
+        },
+      }),
+      limits: {
+        fileSize: 10 * 1024 * 1024, // ✅ Maksimal 10MB per file
+      },
+      fileFilter: (req, file, cb) => {
+        // ✅ Hanya terima gambar
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          cb(new Error('Hanya file gambar yang diperbolehkan'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async update(
     @Param('id') id: string,
     @UploadedFiles() remedial_evidence: Express.Multer.File[],

@@ -534,9 +534,7 @@ export class ComplaintsService {
     try {
       const { id: user_id } = user;
       const complaints = await this.dbService.complaints.findFirst({
-        where: {
-          id,
-        },
+        where: { id },
       });
 
       const status = await this.dbService.status.findMany();
@@ -554,21 +552,22 @@ export class ComplaintsService {
         },
       });
 
-      const evidences = complaint_evidences.map((file) => ({
-        evidence_location: file.filename,
-        created_by: user_id,
-      }));
+      // ✅ Perbaikan: cek apakah ada file sebelum map
+      const hasEvidences = complaint_evidences && complaint_evidences.length > 0;
+      const evidences = hasEvidences
+        ? complaint_evidences.map((file) => ({
+          evidence_location: file.filename,
+          created_by: user_id,
+        }))
+        : [];
 
       const orderConn = updateComplaintDto.order_id
-        ? {
-          connect: {
-            id: updateComplaintDto.order_id,
-          },
-        }
+        ? { connect: { id: updateComplaintDto.order_id } }
         : undefined;
 
       const surveyStatusCategories = ["SURVEYREQ", "SURVEYSTART", "SURVEYEND"];
       const workStatusCategories = ["WORKREQ", "WORKSTART", "WORKEND"];
+
       const orders = await this.dbService.orders.findFirst({
         where: {
           id: updateComplaintDto?.order_id ?? complaints.order_id,
@@ -584,12 +583,8 @@ export class ComplaintsService {
               },
               deleted_at: null,
             },
-            include: {
-              status: true,
-            },
-            orderBy: {
-              created_at: "desc",
-            },
+            include: { status: true },
+            orderBy: { created_at: "desc" },
             take: 10,
           },
         },
@@ -604,41 +599,32 @@ export class ComplaintsService {
         x.category.toLocaleLowerCase().includes("rejectedbyho")
       )?.id;
 
-      if (
-        complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
-        surveyStatusCategories.includes(orders.order_history[0].status.category)
-      ) {
-        statusOrderUpdate = status.find((x) =>
-          x.category.toLowerCase().includes("resurveyreq")
-        ).id;
-      } else if (
-        complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
-        workStatusCategories.includes(orders.order_history[0].status.category)
-      ) {
-        statusOrderUpdate = updateComplaintDto.work_status_update;
-      } else if (
-        complaintRejectedByHoStatus === updateComplaintDto.complaint_status
-      ) {
-        statusOrderUpdate = orders.order_history[0].status.id;
+      // ✅ Perbaikan: guard jika order_history kosong
+      if (orders?.order_history?.length > 0) {
+        if (
+          complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
+          surveyStatusCategories.includes(orders.order_history[0].status.category)
+        ) {
+          statusOrderUpdate = status.find((x) =>
+            x.category.toLowerCase().includes("resurveyreq")
+          )?.id;
+        } else if (
+          complaintApprovedByHoStatus === updateComplaintDto.complaint_status &&
+          workStatusCategories.includes(orders.order_history[0].status.category)
+        ) {
+          statusOrderUpdate = updateComplaintDto.work_status_update;
+        } else if (
+          complaintRejectedByHoStatus === updateComplaintDto.complaint_status
+        ) {
+          statusOrderUpdate = orders.order_history[0].status.id;
+        }
       }
 
-      // console.log(
-      //   Boolean(surveyStatusCategories.includes(orders.status.category)),
-      // );
-      // console.log(
-      //   Boolean(workStatusCategories.includes(orders.status.category)),
-      // );
-
-      // console.log(statusOrderUpdate);
-
       const complaint_channelsConn = updateComplaintDto.complaint_channel
-        ? {
-          connect: {
-            id: updateComplaintDto.complaint_channel,
-          },
-        }
+        ? { connect: { id: updateComplaintDto.complaint_channel } }
         : undefined;
 
+      // ✅ Perbaikan: filter yang benar [key, value] bukan [value]
       const complaintData: Prisma.complaintsUpdateInput = Object.fromEntries(
         Object.entries({
           orders: orderConn,
@@ -655,38 +641,25 @@ export class ComplaintsService {
           complaint_date: updateComplaintDto.complaint_date
             ? new Date(updateComplaintDto.complaint_date)
             : undefined,
-          // complaint_status: updateComplaintDto?.complaint_status,
           updated_by: user_id,
           complaint_histories: {
             create: {
               status_id: complaints.complaint_status,
-              reason:
-                updateComplaintDto?.complaint_histories?.reason ?? undefined,
+              reason: updateComplaintDto?.complaint_histories?.reason ?? undefined,
               created_by: user_id,
-              complaint_evidence: evidences.length
-                ? {
-                  createMany: {
-                    data: evidences,
-                  },
-                }
+              // ✅ Perbaikan: gunakan hasEvidences
+              complaint_evidence: hasEvidences
+                ? { createMany: { data: evidences } }
                 : undefined,
             },
           },
-        }).filter(([value]) => value !== undefined)
+          // ✅ Perbaikan: destructuring yang benar
+        }).filter(([key, value]) => value !== undefined)
       );
-      // const complaintsUpdate = await this.dbService.complaints.update({
-      //   where: {
-      //     id: id,
-      //   },
-      //   data: complaintData,
-      // });
-      // console.log('update', complaintsUpdate);
 
       const [complaint] = await this.dbService.$transaction([
         this.dbService.complaints.update({
-          where: {
-            id: id,
-          },
+          where: { id },
           data: {
             ...complaintData,
             ...(updateComplaintDto.complaint_status
@@ -715,10 +688,7 @@ export class ComplaintsService {
 
       if (complaint) {
         await this.notifService.create(
-          {
-            complaint: complaint,
-            orders: complaint.orders,
-          },
+          { complaint, orders: complaint.orders },
           "UPDATE",
           complaint.updated_by,
           moduleTypeNotification.COMPLAINT,
@@ -733,9 +703,7 @@ export class ComplaintsService {
       ) {
         try {
           await this.dbService.work_orders.update({
-            where: {
-              order_id: updateComplaintDto.order_id,
-            },
+            where: { order_id: updateComplaintDto.order_id },
             data: {
               status_id: statusOrderUpdate,
               work_order_status: {
