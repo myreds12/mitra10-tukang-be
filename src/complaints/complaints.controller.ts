@@ -26,6 +26,8 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { users } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -35,7 +37,7 @@ interface UserRequest extends IExpressRequest {
 @UseGuards(JwtAuthGuard)
 @Controller('complaints')
 export class ComplaintsController {
-  constructor(private readonly complaintsService: ComplaintsService) {}
+  constructor(private readonly complaintsService: ComplaintsService) { }
 
   @Get('/export-excel')
   async complaintExportExcel(
@@ -94,7 +96,30 @@ export class ComplaintsController {
   }
 
   @Post(':id')
-  @UseInterceptors(FilesInterceptor('complaint_evidences'))
+  @UseInterceptors(
+    FilesInterceptor('complaint_evidences', 20, {
+      // ✅ Maksimal 20 file
+      storage: diskStorage({
+        destination: './uploads/complaints',
+        filename: (req, file, cb) => {
+          const uniqueName = `${Date.now()}-${Math.round(
+            Math.random() * 1e9,
+          )}${extname(file.originalname)}`;
+          cb(null, uniqueName);
+        },
+      }),
+      limits: {
+        fileSize: 10 * 1024 * 1024, // ✅ Maksimal 10MB per file
+      },
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          cb(new Error('Hanya file gambar yang diperbolehkan'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async update(
     @UploadedFiles() complaint_evidences: Array<Express.Multer.File>,
     @Param('id') id: string,

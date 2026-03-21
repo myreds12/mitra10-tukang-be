@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRemedialDto } from './dto/create-remedial.dto';
 import { UpdateRemedialDto } from './dto/update-remedial.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -7,7 +7,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 
 @Injectable()
 export class RemedialsService {
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(private readonly dbService: PrismaService) { }
   async create(
     remedial_evidences: Express.Multer.File[],
     createRemedialDto: CreateRemedialDto,
@@ -31,7 +31,6 @@ export class RemedialsService {
           created_by: user_id,
         })) ?? undefined;
 
-
       const remedial_data: Prisma.remedialsCreateInput = {
         complaints: {
           connect: {
@@ -40,22 +39,23 @@ export class RemedialsService {
         },
         status: createRemedialDto.remedial_status
           ? {
-              connect: {
-                id: createRemedialDto.remedial_status,
-              },
-            }
+            connect: {
+              id: createRemedialDto.remedial_status,
+            },
+          }
           : undefined,
         remedial_action: createRemedialDto.remedial_action,
         remedial_pic: createRemedialDto.remedial_pic,
         remedial_pic_positon: createRemedialDto.remedial_pic_position,
-        ra_date_start: createRemedialDto.ra_date_start ?  new Date(createRemedialDto.ra_date_start)  : undefined,
+        ra_date_start: createRemedialDto.ra_date_start
+          ? new Date(createRemedialDto.ra_date_start)
+          : undefined,
         ra_date_end: createRemedialDto.ra_date_end
           ? new Date(createRemedialDto.ra_date_end)
           : undefined,
         remedial_evidences: {
           create: evidences,
         },
-        
       };
 
       const remedial_options: Prisma.remedialsCreateArgs = {
@@ -81,7 +81,7 @@ export class RemedialsService {
         skip: skip,
         take: take,
         where: {
-        remedial_action: {
+          remedial_action: {
             contains: search ?? null,
           },
           status: {
@@ -139,13 +139,20 @@ export class RemedialsService {
           orders: true,
         },
       });
+
+      if (!complaint) throw new NotFoundException('Complaint not found');
+
+      // ✅ Perbaikan: cek dengan length bukan hanya truthy
+      const hasNewEvidences =
+        remedial_evidences && remedial_evidences.length > 0;
+
       const evidences: Array<Prisma.remedial_evidencesCreateManyRemedialsInput> =
-        remedial_evidences
+        hasNewEvidences
           ? remedial_evidences.map((evidence) => ({
-              evidence_location: evidence.filename,
-              created_by: user_id,
-            }))
-          : undefined;
+            evidence_location: evidence.filename,
+            created_by: user_id,
+          }))
+          : [];
 
       const remedial_data = {
         complaints: {
@@ -155,37 +162,40 @@ export class RemedialsService {
         },
         status: updateRemedialDto.remedial_status
           ? {
-              connect: {
-                id: updateRemedialDto.remedial_status,
-              },
-            }
+            connect: {
+              id: updateRemedialDto.remedial_status,
+            },
+          }
           : undefined,
-        remedial_action: updateRemedialDto.remedial_action,
-        remedial_pic: updateRemedialDto.remedial_pic,
-        remedial_pic_positon: updateRemedialDto?.remedial_pic_position,
-        ra_date_start: updateRemedialDto.ra_date_start ? new Date(updateRemedialDto.ra_date_start)  : undefined,
+        remedial_action: updateRemedialDto.remedial_action ?? undefined,
+        remedial_pic: updateRemedialDto.remedial_pic ?? undefined,
+        remedial_pic_positon:
+          updateRemedialDto?.remedial_pic_position ?? undefined,
+        ra_date_start: updateRemedialDto.ra_date_start
+          ? new Date(updateRemedialDto.ra_date_start)
+          : undefined,
         ra_date_end: updateRemedialDto.ra_date_end
           ? new Date(updateRemedialDto.ra_date_end)
           : undefined,
       };
 
       const remedial_options: Prisma.remedialsUpdateArgs = {
-        where: {
-          id,
-        },
+        where: { id },
         data: {
           ...remedial_data,
-          ...(remedial_evidences
+          ...(hasNewEvidences
             ? {
-                remedial_evidences: {
-                  updateMany: {
-                    where: {
-                      remedial_id: id,
-                    },
-                    data: evidences,
-                  },
+              remedial_evidences: {
+                // ✅ Perbaikan: deleteMany dulu lalu createMany
+                // karena updateMany tidak support array of different data
+                deleteMany: {
+                  remedial_id: id,
                 },
-              }
+                createMany: {
+                  data: evidences,
+                },
+              },
+            }
             : undefined),
         },
       };
