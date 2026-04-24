@@ -52,6 +52,6 @@ export class GoogleScriptApiService {
       maxBodyLength: Infinity,
     });
     const response = await lastValueFrom(response$);
-    return response.data;
+    return response;
   }
 }

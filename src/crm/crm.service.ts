@@ -386,20 +386,22 @@ export class CrmService {
       documentPath: complaintsevidence?.evidence_location ?? 'N/A', // path file kosong
       variable:  'Installasi yang dilakukan oleh vendor',
     };
-    console.log('Payload for Google Script API:', payload);
+    //console.log('Payload for Google Script API:', payload);
     var result = await this.googleScriptApiService.sendFormWithFile(payload);
     
-    console.log('result api', result);
+    console.log('result api', result.status); 
     
-    // Update `is_sync` to 1 for synced complaints
-    const updateComplaint = await this.dbService.complaints.updateMany({
-      where: {
-        id: complaint_id,
-      },
-      data: {
-        is_sync: 1,
-      },
-    });
+    if (result.status === 200) {
+      // Update `is_sync` to 1 for synced complaints
+      const updateComplaint = await this.dbService.complaints.updateMany({
+        where: {
+          id: complaint_id,
+        },
+        data: {
+          is_sync: 1,
+        },
+      });
+    }
 
     // console.log('Update Complaint', updateComplaint);
     // console.log('Updated is_sync to 1 for all synced complaints.');
