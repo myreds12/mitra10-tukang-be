@@ -7,7 +7,7 @@ module.exports = {
         autorestart: true,
         watch: true,    
         exec_mode: 'cluster',
-        max_memory_restart: '1G',
+        max_memory_restart: '4G',
       },
     ],
   };

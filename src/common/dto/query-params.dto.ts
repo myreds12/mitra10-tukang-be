@@ -168,11 +168,6 @@ export class QueryParamsDto {
   is_active?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsIn([0, 1])
-  is_active?: number;
-
-  @IsOptional()
   @IsNotEmpty()
   group_by?: string;
 

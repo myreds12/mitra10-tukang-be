@@ -22,7 +22,7 @@ model bank {
   deleted_by Int?
   sales      sales[]
   vendor     vendor[]
-  manager    manager[]
+  manager   manager[]
 }
 
 model area {
@@ -1898,9 +1898,6 @@ model comission_store_incentive_evidence {
   deleted_at                DateTime?                 @db.DateTime()
   comission_store_incentive comission_store_incentive @relation(fields: [comission_store_incentive_id], references: [id])
 }
-
-
-
 
 model manager {
   id       Int  @id @default(autoincrement())
