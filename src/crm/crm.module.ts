@@ -4,13 +4,19 @@ import { CrmController } from './crm.controller';
 import { GoogleSheetModule } from 'nest-google-sheet-connector';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
+import { GoogleScriptApiService } from './google-script-api.service';
 
 @Module({
   controllers: [CrmController],
-  providers: [CrmService, ConfigService],
+  providers: [
+    CrmService, 
+    ConfigService,
+    GoogleScriptApiService // ⬅️ INI YANG KAMU KURANG],
+  ],
   exports: [CrmService],
   imports: [
     HttpModule,
+    ConfigModule, // ⬅️ WAJIB buat ConfigService
     GoogleSheetModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -101,7 +101,8 @@ export class ComplaintsService {
           complaint.id,
           complaint.complaint_status
         ),
-        // this.crmService .syncAnswer(complaint.id),
+        //2026042019 dayat di up kembali
+        this.crmService.syncAnswer(complaint.id),
         this.orderService.setStatus(complaint.order_id, complaint.complaint_status, user),
       ]);
 
@@ -110,6 +111,10 @@ export class ComplaintsService {
       console.error(error);
       throw error;
     }
+  }
+
+  async resync(id: number) {
+      return await this.crmService.syncAnswer(id);
   }
 
 

@@ -140,4 +140,10 @@ export class ComplaintsController {
     const user_id = req.user.id;
     return await this.complaintsService.remove(+id, user_id);
   }
+  @Post(':id/resync')
+  async resync(
+    @Param('id') id: number,
+  ) {
+    return await this.complaintsService.resync(id);
+  }
 }
