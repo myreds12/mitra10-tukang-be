@@ -374,13 +374,15 @@ export class CrmService {
     //console.log('complaintsevidence', complaintWithUser?.complaint_histories?.[0]?.id, complaintsevidence);
 
     // Payload kosong, nanti bisa diisi sesuai kebutuhan
-    const memberNumber = complaintWithUser?.orders?.members?.member_number ?? 'N/A';
+    const memberNumber = complaintWithUser.orders?.members?.phone_number ??
+              complaintWithUser.orders?.members?.whatsapp_number ??
+              'N/A';
 
     const formattedNumber = memberNumber.startsWith('08')
       ? '628' + memberNumber.slice(2)
       : memberNumber;
 
-    console.log(formattedNumber);
+    //console.log(formattedNumber);
     const payload = {
       namaLengkap: complaintWithUser?.orders?.members?.full_name ?? 'N/A',
       mobile:  formattedNumber,
@@ -389,14 +391,14 @@ export class CrmService {
       receivedByInstallationWeb: complaintWithUser?.orders?.store?.email ?? 'N/A',
       receivedBy: complaintWithUser?.orders?.store?.email ?? 'N/A',
       melaluiMedia: complaintWithUser?.complaint_channels?.name ?? 'N/A',
-      locationIdInstallationWeb: complaintWithUser?.orders?.store?.zip_code || 'N/A',
+      locationIdInstallationWeb: complaintWithUser?.orders?.store?.area?.area ?? 'N/A',
       documentPath: complaintsevidence?.evidence_location ?? 'N/A', // path file kosong
       variable:  'Installasi yang dilakukan oleh vendor',
     };
     //console.log('Payload for Google Script API:', payload);
     var result = await this.googleScriptApiService.sendFormWithFile(payload);
     
-    console.log('result api', result.status); 
+    //console.log('result api', result.status); 
     
     if (result.status === 200) {
       // Update `is_sync` to 1 for synced complaints
