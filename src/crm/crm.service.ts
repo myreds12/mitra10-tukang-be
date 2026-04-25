@@ -374,13 +374,20 @@ export class CrmService {
     //console.log('complaintsevidence', complaintWithUser?.complaint_histories?.[0]?.id, complaintsevidence);
 
     // Payload kosong, nanti bisa diisi sesuai kebutuhan
+    const memberNumber = complaintWithUser?.orders?.members?.member_number ?? 'N/A';
+
+    const formattedNumber = memberNumber.startsWith('08')
+      ? '628' + memberNumber.slice(2)
+      : memberNumber;
+
+    console.log(formattedNumber);
     const payload = {
       namaLengkap: complaintWithUser?.orders?.members?.full_name ?? 'N/A',
-      mobile:  complaintWithUser?.orders?.members?.member_number ?? 'N/A',
+      mobile:  formattedNumber,
       email: complaintWithUser?.orders?.members?.email ?? 'N/A',
       detail: complaintWithUser?.description ?? 'N/A',
       receivedByInstallationWeb: complaintWithUser?.orders?.store?.email ?? 'N/A',
-      receivedBy: complaintWithUser?.orders?.store?.store_name ?? 'N/A',
+      receivedBy: complaintWithUser?.orders?.store?.email ?? 'N/A',
       melaluiMedia: complaintWithUser?.complaint_channels?.name ?? 'N/A',
       locationIdInstallationWeb: complaintWithUser?.orders?.store?.zip_code || 'N/A',
       documentPath: complaintsevidence?.evidence_location ?? 'N/A', // path file kosong
