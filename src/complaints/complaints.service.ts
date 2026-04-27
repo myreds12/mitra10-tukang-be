@@ -17,6 +17,7 @@ import * as path from "path";
 import { NotificationsService } from "src/notifications/notifications.service";
 import { moduleTypeNotification } from "src/notifications/dto/notification-module-type.enum";
 import { CrmService } from "src/crm/crm.service";
+import { Cron } from "@nestjs/schedule";
 
 @Injectable()
 export class ComplaintsService {
@@ -115,6 +116,26 @@ export class ComplaintsService {
 
   async resync(id: number) {
       return await this.crmService.syncAnswer(id);
+  }
+
+  @Cron("0 0 10,23 * * *")
+  async syncUnsyncedComplaints() {
+    const complaints = await this.dbService.complaints.findMany({
+      where: {
+        is_sync: 0,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    for (const complaint of complaints) {
+      try {
+        await this.crmService.syncAnswer(complaint.id);
+      } catch (error) {
+        console.error(`Failed to sync complaint ${complaint.id}`, error);
+      }
+    }
   }
 
 
