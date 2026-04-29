@@ -1,0 +1,7 @@
+export enum IncentiveStatus {
+  POTENTIAL_INCENTIVE = 1,
+  PENGAJUAN_INSENTIF = 2,
+  INSENTIF_DIBAYARKAN = 3,
+  DITOLAK = 4,
+  LOST_INCENTIVE = 5,
+}
