@@ -7,10 +7,13 @@ import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
 import { VendorModule } from 'src/vendor/vendor.module';
 import { BullModule } from '@nestjs/bull';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [WorkOrdersController],
-  providers: [WorkOrdersService],
+  providers: [WorkOrdersService, ViolationDetectorService, NotificationsService],
+  exports: [WorkOrdersService, ViolationDetectorService],
   imports: [
     OrderModule,
     VendorModule,

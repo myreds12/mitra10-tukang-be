@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -23,14 +24,18 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     private readonly dbService: PrismaService,
     private pdfService: PdfService,
     private notifService: NotificationsService,
     private configService: ConfigService,
+    private violationDetector: ViolationDetectorService,
 
   ) { }
   // Tambahkan sebagai private method di dalam OrderService
@@ -1632,6 +1637,7 @@ export class OrderService {
       const order = await this.findOne(id);
 
       if (!order) throw new BadRequestException('Order does not Exist!');
+
       const [STATUS] = await this.dbService.status.findMany({
         where: {
           id: status_id,
@@ -1640,6 +1646,7 @@ export class OrderService {
           category: 'desc',
         },
       });
+
       const orderData: Prisma.ordersUpdateInput = {
         status: {
           connect: {
@@ -1663,6 +1670,7 @@ export class OrderService {
           },
         }),
       ]);
+
       if (orders) {
         await this.notifService.create(
           { orders: orders },
@@ -1672,6 +1680,12 @@ export class OrderService {
           orders.id,
           orders.project_status_id,
         );
+
+        // =========================================
+        // VENDOR VIOLATION TRIGGER
+        // Check jika vendor mengkonfirmasi order (status berubah dari unconfirmed ke confirmed)
+        // =========================================
+        await this.checkOrderConfirmationViolation(order, STATUS, orders);
       }
 
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
@@ -1680,6 +1694,57 @@ export class OrderService {
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  /**
+   * Check pelanggaran konfirmasi order
+   * Jika status berubah dari unconfirmed ke confirmed, pelanggaran batal dicatat
+   */
+  private async checkOrderConfirmationViolation(
+    previousOrder: any,
+    newStatus: any,
+    updatedOrder: any,
+  ): Promise<void> {
+    try {
+      // Status yang mengindikasikan vendor sudah mengkonfirmasi
+      const confirmedStatuses = ['QUOTEIN', 'QUOTEOUT', 'WORKREQ', 'SURVEYREQ', 'TUKANGSURVEY', 'SURVEYDONE', 'WORKSTART', 'WORKEND'];
+
+      const isNowConfirmed = confirmedStatuses.some((s) =>
+        newStatus.category?.toUpperCase().includes(s),
+      );
+
+      // Jika vendor mengkonfirmasi order, tidak ada pelanggaran
+      if (isNowConfirmed && previousOrder?.vendor_id) {
+        this.logger.debug(
+          `Order ${updatedOrder.id} confirmed by vendor ${previousOrder.vendor_id}. No violation recorded.`,
+        );
+        return;
+      }
+
+      // Jika order punya vendor dan belum dikonfirmasi
+      if (updatedOrder.vendor_id && !isNowConfirmed) {
+        const createdAt = new Date(updatedOrder.created_at);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const daysDiff = Math.floor(
+          (today.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000),
+        );
+
+        // Catat pelanggaran jika sudah > 0 hari (Hari H)
+        if (daysDiff >= 0 && previousOrder?.vendor_id) {
+          await this.violationDetector.recordViolation(
+            'ORDER_NOT_CONFIRMED_H',
+            {
+              vendorId: updatedOrder.vendor_id,
+              orderId: updatedOrder.id,
+              description: `Order #${updatedOrder.project_number || updatedOrder.id} tidak dikonfirmasi pada Hari H`,
+            },
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking order confirmation violation', error);
     }
   }
 

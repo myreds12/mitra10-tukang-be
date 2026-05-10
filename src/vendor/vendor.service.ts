@@ -821,6 +821,9 @@ export class VendorService {
       const formattedUsername =
         updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
 
+      // Check if pic_vendor exists to prevent undefined error
+      const existingPicVendor = vendors.pic_vendor?.[0];
+
       const vendorData: Prisma.vendorUpdateInput = {
         type: updateVendorDto?.vendor_type,
         pkp_nominal: updateVendorDto?.pkp_nominal,
@@ -845,10 +848,10 @@ export class VendorService {
         updated_by: user_id,
         bank: updateVendorDto.bank_id
           ? {
-            connect: {
-              id: updateVendorDto.bank_id,
-            },
-          }
+              connect: {
+                id: updateVendorDto.bank_id,
+              },
+            }
           : undefined,
         vendor_service: {
           upsert: vendorServiceUpsert,
@@ -858,37 +861,42 @@ export class VendorService {
         },
         ...(vendorFiles
           ? {
-            vendor_document: {
-              createMany: {
-                data: vendorFiles.flat(),
+              vendor_document: {
+                createMany: {
+                  data: vendorFiles.flat(),
+                },
               },
-            },
-          }
+            }
           : undefined),
         vendor_store: {
           upsert: vendorStoreUpsert,
         },
-        pic_vendor: {
-          update: {
-            where: {
-              id: vendors.pic_vendor[0].id,
-            },
-            data: {
-              email_address: updateVendorDto?.email_address ?? undefined,
-              pic_name: updateVendorDto?.pic_name ?? undefined,
-              users: {
+        // Only update pic_vendor if it exists (prevents error for legacy vendors)
+        ...(existingPicVendor
+          ? {
+              pic_vendor: {
                 update: {
-                  username: updateVendorDto.default_username
-                    ? formattedUsername
-                    : vendors.pic_vendor[0].users.username,
-                  password: updateVendorDto.password
-                    ? await hashSync(updateVendorDto.password, 12)
-                    : undefined,
+                  where: {
+                    id: existingPicVendor.id,
+                  },
+                  data: {
+                    email_address: updateVendorDto?.email_address ?? undefined,
+                    pic_name: updateVendorDto?.pic_name ?? undefined,
+                    users: {
+                      update: {
+                        username: updateVendorDto.default_username
+                          ? formattedUsername
+                          : existingPicVendor.users?.username,
+                        password: updateVendorDto.password
+                          ? await hashSync(updateVendorDto.password, 12)
+                          : undefined,
+                      },
+                    },
+                  },
                 },
               },
-            },
-          },
-        },
+            }
+          : {}),
       };
 
       const [syncVendorStore, syncArea, syncService, syncDocument, vendor] =

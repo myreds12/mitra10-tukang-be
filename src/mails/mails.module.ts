@@ -13,7 +13,10 @@ import { extname } from 'path';
       name: 'email',
       defaultJobOptions: {
         attempts: 3,
-        delay: 20000,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
       },
     }),
     MulterModule.register({

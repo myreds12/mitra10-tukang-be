@@ -328,87 +328,92 @@ export class EmailProcessor {
     }
   }
 
-  @Process('send-credential-mail')
-  async sendCredentialMail(job: Job<{ username: string; password: string }>) {
+  // ================================
+  // VENDOR REGISTRATION EMAILS
+  // ================================
+
+  @Process('send-vendor-approval-mail')
+  async sendVendorApprovalMail(job: Job<{
+    to: string;
+    company_name: string;
+    token: string;
+    expires_hours: number;
+    username: string;
+    password: string;
+  }>) {
     try {
-      const { username, password } = job.data;
+      const { to, company_name, token, expires_hours, username, password } = job.data;
+
+      const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
+      const loginUrl = `${baseUrl}/login`;
+
       const data = {
+        company_name,
+        token,
+        expires_hours,
         username,
         password,
+        website_url: baseUrl,
+        login_url: loginUrl,
       };
-      const users = await this.dbService.users.findFirst({
-        where: {
-          username,
-          deleted_at: null,
-        },
-        include: {
-          employee: true,
-          pic_vendor: true,
-          store: true,
-          sales: {
-            include: {
-              store: true,
-            },
-          },
-          tukang: true,
-        },
-      });
-      if (!users) throw new NotFoundException('User  not found!');
 
-      const userEmail = users.username.includes('@') ? users.username : null;
-      const to =
-        userEmail ||
-        users.employee?.email ||
-        users.pic_vendor[0]?.email_address ||
-        users.tukang[0]?.email ||
-        users.store[0]?.email ||
-        'example@example.com';
-
-      let subject = 'Register Account';
-      const bcc: string[] = ['ecommerce@mitra10.com'];
-      if (users.employee) {
-        subject = 'Register Employee Account';
-      } else if (users.pic_vendor.length > 0) {
-        subject = 'Register Vendor Account';
-      } else if (users.store.length > 0) {
-        subject = 'Register Store Account';
-      } else if (users.sales) {
-        subject = 'Register Sales Account';
-        if (users.sales[0].store && users.sales[0].store.email) {
-          bcc.push(users.sales[0].store.email);
-        }
-      } else if (users.tukang.length > 0) {
-        subject = 'Register Tukang Account';
-      }
-
-      const uniqueBcc = [...new Set(bcc)];
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com', // sender address
-        subject, // Subject line
-        template: 'credential-mail',
+        from: 'instalasi@mitra10.com',
+        subject: 'Pendaftaran Vendor Disetujui - Mitra10',
+        template: 'vendor-approval',
         context: { data },
-        bcc: uniqueBcc.join(','),
       });
+
+      await this.maillogs(
+        0, // module_id not applicable for vendor registration
+        0, // email_message_id not applicable
+        { to, cc: '', bcc: '' },
+        1,
+        data,
+      );
     } catch (error) {
       this.logger.error(error);
-
-      // try {
-      //   if (error instanceof NotFoundException) {
-      //
-      //   } else if (error instanceof PrismaClientKnownRequestError) {
-      //
-      //   } else {
-      //     // job.retry();
-      //   }
-      // } catch (innerError) {
-      //   this.logger.error(
-      //     'An error occurred while handling the original error:s',
-      //     innerError,
-      //   );
-      // }
     }
   }
+
+  @Process('send-vendor-rejection-mail')
+  async sendVendorRejectionMail(job: Job<{
+    to: string;
+    company_name: string;
+    rejection_reason?: string;
+  }>) {
+    try {
+      const { to, company_name, rejection_reason } = job.data;
+      
+      const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
+
+      const data = {
+        company_name,
+        rejection_reason: rejection_reason || 'Tidak ada alasan spesifik diberikan.',
+        website_url: baseUrl,
+      };
+
+      await this.mailerService.sendMail({
+        to,
+        from: 'instalasi@mitra10.com',
+        subject: 'Pendaftaran Vendor Ditolak - Mitra10',
+        template: 'vendor-rejection',
+        context: { data },
+      });
+
+      await this.maillogs(
+        0,
+        0,
+        { to, cc: '', bcc: '' },
+        1,
+        data,
+      );
+    } catch (error) {
+      this.logger.error(error);
+    }
+  }
+
   @Process('send-quotation-mail')
   async sendQuotationMail(job: Job<QuotationMailInterface>) {
     try {
@@ -1306,7 +1311,7 @@ export class EmailProcessor {
           emailMessageId: emailMessageId,
           to: to.to,
           status,
-          data,
+          data: data ? JSON.stringify(data) : null,
         },
       });
 

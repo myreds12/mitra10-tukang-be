@@ -24,10 +24,16 @@ import {
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 
 @Controller('bank')
-@UseGuards(JwtAuthGuard)
 export class BankController {
   constructor(private readonly bankService: BankService) {}
 
+  // Public endpoint for vendor registration (no auth required)
+  @Get('public/list')
+  async findAllPublic() {
+    return await this.bankService.findAllPublic();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('next-code')
   async getCode() {
     try {
@@ -42,6 +48,7 @@ export class BankController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('/')
   async create(
     @Body() createBankDto: CreateBankDto,
@@ -51,16 +58,19 @@ export class BankController {
     return await this.bankService.create(createBankDto, user_id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(@Query() query: QueryParamsDto) {
     return await this.bankService.findAll(query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('/find/:id')
   async findOne(@Param('id') id: string) {
     return await this.bankService.findOne(+id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('/:id')
   async update(
     @Param('id') id: string,
@@ -71,6 +81,7 @@ export class BankController {
     return await this.bankService.update(+id, updateBankDto, user_id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete('/:id')
   async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
     const user_id = req.user.id;

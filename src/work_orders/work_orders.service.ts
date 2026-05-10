@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -12,15 +12,19 @@ import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { WorkOrderTukang } from './dto/wo-tukang.dto';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class WorkOrdersService {
+  private readonly logger = new Logger(WorkOrdersService.name);
+
   constructor(
     private readonly dbService: PrismaService,
     private orderService: OrderService,
     private vendorService: VendorService,
     @InjectQueue('email') private emailQueue: Queue,
-  ) { }
+    private violationDetector: ViolationDetectorService,
+  ) {}
 
   async create(
     dataDto: CreateWorkOrderDto,
@@ -1011,16 +1015,142 @@ export class WorkOrdersService {
 
       const work_order = await this.dbService.work_orders.findUnique({
         where: { id },
+        include: {
+          order: true,
+          work_order_evidences: true,
+        },
       });
+
       await this.orderService.setStatus(
         work_order.order_id,
         updateData.status_id,
         user,
       );
+
+      // =========================================
+      // VENDOR VIOLATION TRIGGERS
+      // =========================================
+      if (work_order?.order?.vendor_id) {
+        // Trigger #12: Check dokumentasi foto upload
+        await this.checkDocumentationViolation(work_order, updateData);
+
+        // Trigger #13: Check status update delay
+        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+      }
+
       return work_order;
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  /**
+   * Trigger #12: Check dokumentasi foto (blur/tidak lengkap)
+   */
+  private async checkDocumentationViolation(
+    workOrder: any,
+    updateData: any,
+  ): Promise<void> {
+    try {
+      // Jika vendor upload bukti foto
+      if (updateData.files && updateData.files.length > 0) {
+        // Catat sebagai dokumentasi uploaded - tidak ada pelanggaran
+        this.logger.debug(
+          `Documentation uploaded for WO ${workOrder.id}. No violation.`,
+        );
+        return;
+      }
+
+      // Jika tidak ada foto yang diupload dan status adalah final (WORKEND/SURVEYDONE)
+      const finalStatuses = ['WORKEND', 'SURVEYDONE', 'WORKENDSTEPONE', 'WORKENDSTEPTWO', 'WORKENDSTEPTHREE'];
+      const isFinalStatus = finalStatuses.some(
+        (s) => updateData.status_id && s.toUpperCase().includes(String(updateData.status_id)),
+      );
+
+      if (!updateData.files && isFinalStatus) {
+        // Check apakah sudah ada evidence
+        const existingEvidences = await this.dbService.work_order_evidences.findMany({
+          where: {
+            work_order_id: workOrder.id,
+            deleted_at: null,
+          },
+        });
+
+        if (existingEvidences.length === 0) {
+          // Tidak ada dokumentasi - catat pelanggaran
+          await this.violationDetector.recordViolation(
+            'DOC_NOT_UPLOADED',
+            {
+              vendorId: workOrder.order.vendor_id,
+              orderId: workOrder.order_id,
+              workOrderId: workOrder.id,
+              description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto before/after`,
+            },
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking documentation violation', error);
+    }
+  }
+
+  /**
+   * Trigger #13: Check delay status update
+   */
+  private async checkStatusUpdateViolation(
+    workOrder: any,
+    newStatus: any,
+  ): Promise<void> {
+    try {
+      // Jika vendor mengupdate status ke progres (WORKSTART, dll)
+      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK'];
+      const isProgress = progressStatuses.some(
+        (s) => newStatus?.category?.toUpperCase().includes(s),
+      );
+
+      if (isProgress) {
+        // Status diupdate - tidak ada pelanggaran delay
+        this.logger.debug(
+          `Status updated for WO ${workOrder.id}. No delay violation.`,
+        );
+        return;
+      }
+
+      // Check delay jika vendor tidak mengupdate status
+      const lastUpdate = await this.dbService.work_order_status.findFirst({
+        where: {
+          work_order_id: workOrder.id,
+          deleted_at: null,
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      if (!lastUpdate) return;
+
+      const now = new Date();
+      const lastUpdateDate = new Date(lastUpdate.created_at);
+      const daysDiff = Math.floor(
+        (now.getTime() - lastUpdateDate.getTime()) / (24 * 60 * 60 * 1000),
+      );
+
+      // Jika sudah lebih dari 1 hari tanpa update status
+      if (daysDiff >= 1) {
+        const violationCode =
+          daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H';
+
+        await this.violationDetector.recordViolation(
+          violationCode,
+          {
+            vendorId: workOrder.order.vendor_id,
+            orderId: workOrder.order_id,
+            workOrderId: workOrder.id,
+            description: `Work Order #${workOrder.id} tidak diupdate selama ${daysDiff} hari`,
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error checking status update violation', error);
     }
   }
 

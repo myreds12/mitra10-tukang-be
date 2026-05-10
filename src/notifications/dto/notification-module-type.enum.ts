@@ -8,7 +8,9 @@ export enum moduleTypeNotification {
     QUOTATION = "QUOTATION",
     INVOICE = "INVOICES",
     QUOTATION_PROMOTION = "QUOTATION_PROMOTION",
-    COMISSION_SALES_INCENTIVE = "COMISSION_SALES_INCENTIVE"
+    COMISSION_SALES_INCENTIVE = "COMISSION_SALES_INCENTIVE",
+    VENDOR_VIOLATION = "VENDOR_VIOLATION",
+    VENDOR_SP = "VENDOR_SP"
 }
 
 export const moduleRolesMapping: Record<moduleTypeNotification, string[]> = {
@@ -22,4 +24,6 @@ export const moduleRolesMapping: Record<moduleTypeNotification, string[]> = {
     [moduleTypeNotification.INCENTIVE]: ['Sales', 'Payroll'],
     [moduleTypeNotification.QUOTATION]: ['Owner Vendor', 'Admin Vendor', 'Store CS'],
     [moduleTypeNotification.INVOICE]: ['Owner Vendor', 'Admin Vendor'],
+    [moduleTypeNotification.VENDOR_VIOLATION]: ['Owner Vendor', 'Admin Vendor'],
+    [moduleTypeNotification.VENDOR_SP]: ['Owner Vendor', 'Admin Vendor'],
 };

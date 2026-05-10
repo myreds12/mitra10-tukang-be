@@ -8,10 +8,12 @@ import { OrderModule } from 'src/order/order.module';
 import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Module({
   controllers: [QuotationController],
-  providers: [QuotationService, StatusService, NotificationsService],
+  providers: [QuotationService, StatusService, NotificationsService, ViolationDetectorService],
+  exports: [QuotationService, ViolationDetectorService],
   imports: [
     OrderModule,
     MulterModule.register({

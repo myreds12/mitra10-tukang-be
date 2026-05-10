@@ -23,7 +23,7 @@ async function bootstrap() {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, swaggerDocument);
 
-  app.useStaticAssets(join(__dirname, '../../', 'uploads'), {
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/public/',
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));

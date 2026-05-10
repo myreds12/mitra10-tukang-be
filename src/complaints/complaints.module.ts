@@ -7,10 +7,12 @@ import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { CrmModule } from 'src/crm/crm.module';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Module({
   controllers: [ComplaintsController],
-  providers: [ComplaintsService, NotificationsService],
+  providers: [ComplaintsService, NotificationsService, ViolationDetectorService],
+  exports: [ComplaintsService, ViolationDetectorService],
   imports: [
     OrderModule,
     CrmModule,

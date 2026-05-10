@@ -23,6 +23,9 @@ model bank {
   sales      sales[]
   vendor     vendor[]
   manager    manager[]
+
+  // Vendor Registration
+  vendor_registrations vendor_registration[]
 }
 
 model area {
@@ -337,6 +340,9 @@ model users {
   tukang        tukang[]
   pic_vendor    pic_vendor[]
   notifications notifications[]
+
+  // Vendor Registration
+  registration_tokens vendor_registration_token[]
 }
 
 model sales {
@@ -626,6 +632,11 @@ model vendor {
   vendor_store    vendor_store[]
   pic_vendor      pic_vendor[]
 
+  // Vendor SP System
+  vendor_violation_logs vendor_violation_log[]
+  sp_records           vendor_sp[]
+  reactivation_logs    vendor_reactivation_log[]
+
   bank bank? @relation(fields: [bank_id], references: [id])
 }
 
@@ -786,6 +797,9 @@ model orders {
   reschedule      reschedule[]
   invoice_details invoice_details[]
   order_follow_up order_follow_up[]
+
+  // Vendor SP System
+  vendor_violation_logs vendor_violation_log[]
 }
 
 model order_follow_up {
@@ -1949,4 +1963,222 @@ model manager_incentive {
 
   incentive                 setting_incentive          @relation(fields: [incentive_id], references: [id])
   manager                   manager                    @relation(fields: [manager_id], references: [id])
+}
+
+// ============================================
+// VENDOR SP (SURAT PERINGATAN) & VIOLATION MODELS
+// ============================================
+
+// Jenis-jenis pelanggaran yang bisa dilakukan vendor
+model vendor_violation_type {
+  id          Int      @id @default(autoincrement())
+  code        String   @db.VarChar(50)  // Contoh: ORDER_NOT_CONFIRMED_H, RESCHEDULE_NOT_UPDATED
+  category    String   @db.VarChar(100)  // KONFIRMASI_ORDER, RESCHEDULE, REFUND, LAINNYA
+  name        String   @db.VarChar(255)  // Nama pelanggaran
+  description String?  @db.Text          // Deskripsi detail
+  point       Int      @default(1)        // Poin per kejadian
+  is_active   Boolean  @default(true)
+
+  created_at  DateTime @default(now()) @db.DateTime()
+  updated_at  DateTime? @db.DateTime()
+  deleted_at  DateTime? @db.DateTime()
+
+  created_by  Int?
+  updated_by  Int?
+  deleted_by  Int?
+
+  vendor_violation_log vendor_violation_log[]
+}
+
+// Log pelanggaran per vendor per quarter
+model vendor_violation_log {
+  id              Int      @id @default(autoincrement())
+  vendor_id       Int
+  violation_type_id Int
+  order_id        Int?                         // Order yang terkait (nullable jika pelanggaran umum)
+
+  // Quarter & Year tracking
+  quarter         Int      // 1, 2, 3, atau 4
+  year            Int
+
+  // Detail pelanggaran
+  description     String?  @db.Text
+  evidence_path   String?  @db.VarChar(500)   // Path ke bukti pelanggaran
+  is_active       Boolean  @default(true)
+
+  created_at      DateTime @default(now()) @db.DateTime()
+  updated_at      DateTime? @db.DateTime()
+  deleted_at      DateTime? @db.DateTime()
+
+  created_by      Int?
+  updated_by      Int?
+  deleted_by      Int?
+
+  vendor          vendor                 @relation(fields: [vendor_id], references: [id])
+  violation_type  vendor_violation_type @relation(fields: [violation_type_id], references: [id])
+  orders         orders?                @relation(fields: [order_id], references: [id])
+
+  // Reverse relation for SP details
+  sp_details     vendor_sp_detail[]
+}
+
+// Surat Peringatan (SP) Vendor
+model vendor_sp {
+  id              Int      @id @default(autoincrement())
+  vendor_id       Int
+
+  sp_level        Int      // 1 = SP1, 2 = SP2, 3 = SP3
+  total_point     Int      // Total poin saat SP diterbitkan
+  quarter         Int      // Quarter saat SP diterbitkan
+  year            Int
+
+  // Durasi SP (default 3 bulan / 90 hari)
+  start_date      DateTime @db.DateTime()
+  end_date        DateTime @db.DateTime()
+
+  // Status SP
+  status          Int      @default(1)  // 1 = AKTIF, 2 = SELESAI, 3 = EXTENDED
+  notes           String?  @db.Text
+
+  // Pengurangan alokasi order
+  allocation_reduction Int?  // Persentase pengurangan: 25, 50, 75, 100
+
+  created_at      DateTime @default(now()) @db.DateTime()
+  updated_at      DateTime? @db.DateTime()
+  deleted_at      DateTime? @db.DateTime()
+
+  created_by      Int?
+  updated_by      Int?
+  deleted_by      Int?
+
+  vendor          vendor             @relation(fields: [vendor_id], references: [id])
+  sp_details      vendor_sp_detail[]
+
+  @@index([vendor_id])
+  @@index([sp_level])
+  @@index([status])
+  @@index([created_at])
+}
+
+// Detail pelanggaran dalam satu SP
+model vendor_sp_detail {
+  id              Int      @id @default(autoincrement())
+  vendor_sp_id    Int
+  violation_log_id Int
+
+  created_at      DateTime @default(now()) @db.DateTime()
+  created_by      Int?
+
+  vendor_sp        vendor_sp          @relation(fields: [vendor_sp_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  violation_log    vendor_violation_log @relation(fields: [violation_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// Log reaktivasi vendor SP3
+model vendor_reactivation_log {
+  id              Int      @id @default(autoincrement())
+  vendor_id       Int
+  previous_sp_id  Int?     // SP3 sebelumnya
+
+  reason          String   @db.Text           // Alasan reaktivasi
+  approved_by     Int      // User ID admin HO yang approve
+  status          Int      @default(1)  // 1 = PENDING, 2 = APPROVED, 3 = REJECTED
+
+  notes           String?  @db.Text
+
+  created_at      DateTime @default(now()) @db.DateTime()
+  updated_at      DateTime? @db.DateTime()
+
+  vendor          vendor   @relation(fields: [vendor_id], references: [id])
+}
+
+// ============================================
+// VENDOR REGISTRATION MODELS
+// ============================================
+
+// Pendaftaran vendor baru (pending approval)
+model vendor_registration {
+  id              Int      @id @default(autoincrement())
+
+  // Data perusahaan
+  company_name    String   @db.VarChar(200)
+  address         String   @db.VarChar(500)
+  phone_number    String   @db.VarChar(30)
+  email_address   String   @db.VarChar(100)
+
+  // Data PIC
+  pic_name        String   @db.VarChar(200)
+  pic_email       String   @db.VarChar(100)
+  pic_phone       String   @db.VarChar(30)
+
+  // Data opsional
+  ktp_number      String?  @db.VarChar(50)
+  npwp_number     String?  @db.VarChar(50)
+  bank_id         Int?
+
+  // Service & Area yang dilayani
+  service_types   String?  @db.VarChar(500)  // JSON array of service type IDs
+  areas           String?  @db.VarChar(500)  // JSON array of area IDs
+
+  // Dokumen - stored as JSON
+  documents       String?  @db.Text          // JSON array of document paths
+
+  // Photo fields for vendor documents
+  vendor_photo          String?  @db.VarChar(500)  // Foto vendor/perusahaan
+  ktp_photo             String?  @db.VarChar(500)  // Foto KTP
+  npwp_photo            String?  @db.VarChar(500)  // Foto NPWP
+  compro_photo          String?  @db.VarChar(500)  // Foto COMPRO
+  surat_permohonan_photo String?  @db.VarChar(500)  // Foto Surat Permohonan
+  pks_photo            String?  @db.VarChar(500)  // Foto PKS
+  siup_photo            String?  @db.VarChar(500)  // Foto SIUP
+
+  // Status pendaftaran
+  status          Int      @default(1)  // 1 = PENDING, 2 = APPROVED, 3 = REJECTED
+  rejection_reason String? @db.Text          // Alasan penolakan (jika ditolak)
+  reviewed_by     Int?                         // User ID admin HO yang mereview
+  reviewed_at     DateTime? @db.DateTime()
+
+  notes           String?  @db.Text
+
+  // Tukang data - temporary JSON storage during registration (before approved)
+  tukang_data     String?  @db.NVarChar(Max)  // JSON array of tukang objects
+
+  created_at      DateTime @default(now()) @db.DateTime()
+  updated_at      DateTime? @db.DateTime()
+  deleted_at      DateTime? @db.DateTime()
+
+  created_by      Int?
+  updated_by      Int?
+  deleted_by      Int?
+
+  bank            bank?    @relation(fields: [bank_id], references: [id])
+  registration_token vendor_registration_token?
+
+  @@index([status])
+  @@index([email_address])
+  @@index([created_at])
+}
+
+// Token untuk create user setelah approval
+model vendor_registration_token {
+  id              Int      @id @default(autoincrement())
+  registration_id Int      @unique
+  token           String   @db.VarChar(255) @unique
+
+  // Token expiry (default 48 jam)
+  expires_at      DateTime @db.DateTime()
+
+  // Status token
+  status          Int      @default(1)  // 1 = ACTIVE, 2 = USED, 3 = EXPIRED
+
+  // User yang dibuat dari token ini
+  user_id         Int?
+
+  created_at      DateTime @default(now()) @db.DateTime()
+  updated_at      DateTime? @db.DateTime()
+
+  registration    vendor_registration @relation(fields: [registration_id], references: [id])
+  user            users?              @relation(fields: [user_id], references: [id])
+
+  @@index([token])
+  @@index([status])
 }

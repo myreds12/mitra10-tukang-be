@@ -6,7 +6,9 @@ import { Prisma } from '@prisma/client';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { UpdateCsiDto } from 'src/csi/dto/update-csi.dto';
 import { ConfigService } from '@nestjs/config';
+import { GoogleScriptApiService } from './google-script-api.service';
 import { CRM_TYPE } from 'src/complaints/dto/crm_type.enum';
+import * as path from 'path';
 
 @Injectable()
 export class CrmService {
@@ -14,6 +16,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
+    private readonly googleScriptApiService: GoogleScriptApiService,
   ) {}
 
   async create(createCsiDto: CreateCsiDto) {
@@ -177,13 +180,19 @@ export class CrmService {
     return parsedData;
   }
 
-  async syncAnswer(complaint_id: number) {
-    const spreadsheetId = this.configService.get<string>('SPREADSHEET_CRM');
+  // async syncAnswer(complaint_id: number) {
+  //   const spreadsheetId = this.configService.get<string>('SPREADSHEET_CRM');
 
-    await this.storeAnswer(spreadsheetId, complaint_id);
+  //   await this.storeAnswer(spreadsheetId, complaint_id);
+  // }
+  async syncAnswer(complaint_id: number) {
+    //const spreadsheetId = this.configService.get<string>('SPREADSHEET_CRM');
+
+    await this.storeAnswer(complaint_id);
   }
 
-  async storeAnswer(spreadsheetId: string, complaint_id: number) {
+  //async storeAnswer(spreadsheetId: string, complaint_id: number) {
+  async storeAnswer(complaint_id: number) {
     const spreadsheetInstances =
       this.googleSheetConnectorService.getGoogleSheetConnect();
 
@@ -211,6 +220,11 @@ export class CrmService {
           },
         },
         complaint_channels: true,
+        complaint_histories: {
+          include: {
+            complaint_evidence: true,
+          },
+        },
         status: true,
       },
     });
@@ -245,8 +259,9 @@ export class CrmService {
       deleted_by: userMap[complaints.deleted_by] || null,
     };
 
-    // console.log('KOMPLAIN USER', complaintWithUser);
+    //console.log('KOMPLAIN USER', complaintWithUser);
 
+    /* ga pelru cek karena langsung
     const sheetHeader = await this.getSpreadsheetHeader(spreadsheetId);
 
     // console.log('Sheet Header:', sheetHeader);
@@ -347,18 +362,80 @@ export class CrmService {
         values: values,
       },
     });
+    */
 
     // console.log(`${values.length} rows sent to the spreadsheet.`);
 
-    // Update `is_sync` to 1 for synced complaints
-    const updateComplaint = await this.dbService.complaints.updateMany({
-      where: {
-        id: complaint_id,
-      },
-      data: {
-        is_sync: 1,
-      },
-    });
+    const complaintsevidence =
+      await this.dbService.complaint_evidence.findFirst({
+        where: {
+          complaint_history_id: complaintWithUser?.complaint_histories?.[0]?.id,
+        },
+      });
+
+    // DEBUG
+    console.log('history_id:', complaintWithUser?.complaint_histories?.[0]?.id);
+    console.log('complaintsevidence:', complaintsevidence);
+    console.log(
+      'documentPath:',
+      complaintsevidence?.evidence_location
+        ? path.join(
+            process.cwd(),
+            'public',
+            'complaints',
+            complaintsevidence.evidence_location,
+          )
+        : 'N/A',
+    );
+
+    // Payload kosong, nanti bisa diisi sesuai kebutuhan
+    const memberNumber =
+      complaintWithUser.orders?.members?.phone_number ??
+      complaintWithUser.orders?.members?.whatsapp_number ??
+      'N/A';
+
+    const formattedNumber = memberNumber.startsWith('08')
+      ? '628' + memberNumber.slice(2)
+      : memberNumber;
+
+    //console.log(formattedNumber);
+    const payload = {
+      namaLengkap: complaintWithUser?.orders?.members?.full_name ?? 'N/A',
+      mobile: formattedNumber,
+      email: complaintWithUser?.orders?.members?.email ?? 'N/A',
+      detail: complaintWithUser?.description ?? 'N/A',
+      receivedByInstallationWeb:
+        complaintWithUser?.orders?.store?.email ?? 'N/A',
+      receivedBy: complaintWithUser?.pic_name ?? 'N/A',
+      melaluiMedia: complaintWithUser?.complaint_channels?.name ?? 'N/A',
+      locationIdInstallationWeb:
+        complaintWithUser?.orders?.store?.zip_code ?? 'N/A',
+      documentPath: complaintsevidence?.evidence_location
+        ? path.join(
+            process.cwd(),
+            'uploads',
+            'complaints',
+            complaintsevidence.evidence_location,
+          )
+        : 'N/A',
+      variable: 'Installasi yang dilakukan oleh vendor',
+    };
+    //console.log('Payload for Google Script API:', payload);
+    var result = await this.googleScriptApiService.sendFormWithFile(payload);
+
+    //console.log('result api', result.status);
+
+    if (result.status === 200) {
+      // Update `is_sync` to 1 for synced complaints
+      const updateComplaint = await this.dbService.complaints.updateMany({
+        where: {
+          id: complaint_id,
+        },
+        data: {
+          is_sync: 1,
+        },
+      });
+    }
 
     // console.log('Update Complaint', updateComplaint);
     // console.log('Updated is_sync to 1 for all synced complaints.');

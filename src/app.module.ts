@@ -53,6 +53,11 @@ import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comis
 import { ComissionStoreIncentiveModule } from './comission_store_incentive/comission_store_incentive.module';
 import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 import { CrmModule } from './crm/crm.module';
+import { VendorViolationModule } from './vendor-violation/vendor-violation.module';
+import { VendorSpModule } from './vendor-sp/vendor-sp.module';
+import { VendorRegistrationModule } from './vendor-registration/vendor-registration.module';
+import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
+import { ViolationDetectorService } from './common/services/violation-detector.service';
 
 @Module({
   imports: [
@@ -132,7 +137,7 @@ import { CrmModule } from './crm/crm.module';
       }),
     }),
     BrandsModule,
-    CsiModule,
+    // CsiModule, // Disabled - requires Google Sheets credentials
     StoreGroupModule,
     MailsModule,
     ConfigModule.forRoot({
@@ -159,12 +164,16 @@ import { CrmModule } from './crm/crm.module';
     ComissionSalesIncentiveModule,
     ComissionStoreIncentiveModule,
     QuotationPromotionModule,
-    CrmModule,
+    // CrmModule, // Disabled - requires Google Sheets credentials
     //manager
     ManagerModule,
+    // Vendor SP & Violation System
+    VendorViolationModule,
+    VendorSpModule,
+    VendorRegistrationModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, VendorViolationScheduler, ViolationDetectorService],
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
 })

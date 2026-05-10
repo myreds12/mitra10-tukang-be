@@ -4,10 +4,11 @@ import { CrmController } from './crm.controller';
 import { GoogleSheetModule } from 'nest-google-sheet-connector';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
+import { GoogleScriptApiService } from './google-script-api.service';
 
 @Module({
   controllers: [CrmController],
-  providers: [CrmService, ConfigService],
+  providers: [CrmService, ConfigService, GoogleScriptApiService],
   exports: [CrmService],
   imports: [
     HttpModule,
@@ -19,8 +20,7 @@ import { HttpModule } from '@nestjs/axios';
         project_id: configService.get<string>('CRM_PROJECT_ID'),
         private_key_id: configService.get<string>('CRM_PRIVATE_KEY_ID'),
         private_key: configService
-          .get<string>('CRM_PRIVATE_KEY')
-          .replace(/\\n/g, '\n'),
+          .get<string>('CRM_PRIVATE_KEY'),
         client_email: configService.get<string>('CRM_CLIENT_EMAIL'),
         client_id: configService.get<string>('CRM_CLIENT_ID'),
         auth_uri: configService.get<string>('CRM_AUTH_URI'),
