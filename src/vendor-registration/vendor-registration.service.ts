@@ -14,12 +14,14 @@ import {
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
   CreateUserFromTokenDto,
+  TukangRegistrationDto,
 } from './dto/vendor-registration.dto';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { hashSync } from 'bcrypt';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { RegistrationStatus } from './enums/registration-status.enum';
 
 @Injectable()
 export class VendorRegistrationService {
@@ -50,6 +52,92 @@ export class VendorRegistrationService {
     }
   }
 
+  private parseTukangData(data?: TukangRegistrationDto[] | string | null): TukangRegistrationDto[] {
+    if (!data) return [];
+
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    if (!Array.isArray(parsed)) {
+      throw new BadRequestException('Data tukang harus berupa array.');
+    }
+
+    parsed.forEach((tukang, index) => {
+      const fullName = tukang.full_name || (tukang as any).nama;
+      const phoneNumber = tukang.phone_number || (tukang as any).no_hp;
+      const ktpNumber = tukang.ktp_number || (tukang as any).no_ktp;
+      const skill = tukang.skill || (tukang as any).keahlian || (tukang as any).service_type_id;
+
+      if (!fullName || !phoneNumber || !ktpNumber || !skill) {
+        throw new BadRequestException(
+          `Data tukang ke-${index + 1} wajib berisi nama, no_hp, no_ktp, dan skill.`,
+        );
+      }
+    });
+
+    return parsed;
+  }
+
+  private formatRegistration(registration: any) {
+    const serviceTypes = registration.service_types
+      ? JSON.parse(registration.service_types)
+      : [];
+    const areas = registration.areas ? JSON.parse(registration.areas) : [];
+    const tukangData = registration.tukang_data
+      ? this.parseTukangData(registration.tukang_data)
+      : [];
+
+    return {
+      ...registration,
+      service_types: serviceTypes,
+      areas,
+      tukang_data: tukangData,
+      tukang: tukangData,
+    };
+  }
+
+  private async assertAdminHO(userId?: number) {
+    if (!userId) {
+      throw new ForbiddenException('Akses hanya untuk Admin HO.');
+    }
+
+    const user = await this.dbService.users.findFirst({
+      where: {
+        id: userId,
+        deleted_at: null,
+      },
+      include: {
+        roles: true,
+      },
+    });
+
+    const roleName = user?.roles?.name?.toLowerCase();
+    if (!roleName || !['admin ho', 'super user'].includes(roleName)) {
+      throw new ForbiddenException('Akses hanya untuk Admin HO.');
+    }
+  }
+
+  private async createHistory(
+    tx: Prisma.TransactionClient,
+    data: {
+      vendor_registration_id: number;
+      from_status?: number | null;
+      to_status: number;
+      action: string;
+      notes?: string | null;
+      actor_id?: number | null;
+    },
+  ) {
+    await (tx as any).vendor_registration_history.create({
+      data: {
+        vendor_registration_id: data.vendor_registration_id,
+        from_status: data.from_status ?? null,
+        to_status: data.to_status,
+        action: data.action,
+        notes: data.notes ?? null,
+        actor_id: data.actor_id ?? null,
+      },
+    });
+  }
+
   async registerVendor(dto: RegisterVendorDto, files?: any) {
     try {
       // Check if email already registered
@@ -57,7 +145,13 @@ export class VendorRegistrationService {
         where: {
           email_address: dto.email_address,
           deleted_at: null,
-          status: { in: [1, 2] }, // PENDING or APPROVED
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
         },
       });
 
@@ -127,33 +221,46 @@ export class VendorRegistrationService {
           : JSON.stringify(dto.areas)
         : null;
 
-      const registration = await this.dbService.vendor_registration.create({
-        data: {
-          company_name: dto.company_name,
-          address: dto.address,
-          phone_number: dto.phone_number,
-          email_address: dto.email_address,
-          pic_name: dto.pic_name,
-          pic_email: dto.pic_email,
-          pic_phone: dto.pic_phone,
-          ktp_number: dto.ktp_number,
-          npwp_number: dto.npwp_number,
-          bank_id: dto.bank_id,
-          service_types: serviceTypesData,
-          areas: areasData,
-          notes: dto.notes,
-          status: 1, // PENDING
-          // Photo paths
-          vendor_photo: vendorPhotoPath || null,
-          ktp_photo: ktpPhotoPath || null,
-          npwp_photo: npwpPhotoPath || null,
-          compro_photo: comproPhotoPath || null,
-          surat_permohonan_photo: suratPermohonanPhotoPath || null,
-          pks_photo: pksPhotoPath || null,
-          siup_photo: siupPhotoPath || null,
-          // Tukang data - JSON array of tukang objects
-          tukang_data: dto.tukang_data || null,
-        },
+      const tukangData = this.parseTukangData(dto.tukang_data);
+      const registration = await this.dbService.$transaction(async (tx) => {
+        const createdRegistration = await tx.vendor_registration.create({
+          data: {
+            company_name: dto.company_name,
+            address: dto.address,
+            phone_number: dto.phone_number,
+            email_address: dto.email_address,
+            pic_name: dto.pic_name,
+            pic_email: dto.pic_email,
+            pic_phone: dto.pic_phone,
+            ktp_number: dto.ktp_number,
+            npwp_number: dto.npwp_number,
+            bank_id: dto.bank_id,
+            service_types: serviceTypesData,
+            areas: areasData,
+            notes: dto.notes,
+            status: RegistrationStatus.MENUNGGU_APPROVE,
+            // Photo paths
+            vendor_photo: vendorPhotoPath || null,
+            ktp_photo: ktpPhotoPath || null,
+            npwp_photo: npwpPhotoPath || null,
+            compro_photo: comproPhotoPath || null,
+            surat_permohonan_photo: suratPermohonanPhotoPath || null,
+            pks_photo: pksPhotoPath || null,
+            siup_photo: siupPhotoPath || null,
+            // Tukang data is stored temporarily until registration approval.
+            tukang_data: tukangData.length ? JSON.stringify(tukangData) : null,
+          },
+        });
+
+        await this.createHistory(tx, {
+          vendor_registration_id: createdRegistration.id,
+          from_status: null,
+          to_status: RegistrationStatus.MENUNGGU_APPROVE,
+          action: 'REGISTER_SUBMITTED',
+          notes: 'Registrasi vendor berhasil disubmit.',
+        });
+
+        return createdRegistration;
       });
 
       return {
@@ -169,8 +276,10 @@ export class VendorRegistrationService {
   // ADMIN: LIST REGISTRATIONS
   // ================================
 
-  async findAllRegistrations(query: QueryVendorRegistrationDto) {
+  async findAllRegistrations(query: QueryVendorRegistrationDto, userId?: number) {
     try {
+      await this.assertAdminHO(userId);
+
       const { page = 1, take = 10, status, search, date_from, date_to } = query;
       const skip = page * take - take;
 
@@ -211,11 +320,9 @@ export class VendorRegistrationService {
       ]);
 
       // Parse JSON fields
-      const formattedRegistrations = registrations.map((reg) => ({
-        ...reg,
-        service_types: reg.service_types ? JSON.parse(reg.service_types) : [],
-        areas: reg.areas ? JSON.parse(reg.areas) : [],
-      }));
+      const formattedRegistrations = registrations.map((reg) =>
+        this.formatRegistration(reg),
+      );
 
       return {
         data: formattedRegistrations,
@@ -226,8 +333,10 @@ export class VendorRegistrationService {
     }
   }
 
-  async findOneRegistration(id: number) {
+  async findOneRegistration(id: number, userId?: number) {
     try {
+      await this.assertAdminHO(userId);
+
       const registration = await this.dbService.vendor_registration.findFirst({
         where: { id, deleted_at: null },
         include: {
@@ -239,12 +348,43 @@ export class VendorRegistrationService {
         throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
       }
 
-      return {
+      const histories = await (this.dbService as any).vendor_registration_history.findMany({
+        where: { vendor_registration_id: id },
+        orderBy: { created_at: 'asc' },
+      });
+
+      return this.formatRegistration({
         ...registration,
-        service_types: registration.service_types
-          ? JSON.parse(registration.service_types)
-          : [],
-        areas: registration.areas ? JSON.parse(registration.areas) : [],
+        histories,
+        history: histories,
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getRegistrationHistory(id: number, userId?: number) {
+    try {
+      await this.assertAdminHO(userId);
+
+      const registration = await this.dbService.vendor_registration.findFirst({
+        where: { id, deleted_at: null },
+      });
+
+      if (!registration) {
+        throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
+      }
+
+      const histories = await (this.dbService as any).vendor_registration_history.findMany({
+        where: { vendor_registration_id: id },
+        orderBy: { created_at: 'asc' },
+      });
+
+      return {
+        registration_id: id,
+        company_name: registration.company_name,
+        current_status: registration.status,
+        data: histories,
       };
     } catch (error) {
       throw error;
@@ -261,32 +401,58 @@ export class VendorRegistrationService {
     userId: number,
   ) {
     try {
+      await this.assertAdminHO(userId);
+
       return await this.dbService.$transaction(async (tx) => {
         const registration = await tx.vendor_registration.findFirst({
-          where: { id, deleted_at: null, status: 1 }, // Must be PENDING
+          where: { id, deleted_at: null },
         });
 
         if (!registration) {
           throw new NotFoundException(
-            'Pendaftaran tidak ditemukan atau sudah diproses.',
+            'Pendaftaran tidak ditemukan.',
           );
         }
 
-        // Update registration status to APPROVED
-        await tx.vendor_registration.update({
-          where: { id },
-          data: {
-            status: 2, // APPROVED
-            reviewed_by: userId,
-            reviewed_at: new Date(),
-            notes: dto.notes,
-          },
-        });
+        if (registration.status === RegistrationStatus.MENUNGGU_APPROVE) {
+          await tx.vendor_registration.update({
+            where: { id },
+            data: {
+              status: RegistrationStatus.PROSES_PITCHING,
+              reviewed_by: userId,
+              reviewed_at: new Date(),
+              notes: dto.notes,
+              updated_by: userId,
+              updated_at: new Date(),
+            },
+          });
+
+          await this.createHistory(tx, {
+            vendor_registration_id: id,
+            from_status: RegistrationStatus.MENUNGGU_APPROVE,
+            to_status: RegistrationStatus.PROSES_PITCHING,
+            action: 'START_PITCHING',
+            notes: dto.notes || 'Admin HO menyetujui registrasi untuk masuk proses pitching.',
+            actor_id: userId,
+          });
+
+          return {
+            message: 'Pendaftaran berhasil masuk proses pitching.',
+            registration_id: id,
+            status: RegistrationStatus.PROSES_PITCHING,
+          };
+        }
+
+        if (registration.status !== RegistrationStatus.PROSES_PITCHING) {
+          throw new BadRequestException(
+            'Pendaftaran hanya bisa disetujui dari status Menunggu Approve atau Proses Pitching.',
+          );
+        }
 
         // Generate credentials
         const slug = registration.company_name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
         const generatedUsername = `vendor_${id}_${slug}`;
-        const randomStr = Math.random().toString(36).slice(-4).toUpperCase();
+        const randomStr = randomBytes(4).toString('hex').toUpperCase();
         const generatedPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
         const hashedPassword = hashSync(generatedPassword, 12);
 
@@ -298,12 +464,51 @@ export class VendorRegistrationService {
           throw new Error('Role vendor owner tidak ditemukan.');
         }
 
+        await tx.vendor_registration.update({
+          where: { id },
+          data: {
+            status: RegistrationStatus.DISETUJUI,
+            reviewed_by: userId,
+            reviewed_at: new Date(),
+            notes: dto.notes,
+            updated_by: userId,
+            updated_at: new Date(),
+          },
+        });
+
+        await this.createHistory(tx, {
+          vendor_registration_id: id,
+          from_status: RegistrationStatus.PROSES_PITCHING,
+          to_status: RegistrationStatus.DISETUJUI,
+          action: 'FINAL_APPROVED',
+          notes: dto.notes || 'Admin HO menyetujui final setelah proses pitching.',
+          actor_id: userId,
+        });
+
         // 1. Create user immediately with bcrypt-hashed password
         const user = await tx.users.create({
           data: {
             username: generatedUsername,
             password: hashedPassword,
             role_id: role.id,
+          },
+        });
+
+        const credentialToken = randomBytes(32).toString('hex');
+        const credentialExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+        await tx.vendor_registration_token.upsert({
+          where: { registration_id: id },
+          create: {
+            registration_id: id,
+            token: credentialToken,
+            expires_at: credentialExpiresAt,
+            user_id: user.id,
+          },
+          update: {
+            token: credentialToken,
+            expires_at: credentialExpiresAt,
+            status: 1,
+            user_id: user.id,
           },
         });
 
@@ -337,20 +542,37 @@ export class VendorRegistrationService {
         let tukangCount = 0;
         if (registration.tukang_data) {
           try {
-            const tukangArray = JSON.parse(registration.tukang_data);
+            const tukangArray = this.parseTukangData(registration.tukang_data);
             if (Array.isArray(tukangArray) && tukangArray.length > 0) {
               for (const [idx, tukang] of tukangArray.entries()) {
-                await tx.tukang.create({
+                const fullName = tukang.full_name || (tukang as any).nama;
+                const phoneNumber = tukang.phone_number || (tukang as any).no_hp;
+                const ktpNumber = tukang.ktp_number || (tukang as any).no_ktp;
+                const skill = tukang.skill || (tukang as any).keahlian || (tukang as any).service_type_id;
+                const serviceTypeId = Number(skill);
+
+                const createdTukang = await tx.tukang.create({
                   data: {
-                    full_name: tukang.full_name || '',
-                    phone_number: tukang.phone_number || '',
-                    ktp_number: tukang.ktp_number || '',
+                    full_name: fullName,
+                    address: registration.address,
+                    phone_number: phoneNumber,
+                    ktp_number: ktpNumber,
                     email: `${generatedUsername}_tukang${idx + 1}@temp.local`,
                     bod: new Date('1990-01-01'),
                     created_by: user.id,
                     vendor_id: vendor.id,
                   },
-                } as any);
+                });
+
+                if (Number.isInteger(serviceTypeId)) {
+                  await tx.tukang_service.create({
+                    data: {
+                      tukang_id: createdTukang.id,
+                      service_type_id: serviceTypeId,
+                      created_by: user.id,
+                    },
+                  });
+                }
                 tukangCount++;
               }
             }
@@ -365,7 +587,7 @@ export class VendorRegistrationService {
           {
             to: registration.pic_email,
             company_name: registration.company_name,
-            token: '',
+            token: credentialToken,
             expires_hours: 48,
             username: generatedUsername,
             password: generatedPassword,
@@ -376,6 +598,7 @@ export class VendorRegistrationService {
         return {
           message: 'Pendaftaran berhasil disetujui. Vendor dapat login dengan kredensial yang dikirim via email.',
           registration_id: id,
+          status: RegistrationStatus.DISETUJUI,
           vendor_username: generatedUsername,
           tukang_count: tukangCount,
         };
@@ -395,26 +618,51 @@ export class VendorRegistrationService {
     userId: number,
   ) {
     try {
-      const registration = await this.dbService.vendor_registration.findFirst({
-        where: { id, deleted_at: null, status: 1 }, // Must be PENDING
-      });
+      await this.assertAdminHO(userId);
 
-      if (!registration) {
-        throw new NotFoundException(
-          'Pendaftaran tidak ditemukan atau sudah diproses.',
-        );
-      }
+      const registration = await this.dbService.$transaction(async (tx) => {
+        const currentRegistration = await tx.vendor_registration.findFirst({
+          where: {
+            id,
+            deleted_at: null,
+            status: {
+              in: [
+                RegistrationStatus.MENUNGGU_APPROVE,
+                RegistrationStatus.PROSES_PITCHING,
+              ],
+            },
+          },
+        });
 
-      // Update registration status
-      await this.dbService.vendor_registration.update({
-        where: { id },
-        data: {
-          status: 3, // REJECTED
-          rejection_reason: dto.rejection_reason,
-          reviewed_by: userId,
-          reviewed_at: new Date(),
-          notes: dto.notes,
-        },
+        if (!currentRegistration) {
+          throw new NotFoundException(
+            'Pendaftaran tidak ditemukan atau sudah diproses.',
+          );
+        }
+
+        await tx.vendor_registration.update({
+          where: { id },
+          data: {
+            status: RegistrationStatus.DITOLAK,
+            rejection_reason: dto.rejection_reason,
+            reviewed_by: userId,
+            reviewed_at: new Date(),
+            notes: dto.notes,
+            updated_by: userId,
+            updated_at: new Date(),
+          },
+        });
+
+        await this.createHistory(tx, {
+          vendor_registration_id: id,
+          from_status: currentRegistration.status,
+          to_status: RegistrationStatus.DITOLAK,
+          action: 'REJECTED',
+          notes: dto.rejection_reason || dto.notes || 'Pendaftaran vendor ditolak.',
+          actor_id: userId,
+        });
+
+        return currentRegistration;
       });
 
       // Send rejection email
@@ -576,20 +824,25 @@ export class VendorRegistrationService {
   // GET REGISTRATION STATISTICS
   // ================================
 
-  async getRegistrationStats() {
+  async getRegistrationStats(userId?: number) {
     try {
+      await this.assertAdminHO(userId);
+
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const [pending, approved, rejected, totalThisMonth] = await Promise.all([
+      const [menungguApprove, prosesPitching, disetujui, ditolak, totalThisMonth] = await Promise.all([
         this.dbService.vendor_registration.count({
-          where: { status: 1, deleted_at: null },
+          where: { status: RegistrationStatus.MENUNGGU_APPROVE, deleted_at: null },
         }),
         this.dbService.vendor_registration.count({
-          where: { status: 2, deleted_at: null },
+          where: { status: RegistrationStatus.PROSES_PITCHING, deleted_at: null },
         }),
         this.dbService.vendor_registration.count({
-          where: { status: 3, deleted_at: null },
+          where: { status: RegistrationStatus.DISETUJUI, deleted_at: null },
+        }),
+        this.dbService.vendor_registration.count({
+          where: { status: RegistrationStatus.DITOLAK, deleted_at: null },
         }),
         this.dbService.vendor_registration.count({
           where: {
@@ -600,9 +853,13 @@ export class VendorRegistrationService {
       ]);
 
       return {
-        pending,
-        approved,
-        rejected,
+        menunggu_approve: menungguApprove,
+        proses_pitching: prosesPitching,
+        disetujui,
+        ditolak,
+        pending: menungguApprove,
+        approved: disetujui,
+        rejected: ditolak,
         total_this_month: totalThisMonth,
       };
     } catch (error) {

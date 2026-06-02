@@ -5,9 +5,54 @@ import {
   IsInt,
   IsArray,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class TukangRegistrationDto {
+  @ApiProperty({ description: 'Tukang name', example: 'Tukang A' })
+  @IsOptional()
+  @IsString()
+  full_name?: string;
+
+  @ApiProperty({ description: 'Tukang phone number', example: '081234567890' })
+  @IsOptional()
+  @IsString()
+  phone_number?: string;
+
+  @ApiProperty({ description: 'Tukang KTP number', example: '3201234567890001' })
+  @IsOptional()
+  @IsString()
+  ktp_number?: string;
+
+  @ApiProperty({ description: 'Tukang skill/service type id or name', example: 1 })
+  @IsOptional()
+  skill?: string | number;
+
+  @ApiProperty({ description: 'Tukang name alias', example: 'Tukang A' })
+  @IsOptional()
+  @IsString()
+  nama?: string;
+
+  @ApiProperty({ description: 'Tukang phone number alias', example: '081234567890' })
+  @IsOptional()
+  @IsString()
+  no_hp?: string;
+
+  @ApiProperty({ description: 'Tukang KTP number alias', example: '3201234567890001' })
+  @IsOptional()
+  @IsString()
+  no_ktp?: string;
+
+  @ApiProperty({ description: 'Tukang skill alias', example: 1 })
+  @IsOptional()
+  keahlian?: string | number;
+
+  @ApiProperty({ description: 'Tukang service type id', example: 1 })
+  @IsOptional()
+  service_type_id?: string | number;
+}
 
 export class RegisterVendorDto {
   @ApiProperty({ description: 'Company name', example: 'CV. Pasang Lantai Jaya' })
@@ -104,10 +149,23 @@ export class RegisterVendorDto {
   @IsOptional()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'JSON array of tukang objects to be registered with this vendor', example: '[{"full_name":"Tukang A","phone_number":"081234567890","ktp_number":"3201234567890001","skill":"Pipa"},{"full_name":"Tukang B","phone_number":"081234567891","ktp_number":"3201234567890002","skill":"Kelistrikan"}]' })
+  @ApiPropertyOptional({ description: 'Array of tukang objects to be registered with this vendor', type: [TukangRegistrationDto] })
   @IsOptional()
-  @IsString()
-  tukang_data?: string;
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TukangRegistrationDto)
+  tukang_data?: TukangRegistrationDto[];
 }
 
 export class QueryVendorRegistrationDto {
@@ -123,9 +181,10 @@ export class QueryVendorRegistrationDto {
   @Transform(({ value }) => parseInt(value, 10))
   take?: number = 10;
 
-  @ApiPropertyOptional({ description: 'Filter by status (1=Pending, 2=Approved, 3=Rejected)', type: Number })
+  @ApiPropertyOptional({ description: 'Filter by status (1=Menunggu Approve, 2=Proses Pitching, 3=Disetujui, 4=Ditolak)', type: Number })
   @IsOptional()
   @IsInt()
+  @Transform(({ value }) => parseInt(value, 10))
   status?: number;
 
   @ApiPropertyOptional({ description: 'Search by company name or email' })

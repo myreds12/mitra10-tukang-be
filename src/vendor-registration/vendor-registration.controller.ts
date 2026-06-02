@@ -22,7 +22,6 @@ import {
   ValidateTokenDto,
   CreateUserFromTokenDto,
 } from './dto/vendor-registration.dto';
-import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -97,34 +96,57 @@ export class VendorRegistrationController {
   // ================================
 
   @Get('stats')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Get Registration Statistics',
     description: 'Get summary statistics of vendor registrations (pending, approved, rejected counts)',
   })
   @ApiResponse({ status: 200, description: 'Returns registration statistics' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getRegistrationStats() {
-    return this.service.getRegistrationStats();
+  async getRegistrationStats(@User() user: any) {
+    return this.service.getRegistrationStats(user?.id);
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Get All Registrations',
     description: 'Retrieve paginated list of all vendor registrations with optional filters',
   })
   @ApiQuery({ name: 'page', required: false, description: 'Page number', type: Number, example: 1 })
   @ApiQuery({ name: 'take', required: false, description: 'Records per page', type: Number, example: 10 })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by status (1=Pending, 2=Approved, 3=Rejected)', type: Number })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by status (1=Menunggu Approve, 2=Proses Pitching, 3=Disetujui, 4=Ditolak)', type: Number })
   @ApiQuery({ name: 'search', required: false, description: 'Search by company name or email' })
   @ApiQuery({ name: 'date_from', required: false, description: 'Filter date from (YYYY-MM-DD)' })
   @ApiQuery({ name: 'date_to', required: false, description: 'Filter date to (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Successfully retrieved registrations' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAllRegistrations(@Query() query: QueryVendorRegistrationDto) {
-    return this.service.findAllRegistrations(query);
+  async findAllRegistrations(
+    @Query() query: QueryVendorRegistrationDto,
+    @User() user: any,
+  ) {
+    return this.service.findAllRegistrations(query, user?.id);
+  }
+
+  @Get(':id/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Get Registration History',
+    description: 'Retrieve approval and status transition history for a vendor registration',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Successfully retrieved registration history' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Registration not found' })
+  async getRegistrationHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.getRegistrationHistory(id, user?.id);
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Get Registration by ID',
     description: 'Retrieve a specific vendor registration by its ID',
@@ -133,14 +155,18 @@ export class VendorRegistrationController {
   @ApiResponse({ status: 200, description: 'Successfully retrieved registration' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Registration not found' })
-  async findOneRegistration(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOneRegistration(id);
+  async findOneRegistration(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.findOneRegistration(id, user?.id);
   }
 
   @Put(':id/approve')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Approve Vendor Registration',
-    description: 'Approve a pending vendor registration. This will set status to APPROVED and vendor can proceed with user creation.',
+    description: 'Stage-aware approval. Menunggu Approve becomes Proses Pitching; Proses Pitching becomes Disetujui and creates vendor credentials.',
   })
   @ApiParam({ name: 'id', description: 'Registration ID to approve', type: Number, example: 1 })
   @ApiResponse({ status: 200, description: 'Registration approved successfully' })
@@ -150,12 +176,45 @@ export class VendorRegistrationController {
   async approveRegistration(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ApproveVendorRegistrationDto,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.approveRegistration(id, dto, user?.user?.id);
+    return this.service.approveRegistration(id, dto, user?.id);
+  }
+
+  @Put(':id/start-pitching')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Start Pitching',
+    description: 'Move registration from Menunggu Approve to Proses Pitching.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID to move to pitching', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Registration moved to pitching successfully' })
+  async startPitching(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ApproveVendorRegistrationDto,
+    @User() user: any,
+  ) {
+    return this.service.approveRegistration(id, dto, user?.id);
+  }
+
+  @Put(':id/final-approve')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Final Approve Vendor Registration',
+    description: 'Move registration from Proses Pitching to Disetujui and create vendor credentials.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID to final approve', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Registration final approved successfully' })
+  async finalApprove(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ApproveVendorRegistrationDto,
+    @User() user: any,
+  ) {
+    return this.service.approveRegistration(id, dto, user?.id);
   }
 
   @Put(':id/reject')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Reject Vendor Registration',
     description: 'Reject a pending vendor registration. Provide rejection reason for vendor clarity.',
@@ -168,8 +227,8 @@ export class VendorRegistrationController {
   async rejectRegistration(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RejectVendorRegistrationDto,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.rejectRegistration(id, dto, user?.user?.id);
+    return this.service.rejectRegistration(id, dto, user?.id);
   }
 }

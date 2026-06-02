@@ -1,7 +1,8 @@
 export enum RegistrationStatus {
-  PENDING = 1,
-  APPROVED = 2,
-  REJECTED = 3,
+  MENUNGGU_APPROVE = 1,
+  PROSES_PITCHING = 2,
+  DISETUJUI = 3,
+  DITOLAK = 4,
 }
 
 export enum TokenStatus {

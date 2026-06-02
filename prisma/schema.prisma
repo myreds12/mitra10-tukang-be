@@ -2132,7 +2132,7 @@ model vendor_registration {
   siup_photo            String?  @db.VarChar(500)  // Foto SIUP
 
   // Status pendaftaran
-  status          Int      @default(1)  // 1 = PENDING, 2 = APPROVED, 3 = REJECTED
+  status          Int      @default(1)  // 1 = MENUNGGU_APPROVE, 2 = PROSES_PITCHING, 3 = DISETUJUI, 4 = DITOLAK
   rejection_reason String? @db.Text          // Alasan penolakan (jika ditolak)
   reviewed_by     Int?                         // User ID admin HO yang mereview
   reviewed_at     DateTime? @db.DateTime()
@@ -2152,9 +2152,28 @@ model vendor_registration {
 
   bank            bank?    @relation(fields: [bank_id], references: [id])
   registration_token vendor_registration_token?
+  histories       vendor_registration_history[]
 
   @@index([status])
   @@index([email_address])
+  @@index([created_at])
+}
+
+// Histori proses approval vendor registration
+model vendor_registration_history {
+  id                     Int      @id @default(autoincrement())
+  vendor_registration_id Int
+  from_status            Int?
+  to_status              Int
+  action                 String   @db.VarChar(100)
+  notes                  String?  @db.Text
+  actor_id               Int?
+  created_at             DateTime @default(now()) @db.DateTime()
+
+  registration vendor_registration @relation(fields: [vendor_registration_id], references: [id])
+
+  @@index([vendor_registration_id])
+  @@index([to_status])
   @@index([created_at])
 }
 
