@@ -52,12 +52,31 @@ export class VendorRegistrationService {
     }
   }
 
-  private parseTukangData(data?: TukangRegistrationDto[] | string | null): TukangRegistrationDto[] {
+  private parseTukangData(
+    data?: TukangRegistrationDto[] | string | null,
+    options: { validate?: boolean } = {},
+  ): TukangRegistrationDto[] {
     if (!data) return [];
 
-    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    let parsed: any;
+    try {
+      parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    } catch {
+      if (options.validate) {
+        throw new BadRequestException('Data tukang harus berupa JSON array yang valid.');
+      }
+      return [];
+    }
+
     if (!Array.isArray(parsed)) {
-      throw new BadRequestException('Data tukang harus berupa array.');
+      if (options.validate) {
+        throw new BadRequestException('Data tukang harus berupa array.');
+      }
+      return [];
+    }
+
+    if (!options.validate) {
+      return parsed;
     }
 
     parsed.forEach((tukang, index) => {
@@ -66,7 +85,15 @@ export class VendorRegistrationService {
       const ktpNumber = tukang.ktp_number || (tukang as any).no_ktp;
       const skill = tukang.skill || (tukang as any).keahlian || (tukang as any).service_type_id;
 
-      if (!fullName || !phoneNumber || !ktpNumber || !skill) {
+      if (
+        !fullName ||
+        !phoneNumber ||
+        !ktpNumber ||
+        skill === undefined ||
+        skill === null ||
+        skill === '' ||
+        (Array.isArray(skill) && skill.length === 0)
+      ) {
         throw new BadRequestException(
           `Data tukang ke-${index + 1} wajib berisi nama, no_hp, no_ktp, dan skill.`,
         );
@@ -140,6 +167,12 @@ export class VendorRegistrationService {
 
   async registerVendor(dto: RegisterVendorDto, files?: any) {
     try {
+      if (!dto.pdp_consent) {
+        throw new BadRequestException(
+          'Persetujuan pemrosesan data pribadi sesuai UU PDP wajib disetujui.',
+        );
+      }
+
       // Check if email already registered
       const existing = await this.dbService.vendor_registration.findFirst({
         where: {
@@ -221,7 +254,7 @@ export class VendorRegistrationService {
           : JSON.stringify(dto.areas)
         : null;
 
-      const tukangData = this.parseTukangData(dto.tukang_data);
+      const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
       const registration = await this.dbService.$transaction(async (tx) => {
         const createdRegistration = await tx.vendor_registration.create({
           data: {
@@ -239,6 +272,10 @@ export class VendorRegistrationService {
             areas: areasData,
             notes: dto.notes,
             status: RegistrationStatus.MENUNGGU_APPROVE,
+            ...({
+              pdp_consent: true,
+              pdp_consent_at: new Date(),
+            } as any),
             // Photo paths
             vendor_photo: vendorPhotoPath || null,
             ktp_photo: ktpPhotoPath || null,
@@ -542,7 +579,7 @@ export class VendorRegistrationService {
         let tukangCount = 0;
         if (registration.tukang_data) {
           try {
-            const tukangArray = this.parseTukangData(registration.tukang_data);
+            const tukangArray = this.parseTukangData(registration.tukang_data, { validate: true });
             if (Array.isArray(tukangArray) && tukangArray.length > 0) {
               for (const [idx, tukang] of tukangArray.entries()) {
                 const fullName = tukang.full_name || (tukang as any).nama;
@@ -680,6 +717,43 @@ export class VendorRegistrationService {
         message: 'Pendaftaran berhasil ditolak.',
         registration_id: id,
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async deleteRegistration(id: number, userId: number) {
+    try {
+      await this.assertAdminHO(userId);
+
+      return await this.dbService.$transaction(async (tx) => {
+        const registration = await tx.vendor_registration.findFirst({
+          where: { id, deleted_at: null },
+        });
+
+        if (!registration) {
+          throw new NotFoundException(
+            `Pendaftaran dengan ID ${id} tidak ditemukan.`,
+          );
+        }
+
+        await (tx as any).vendor_registration_history.deleteMany({
+          where: { vendor_registration_id: id },
+        });
+
+        await tx.vendor_registration_token.deleteMany({
+          where: { registration_id: id },
+        });
+
+        await tx.vendor_registration.delete({
+          where: { id },
+        });
+
+        return {
+          message: 'Pendaftaran vendor berhasil dihapus permanen.',
+          registration_id: id,
+        };
+      });
     } catch (error) {
       throw error;
     }

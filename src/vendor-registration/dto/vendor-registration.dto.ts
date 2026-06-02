@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsInt,
   IsArray,
+  IsBoolean,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -166,6 +167,12 @@ export class RegisterVendorDto {
   @ValidateNested({ each: true })
   @Type(() => TukangRegistrationDto)
   tukang_data?: TukangRegistrationDto[];
+
+  @ApiPropertyOptional({ description: 'UU PDP personal data processing consent', example: true })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1' || value === 1)
+  @IsBoolean()
+  pdp_consent?: boolean;
 }
 
 export class QueryVendorRegistrationDto {

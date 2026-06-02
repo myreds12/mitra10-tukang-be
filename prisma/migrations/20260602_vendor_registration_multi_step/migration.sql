@@ -28,6 +28,18 @@ BEGIN
     ON [dbo].[vendor_registration_history]([created_at]);
 END;
 
+IF COL_LENGTH(N'[dbo].[vendor_registration]', N'pdp_consent') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[vendor_registration]
+    ADD [pdp_consent] BIT NOT NULL CONSTRAINT [DF_vendor_registration_pdp_consent] DEFAULT 0;
+END;
+
+IF COL_LENGTH(N'[dbo].[vendor_registration]', N'pdp_consent_at') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[vendor_registration]
+    ADD [pdp_consent_at] DATETIME NULL;
+END;
+
 -- Remap existing data from old status map:
 -- old 2 = APPROVED -> new 3 = DISETUJUI
 -- old 3 = REJECTED -> new 4 = DITOLAK

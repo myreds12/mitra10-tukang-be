@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import {
   Controller,
+  Delete,
   Get,
   Post,
   Put,
@@ -230,5 +231,22 @@ export class VendorRegistrationController {
     @User() user: any,
   ) {
     return this.service.rejectRegistration(id, dto, user?.id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Delete Vendor Registration',
+    description: 'Hard delete a vendor registration record. Existing active vendor/user data is not removed.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID to delete', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Registration deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Registration not found' })
+  async deleteRegistration(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.deleteRegistration(id, user?.id);
   }
 }
