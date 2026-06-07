@@ -12,7 +12,7 @@ import { NotFoundExceptionFilter } from './common/filters/not-found-exceptopm.fi
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: true,
+    cors: false,
   });
 
   const swaggerConfig = new DocumentBuilder()

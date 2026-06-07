@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { GoogleSheetConnectorService } from 'nest-google-sheet-connector';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateCsiDto } from 'src/csi/dto/create-csi.dto';
@@ -8,9 +8,13 @@ import { UpdateCsiDto } from 'src/csi/dto/update-csi.dto';
 import { ConfigService } from '@nestjs/config';
 import { GoogleScriptApiService } from './google-script-api.service';
 import { CRM_TYPE } from 'src/complaints/dto/crm_type.enum';
+import * as path from 'path';
+
 
 @Injectable()
 export class CrmService {
+  private readonly logger = new Logger(CrmService.name);
+
   constructor(
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
@@ -374,13 +378,22 @@ export class CrmService {
     //console.log('complaintsevidence', complaintWithUser?.complaint_histories?.[0]?.id, complaintsevidence);
 
     // Payload kosong, nanti bisa diisi sesuai kebutuhan
-    const memberNumber = complaintWithUser.orders?.members?.phone_number ??
-              complaintWithUser.orders?.members?.whatsapp_number ??
-              'N/A';
+    const memberNumber =
+      complaintWithUser.orders?.members?.phone_number ??
+      complaintWithUser.orders?.members?.whatsapp_number ??
+      'N/A';
 
-    const formattedNumber = memberNumber.startsWith('08')
-      ? '628' + memberNumber.slice(2)
-      : memberNumber;
+    const sanitizedNumber = memberNumber === 'N/A'
+      ? memberNumber
+      : memberNumber.replace(/\D/g, '');
+
+    const formattedNumber = sanitizedNumber === 'N/A'
+      ? sanitizedNumber
+      : sanitizedNumber.startsWith('62')
+        ? sanitizedNumber
+        : sanitizedNumber.startsWith('0')
+          ? `62${sanitizedNumber.slice(1)}`
+          : `62${sanitizedNumber}`;
 
     //console.log(formattedNumber);
     const payload = {
@@ -389,16 +402,26 @@ export class CrmService {
       email: complaintWithUser?.orders?.members?.email ?? 'N/A',
       detail: complaintWithUser?.description ?? 'N/A',
       receivedByInstallationWeb: complaintWithUser?.orders?.store?.email ?? 'N/A',
-      receivedBy: complaintWithUser?.orders?.store?.email ?? 'N/A',
+      receivedBy: complaintWithUser?.pic_name ?? 'N/A',
       melaluiMedia: complaintWithUser?.complaint_channels?.name ?? 'N/A',
-      locationIdInstallationWeb: complaintWithUser?.orders?.store?.area?.area ?? 'N/A',
-      documentPath: complaintsevidence?.evidence_location ?? 'N/A', // path file kosong
-      variable:  'Installasi yang dilakukan oleh vendor',
+      locationIdInstallationWeb: complaintWithUser?.orders?.store?.zip_code ?? 'N/A',
+      // Complaint evidence files are stored under uploads/complaints.
+      // Use the physical upload path so the CRM request includes the actual file blob.
+      documentPath: complaintsevidence?.evidence_location
+      ? path.join(process.cwd(), 'uploads', 'complaints', complaintsevidence.evidence_location)
+      : 'N/A',
     };
-    //console.log('Payload for Google Script API:', payload);
+    this.logger.log(
+      `CRM sync complaint_id=${complaint_id} payload=${JSON.stringify({
+        ...payload,
+        complaintHistoryId: complaintWithUser?.complaint_histories?.[0]?.id ?? null,
+        evidenceLocation: complaintsevidence?.evidence_location ?? null,
+      })}`,
+    );
     var result = await this.googleScriptApiService.sendFormWithFile(payload);
-    
-    //console.log('result api', result.status); 
+    this.logger.log(
+      `CRM sync complaint_id=${complaint_id} responseStatus=${result.status} responseBody=${JSON.stringify(result.data)}`,
+    );
     
     if (result.status === 200) {
       // Update `is_sync` to 1 for synced complaints

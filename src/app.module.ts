@@ -41,6 +41,7 @@ import { CsiModule } from './csi/csi.module';
 import { StoreGroupModule } from './store_group/store_group.module';
 import { join } from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
 import { AreaModule } from './area/area.module';
 import spreadsheetsConfig from 'config/spreadsheets.config';
 import { BullModule } from '@nestjs/bull';
@@ -53,6 +54,7 @@ import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comis
 import { ComissionStoreIncentiveModule } from './comission_store_incentive/comission_store_incentive.module';
 import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 import { CrmModule } from './crm/crm.module';
+
 
 @Module({
   imports: [
@@ -153,6 +155,7 @@ import { CrmModule } from './crm/crm.module';
       }),
       inject: [ConfigService],
     }),
+    ChatProxyModule,
     PromotionModule,
     IncentiveModule,
     NotificationsModule,
