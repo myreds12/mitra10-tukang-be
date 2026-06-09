@@ -1,14 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
-import * as FormData from 'form-data';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as mime from 'mime-types';
 import { ConfigService } from '@nestjs/config';
+import { AxiosError } from 'axios';
 
 @Injectable()
 export class GoogleScriptApiService {
+  private readonly logger = new Logger(GoogleScriptApiService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -25,39 +27,80 @@ export class GoogleScriptApiService {
     locationIdInstallationWeb: string;
     documentPath: string;
   }): Promise<any> {
-    const form = new FormData();
+    const hasDocumentPath = !!data.documentPath && data.documentPath !== 'N/A';
+    const documentExists = hasDocumentPath ? fs.existsSync(data.documentPath) : false;
+    let documentMeta: Record<string, unknown> | null = null;
+    let documentPayload:
+      | {
+          fileName: string;
+          mimeType: string;
+          fileData: string;
+        }
+      | undefined;
 
-    form.append('Nama_Lengkap_Input', data.namaLengkap);
-    form.append('Mobile', data.mobile);
-    form.append('Email_Address', data.email);
-    form.append('Detail', data.detail);
-    form.append('Received_by_Installation_Web', data.receivedByInstallationWeb);
-    form.append('Received_By', data.receivedBy);
-    form.append('Melalui_Media', data.melaluiMedia);
-    form.append('LocationID_Installation_Web', data.locationIdInstallationWeb);
-
-    if (
-      data.documentPath &&
-      data.documentPath !== 'N/A' &&
-      fs.existsSync(data.documentPath)
-    ) {
+    if (hasDocumentPath && documentExists) {
       const mimeType = mime.lookup(data.documentPath) || 'application/octet-stream';
       const filename = path.basename(data.documentPath);
-      form.append('Document', fs.createReadStream(data.documentPath), {
-        filename: filename,
-        contentType: mimeType,
-      });
+      const fileSize = fs.statSync(data.documentPath).size;
+      const fileData = fs.readFileSync(data.documentPath).toString('base64');
+      documentMeta = {
+        filename,
+        mimeType,
+        fileSize,
+        transport: 'json-base64-object',
+        base64Length: fileData.length,
+      };
+      documentPayload = {
+        fileName: filename,
+        mimeType,
+        fileData,
+      };
     }
 
     const url = this.configService.get<string>('CRM_NEW_ENDPOINT');
+    const payload = {
+      Nama_Lengkap_Input: data.namaLengkap,
+      Mobile: data.mobile,
+      Email_Address: data.email,
+      Detail: data.detail,
+      Received_by_Installation_Web: data.receivedByInstallationWeb,
+      Received_By: data.receivedBy,
+      Melalui_Media: data.melaluiMedia,
+      LocationID_Installation_Web: data.locationIdInstallationWeb,
+      ...(documentPayload ? { Document: documentPayload } : {}),
+    };
+    this.logger.log(
+      `Sending CRM request to ${url} with payload ${JSON.stringify({
+        ...payload,
+        hasDocumentPath,
+        documentExists,
+        documentPath: data.documentPath,
+        documentMeta,
+      })}`,
+    );
 
-    const response$ = this.httpService.post(url, form, {
-      headers: form.getHeaders(),
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-    });
+    try {
+      const response$ = this.httpService.post(url, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
 
-    const response = await lastValueFrom(response$);
-    return response;
+      const response = await lastValueFrom(response$);
+      this.logger.log(
+        `CRM response status=${response.status} data=${JSON.stringify(response.data)}`,
+      );
+      return response;
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      this.logger.error(
+        `CRM request failed status=${axiosError.response?.status ?? 'NO_RESPONSE'} data=${JSON.stringify(
+          axiosError.response?.data ?? axiosError.message,
+        )}`,
+      );
+      throw error;
+    }
   }
 }

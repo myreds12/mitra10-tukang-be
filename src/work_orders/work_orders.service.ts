@@ -12,6 +12,7 @@ import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { WorkOrderTukang } from './dto/wo-tukang.dto';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class WorkOrdersService {
@@ -20,6 +21,7 @@ export class WorkOrdersService {
     private orderService: OrderService,
     private vendorService: VendorService,
     @InjectQueue('email') private emailQueue: Queue,
+    private readonly whatsAppService: WhatsAppService,
   ) { }
 
   async create(
@@ -134,6 +136,8 @@ export class WorkOrdersService {
       const [work_order] = await this.dbService.$transaction([
         this.dbService.work_orders.create(work_order_data),
       ]);
+
+      await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
 
       return work_order;
     } catch (error) {
@@ -649,6 +653,7 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
+      await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
 
       return work_order;
     } catch (error) {
@@ -1017,6 +1022,7 @@ export class WorkOrdersService {
         updateData.status_id,
         user,
       );
+      await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
       return work_order;
     } catch (error) {
       console.error(error);

@@ -53,6 +53,7 @@ import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comis
 import { ComissionStoreIncentiveModule } from './comission_store_incentive/comission_store_incentive.module';
 import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 import { CrmModule } from './crm/crm.module';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -119,6 +120,7 @@ import { CrmModule } from './crm/crm.module';
         },
         preview: {
           dir: join(process.cwd(), '/previews/'),
+          open: false,
         },
         template: {
           dir: join(process.cwd(), '/templates/'),
@@ -160,6 +162,7 @@ import { CrmModule } from './crm/crm.module';
     ComissionStoreIncentiveModule,
     QuotationPromotionModule,
     CrmModule,
+    WhatsAppModule,
     //manager
     ManagerModule,
   ],

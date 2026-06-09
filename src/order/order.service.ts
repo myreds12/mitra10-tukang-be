@@ -23,6 +23,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class OrderService {
@@ -31,7 +32,7 @@ export class OrderService {
     private pdfService: PdfService,
     private notifService: NotificationsService,
     private configService: ConfigService,
-
+    private readonly whatsAppService: WhatsAppService,
   ) { }
   // Tambahkan sebagai private method di dalam OrderService
   private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
@@ -1675,6 +1676,7 @@ export class OrderService {
       }
 
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
+      await this.whatsAppService.sendOrderCompletedNotification(orders.id);
 
       return orders;
     } catch (error) {
