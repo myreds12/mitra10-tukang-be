@@ -186,7 +186,8 @@ export class VendorService {
         order_date_from,
         order_date_to,
         is_paid,
-        is_promotion
+        is_promotion,
+        is_active,
       } = query;
 
       const formattedDate = new Date().toISOString().split('T')[0];
@@ -210,6 +211,9 @@ export class VendorService {
             : []),
           ...(date_from && date_to
             ? [{ created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) } }]
+            : []),
+          ...(is_active === 0 || is_active === 1
+            ? [{ is_active: Boolean(is_active) }]
             : []),
           ...(order_date_from && order_date_to ? [{
             orders: {

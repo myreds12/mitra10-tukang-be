@@ -190,7 +190,10 @@ export class ViolationDetectorService {
       },
     });
 
-    return violations.reduce((sum, v) => sum + v.violation_type.point, 0);
+    return violations.reduce(
+      (sum, v) => sum + (v.adjusted_point ?? v.violation_type.point),
+      0,
+    );
   }
 
   /**

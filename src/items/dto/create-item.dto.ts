@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, isEnum, IsNotEmpty, IsNumber, IsOptional, ValidateNested } from 'class-validator';
+import { IsEnum, isEnum, IsNotEmpty, IsNumber, IsOptional, Max, ValidateNested } from 'class-validator';
 import { ITEM_TYPE } from '../enum/item_type.enum';
 
 export class CreateItemDto {
@@ -21,6 +21,7 @@ export class CreateItemDto {
   default_price: number;
 
   @Type(() => Number)
+  @Max(999999999)
   invoice_nominal?: number;
 
   @Type(() => Prices)

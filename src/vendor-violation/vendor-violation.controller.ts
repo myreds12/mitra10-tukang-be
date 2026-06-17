@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorViolationService } from './vendor-violation.service';
+import { VendorViolationRevisionService } from './vendor-violation-revision.service';
 import {
   CreateVendorViolationTypeDto,
   UpdateVendorViolationTypeDto,
@@ -22,16 +23,23 @@ import {
   CreateViolationLogDto,
   QueryViolationLogDto,
 } from './dto/create-violation-log.dto';
-import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
+import {
+  CreateViolationRevisionRequestDto,
+  QueryViolationRevisionRequestDto,
+  ReviewViolationRevisionRequestDto,
+} from './dto/violation-revision-request.dto';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('Vendor Violation')
 @ApiBearerAuth()
-@Controller('vendor-violation')
+@Controller(['vendor-violation', 'vendor-violations'])
 @UseGuards(JwtAuthGuard)
 export class VendorViolationController {
-  constructor(private readonly service: VendorViolationService) {}
+  constructor(
+    private readonly service: VendorViolationService,
+    private readonly revisionService: VendorViolationRevisionService,
+  ) {}
 
   // ================================
   // VENDOR VIOLATION TYPE ENDPOINTS
@@ -47,9 +55,9 @@ export class VendorViolationController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createViolationType(
     @Body() dto: CreateVendorViolationTypeDto,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.createViolationType(dto, user?.user?.id);
+    return this.service.createViolationType(dto, user?.id);
   }
 
   @Get('type')
@@ -94,9 +102,9 @@ export class VendorViolationController {
   async updateViolationType(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateVendorViolationTypeDto,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.updateViolationType(id, dto, user?.user?.id);
+    return this.service.updateViolationType(id, dto, user?.id);
   }
 
   @Delete('type/:id')
@@ -110,9 +118,9 @@ export class VendorViolationController {
   @ApiResponse({ status: 404, description: 'Violation type not found' })
   async deleteViolationType(
     @Param('id', ParseIntPipe) id: number,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.deleteViolationType(id, user?.user?.id);
+    return this.service.deleteViolationType(id, user?.id);
   }
 
   // ================================
@@ -129,9 +137,9 @@ export class VendorViolationController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async createViolationLog(
     @Body() dto: CreateViolationLogDto,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.createViolationLog(dto, user?.user?.id);
+    return this.service.createViolationLog(dto, user?.id);
   }
 
   @Get('log')
@@ -173,5 +181,75 @@ export class VendorViolationController {
       quarter ? parseInt(quarter, 10) : undefined,
       year ? parseInt(year, 10) : undefined,
     );
+  }
+
+  @Get('summary/:vendorId')
+  @ApiOperation({
+    summary: 'Get Vendor Violation Summary',
+    description: 'Get current quarter points, SP level, quarter period, and SP status for a vendor.',
+  })
+  @ApiParam({ name: 'vendorId', description: 'Vendor ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Returns current quarter SP summary' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getVendorSummary(@Param('vendorId', ParseIntPipe) vendorId: number) {
+    return this.service.getVendorQuarterPoints(vendorId);
+  }
+
+  // ================================
+  // REVISION / RESET POINT REQUESTS
+  // ================================
+
+  @Post('revision-request')
+  @ApiOperation({
+    summary: 'Create violation point revision/reset request',
+    description: 'Admin HO submits a request to revise one violation log point or reset current quarter points. Requires Super User approval before applied.',
+  })
+  async createRevisionRequest(
+    @Body() dto: CreateViolationRevisionRequestDto,
+    @User() user: any,
+  ) {
+    return this.revisionService.createRequest(dto, user);
+  }
+
+  @Get('revision-request')
+  @ApiOperation({
+    summary: 'Get violation point revision/reset requests',
+    description: 'Retrieve revision/reset requests with optional vendor/status filters.',
+  })
+  async findRevisionRequests(@Query() query: QueryViolationRevisionRequestDto) {
+    return this.revisionService.findAll(query);
+  }
+
+  @Get('revision-request/:id')
+  @ApiOperation({
+    summary: 'Get revision/reset request detail',
+  })
+  async findRevisionRequest(@Param('id', ParseIntPipe) id: number) {
+    return this.revisionService.findOne(id);
+  }
+
+  @Put('revision-request/:id/approve')
+  @ApiOperation({
+    summary: 'Approve revision/reset request',
+    description: 'Super User approves request and applies point revision/reset in one Prisma transaction.',
+  })
+  async approveRevisionRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReviewViolationRevisionRequestDto,
+    @User() user: any,
+  ) {
+    return this.revisionService.approve(id, dto, user);
+  }
+
+  @Put('revision-request/:id/reject')
+  @ApiOperation({
+    summary: 'Reject revision/reset request',
+  })
+  async rejectRevisionRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReviewViolationRevisionRequestDto,
+    @User() user: any,
+  ) {
+    return this.revisionService.reject(id, dto, user);
   }
 }

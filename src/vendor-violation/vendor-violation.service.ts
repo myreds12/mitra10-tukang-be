@@ -4,10 +4,32 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateVendorViolationTypeDto, UpdateVendorViolationTypeDto } from './dto/create-violation-type.dto';
 import { CreateViolationLogDto, QueryViolationLogDto } from './dto/create-violation-log.dto';
 import { Prisma } from '@prisma/client';
+import { SPAllocationReduction } from '../common/enum/violation-type.enum';
 
 @Injectable()
 export class VendorViolationService {
   constructor(private readonly dbService: PrismaService) {}
+
+  private getSPLevel(totalPoints: number): number | null {
+    if (totalPoints > 50) return 3;
+    if (totalPoints >= 26) return 2;
+    if (totalPoints >= 1) return 1;
+    return null;
+  }
+
+  private getSPStatus(totalPoints: number): string {
+    if (totalPoints > 50) return 'SP3';
+    if (totalPoints >= 26) return 'SP2';
+    if (totalPoints >= 1) return 'SP1';
+    return 'active';
+  }
+
+  private getAllocationReduction(spLevel: number): number {
+    if (spLevel === 1) return SPAllocationReduction.SP1_MAX;
+    if (spLevel === 2) return SPAllocationReduction.SP2_MAX;
+    if (spLevel === 3) return SPAllocationReduction.SP3;
+    return 0;
+  }
 
   // ================================
   // VENDOR VIOLATION TYPE
@@ -304,24 +326,13 @@ export class VendorViolationService {
 
       // Calculate total points
       const totalPoints = violations.reduce(
-        (sum, v) => sum + v.violation_type.point,
+        (sum, v) => sum + (v.adjusted_point ?? v.violation_type.point),
         0,
       );
 
       // Determine SP level
-      let spLevel: number | null = null;
-      let spStatus: string = 'NORMAL';
-
-      if (totalPoints >= 50) {
-        spLevel = 3;
-        spStatus = 'SP3';
-      } else if (totalPoints >= 40) {
-        spLevel = 2;
-        spStatus = 'SP2';
-      } else if (totalPoints >= 30) {
-        spLevel = 1;
-        spStatus = 'SP1';
-      }
+      const spLevel = this.getSPLevel(totalPoints);
+      const spStatus = this.getSPStatus(totalPoints);
 
       // Get active SP if any
       const activeSP = await this.dbService.vendor_sp.findFirst({
@@ -331,6 +342,13 @@ export class VendorViolationService {
           end_date: { gte: now },
         },
         orderBy: { sp_level: 'desc' },
+      });
+
+      const spHistoryCount = await this.dbService.vendor_sp.count({
+        where: {
+          vendor_id: vendorId,
+          deleted_at: null,
+        },
       });
 
       // Check for penalty period (if points were received less than 12 weeks before next quarter)
@@ -353,13 +371,23 @@ export class VendorViolationService {
         quarter: currentQuarter,
         year: currentYear,
         total_points: totalPoints,
+        total_points_this_quarter: totalPoints,
         violation_count: violations.length,
         sp_level: spLevel,
+        current_sp_level: spLevel ? `SP ${spLevel}` : null,
         sp_status: spStatus,
+        status_sp: spStatus,
+        current_quarter: `Q${currentQuarter}`,
+        quarter_start: this.getQuarterStart(currentQuarter, currentYear),
+        quarter_end: this.getQuarterEnd(currentQuarter, currentYear),
         active_sp: activeSP,
+        has_ever_sp: spHistoryCount > 0,
         penalty_extended_until: penaltyExtendedUntil,
         weeks_until_next_quarter: weeksUntilNextQuarter,
-        violations,
+        violations: violations.map((violation) => ({
+          ...violation,
+          effective_point: violation.adjusted_point ?? violation.violation_type.point,
+        })),
       };
     } catch (error) {
       throw error;
@@ -367,7 +395,7 @@ export class VendorViolationService {
   }
 
   // Helper: Check and update vendor SP based on current points
-  private async checkAndUpdateVendorSP(vendorId: number) {
+  async checkAndUpdateVendorSP(vendorId: number) {
     const now = new Date();
     const quarter = Math.ceil((now.getMonth() + 1) / 3);
     const year = now.getFullYear();
@@ -377,6 +405,45 @@ export class VendorViolationService {
     // If SP level is reached and no active SP of that level
     if (pointsInfo.sp_level && !pointsInfo.active_sp) {
       await this.issueSP(vendorId, pointsInfo.sp_level, pointsInfo.total_points, quarter, year);
+      return;
+    }
+
+    if (pointsInfo.active_sp) {
+      if (!pointsInfo.sp_level) {
+        await this.dbService.vendor_sp.update({
+          where: { id: pointsInfo.active_sp.id },
+          data: {
+            status: 2,
+            total_point: pointsInfo.total_points,
+            updated_at: now,
+          },
+        });
+
+        if (pointsInfo.active_sp.sp_level === 3) {
+          await this.dbService.vendor.update({
+            where: { id: vendorId },
+            data: { is_active: true },
+          });
+        }
+        return;
+      }
+
+      await this.dbService.vendor_sp.update({
+        where: { id: pointsInfo.active_sp.id },
+        data: {
+          sp_level: pointsInfo.sp_level,
+          total_point: pointsInfo.total_points,
+          allocation_reduction: this.getAllocationReduction(pointsInfo.sp_level),
+          updated_at: now,
+        },
+      });
+
+      if (pointsInfo.sp_level === 3) {
+        await this.dbService.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: false },
+        });
+      }
     }
   }
 
@@ -393,7 +460,7 @@ export class VendorViolationService {
     const endDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days
 
     // Calculate allocation reduction based on SP level
-    const allocationReduction = spLevel === 1 ? 25 : spLevel === 2 ? 50 : 100;
+    const allocationReduction = this.getAllocationReduction(spLevel);
 
     // FIX: Check if SP with this level already exists (prevent duplicate)
     const existingSP = await this.dbService.vendor_sp.findFirst({
@@ -447,8 +514,12 @@ export class VendorViolationService {
     return new Date(nextYear, quarterStartMonths[nextQuarter - 1], 1);
   }
 
+  private getQuarterStart(quarter: number, year: number): Date {
+    const quarterStartMonths = [0, 3, 6, 9]; // Jan, Apr, Jul, Oct
+    return new Date(year, quarterStartMonths[quarter - 1], 1);
+  }
+
   private getQuarterEnd(quarter: number, year: number): Date {
-    const quarterEndMonths = [2, 5, 8, 11]; // Mar, Jun, Sep, Dec
-    return new Date(year, quarterEndMonths[quarter - 1], 28, 23, 59, 59);
+    return new Date(year, quarter * 3, 0, 23, 59, 59);
   }
 }

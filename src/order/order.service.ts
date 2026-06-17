@@ -197,7 +197,7 @@ export class OrderService {
             sales_id: salesUser?.sales[0]?.id ?? createOrderDto.sales_id,
           };
         });
-      if (createOrderDto.is_overdistance === 1)
+      if (createOrderDto.is_overdistance == 1)
         grand_total += createOrderDto.additional_fee ?? 25000;
 
       const orderConnection = Object.fromEntries(
@@ -225,7 +225,7 @@ export class OrderService {
         grand_total: grand_total.toFixed(2),
         grand_total_comission: grand_total_comission.toFixed(2),
         is_overdistance: createOrderDto.is_overdistance,
-        ...(createOrderDto.is_overdistance === 1
+        ...(createOrderDto.is_overdistance == 1
           ? {
             additional_fee: createOrderDto?.additional_fee ?? 25000,
           }
@@ -1257,23 +1257,31 @@ export class OrderService {
 
       let grand_total = 0;
       let grand_total_comission = 0;
+
+      // Tentukan additional_fee efektif berdasarkan kondisi update:
+      // - is_overdistance === 1 → pakai nilai baru (atau default 25000)
+      // - is_overdistance === 0 → fee dihapus, jadi 0
+      // - is_overdistance tidak dikirim (undefined) → pertahankan nilai lama dari DB
+      const effectiveAdditionalFee =
+        updateOrderDto.is_overdistance == 1
+          ? Number(updateOrderDto.additional_fee ?? 25000)
+          : updateOrderDto.is_overdistance == 0
+            ? 0
+            : Number(order.additional_fee ?? 0);
+
       if (
         ![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
           updateOrderDto?.payment_type,
         )
       ) {
-        grand_total +=
-          Number(order.grand_total) +
-          (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
-            ? Number(updateOrderDto.additional_fee) - +order.additional_fee
-            : updateOrderDto.is_overdistance === 0
-              ? +order.additional_fee
-              : 0);
+        // Untuk tipe survey: grand_total = (grand_total lama - additional_fee lama) + additional_fee efektif
+        // Ini memastikan additional_fee tidak double-count maupun hilang
+        const baseTotal = Number(order.grand_total) - Number(order.additional_fee ?? 0);
+        grand_total += baseTotal + effectiveAdditionalFee;
       } else {
-        grand_total +=
-          updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
-            ? Number(updateOrderDto.additional_fee)
-            : 0;
+        // Untuk PEMASANGAN_TANPA_SURVEY: grand_total dihitung ulang dari item,
+        // additional_fee ditambahkan sekali di luar loop
+        grand_total += effectiveAdditionalFee;
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1301,15 +1309,9 @@ export class OrderService {
               )
             ) {
               total = Number(itemPrice) * item.quantity;
-              grand_total +=
-                total +
-                (updateOrderDto.additional_fee &&
-                  updateOrderDto.is_overdistance === 1
-                  ? Number(updateOrderDto.additional_fee) -
-                  +order.additional_fee
-                  : updateOrderDto.is_overdistance === 0
-                    ? +order.additional_fee
-                    : 0);
+              // Hanya tambahkan total per item — additional_fee sudah dihitung
+              // sekali di luar loop (lihat blok grand_total di atas)
+              grand_total += total;
               grand_total_comission += comission;
             }
 
@@ -1363,11 +1365,14 @@ export class OrderService {
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
         notes: updateOrderDto?.notes ?? undefined,
         is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
-        ...(updateOrderDto?.is_overdistance === 1
-          ? {
-            additional_fee: updateOrderDto?.additional_fee ?? 25000,
-          }
-          : { additional_fee: 0 }),
+        // Jika is_overdistance === 1 → set fee baru (atau default 25000)
+        // Jika is_overdistance === 0 → hapus fee (set 0)
+        // Jika is_overdistance tidak dikirim (undefined) → jangan ubah field ini di DB
+        ...(updateOrderDto?.is_overdistance == 1
+          ? { additional_fee: updateOrderDto?.additional_fee ?? 25000 }
+          : updateOrderDto?.is_overdistance == 0
+            ? { additional_fee: 0 }
+            : undefined),
         member_id: updateOrderDto?.member_id ?? undefined,
         sales_id: updateOrderDto?.sales_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
@@ -1537,6 +1542,7 @@ export class OrderService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkStatus() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const status = await this.dbService.status.findFirst({
         where: {
@@ -1579,6 +1585,7 @@ export class OrderService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async deleteOrder() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const status = await this.dbService.status.findFirst({
         where: {

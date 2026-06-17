@@ -215,8 +215,16 @@ export class VendorSpService {
     });
 
     if (!activeSP) {
+      const spHistoryCount = await this.dbService.vendor_sp.count({
+        where: {
+          vendor_id: vendorId,
+          deleted_at: null,
+        },
+      });
+
       const result = {
         has_active_sp: false,
+        has_ever_sp: spHistoryCount > 0,
         sp_level: null,
         sp_status: 'NORMAL',
         vendor_status: 'AKTIF',
@@ -231,6 +239,7 @@ export class VendorSpService {
 
     const result = {
       has_active_sp: true,
+      has_ever_sp: true,
       sp_id: activeSP.id,
       sp_level: activeSP.sp_level,
       sp_status: spStatusText,
@@ -322,6 +331,10 @@ export class VendorSpService {
 
   async reactivateVendor(dto: ReactivateVendorDto, userId: number) {
     try {
+      if (!userId) {
+        throw new BadRequestException('User approver tidak ditemukan.');
+      }
+
       return await this.dbService.$transaction(async (tx) => {
         const vendor = await tx.vendor.findFirst({
           where: { id: dto.vendor_id, deleted_at: null },

@@ -237,6 +237,7 @@ export class CsiService {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async syncAnswer() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     this.logger.verbose('Syncing CSI answers');
 
     const templates = await this.dbService.csi_template.findMany({

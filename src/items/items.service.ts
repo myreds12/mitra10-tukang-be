@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, store } from '@prisma/client';
@@ -21,6 +21,13 @@ export class ItemsService {
         item_type,
         invoice_nominal,
       } = createItemDto;
+
+      // Validasi: invoice_nominal tidak boleh melebihi default_price
+      if (invoice_nominal && default_price && Number(invoice_nominal) > Number(default_price)) {
+        throw new BadRequestException(
+          `invoice_nominal (${invoice_nominal}) tidak boleh melebihi default_price (${default_price})`,
+        );
+      }
 
       const createdItem = await this.dbService.items.create({
         data: {
@@ -390,6 +397,27 @@ export class ItemsService {
           store_name: true,
         },
       });
+
+      // Validasi: invoice_nominal tidak boleh melebihi default_price
+      if (UpdateDataDto.invoice_nominal !== undefined && UpdateDataDto.default_price !== undefined) {
+        if (Number(UpdateDataDto.invoice_nominal) > Number(UpdateDataDto.default_price)) {
+          throw new BadRequestException(
+            `invoice_nominal (${UpdateDataDto.invoice_nominal}) tidak boleh melebihi default_price (${UpdateDataDto.default_price})`,
+          );
+        }
+      } else if (UpdateDataDto.invoice_nominal !== undefined) {
+        // Jika hanya invoice_nominal yang diupdate, cek default_price dari item di DB
+        const currentItem = await this.dbService.items.findFirst({
+          where: { id },
+          select: { default_price: true },
+        });
+        if (currentItem && Number(UpdateDataDto.invoice_nominal) > Number(currentItem.default_price)) {
+          throw new BadRequestException(
+            `invoice_nominal (${UpdateDataDto.invoice_nominal}) tidak boleh melebihi default_price item (${currentItem.default_price})`,
+          );
+        }
+      }
+
       // define it as and number that have an array of objects
       const storeGroups = new Map<number, Array<store>>();
       const pricesStoreIds: Array<{ id: number; store_id: number }> = [];
@@ -563,6 +591,7 @@ export class ItemsService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handlePriceExpired() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const now = new Date();
 

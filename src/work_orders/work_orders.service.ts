@@ -1032,7 +1032,7 @@ export class WorkOrdersService {
       // =========================================
       if (work_order?.order?.vendor_id) {
         // Trigger #12: Check dokumentasi foto upload
-        await this.checkDocumentationViolation(work_order, updateData);
+          await this.checkDocumentationViolation(work_order, updateData, NEW_STATUS, files);
 
         // Trigger #13: Check status update delay
         await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
@@ -1051,25 +1051,19 @@ export class WorkOrdersService {
   private async checkDocumentationViolation(
     workOrder: any,
     updateData: any,
+    newStatus: any,
+    files?: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
   ): Promise<void> {
     try {
-      // Jika vendor upload bukti foto
-      if (updateData.files && updateData.files.length > 0) {
-        // Catat sebagai dokumentasi uploaded - tidak ada pelanggaran
-        this.logger.debug(
-          `Documentation uploaded for WO ${workOrder.id}. No violation.`,
-        );
-        return;
-      }
-
-      // Jika tidak ada foto yang diupload dan status adalah final (WORKEND/SURVEYDONE)
       const finalStatuses = ['WORKEND', 'SURVEYDONE', 'WORKENDSTEPONE', 'WORKENDSTEPTWO', 'WORKENDSTEPTHREE'];
       const isFinalStatus = finalStatuses.some(
-        (s) => updateData.status_id && s.toUpperCase().includes(String(updateData.status_id)),
+        (status) => newStatus?.category?.toUpperCase() === status,
       );
 
-      if (!updateData.files && isFinalStatus) {
-        // Check apakah sudah ada evidence
+      if (isFinalStatus) {
         const existingEvidences = await this.dbService.work_order_evidences.findMany({
           where: {
             work_order_id: workOrder.id,
@@ -1077,15 +1071,21 @@ export class WorkOrdersService {
           },
         });
 
-        if (existingEvidences.length === 0) {
-          // Tidak ada dokumentasi - catat pelanggaran
+        const hasBefore =
+          Boolean(files?.work_order_before?.length) ||
+          existingEvidences.some((evidence) => evidence.type === 2);
+        const hasAfter =
+          Boolean(files?.work_order_after?.length) ||
+          existingEvidences.some((evidence) => evidence.type === 3);
+
+        if (!hasBefore || !hasAfter) {
           await this.violationDetector.recordViolation(
             'DOC_NOT_UPLOADED',
             {
               vendorId: workOrder.order.vendor_id,
               orderId: workOrder.order_id,
               workOrderId: workOrder.id,
-              description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto before/after`,
+              description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto ${!hasBefore ? 'before' : ''}${!hasBefore && !hasAfter ? ' dan ' : ''}${!hasAfter ? 'after' : ''}`,
             },
           );
         }
@@ -1137,7 +1137,7 @@ export class WorkOrdersService {
       // Jika sudah lebih dari 1 hari tanpa update status
       if (daysDiff >= 1) {
         const violationCode =
-          daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H';
+          daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H1';
 
         await this.violationDetector.recordViolation(
           violationCode,

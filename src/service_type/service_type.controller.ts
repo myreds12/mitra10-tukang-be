@@ -70,3 +70,14 @@ export class ServiceTypeController {
     return this.serviceTypeService.remove(+id, user_id);
   }
 }
+
+@Controller('service-types')
+export class PublicServiceTypesController {
+  constructor(private readonly serviceTypeService: ServiceTypeService) {}
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  findAllPublic() {
+    return this.serviceTypeService.findAllPublic();
+  }
+}

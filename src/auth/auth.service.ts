@@ -330,6 +330,31 @@ export class AuthService {
         );
       }
 
+      const pendingVendorCredential = await this.dbService.vendor_registration_token.findFirst({
+        where: {
+          user_id: user.id,
+          status: 1,
+        },
+      });
+
+      if (pendingVendorCredential) {
+        if (pendingVendorCredential.expires_at < new Date()) {
+          await this.dbService.vendor_registration_token.update({
+            where: { id: pendingVendorCredential.id },
+            data: { status: 3 },
+          });
+          throw new HttpException(
+            'Kredensial vendor sudah kadaluarsa. Silakan hubungi Admin Mitra10.',
+            HttpStatus.FORBIDDEN,
+          );
+        }
+
+        await this.dbService.vendor_registration_token.update({
+          where: { id: pendingVendorCredential.id },
+          data: { status: 2 },
+        });
+      }
+
       const roles = await this.dbService.roles.findFirst({
         where: {
           name: {

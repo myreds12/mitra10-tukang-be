@@ -14,10 +14,16 @@ export class VendorViolationScheduler implements OnModuleInit {
     private readonly violationDetector: ViolationDetectorService,
   ) {}
 
+  private isPrimaryInstance(): boolean {
+    return (process.env.NODE_APP_INSTANCE ?? '0') === '0';
+  }
+
   /**
    * Inisialisasi - check apakah ada quarterly reset yang perlu dilakukan
    */
   async onModuleInit() {
+    if (!this.isPrimaryInstance()) return;
+
     this.logger.log('VendorViolationScheduler initialized');
 
     // Check quarterly reset saat startup
@@ -31,6 +37,8 @@ export class VendorViolationScheduler implements OnModuleInit {
    */
   @Cron('1 0 * * *') // 00:01 every day
   async handleDailyViolationCheck() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+
     this.logger.log('=== Starting Daily Violation Check ===');
     const startTime = Date.now();
 
@@ -43,6 +51,9 @@ export class VendorViolationScheduler implements OnModuleInit {
 
       // 3. Check status order yang tidak diupdate
       await this.checkStaleWorkOrderStatuses();
+
+      // 4. Check reschedule yang belum ditindaklanjuti vendor
+      await this.checkPendingReschedules();
 
       const duration = Date.now() - startTime;
       this.logger.log(`=== Daily Violation Check completed in ${duration}ms ===`);
@@ -58,6 +69,8 @@ export class VendorViolationScheduler implements OnModuleInit {
    */
   @Cron('0 0 1 1,4,7,10 *') // 00:00 on Jan 1, Apr 1, Jul 1, Oct 1
   async handleQuarterlyReset() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+
     this.logger.log('=== Starting Quarterly Reset ===');
     const startTime = Date.now();
 
@@ -86,6 +99,8 @@ export class VendorViolationScheduler implements OnModuleInit {
    */
   @Cron('0 1 * * *') // 01:00 every day
   async handleSPStatusCheck() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+
     this.logger.log('=== Starting SP Status Check ===');
     const startTime = Date.now();
 
@@ -333,6 +348,59 @@ export class VendorViolationScheduler implements OnModuleInit {
           },
         );
       }
+    }
+  }
+
+  /**
+   * Check reschedule yang belum ditindaklanjuti vendor sejak diajukan.
+   * Pelanggaran #4: Tidak update status order sejak tanggal reschedule diajukan
+   */
+  private async checkPendingReschedules() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+    const reschedules = await this.dbService.reschedule.findMany({
+      where: {
+        deleted_at: null,
+        confirm_date: null,
+        created_at: { lte: yesterday },
+        status: {
+          category: {
+            notIn: [
+              'RESCHEDULEAPPROVEDBYVENDOR',
+              'RESCHEDULEREJECTEDBYVENDOR',
+              'RESCHEDULEAPPROVEDBYHO',
+            ],
+          },
+        },
+      },
+      include: {
+        order: true,
+        status: true,
+      },
+    });
+
+    this.logger.log(`Found ${reschedules.length} pending reschedules to check`);
+
+    for (const reschedule of reschedules) {
+      if (!reschedule.order?.vendor_id) continue;
+
+      const createdAt = new Date(reschedule.created_at);
+      const daysDiff = Math.floor(
+        (today.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000),
+      );
+
+      if (daysDiff < 1) continue;
+
+      await this.violationDetector.recordViolation(
+        ViolationTypeCode.RESCHEDULE_NOT_UPDATED,
+        {
+          vendorId: reschedule.order.vendor_id,
+          orderId: reschedule.order_id,
+          description: `Reschedule #${reschedule.id} belum ditindaklanjuti vendor selama ${daysDiff} hari`,
+        },
+      );
     }
   }
 

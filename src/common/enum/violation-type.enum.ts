@@ -41,9 +41,9 @@ export enum ViolationCategory {
  * Threshold poin untuk SP
  */
 export enum SPThreshold {
-  SP1 = 30,
-  SP2 = 40,
-  SP3 = 50,
+  SP1 = 1,
+  SP2 = 26,
+  SP3 = 51,
 }
 
 /**
@@ -60,6 +60,17 @@ export enum SPAllocationReduction {
   SP2_MIN = 50,
   SP2_MAX = 75,
   SP3 = 100,
+}
+
+export enum ViolationRevisionType {
+  REVISE = 'REVISE',
+  RESET = 'RESET',
+}
+
+export enum ViolationRevisionStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
 }
 
 /**

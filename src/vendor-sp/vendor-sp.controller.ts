@@ -146,9 +146,9 @@ export class VendorSpController {
   async extendSpDuration(
     @Param('id', ParseIntPipe) id: number,
     @Body('end_date') endDate: string,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.extendSpDuration(id, new Date(endDate), user?.user?.id);
+    return this.service.extendSpDuration(id, new Date(endDate), user?.id);
   }
 
   @Put('complete/:id')
@@ -162,9 +162,9 @@ export class VendorSpController {
   @ApiResponse({ status: 404, description: 'SP record not found' })
   async completeSp(
     @Param('id', ParseIntPipe) id: number,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.completeSp(id, user?.user?.id);
+    return this.service.completeSp(id, user?.id);
   }
 
   @Post('reactivate')
@@ -178,8 +178,8 @@ export class VendorSpController {
   @ApiResponse({ status: 404, description: 'Vendor not found' })
   async reactivateVendor(
     @Body() dto: ReactivateVendorDto,
-    @User() user: RequestWithUser,
+    @User() user: any,
   ) {
-    return this.service.reactivateVendor(dto, user?.user?.id);
+    return this.service.reactivateVendor(dto, user?.id);
   }
 }

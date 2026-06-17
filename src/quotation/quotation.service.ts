@@ -1439,6 +1439,7 @@ export class QuotationService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       // console.log('init checkvalidity');
       this.logger.log('init checkvalidity');
