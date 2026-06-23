@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "npx prisma generate",
     "seed:vendor-sp": "ts-node prisma/seed/vendor-sp-test-seed.ts",
-    "seed:vendor-sp:all": "node -r ts-node/register -e \"process.env.CLEAR_VENDOR_SCOPE='all'; require('./prisma/seed/vendor-sp-test-seed.ts')\""
+    "seed:vendor-sp:all": "node -r ts-node/register -e \"process.env.CLEAR_VENDOR_SCOPE='all'; require('./prisma/seed/vendor-sp-test-seed.ts')\"",
+    "seed:vendor-sp-orders": "ts-node prisma/seed/vendor-sp-order-rules-seed.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed/seed.ts"
