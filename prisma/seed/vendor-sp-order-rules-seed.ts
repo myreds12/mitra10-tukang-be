@@ -76,6 +76,20 @@ async function main() {
   console.log('\n=== Vendor SP Order Rule Seed Summary ===');
   console.log(`Login Admin HO : ${PREFIX.toLowerCase()}admin_ho / ${PASSWORD}`);
   console.log(`Login Super User: ${PREFIX.toLowerCase()}super_user / ${PASSWORD}`);
+  console.log(`Login Sales     : ${PREFIX.toLowerCase()}sales / ${PASSWORD}`);
+  console.log('\nVendor owner login pattern:');
+  console.log(`- ${PREFIX.toLowerCase()}ready_confirmation_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}ready_refund_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}ready_quotation_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}ready_work_order_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}ready_reschedule_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}ready_complaint_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}evidence_confirmation_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}evidence_refund_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}evidence_quotation_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}evidence_work_order_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}evidence_reschedule_owner / ${PASSWORD}`);
+  console.log(`- ${PREFIX.toLowerCase()}evidence_complaint_owner / ${PASSWORD}`);
   console.log('\nRule | Mode | Vendor ID | Order ID | Project Number | Action | Expected | Screenshot Route');
   console.log('--- | --- | --- | --- | --- | --- | --- | ---');
   summaries.forEach((line) => console.log(line));
@@ -305,7 +319,14 @@ async function ensureMasterData() {
 
   const serviceType =
     (await prisma.service_type.findFirst({ where: { service_type: `${PREFIX}Service`, deleted_at: null } })) ||
-    (await prisma.service_type.create({ data: { service_type: `${PREFIX}Service` } }));
+    (await prisma.service_type.create({ data: { service_type: `${PREFIX}Service`, is_test: true } }));
+
+  if (!serviceType.is_test) {
+    await prisma.service_type.update({
+      where: { id: serviceType.id },
+      data: { is_test: true },
+    });
+  }
 
   const storeGroup =
     (await prisma.store_group.findFirst({ where: { group_name: `${PREFIX}Store Group`, deleted_at: null } })) ||

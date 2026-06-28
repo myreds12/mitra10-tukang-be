@@ -434,6 +434,7 @@ model service_type {
   id             Int              @id @default(autoincrement())
   service_type   String           @db.VarChar(45)
   is_active      Boolean          @default(true)
+  is_test        Boolean          @default(false)
   created_at     DateTime         @default(now()) @db.DateTime()
   updated_at     DateTime?        @db.DateTime()
   deleted_at     DateTime?        @db.DateTime()
@@ -2168,6 +2169,8 @@ model vendor_registration {
   rejection_reason String? @db.Text          // Alasan penolakan (jika ditolak)
   reviewed_by     Int?                         // User ID admin HO yang mereview
   reviewed_at     DateTime? @db.DateTime()
+  rejected_at      DateTime? @db.DateTime()
+  anonymized_at    DateTime? @db.DateTime()
 
   notes           String?  @db.Text
 
@@ -2193,6 +2196,7 @@ model vendor_registration {
   @@index([status])
   @@index([email_address])
   @@index([created_at])
+  @@index([rejected_at])
 }
 
 // Histori proses approval vendor registration

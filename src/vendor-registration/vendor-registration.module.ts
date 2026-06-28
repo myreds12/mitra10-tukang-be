@@ -3,10 +3,12 @@ import { VendorRegistrationController } from './vendor-registration.controller';
 import { VendorRegistrationService } from './vendor-registration.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BullModule } from '@nestjs/bull';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
+    NotificationsModule,
     BullModule.registerQueue({
       name: 'email',
       defaultJobOptions: {

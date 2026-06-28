@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InjectQueue } from '@nestjs/bull';
@@ -22,12 +23,19 @@ import { hashSync } from 'bcrypt';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { RegistrationStatus } from './enums/registration-status.enum';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class VendorRegistrationService {
+  private readonly logger = new Logger(VendorRegistrationService.name);
+  private readonly rejectedCooldownDays = 30;
+
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
+    private readonly notifService: NotificationsService,
   ) {}
 
   // ================================
@@ -165,6 +173,49 @@ export class VendorRegistrationService {
     });
   }
 
+  private getRejectedCooldownUntil(rejectedAt: Date) {
+    const cooldownUntil = new Date(rejectedAt);
+    cooldownUntil.setDate(cooldownUntil.getDate() + this.rejectedCooldownDays);
+    return cooldownUntil;
+  }
+
+  private formatCooldownDate(date: Date) {
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  private async assertRejectedCooldown(dto: RegisterVendorDto) {
+    const rejectedRegistration = await this.dbService.vendor_registration.findFirst({
+      where: {
+        deleted_at: null,
+        anonymized_at: null,
+        status: RegistrationStatus.DITOLAK,
+        rejected_at: { not: null },
+        OR: [
+          { email_address: dto.email_address },
+          { phone_number: dto.phone_number },
+          { pic_email: dto.pic_email },
+          { pic_phone: dto.pic_phone },
+        ],
+      },
+      orderBy: { rejected_at: 'desc' },
+    });
+
+    if (!rejectedRegistration?.rejected_at) {
+      return;
+    }
+
+    const cooldownUntil = this.getRejectedCooldownUntil(rejectedRegistration.rejected_at);
+    if (cooldownUntil > new Date()) {
+      throw new BadRequestException(
+        `Anda dapat mendaftar ulang setelah ${this.formatCooldownDate(cooldownUntil)}.`,
+      );
+    }
+  }
+
   async registerVendor(dto: RegisterVendorDto, files?: any) {
     try {
       if (!dto.pdp_consent) {
@@ -172,6 +223,8 @@ export class VendorRegistrationService {
           'Persetujuan pemrosesan data pribadi sesuai UU PDP wajib disetujui.',
         );
       }
+
+      await this.assertRejectedCooldown(dto);
 
       // Check if email already registered
       const existing = await this.dbService.vendor_registration.findFirst({
@@ -299,6 +352,36 @@ export class VendorRegistrationService {
 
         return createdRegistration;
       });
+
+      try {
+        await this.emailQueue.add(
+          'send-vendor-submitted-mail',
+          {
+            to: dto.pic_email || dto.email_address,
+            company_name: dto.company_name,
+            email_address: dto.email_address,
+            pic_email: dto.pic_email,
+            phone_number: dto.phone_number,
+            pic_phone: dto.pic_phone,
+          },
+          { attempts: 3 },
+        );
+      } catch (emailError) {
+        console.error('Failed to queue vendor submitted email:', emailError);
+      }
+
+      try {
+        await this.notifService.create(
+          { vendor_registration: registration },
+          'CREATE',
+          0,
+          moduleTypeNotification.VENDOR_REGISTRATION,
+          registration.id,
+          RegistrationStatus.MENUNGGU_APPROVE,
+        );
+      } catch (notificationError) {
+        console.error('Failed to create vendor registration notification:', notificationError);
+      }
 
       return {
         message: 'Pendaftaran berhasil submitted. Mohon tunggu konfirmasi dari admin HO.',
@@ -472,6 +555,15 @@ export class VendorRegistrationService {
             notes: dto.notes || 'Admin HO menyetujui registrasi untuk masuk proses pitching.',
             actor_id: userId,
           });
+
+          await this.emailQueue.add(
+            'send-vendor-pitching-mail',
+            {
+              to: registration.pic_email || registration.email_address,
+              company_name: registration.company_name,
+            },
+            { attempts: 3 },
+          );
 
           return {
             message: 'Pendaftaran berhasil masuk proses pitching.',
@@ -684,6 +776,7 @@ export class VendorRegistrationService {
             rejection_reason: dto.rejection_reason,
             reviewed_by: userId,
             reviewed_at: new Date(),
+            rejected_at: new Date(),
             notes: dto.notes,
             updated_by: userId,
             updated_at: new Date(),
@@ -709,6 +802,7 @@ export class VendorRegistrationService {
           to: registration.pic_email,
           company_name: registration.company_name,
           rejection_reason: dto.rejection_reason,
+          reapply_date: this.formatCooldownDate(this.getRejectedCooldownUntil(new Date())),
         },
         { attempts: 3 },
       );
@@ -719,6 +813,64 @@ export class VendorRegistrationService {
       };
     } catch (error) {
       throw error;
+    }
+  }
+
+  @Cron('30 2 * * *')
+  async anonymizeRejectedRegistrations() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - this.rejectedCooldownDays);
+
+    const registrations = await this.dbService.vendor_registration.findMany({
+      where: {
+        status: RegistrationStatus.DITOLAK,
+        deleted_at: null,
+        anonymized_at: null,
+        rejected_at: {
+          lte: cutoff,
+        },
+      },
+      select: { id: true },
+      take: 100,
+    });
+
+    for (const registration of registrations) {
+      await this.dbService.vendor_registration.update({
+        where: { id: registration.id },
+        data: {
+          company_name: `ANONYMIZED_VENDOR_${registration.id}`,
+          address: 'ANONYMIZED',
+          phone_number: `ANONYMIZED_${registration.id}`,
+          email_address: `anonymized_${registration.id}@pdp.local`,
+          pic_name: 'ANONYMIZED',
+          pic_email: `anonymized_pic_${registration.id}@pdp.local`,
+          pic_phone: `ANONYMIZED_${registration.id}`,
+          ktp_number: null,
+          npwp_number: null,
+          bank_id: null,
+          service_types: null,
+          areas: null,
+          documents: null,
+          vendor_photo: null,
+          ktp_photo: null,
+          npwp_photo: null,
+          compro_photo: null,
+          surat_permohonan_photo: null,
+          pks_photo: null,
+          siup_photo: null,
+          notes: null,
+          tukang_data: null,
+          rejection_reason: 'Data pribadi dianonimkan setelah masa retensi.',
+          anonymized_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+    }
+
+    if (registrations.length) {
+      this.logger.log(`Anonymized ${registrations.length} rejected vendor registration(s).`);
     }
   }
 

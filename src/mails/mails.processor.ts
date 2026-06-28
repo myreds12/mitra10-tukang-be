@@ -332,6 +332,70 @@ export class EmailProcessor {
   // VENDOR REGISTRATION EMAILS
   // ================================
 
+  @Process('send-vendor-submitted-mail')
+  async sendVendorSubmittedMail(job: Job<{
+    to: string;
+    company_name: string;
+    email_address: string;
+    pic_email: string;
+    phone_number: string;
+    pic_phone: string;
+  }>) {
+    try {
+      const { to, company_name, email_address, pic_email, phone_number, pic_phone } = job.data;
+      const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
+
+      const data = {
+        company_name,
+        email_address,
+        pic_email,
+        phone_number,
+        pic_phone,
+        website_url: baseUrl,
+      };
+
+      await this.mailerService.sendMail({
+        to,
+        from: 'instalasi@mitra10.com',
+        subject: 'Pendaftaran Vendor Diterima - Mitra10',
+        template: 'vendor-submitted',
+        context: { data },
+      });
+
+      await this.maillogs(0, 0, { to, cc: '', bcc: '' }, 1, data);
+    } catch (error) {
+      this.logger.error(error);
+    }
+  }
+
+  @Process('send-vendor-pitching-mail')
+  async sendVendorPitchingMail(job: Job<{
+    to: string;
+    company_name: string;
+  }>) {
+    try {
+      const { to, company_name } = job.data;
+      const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
+
+      const data = {
+        company_name,
+        website_url: baseUrl,
+      };
+
+      await this.mailerService.sendMail({
+        to,
+        from: 'instalasi@mitra10.com',
+        subject: 'Pendaftaran Vendor Masuk Proses Pitching - Mitra10',
+        template: 'vendor-pitching',
+        context: { data },
+      });
+
+      await this.maillogs(0, 0, { to, cc: '', bcc: '' }, 1, data);
+    } catch (error) {
+      this.logger.error(error);
+    }
+  }
+
   @Process('send-vendor-approval-mail')
   async sendVendorApprovalMail(job: Job<{
     to: string;
@@ -382,15 +446,17 @@ export class EmailProcessor {
     to: string;
     company_name: string;
     rejection_reason?: string;
+    reapply_date?: string;
   }>) {
     try {
-      const { to, company_name, rejection_reason } = job.data;
+      const { to, company_name, rejection_reason, reapply_date } = job.data;
       
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
       const data = {
         company_name,
         rejection_reason: rejection_reason || 'Tidak ada alasan spesifik diberikan.',
+        reapply_date,
         website_url: baseUrl,
       };
 

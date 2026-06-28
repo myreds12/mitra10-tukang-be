@@ -282,7 +282,14 @@ async function ensureMasterData() {
 
   const serviceType =
     (await prisma.service_type.findFirst({ where: { service_type: 'SP Test Service', deleted_at: null } })) ||
-    (await prisma.service_type.create({ data: { service_type: 'SP Test Service' } }));
+    (await prisma.service_type.create({ data: { service_type: 'SP Test Service', is_test: true } }));
+
+  if (!serviceType.is_test) {
+    await prisma.service_type.update({
+      where: { id: serviceType.id },
+      data: { is_test: true },
+    });
+  }
 
   const storeGroup =
     (await prisma.store_group.findFirst({ where: { group_name: 'SP Test Store Group', deleted_at: null } })) ||

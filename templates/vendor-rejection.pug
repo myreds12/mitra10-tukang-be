@@ -60,7 +60,7 @@ html(lang="id")
                 h2 Halo, #{data.company_name}!
                 h3.text-danger Pendaftaran Vendor Anda Ditolak
 
-                p Kami menyesal harus menginformasikan bahwa pendaftaran vendor Anda di Instalasi & Service Mitra10 tidak dapat diproses lebih lanjut.
+                p Mohon maaf, pendaftaran vendor Anda di Instalasi & Service Mitra10 belum lolos seleksi dan belum dapat diproses lebih lanjut.
 
                 div.alert-danger
                     strong Alasan Penolakan:
@@ -70,7 +70,10 @@ html(lang="id")
                 ul
                     li Perbaiki dan lengkapi kembali data atau dokumen yang diperlukan
                     li Pastikan semua dokumen yang diupload masih berlaku dan jelas terbaca
-                    li Daftarkan kembali melalui portal kami
+                    li Anda dapat melakukan pendaftaran ulang minimal setelah 1 bulan sejak tanggal penolakan
+                    if data.reapply_date
+                        li Pendaftaran ulang dapat dilakukan mulai #{data.reapply_date}
+                    li Daftarkan kembali melalui portal kami setelah masa tunggu tersebut selesai
 
                 center
                     a.btn-website(href=data.website_url) Kunjungi Portal Mitra10

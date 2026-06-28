@@ -63,6 +63,8 @@ export class ServiceTypeService {
       const service_type = await this.dbService.service_type.findMany({
         where: {
           is_active: true,
+          is_test: false,
+          deleted_at: null,
         },
         orderBy: {
           service_type: 'asc',
