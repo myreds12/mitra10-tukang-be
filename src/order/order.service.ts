@@ -1483,6 +1483,13 @@ export class OrderService {
         updateOrderDto,
       );
 
+      if (
+        updateOrderDto.project_status_id &&
+        updateOrderDto.project_status_id !== order.project_status_id
+      ) {
+        await this.whatsAppService.sendOrderCompletedNotification(orderQuery.id);
+      }
+
       return orderQuery;
     } catch (error) {
       console.error(error);

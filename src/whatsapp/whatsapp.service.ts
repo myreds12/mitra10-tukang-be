@@ -165,7 +165,7 @@ export class WhatsAppService {
       orderId: String(workOrder.order_id),
       surveyName:
         latestStatus?.status?.description ?? workOrder.status?.description ?? '-',
-      cratftsmanName: craftsmanName,
+      craftsmanName: craftsmanName,
       surveyDate: this.formatDateTime(
         workOrder.request_work_time ?? workOrder.updated_at ?? new Date(),
       ),
