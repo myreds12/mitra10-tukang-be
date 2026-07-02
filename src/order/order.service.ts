@@ -289,6 +289,8 @@ export class OrderService {
         createOrderDto,
       );
 
+      await this.whatsAppService.sendOrderCreatedNotification(order.id);
+
       return order;
     } catch (error) {
       console.error(error);
@@ -5148,6 +5150,9 @@ export class OrderService {
           },
         }),
       ]);
+
+      await this.whatsAppService.sendOrderCreatedNotification(order.id);
+
       return order;
     } catch (error) {
       console.log(error);

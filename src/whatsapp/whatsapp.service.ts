@@ -58,6 +58,105 @@ export class WhatsAppService {
     });
   }
 
+  async sendOrderCreatedNotification(orderId: number) {
+    const order = await this.dbService.orders.findFirst({
+      where: { id: orderId, deleted_at: null },
+      include: {
+        status: true,
+        members: true,
+        store: true,
+        m_order_details: { where: { deleted_at: null } },
+      },
+    });
+
+    if (!order) {
+      return;
+    }
+
+    const phoneNumber = this.normalizePhone(
+      order.members?.whatsapp_number ?? order.members?.phone_number,
+    );
+    if (!phoneNumber) {
+      this.logger.warn(
+        `Skipping order-created WA for order_id=${orderId}: customer number not found`,
+      );
+      return;
+    }
+
+    const itemNames =
+      order.m_order_details
+        ?.map((d) => d.item_name ?? '-')
+        .filter(Boolean)
+        .join(', ') ?? '-';
+
+    await this.sendTemplate(
+      phoneNumber,
+      'survei_tukang_instalasi_order_created_v1',
+      {
+        customerName: order.members?.full_name ?? '-',
+        orderId: String(order.id),
+        storeName: order.store?.store_name ?? '-',
+        itemName: itemNames,
+        surveyDate: this.formatDateTime(order.request_survey ?? order.created_at),
+      },
+    );
+  }
+
+  async sendTukangAssignedNotification(workOrderId: number) {
+    const workOrder = await this.dbService.work_orders.findFirst({
+      where: { id: workOrderId, deleted_at: null },
+      include: {
+        order: {
+          include: {
+            members: true,
+            store: true,
+          },
+        },
+        work_order_tukang: {
+          where: { deleted_at: null },
+          include: { tukang: true },
+        },
+      },
+    });
+
+    if (!workOrder) {
+      return;
+    }
+
+    const phoneNumber = this.normalizePhone(
+      workOrder.order?.members?.whatsapp_number ??
+        workOrder.order?.members?.phone_number,
+    );
+    if (!phoneNumber) {
+      this.logger.warn(
+        `Skipping assign-tukang WA for work_order_id=${workOrderId}: customer number not found`,
+      );
+      return;
+    }
+
+    const craftsmanName =
+      workOrder.work_order_tukang
+        .map((item) => item.tukang?.full_name)
+        .filter(Boolean)
+        .join(', ') || '-';
+
+    await this.sendTemplate(
+      phoneNumber,
+      'survei_tukang_instalasi_assign_tukang_v1',
+      {
+        customerName: workOrder.order?.members?.full_name ?? '-',
+        orderId: String(workOrder.order_id),
+        storeName: workOrder.order?.store?.store_name ?? '-',
+        craftsmanName,
+        surveyDate: this.formatDateTime(
+          workOrder.request_work_time ??
+            workOrder.survey_date ??
+            workOrder.created_at,
+        ),
+      },
+    );
+  }
+
   async sendOrderCompletedNotification(orderId: number) {
     const order = await this.dbService.orders.findFirst({
       where: { id: orderId, deleted_at: null },

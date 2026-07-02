@@ -138,6 +138,7 @@ export class WorkOrdersService {
       ]);
 
       await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
+      await this.whatsAppService.sendTukangAssignedNotification(work_order.id);
 
       return work_order;
     } catch (error) {
@@ -654,6 +655,9 @@ export class WorkOrdersService {
         user,
       );
       await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
+      if (dataDto.work_order_tukang?.length) {
+        await this.whatsAppService.sendTukangAssignedNotification(work_order.id);
+      }
 
       return work_order;
     } catch (error) {
