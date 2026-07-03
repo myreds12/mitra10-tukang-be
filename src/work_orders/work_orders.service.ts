@@ -137,8 +137,12 @@ export class WorkOrdersService {
         this.dbService.work_orders.create(work_order_data),
       ]);
 
-      await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
-      await this.whatsAppService.sendTukangAssignedNotification(work_order.id);
+      this.whatsAppService
+        .sendWorkOrderStatusNotification(work_order.id)
+        .catch((err) => console.error('WA status notification failed:', err));
+      this.whatsAppService
+        .sendTukangAssignedNotification(work_order.id)
+        .catch((err) => console.error('WA assign notification failed:', err));
 
       return work_order;
     } catch (error) {
@@ -654,9 +658,13 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
-      await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
+      this.whatsAppService
+        .sendWorkOrderStatusNotification(work_order.id)
+        .catch((err) => console.error('WA status notification failed:', err));
       if (dataDto.work_order_tukang?.length) {
-        await this.whatsAppService.sendTukangAssignedNotification(work_order.id);
+        this.whatsAppService
+          .sendTukangAssignedNotification(work_order.id)
+          .catch((err) => console.error('WA assign notification failed:', err));
       }
 
       return work_order;
@@ -1026,7 +1034,9 @@ export class WorkOrdersService {
         updateData.status_id,
         user,
       );
-      await this.whatsAppService.sendWorkOrderStatusNotification(work_order.id);
+      this.whatsAppService
+        .sendWorkOrderStatusNotification(work_order.id)
+        .catch((err) => console.error('WA status notification failed:', err));
       return work_order;
     } catch (error) {
       console.error(error);
@@ -1186,6 +1196,16 @@ export class WorkOrdersService {
           return results;
         },
       );
+
+      if (
+        updateDto.replace_tukang?.some(
+          (item) => item.status === ReplaceTukangStatus.APPROVE,
+        )
+      ) {
+        this.whatsAppService
+          .sendTukangAssignedNotification(id)
+          .catch((err) => console.error('WA assign notification failed:', err));
+      }
 
       const roles = (
         await this.dbService.users.findUniqueOrThrow({
