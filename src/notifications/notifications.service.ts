@@ -36,11 +36,12 @@ export class NotificationsService {
           module_id,
           module_type,
           status,
+          action,
+          created_at: {
+            gte: new Date(Date.now() - 5000),
+          },
         },
-        take: 10,
-        orderBy: {
-          created_at: 'desc',
-        },
+        take: 1,
       });
 
       if (notifDuplicate.length > 0) {

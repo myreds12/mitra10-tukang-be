@@ -199,6 +199,11 @@ export class QueryVendorRegistrationDto {
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by company name' })
+  @IsOptional()
+  @IsString()
+  company_name?: string;
+
   @ApiPropertyOptional({ description: 'Filter registration date from (YYYY-MM-DD)', example: '2024-01-01' })
   @IsOptional()
   @IsString()

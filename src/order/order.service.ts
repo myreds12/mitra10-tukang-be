@@ -1562,7 +1562,7 @@ export class OrderService {
 
       const date = new Date();
       const thirdDateTime = new Date(date.setDate(date.getDate() - 3));
-      await this.dbService.orders.updateMany({
+      const expiredBookedOrders = await this.dbService.orders.findMany({
         where: {
           status: {
             id: status.id,
@@ -1571,12 +1571,36 @@ export class OrderService {
             lt: thirdDateTime,
           },
         },
+      });
+
+      await this.dbService.orders.updateMany({
+        where: {
+          id: {
+            in: expiredBookedOrders.map((order) => order.id),
+          },
+        },
         data: {
           project_status_id: statusUnpaid.id,
         },
       });
 
-      // return orders;
+      await Promise.all(
+        expiredBookedOrders.map((order) =>
+          this.notifService.create(
+            {
+              orders: {
+                ...order,
+                project_status_id: statusUnpaid.id,
+              },
+            },
+            'UPDATE',
+            order.updated_by ?? order.created_by,
+            moduleTypeNotification.ORDER,
+            order.id,
+            statusUnpaid.id,
+          ),
+        ),
+      );
     } catch (error) {
       console.error(error);
       throw error;

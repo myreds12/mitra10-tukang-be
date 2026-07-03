@@ -118,6 +118,7 @@ export class VendorRegistrationController {
   @ApiQuery({ name: 'take', required: false, description: 'Records per page', type: Number, example: 10 })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by status (1=Menunggu Approve, 2=Proses Pitching, 3=Disetujui, 4=Ditolak)', type: Number })
   @ApiQuery({ name: 'search', required: false, description: 'Search by company name or email' })
+  @ApiQuery({ name: 'company_name', required: false, description: 'Filter by company name' })
   @ApiQuery({ name: 'date_from', required: false, description: 'Filter date from (YYYY-MM-DD)' })
   @ApiQuery({ name: 'date_to', required: false, description: 'Filter date to (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Successfully retrieved registrations' })

@@ -2170,6 +2170,7 @@ model vendor_registration {
   reviewed_by     Int?                         // User ID admin HO yang mereview
   reviewed_at     DateTime? @db.DateTime()
   rejected_at      DateTime? @db.DateTime()
+  documents_deleted_at DateTime? @db.DateTime()
   anonymized_at    DateTime? @db.DateTime()
 
   notes           String?  @db.Text
@@ -2197,6 +2198,7 @@ model vendor_registration {
   @@index([email_address])
   @@index([created_at])
   @@index([rejected_at])
+  @@index([documents_deleted_at])
 }
 
 // Histori proses approval vendor registration

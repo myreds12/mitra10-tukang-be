@@ -20,8 +20,8 @@ import {
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { hashSync } from 'bcrypt';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
+import { isAbsolute, join, relative, resolve } from 'path';
 import { RegistrationStatus } from './enums/registration-status.enum';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
@@ -31,6 +31,7 @@ import { Cron } from '@nestjs/schedule';
 export class VendorRegistrationService {
   private readonly logger = new Logger(VendorRegistrationService.name);
   private readonly rejectedCooldownDays = 30;
+  private readonly rejectedDocumentRetentionHours = 36;
 
   constructor(
     private readonly dbService: PrismaService,
@@ -57,6 +58,66 @@ export class VendorRegistrationService {
     } catch (error) {
       console.error('Error saving file:', error);
       return '';
+    }
+  }
+
+  private getRegistrationDocumentPaths(registration: {
+    documents?: string | null;
+    vendor_photo?: string | null;
+    ktp_photo?: string | null;
+    npwp_photo?: string | null;
+    compro_photo?: string | null;
+    surat_permohonan_photo?: string | null;
+    pks_photo?: string | null;
+    siup_photo?: string | null;
+  }): string[] {
+    const paths = [
+      registration.vendor_photo,
+      registration.ktp_photo,
+      registration.npwp_photo,
+      registration.compro_photo,
+      registration.surat_permohonan_photo,
+      registration.pks_photo,
+      registration.siup_photo,
+    ].filter((path): path is string => Boolean(path));
+
+    if (registration.documents) {
+      try {
+        const documents = JSON.parse(registration.documents);
+        if (Array.isArray(documents)) {
+          for (const document of documents) {
+            const documentPath =
+              typeof document === 'string' ? document : document?.path;
+            if (documentPath) paths.push(documentPath);
+          }
+        }
+      } catch {
+        this.logger.warn('Unable to parse legacy vendor registration documents.');
+      }
+    }
+
+    return [...new Set(paths)];
+  }
+
+  private deleteUploadedFile(storedPath: string) {
+    const uploadRoot = resolve(process.cwd(), 'uploads');
+    const normalizedPath = storedPath.replace(/^[/\\]+/, '');
+    const absolutePath = resolve(process.cwd(), normalizedPath);
+    const relativePath = relative(uploadRoot, absolutePath);
+
+    if (
+      relativePath.startsWith('..') ||
+      isAbsolute(relativePath)
+    ) {
+      throw new Error(`Refusing to delete file outside uploads: ${storedPath}`);
+    }
+
+    try {
+      unlinkSync(absolutePath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
     }
   }
 
@@ -400,12 +461,23 @@ export class VendorRegistrationService {
     try {
       await this.assertAdminHO(userId);
 
-      const { page = 1, take = 10, status, search, date_from, date_to } = query;
+      const {
+        page = 1,
+        take = 10,
+        status,
+        search,
+        company_name,
+        date_from,
+        date_to,
+      } = query;
       const skip = page * take - take;
 
       const where: Prisma.vendor_registrationWhereInput = {
         deleted_at: null,
         ...(status ? { status } : {}),
+        ...(company_name
+          ? { company_name: { contains: company_name } }
+          : {}),
         ...(search
           ? {
               OR: [
@@ -416,11 +488,13 @@ export class VendorRegistrationService {
               ],
             }
           : {}),
-        ...(date_from && date_to
+        ...(date_from || date_to
           ? {
               created_at: {
-                gte: new Date(date_from),
-                lte: new Date(`${date_to}T23:59:59.000Z`),
+                ...(date_from ? { gte: new Date(date_from) } : {}),
+                ...(date_to
+                  ? { lte: new Date(`${date_to}T23:59:59.999Z`) }
+                  : {}),
               },
             }
           : {}),
@@ -816,6 +890,90 @@ export class VendorRegistrationService {
     }
   }
 
+  @Cron('15 * * * *')
+  async deleteRejectedRegistrationDocuments() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+
+    const cutoff = new Date();
+    cutoff.setHours(
+      cutoff.getHours() - this.rejectedDocumentRetentionHours,
+    );
+
+    const registrations =
+      await this.dbService.vendor_registration.findMany({
+        where: {
+          status: RegistrationStatus.DITOLAK,
+          deleted_at: null,
+          documents_deleted_at: null,
+          rejected_at: {
+            lte: cutoff,
+          },
+        },
+        select: {
+          id: true,
+          documents: true,
+          vendor_photo: true,
+          ktp_photo: true,
+          npwp_photo: true,
+          compro_photo: true,
+          surat_permohonan_photo: true,
+          pks_photo: true,
+          siup_photo: true,
+        },
+        orderBy: { rejected_at: 'asc' },
+        take: 100,
+      });
+
+    let deletedCount = 0;
+    for (const registration of registrations) {
+      try {
+        const documentPaths =
+          this.getRegistrationDocumentPaths(registration);
+        documentPaths.forEach((path) => this.deleteUploadedFile(path));
+
+        await this.dbService.$transaction(async (tx) => {
+          await tx.vendor_registration.update({
+            where: { id: registration.id },
+            data: {
+              documents: null,
+              vendor_photo: null,
+              ktp_photo: null,
+              npwp_photo: null,
+              compro_photo: null,
+              surat_permohonan_photo: null,
+              pks_photo: null,
+              siup_photo: null,
+              documents_deleted_at: new Date(),
+              updated_at: new Date(),
+            },
+          });
+
+          await this.createHistory(tx, {
+            vendor_registration_id: registration.id,
+            from_status: RegistrationStatus.DITOLAK,
+            to_status: RegistrationStatus.DITOLAK,
+            action: 'REJECTED_DOCUMENTS_DELETED',
+            notes:
+              'Dokumen pendaftaran dihapus permanen setelah masa retensi.',
+          });
+        });
+
+        deletedCount += 1;
+      } catch (error) {
+        this.logger.error(
+          `Failed to delete documents for rejected registration ${registration.id}.`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+
+    if (deletedCount) {
+      this.logger.log(
+        `Deleted documents for ${deletedCount} rejected vendor registration(s).`,
+      );
+    }
+  }
+
   @Cron('30 2 * * *')
   async anonymizeRejectedRegistrations() {
     if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
@@ -828,6 +986,7 @@ export class VendorRegistrationService {
         status: RegistrationStatus.DITOLAK,
         deleted_at: null,
         anonymized_at: null,
+        documents_deleted_at: { not: null },
         rejected_at: {
           lte: cutoff,
         },
@@ -852,14 +1011,6 @@ export class VendorRegistrationService {
           bank_id: null,
           service_types: null,
           areas: null,
-          documents: null,
-          vendor_photo: null,
-          ktp_photo: null,
-          npwp_photo: null,
-          compro_photo: null,
-          surat_permohonan_photo: null,
-          pks_photo: null,
-          siup_photo: null,
           notes: null,
           tukang_data: null,
           rejection_reason: 'Data pribadi dianonimkan setelah masa retensi.',
