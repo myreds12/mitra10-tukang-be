@@ -198,10 +198,6 @@ export class WhatsAppService {
             status: true,
           },
         },
-        work_order_evidences: {
-          where: { deleted_at: null },
-          orderBy: { created_at: 'desc' },
-        },
         work_order_tukang: {
           where: { deleted_at: null },
           include: {
@@ -249,9 +245,6 @@ export class WhatsAppService {
       return;
     }
 
-    const latestImage = workOrder.work_order_evidences.find(
-      (item) => item.evidence_location,
-    );
     const craftsmanName =
       workOrder.work_order_tukang
         .map((item) => item.tukang?.full_name)
@@ -270,15 +263,9 @@ export class WhatsAppService {
       ),
     };
 
-    if (latestImage?.evidence_location) {
-      params.media = {
-        mediaLink: `${this.getPublicBaseUrl()}/public/work-orders/${latestImage.evidence_location}`,
-      };
-    }
-
     await this.sendTemplate(
       phoneNumber,
-      'survei_tukang_instalasi_proses_v1',
+      'survei_tukang_instalasi_proses_v2',
       params,
     );
   }
