@@ -24,6 +24,22 @@ export class WorkOrdersService {
     private readonly whatsAppService: WhatsAppService,
   ) { }
 
+  private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
+    try {
+      await this.whatsAppService.sendWorkOrderStatusNotification(workOrderId);
+    } catch (err) {
+      console.error('WA status notification failed:', err);
+    }
+  }
+
+  private async sendTukangAssignedWhatsApp(workOrderId: number) {
+    try {
+      await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
+    } catch (err) {
+      console.error('WA assign notification failed:', err);
+    }
+  }
+
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
@@ -137,12 +153,8 @@ export class WorkOrdersService {
         this.dbService.work_orders.create(work_order_data),
       ]);
 
-      this.whatsAppService
-        .sendWorkOrderStatusNotification(work_order.id)
-        .catch((err) => console.error('WA status notification failed:', err));
-      this.whatsAppService
-        .sendTukangAssignedNotification(work_order.id)
-        .catch((err) => console.error('WA assign notification failed:', err));
+      await this.sendWorkOrderStatusWhatsApp(work_order.id);
+      await this.sendTukangAssignedWhatsApp(work_order.id);
 
       return work_order;
     } catch (error) {
@@ -658,13 +670,9 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
-      this.whatsAppService
-        .sendWorkOrderStatusNotification(work_order.id)
-        .catch((err) => console.error('WA status notification failed:', err));
+      await this.sendWorkOrderStatusWhatsApp(work_order.id);
       if (dataDto.work_order_tukang?.length) {
-        this.whatsAppService
-          .sendTukangAssignedNotification(work_order.id)
-          .catch((err) => console.error('WA assign notification failed:', err));
+        await this.sendTukangAssignedWhatsApp(work_order.id);
       }
 
       return work_order;
@@ -1034,9 +1042,7 @@ export class WorkOrdersService {
         updateData.status_id,
         user,
       );
-      this.whatsAppService
-        .sendWorkOrderStatusNotification(work_order.id)
-        .catch((err) => console.error('WA status notification failed:', err));
+      await this.sendWorkOrderStatusWhatsApp(work_order.id);
       return work_order;
     } catch (error) {
       console.error(error);
@@ -1202,9 +1208,7 @@ export class WorkOrdersService {
           (item) => item.status === ReplaceTukangStatus.APPROVE,
         )
       ) {
-        this.whatsAppService
-          .sendTukangAssignedNotification(id)
-          .catch((err) => console.error('WA assign notification failed:', err));
+        await this.sendTukangAssignedWhatsApp(id);
       }
 
       const roles = (
