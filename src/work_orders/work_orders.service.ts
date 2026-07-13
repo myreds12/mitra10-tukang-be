@@ -153,7 +153,6 @@ export class WorkOrdersService {
         this.dbService.work_orders.create(work_order_data),
       ]);
 
-      await this.sendWorkOrderStatusWhatsApp(work_order.id);
       await this.sendTukangAssignedWhatsApp(work_order.id);
 
       return work_order;

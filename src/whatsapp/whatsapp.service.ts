@@ -7,6 +7,7 @@ import { lastValueFrom } from 'rxjs';
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
+  private readonly processTemplateId = 'survei_tukang_instalasi_proses_v2';
 
   constructor(
     private readonly httpService: HttpService,
@@ -65,7 +66,6 @@ export class WhatsAppService {
         status: true,
         members: true,
         store: true,
-        m_order_details: { where: { deleted_at: null } },
       },
     });
 
@@ -83,22 +83,17 @@ export class WhatsAppService {
       return;
     }
 
-    const itemNames =
-      order.m_order_details
-        ?.map((d) => d.item_name ?? '-')
-        .filter(Boolean)
-        .join(', ') ?? '-';
-
     await this.sendTemplate(
       phoneNumber,
-      'survei_tukang_instalasi_order_created_v1',
-      {
+      this.processTemplateId,
+      this.buildProcessParams({
         customerName: order.members?.full_name ?? '-',
-        orderId: String(order.id),
         storeName: order.store?.store_name ?? '-',
-        itemName: itemNames,
+        orderId: String(order.id),
+        surveyName: order.status?.description ?? '-',
+        craftsmanName: '-',
         surveyDate: this.formatDateTime(order.request_survey ?? order.created_at),
-      },
+      }),
     );
   }
 
@@ -106,6 +101,7 @@ export class WhatsAppService {
     const workOrder = await this.dbService.work_orders.findFirst({
       where: { id: workOrderId, deleted_at: null },
       include: {
+        status: true,
         order: {
           include: {
             members: true,
@@ -142,18 +138,19 @@ export class WhatsAppService {
 
     await this.sendTemplate(
       phoneNumber,
-      'survei_tukang_instalasi_assign_tukang_v1',
-      {
+      this.processTemplateId,
+      this.buildProcessParams({
         customerName: workOrder.order?.members?.full_name ?? '-',
-        orderId: String(workOrder.order_id),
         storeName: workOrder.order?.store?.store_name ?? '-',
+        orderId: String(workOrder.order_id),
+        surveyName: workOrder.status?.description ?? '-',
         craftsmanName,
         surveyDate: this.formatDateTime(
           workOrder.request_work_time ??
             workOrder.survey_date ??
             workOrder.created_at,
         ),
-      },
+      }),
     );
   }
 
@@ -229,7 +226,11 @@ export class WhatsAppService {
     }
 
     const latestStatus =
-      workOrder.work_order_status.find((item) => item.status) ?? null;
+      workOrder.work_order_status.find(
+        (item) => item.status_id === workOrder.status_id,
+      ) ??
+      workOrder.work_order_status.find((item) => item.status) ??
+      null;
     const latestStatusCategory =
       latestStatus?.status?.category ?? workOrder.status?.category ?? null;
 
@@ -251,7 +252,7 @@ export class WhatsAppService {
         .filter(Boolean)
         .join(', ') || '-';
 
-    const params: Record<string, unknown> = {
+    const params = this.buildProcessParams({
       customerName: workOrder.order?.members?.full_name ?? '-',
       storeName: workOrder.order?.store?.store_name ?? '-',
       orderId: String(workOrder.order_id),
@@ -261,13 +262,27 @@ export class WhatsAppService {
       surveyDate: this.formatDateTime(
         workOrder.request_work_time ?? workOrder.updated_at ?? new Date(),
       ),
-    };
+    });
 
-    await this.sendTemplate(
-      phoneNumber,
-      'survei_tukang_instalasi_proses_v2',
-      params,
-    );
+    await this.sendTemplate(phoneNumber, this.processTemplateId, params);
+  }
+
+  private buildProcessParams(params: {
+    customerName: string;
+    storeName: string;
+    orderId: string;
+    surveyName: string;
+    craftsmanName: string;
+    surveyDate: string;
+  }): Record<string, string> {
+    return {
+      customerName: params.customerName,
+      storeName: params.storeName,
+      orderId: params.orderId,
+      surveyName: params.surveyName,
+      craftsmanName: params.craftsmanName,
+      surveyDate: params.surveyDate,
+    };
   }
 
   private async sendTemplate(
