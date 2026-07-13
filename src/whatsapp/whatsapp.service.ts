@@ -281,6 +281,7 @@ export class WhatsAppService {
       orderId: params.orderId,
       surveyName: params.surveyName,
       craftsmanName: params.craftsmanName,
+      cratftsmanName: params.craftsmanName,
       surveyDate: params.surveyDate,
     };
   }
