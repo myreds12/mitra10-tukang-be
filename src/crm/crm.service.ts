@@ -191,7 +191,7 @@ export class CrmService {
   async syncAnswer(complaint_id: number) {
     //const spreadsheetId = this.configService.get<string>('SPREADSHEET_CRM');
 
-    await this.storeAnswer(complaint_id);
+    return await this.storeAnswer(complaint_id);
   }
 
   //async storeAnswer(spreadsheetId: string, complaint_id: number) {
@@ -233,7 +233,7 @@ export class CrmService {
     });
 
     if (!complaints) {
-      return;
+      return null;
     }
 
     const userIds = [
@@ -437,6 +437,8 @@ export class CrmService {
 
     // console.log('Update Complaint', updateComplaint);
     // console.log('Updated is_sync to 1 for all synced complaints.');
+
+    return result;
   }
 
   async getSpreadsheetHeader(spreadsheetId: string): Promise<string[] | null> {

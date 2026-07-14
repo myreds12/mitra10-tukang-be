@@ -102,12 +102,40 @@ export class ComplaintsService {
           complaint.id,
           complaint.complaint_status
         ),
-        //2026042019 dayat di up kembali
-        this.crmService.syncAnswer(complaint.id),
         this.orderService.setStatus(complaint.order_id, complaint.complaint_status, user),
       ]);
 
-      return complaint;
+      // CRM sync separately to capture result in response
+      let crm_sync: {
+        success: boolean;
+        status: number | null;
+        data: any;
+        error: string | null;
+      } = {
+        success: false,
+        status: null,
+        data: null,
+        error: null,
+      };
+      try {
+        const crmResult = await this.crmService.syncAnswer(complaint.id);
+        crm_sync = {
+          success: crmResult?.status === 200,
+          status: crmResult?.status ?? null,
+          data: crmResult?.data ?? null,
+          error: null,
+        };
+      } catch (error) {
+        const err = error as any;
+        crm_sync = {
+          success: false,
+          status: err?.response?.status ?? null,
+          data: err?.response?.data ?? null,
+          error: err?.message ?? "Unknown error",
+        };
+      }
+
+      return { ...complaint, crm_sync };
     } catch (error) {
       console.error(error);
       throw error;
@@ -115,7 +143,23 @@ export class ComplaintsService {
   }
 
   async resync(id: number) {
-      return await this.crmService.syncAnswer(id);
+    try {
+      const crmResult = await this.crmService.syncAnswer(id);
+      return {
+        success: crmResult?.status === 200,
+        status: crmResult?.status ?? null,
+        data: crmResult?.data ?? null,
+        error: null,
+      };
+    } catch (error) {
+      const err = error as any;
+      return {
+        success: false,
+        status: err?.response?.status ?? null,
+        data: err?.response?.data ?? null,
+        error: err?.message ?? "Unknown error",
+      };
+    }
   }
 
   @Cron("0 0 11,23 * * *")
