@@ -36,7 +36,6 @@ export class NotificationsService {
           module_id,
           module_type,
           status,
-          action,
           created_at: {
             gte: new Date(Date.now() - 5000),
           },
@@ -386,7 +385,10 @@ export class NotificationsService {
         }));
       } else {
         updates = dto.map(({ id, is_read }) => ({
-          where: { id },
+          where: {
+            id,
+            user_id: user.id,
+          },
           data: { is_read: Boolean(is_read) },
         }));
       }

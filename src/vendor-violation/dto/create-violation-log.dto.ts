@@ -70,6 +70,11 @@ export class QueryViolationLogDto {
   @IsString()
   category?: string;
 
+  @ApiPropertyOptional({ description: 'Search by vendor, violation code/name, or project number' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ description: 'Filter violation logs from date (YYYY-MM-DD)', example: '2024-01-01' })
   @IsOptional()
   @IsString()

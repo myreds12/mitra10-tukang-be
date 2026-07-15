@@ -33,6 +33,15 @@ export class ViolationDetectorService {
     context: ViolationContext,
     userId?: number,
   ): Promise<ViolationResult> {
+    if (process.env.VENDOR_SP_ENABLED !== 'true') {
+      return {
+        success: false,
+        pointAdded: 0,
+        newTotalPoints: 0,
+        message: 'Vendor SP feature is disabled',
+      };
+    }
+
     try {
       // 1. Get violation type dari database
       const violationType = await this.getViolationType(violationCode);

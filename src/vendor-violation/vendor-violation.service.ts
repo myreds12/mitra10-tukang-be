@@ -260,7 +260,7 @@ export class VendorViolationService {
 
   async findAllViolationLogs(query: QueryViolationLogDto) {
     try {
-      const { page = 1, take = 10, vendor_id, quarter, year, category, date_from, date_to } = query;
+      const { page = 1, take = 10, vendor_id, quarter, year, category, date_from, date_to, search } = query;
       const skip = page * take - take;
 
       const where: Prisma.vendor_violation_logWhereInput = {
@@ -270,6 +270,17 @@ export class VendorViolationService {
         ...(year ? { year } : {}),
         ...(category
           ? { violation_type: { category } }
+          : {}),
+        ...(search
+          ? {
+              OR: [
+                { vendor: { company_name: { contains: search } } },
+                { vendor: { pic_name: { contains: search } } },
+                { violation_type: { code: { contains: search } } },
+                { violation_type: { name: { contains: search } } },
+                { orders: { project_number: { contains: search } } },
+              ],
+            }
           : {}),
         ...(date_from && date_to
           ? {

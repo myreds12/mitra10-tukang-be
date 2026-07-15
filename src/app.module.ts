@@ -60,6 +60,8 @@ import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
 import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
 import { ViolationDetectorService } from './common/services/violation-detector.service';
 
+const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
+
 @Module({
   imports: [
     PrismaModule,
@@ -169,13 +171,16 @@ import { ViolationDetectorService } from './common/services/violation-detector.s
     //manager
     ManagerModule,
     // Vendor SP & Violation System
-    VendorViolationModule,
-    VendorSpModule,
+    ...(isVendorSpEnabled ? [VendorViolationModule, VendorSpModule] : []),
     VendorRegistrationModule,
     ChatProxyModule,
   ],
   controllers: [AppController],
-  providers: [AppService, VendorViolationScheduler, ViolationDetectorService],
+  providers: [
+    AppService,
+    ViolationDetectorService,
+    ...(isVendorSpEnabled ? [VendorViolationScheduler] : []),
+  ],
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
 })
