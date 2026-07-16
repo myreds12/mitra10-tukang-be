@@ -18,6 +18,7 @@ import { NotificationsService } from "src/notifications/notifications.service";
 import { moduleTypeNotification } from "src/notifications/dto/notification-module-type.enum";
 import { CrmService } from "src/crm/crm.service";
 import { Cron } from "@nestjs/schedule";
+import { Cron } from "@nestjs/schedule";
 
 @Injectable()
 export class ComplaintsService {
@@ -102,12 +103,40 @@ export class ComplaintsService {
           complaint.id,
           complaint.complaint_status
         ),
-        //2026042019 dayat di up kembali
-        this.crmService.syncAnswer(complaint.id),
         this.orderService.setStatus(complaint.order_id, complaint.complaint_status, user),
       ]);
 
-      return complaint;
+      // CRM sync separately to capture result in response
+      let crm_sync: {
+        success: boolean;
+        status: number | null;
+        data: any;
+        error: string | null;
+      } = {
+        success: false,
+        status: null,
+        data: null,
+        error: null,
+      };
+      try {
+        const crmResult = await this.crmService.syncAnswer(complaint.id);
+        crm_sync = {
+          success: crmResult?.status === 200,
+          status: crmResult?.status ?? null,
+          data: crmResult?.data ?? null,
+          error: null,
+        };
+      } catch (error) {
+        const err = error as any;
+        crm_sync = {
+          success: false,
+          status: err?.response?.status ?? null,
+          data: err?.response?.data ?? null,
+          error: err?.message ?? "Unknown error",
+        };
+      }
+
+      return { ...complaint, crm_sync };
     } catch (error) {
       console.error(error);
       throw error;

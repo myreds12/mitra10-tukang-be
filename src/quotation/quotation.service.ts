@@ -23,6 +23,7 @@ import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class QuotationService {
@@ -31,6 +32,7 @@ export class QuotationService {
     private readonly orderService: OrderService,
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
+    private readonly whatsAppService: WhatsAppService,
   ) { }
 
   private readonly logger = new Logger(QuotationService.name);
@@ -1065,6 +1067,8 @@ export class QuotationService {
         user,
       );
 
+      await this.whatsAppService.sendQuotationNotification(quotation.id);
+
       return quotation;
     } catch (error) {
       console.error(error);
@@ -1139,6 +1143,8 @@ export class QuotationService {
         updated_by: user_id,
       },
     });
+
+    await this.whatsAppService.sendQuotationNotification(quotation.id);
 
     return quotation;
   }

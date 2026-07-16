@@ -23,6 +23,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class OrderService {
@@ -31,7 +32,7 @@ export class OrderService {
     private pdfService: PdfService,
     private notifService: NotificationsService,
     private configService: ConfigService,
-
+    private readonly whatsAppService: WhatsAppService,
   ) { }
   // Tambahkan sebagai private method di dalam OrderService
   private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
@@ -287,6 +288,8 @@ export class OrderService {
         user,
         createOrderDto,
       );
+
+      await this.whatsAppService.sendOrderCreatedNotification(order.id);
 
       return order;
     } catch (error) {
@@ -1252,23 +1255,23 @@ export class OrderService {
 
       let grand_total = 0;
       let grand_total_comission = 0;
-      if (
-        ![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
-          updateOrderDto?.payment_type,
-        )
-      ) {
-        grand_total +=
-          Number(order.grand_total) +
-          (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
-            ? Number(updateOrderDto.additional_fee) - +order.additional_fee
-            : updateOrderDto.is_overdistance === 0
-              ? +order.additional_fee
-              : 0);
-      } else {
+      if (updateOrderDto?.payment_type === PAYMENT_TYPE.SURVEY) {
+        // sama kayak create: hardcoded 99000
+        grand_total += 99000;
+        if (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1) {
+          grand_total += Number(updateOrderDto.additional_fee) - +order.additional_fee;
+        } else if (updateOrderDto.is_overdistance === 0) {
+          grand_total -= +order.additional_fee;
+        }
+      } else if (updateOrderDto?.payment_type === PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY) {
+        // grand_total dihitung dari item di loop order_details di bawah
         grand_total +=
           updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
             ? Number(updateOrderDto.additional_fee)
             : 0;
+      } else {
+        // gratis atau payment_type lain → grand_total = 0, tidak ngambil dari DB
+        grand_total += 0;
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1482,6 +1485,13 @@ export class OrderService {
         updateOrderDto,
       );
 
+      if (
+        updateOrderDto.project_status_id &&
+        updateOrderDto.project_status_id !== order.project_status_id
+      ) {
+        await this.whatsAppService.sendOrderCompletedNotification(orderQuery.id);
+      }
+
       return orderQuery;
     } catch (error) {
       console.error(error);
@@ -1675,6 +1685,7 @@ export class OrderService {
       }
 
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
+      await this.whatsAppService.sendOrderCompletedNotification(orders.id);
 
       return orders;
     } catch (error) {
@@ -5139,6 +5150,9 @@ export class OrderService {
           },
         }),
       ]);
+
+      await this.whatsAppService.sendOrderCreatedNotification(order.id);
+
       return order;
     } catch (error) {
       console.log(error);
