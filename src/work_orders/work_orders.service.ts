@@ -653,6 +653,9 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
+      if (dataDto.work_order_tukang?.length) {
+        await this.sendTukangAssignedWhatsApp(work_order.id);
+      }
 
       return work_order;
     } catch (error) {
@@ -1026,18 +1029,6 @@ export class WorkOrdersService {
         updateData.status_id,
         user,
       );
-
-      // =========================================
-      // VENDOR VIOLATION TRIGGERS
-      // =========================================
-      if (work_order?.order?.vendor_id) {
-        // Trigger #12: Check dokumentasi foto upload
-          await this.checkDocumentationViolation(work_order, updateData, NEW_STATUS, files);
-
-        // Trigger #13: Check status update delay
-        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
-      }
-
       return work_order;
     } catch (error) {
       console.error(error);

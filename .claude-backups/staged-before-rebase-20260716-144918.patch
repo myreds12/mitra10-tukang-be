@@ -1,0 +1,171 @@
+diff --git a/src/order/order.service.ts b/src/order/order.service.ts
+index b5eee4d..494c3e9 100644
+--- a/src/order/order.service.ts
++++ b/src/order/order.service.ts
+@@ -3678,7 +3678,9 @@ export class OrderService {
+ 
+     const buffer = await this.pdfService.generatePotrait('quotation-pdf', data);
+     res.setHeader('Content-Type', 'application/pdf');
+-    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
++    const customerName = quotation.order?.members?.full_name?.replace(/[^a-zA-Z0-9 ]/g, '') ?? 'Customer';
++    const quotationFilename = `Quotation - ${customerName} - Order ID ${quotation.order_id}.pdf`;
++    res.setHeader('Content-Disposition', `attachment; filename="${quotationFilename}"`);
+     res.send(buffer);
+   }
+ 
+diff --git a/src/whatsapp/whatsapp.service.ts b/src/whatsapp/whatsapp.service.ts
+index 07f4bb3..c1a0804 100644
+--- a/src/whatsapp/whatsapp.service.ts
++++ b/src/whatsapp/whatsapp.service.ts
+@@ -106,6 +106,7 @@ export class WhatsAppService {
+           include: {
+             members: true,
+             store: true,
++            service_type: true,
+           },
+         },
+         work_order_tukang: {
+@@ -143,7 +144,7 @@ export class WhatsAppService {
+         customerName: workOrder.order?.members?.full_name ?? '-',
+         storeName: workOrder.order?.store?.store_name ?? '-',
+         orderId: String(workOrder.order_id),
+-        surveyName: workOrder.status?.description ?? '-',
++        surveyName: workOrder.order?.service_type?.service_type ?? workOrder.status?.description ?? '-',
+         craftsmanName,
+         surveyDate: this.formatDateTime(
+           workOrder.request_work_time ??
+diff --git a/src/work_orders/work_orders.service.ts b/src/work_orders/work_orders.service.ts
+index e5ffbe9..e3f431d 100644
+--- a/src/work_orders/work_orders.service.ts
++++ b/src/work_orders/work_orders.service.ts
+@@ -10,35 +10,35 @@ import { VendorService } from 'src/vendor/vendor.service';
+ import { StatusDetails } from './dto/work-order-status.dto';
+ import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
+ import { InjectQueue } from '@nestjs/bull';
+-import { Queue } from 'bull';
+-import { WorkOrderTukang } from './dto/wo-tukang.dto';
+-import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
++import { Queue } from 'bull';
++import { WorkOrderTukang } from './dto/wo-tukang.dto';
++import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
+ 
+ @Injectable()
+-export class WorkOrdersService {
++export class WorkOrdersService {
+   constructor(
+     private readonly dbService: PrismaService,
+-    private orderService: OrderService,
+-    private vendorService: VendorService,
+-    @InjectQueue('email') private emailQueue: Queue,
+-    private readonly whatsAppService: WhatsAppService,
+-  ) { }
+-
+-  private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
+-    try {
+-      await this.whatsAppService.sendWorkOrderStatusNotification(workOrderId);
+-    } catch (err) {
+-      console.error('WA status notification failed:', err);
+-    }
+-  }
+-
+-  private async sendTukangAssignedWhatsApp(workOrderId: number) {
+-    try {
+-      await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
+-    } catch (err) {
+-      console.error('WA assign notification failed:', err);
+-    }
+-  }
++    private orderService: OrderService,
++    private vendorService: VendorService,
++    @InjectQueue('email') private emailQueue: Queue,
++    private readonly whatsAppService: WhatsAppService,
++  ) { }
++
++  private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
++    try {
++      await this.whatsAppService.sendWorkOrderStatusNotification(workOrderId);
++    } catch (err) {
++      console.error('WA status notification failed:', err);
++    }
++  }
++
++  private async sendTukangAssignedWhatsApp(workOrderId: number) {
++    try {
++      await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
++    } catch (err) {
++      console.error('WA assign notification failed:', err);
++    }
++  }
+ 
+   async create(
+     dataDto: CreateWorkOrderDto,
+@@ -149,11 +149,11 @@ export class WorkOrdersService {
+         user,
+       );
+ 
+-      const [work_order] = await this.dbService.$transaction([
+-        this.dbService.work_orders.create(work_order_data),
+-      ]);
+-
+-      await this.sendTukangAssignedWhatsApp(work_order.id);
++      const [work_order] = await this.dbService.$transaction([
++        this.dbService.work_orders.create(work_order_data),
++      ]);
++
++      await this.sendTukangAssignedWhatsApp(work_order.id);
+ 
+       return work_order;
+     } catch (error) {
+@@ -162,7 +162,7 @@ export class WorkOrdersService {
+     }
+   }
+ 
+-  async findAll(queryParamsDto: QueryParamsDto) {
++  async findAll(queryParamsDto: QueryParamsDto) {
+     try {
+       const {
+         page,
+@@ -669,10 +669,9 @@ export class WorkOrdersService {
+         dataDto.work_order_status,
+         user,
+       );
+-      await this.sendWorkOrderStatusWhatsApp(work_order.id);
+-      if (dataDto.work_order_tukang?.length) {
+-        await this.sendTukangAssignedWhatsApp(work_order.id);
+-      }
++      if (dataDto.work_order_tukang?.length) {
++        await this.sendTukangAssignedWhatsApp(work_order.id);
++      }
+ 
+       return work_order;
+     } catch (error) {
+@@ -681,7 +680,7 @@ export class WorkOrdersService {
+     }
+   }
+ 
+-  async updateFoto(
++  async updateFoto(
+     id: number,
+     user: users,
+     work_order_evidences?: Array<Express.Multer.File>,
+@@ -1041,8 +1040,7 @@ export class WorkOrdersService {
+         updateData.status_id,
+         user,
+       );
+-      await this.sendWorkOrderStatusWhatsApp(work_order.id);
+-      return work_order;
++      return work_order;
+     } catch (error) {
+       console.error(error);
+       throw error;
+@@ -1207,8 +1205,8 @@ export class WorkOrdersService {
+           (item) => item.status === ReplaceTukangStatus.APPROVE,
+         )
+       ) {
+-        await this.sendTukangAssignedWhatsApp(id);
+-      }
++        await this.sendTukangAssignedWhatsApp(id);
++      }
+ 
+       const roles = (
+         await this.dbService.users.findUniqueOrThrow({
