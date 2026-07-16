@@ -106,6 +106,7 @@ export class WhatsAppService {
           include: {
             members: true,
             store: true,
+            service_type: true,
           },
         },
         work_order_tukang: {
@@ -143,7 +144,7 @@ export class WhatsAppService {
         customerName: workOrder.order?.members?.full_name ?? '-',
         storeName: workOrder.order?.store?.store_name ?? '-',
         orderId: String(workOrder.order_id),
-        surveyName: workOrder.status?.description ?? '-',
+        surveyName: workOrder.order?.service_type?.service_type ?? workOrder.status?.description ?? '-',
         craftsmanName,
         surveyDate: this.formatDateTime(
           workOrder.request_work_time ??

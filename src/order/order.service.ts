@@ -3678,7 +3678,9 @@ export class OrderService {
 
     const buffer = await this.pdfService.generatePotrait('quotation-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
+    const customerName = quotation.order?.members?.full_name?.replace(/[^a-zA-Z0-9 ]/g, '') ?? 'Customer';
+    const quotationFilename = `Quotation - ${customerName} - Order ID ${quotation.order_id}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${quotationFilename}"`);
     res.send(buffer);
   }
 

@@ -669,7 +669,6 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
-      await this.sendWorkOrderStatusWhatsApp(work_order.id);
       if (dataDto.work_order_tukang?.length) {
         await this.sendTukangAssignedWhatsApp(work_order.id);
       }
@@ -1041,7 +1040,6 @@ export class WorkOrdersService {
         updateData.status_id,
         user,
       );
-      await this.sendWorkOrderStatusWhatsApp(work_order.id);
       return work_order;
     } catch (error) {
       console.error(error);
