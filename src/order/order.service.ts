@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -23,16 +24,19 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
-import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     private readonly dbService: PrismaService,
     private pdfService: PdfService,
     private notifService: NotificationsService,
     private configService: ConfigService,
-    private readonly whatsAppService: WhatsAppService,
+    private violationDetector: ViolationDetectorService,
+
   ) { }
   // Tambahkan sebagai private method di dalam OrderService
   private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
@@ -193,7 +197,7 @@ export class OrderService {
             sales_id: salesUser?.sales[0]?.id ?? createOrderDto.sales_id,
           };
         });
-      if (createOrderDto.is_overdistance === 1)
+      if (createOrderDto.is_overdistance == 1)
         grand_total += createOrderDto.additional_fee ?? 25000;
 
       const orderConnection = Object.fromEntries(
@@ -221,7 +225,7 @@ export class OrderService {
         grand_total: grand_total.toFixed(2),
         grand_total_comission: grand_total_comission.toFixed(2),
         is_overdistance: createOrderDto.is_overdistance,
-        ...(createOrderDto.is_overdistance === 1
+        ...(createOrderDto.is_overdistance == 1
           ? {
             additional_fee: createOrderDto?.additional_fee ?? 25000,
           }
@@ -288,8 +292,6 @@ export class OrderService {
         user,
         createOrderDto,
       );
-
-      await this.whatsAppService.sendOrderCreatedNotification(order.id);
 
       return order;
     } catch (error) {
@@ -1255,23 +1257,31 @@ export class OrderService {
 
       let grand_total = 0;
       let grand_total_comission = 0;
-      if (updateOrderDto?.payment_type === PAYMENT_TYPE.SURVEY) {
-        // sama kayak create: hardcoded 99000
-        grand_total += 99000;
-        if (updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1) {
-          grand_total += Number(updateOrderDto.additional_fee) - +order.additional_fee;
-        } else if (updateOrderDto.is_overdistance === 0) {
-          grand_total -= +order.additional_fee;
-        }
-      } else if (updateOrderDto?.payment_type === PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY) {
-        // grand_total dihitung dari item di loop order_details di bawah
-        grand_total +=
-          updateOrderDto.additional_fee && updateOrderDto.is_overdistance === 1
-            ? Number(updateOrderDto.additional_fee)
-            : 0;
+
+      // Tentukan additional_fee efektif berdasarkan kondisi update:
+      // - is_overdistance === 1 → pakai nilai baru (atau default 25000)
+      // - is_overdistance === 0 → fee dihapus, jadi 0
+      // - is_overdistance tidak dikirim (undefined) → pertahankan nilai lama dari DB
+      const effectiveAdditionalFee =
+        updateOrderDto.is_overdistance == 1
+          ? Number(updateOrderDto.additional_fee ?? 25000)
+          : updateOrderDto.is_overdistance == 0
+            ? 0
+            : Number(order.additional_fee ?? 0);
+
+      if (
+        ![PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY].includes(
+          updateOrderDto?.payment_type,
+        )
+      ) {
+        // Untuk tipe survey: grand_total = (grand_total lama - additional_fee lama) + additional_fee efektif
+        // Ini memastikan additional_fee tidak double-count maupun hilang
+        const baseTotal = Number(order.grand_total) - Number(order.additional_fee ?? 0);
+        grand_total += baseTotal + effectiveAdditionalFee;
       } else {
-        // gratis atau payment_type lain → grand_total = 0, tidak ngambil dari DB
-        grand_total += 0;
+        // Untuk PEMASANGAN_TANPA_SURVEY: grand_total dihitung ulang dari item,
+        // additional_fee ditambahkan sekali di luar loop
+        grand_total += effectiveAdditionalFee;
       }
 
       const orderDetailUpsert: Prisma.m_order_detailsUpsertWithWhereUniqueWithoutOrderInput[] =
@@ -1299,15 +1309,9 @@ export class OrderService {
               )
             ) {
               total = Number(itemPrice) * item.quantity;
-              grand_total +=
-                total +
-                (updateOrderDto.additional_fee &&
-                  updateOrderDto.is_overdistance === 1
-                  ? Number(updateOrderDto.additional_fee) -
-                  +order.additional_fee
-                  : updateOrderDto.is_overdistance === 0
-                    ? +order.additional_fee
-                    : 0);
+              // Hanya tambahkan total per item — additional_fee sudah dihitung
+              // sekali di luar loop (lihat blok grand_total di atas)
+              grand_total += total;
               grand_total_comission += comission;
             }
 
@@ -1361,11 +1365,14 @@ export class OrderService {
       const orderUpdateData: Prisma.ordersUncheckedUpdateInput = {
         notes: updateOrderDto?.notes ?? undefined,
         is_overdistance: updateOrderDto?.is_overdistance ?? undefined,
-        ...(updateOrderDto?.is_overdistance === 1
-          ? {
-            additional_fee: updateOrderDto?.additional_fee ?? 25000,
-          }
-          : { additional_fee: 0 }),
+        // Jika is_overdistance === 1 → set fee baru (atau default 25000)
+        // Jika is_overdistance === 0 → hapus fee (set 0)
+        // Jika is_overdistance tidak dikirim (undefined) → jangan ubah field ini di DB
+        ...(updateOrderDto?.is_overdistance == 1
+          ? { additional_fee: updateOrderDto?.additional_fee ?? 25000 }
+          : updateOrderDto?.is_overdistance == 0
+            ? { additional_fee: 0 }
+            : undefined),
         member_id: updateOrderDto?.member_id ?? undefined,
         sales_id: updateOrderDto?.sales_id ?? undefined,
         store_id: updateOrderDto?.store_id ?? undefined,
@@ -1485,13 +1492,6 @@ export class OrderService {
         updateOrderDto,
       );
 
-      if (
-        updateOrderDto.project_status_id &&
-        updateOrderDto.project_status_id !== order.project_status_id
-      ) {
-        await this.whatsAppService.sendOrderCompletedNotification(orderQuery.id);
-      }
-
       return orderQuery;
     } catch (error) {
       console.error(error);
@@ -1542,6 +1542,7 @@ export class OrderService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkStatus() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const status = await this.dbService.status.findFirst({
         where: {
@@ -1561,7 +1562,7 @@ export class OrderService {
 
       const date = new Date();
       const thirdDateTime = new Date(date.setDate(date.getDate() - 3));
-      await this.dbService.orders.updateMany({
+      const expiredBookedOrders = await this.dbService.orders.findMany({
         where: {
           status: {
             id: status.id,
@@ -1570,12 +1571,36 @@ export class OrderService {
             lt: thirdDateTime,
           },
         },
+      });
+
+      await this.dbService.orders.updateMany({
+        where: {
+          id: {
+            in: expiredBookedOrders.map((order) => order.id),
+          },
+        },
         data: {
           project_status_id: statusUnpaid.id,
         },
       });
 
-      // return orders;
+      await Promise.all(
+        expiredBookedOrders.map((order) =>
+          this.notifService.create(
+            {
+              orders: {
+                ...order,
+                project_status_id: statusUnpaid.id,
+              },
+            },
+            'UPDATE',
+            order.updated_by ?? order.created_by,
+            moduleTypeNotification.ORDER,
+            order.id,
+            statusUnpaid.id,
+          ),
+        ),
+      );
     } catch (error) {
       console.error(error);
       throw error;
@@ -1584,6 +1609,7 @@ export class OrderService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async deleteOrder() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const status = await this.dbService.status.findFirst({
         where: {
@@ -1642,6 +1668,7 @@ export class OrderService {
       const order = await this.findOne(id);
 
       if (!order) throw new BadRequestException('Order does not Exist!');
+
       const [STATUS] = await this.dbService.status.findMany({
         where: {
           id: status_id,
@@ -1650,6 +1677,7 @@ export class OrderService {
           category: 'desc',
         },
       });
+
       const orderData: Prisma.ordersUpdateInput = {
         status: {
           connect: {
@@ -1673,6 +1701,7 @@ export class OrderService {
           },
         }),
       ]);
+
       if (orders) {
         await this.notifService.create(
           { orders: orders },
@@ -1682,15 +1711,71 @@ export class OrderService {
           orders.id,
           orders.project_status_id,
         );
+
+        // =========================================
+        // VENDOR VIOLATION TRIGGER
+        // Check jika vendor mengkonfirmasi order (status berubah dari unconfirmed ke confirmed)
+        // =========================================
+        await this.checkOrderConfirmationViolation(order, STATUS, orders);
       }
 
       await this.addHistory(orders.id, orders.project_status_id, user, orders);
-      await this.whatsAppService.sendOrderCompletedNotification(orders.id);
 
       return orders;
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  /**
+   * Check pelanggaran konfirmasi order
+   * Jika status berubah dari unconfirmed ke confirmed, pelanggaran batal dicatat
+   */
+  private async checkOrderConfirmationViolation(
+    previousOrder: any,
+    newStatus: any,
+    updatedOrder: any,
+  ): Promise<void> {
+    try {
+      // Status yang mengindikasikan vendor sudah mengkonfirmasi
+      const confirmedStatuses = ['QUOTEIN', 'QUOTEOUT', 'WORKREQ', 'SURVEYREQ', 'TUKANGSURVEY', 'SURVEYDONE', 'WORKSTART', 'WORKEND'];
+
+      const isNowConfirmed = confirmedStatuses.some((s) =>
+        newStatus.category?.toUpperCase().includes(s),
+      );
+
+      // Jika vendor mengkonfirmasi order, tidak ada pelanggaran
+      if (isNowConfirmed && previousOrder?.vendor_id) {
+        this.logger.debug(
+          `Order ${updatedOrder.id} confirmed by vendor ${previousOrder.vendor_id}. No violation recorded.`,
+        );
+        return;
+      }
+
+      // Jika order punya vendor dan belum dikonfirmasi
+      if (updatedOrder.vendor_id && !isNowConfirmed) {
+        const createdAt = new Date(updatedOrder.created_at);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const daysDiff = Math.floor(
+          (today.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000),
+        );
+
+        // Catat pelanggaran jika sudah > 0 hari (Hari H)
+        if (daysDiff >= 0 && previousOrder?.vendor_id) {
+          await this.violationDetector.recordViolation(
+            'ORDER_NOT_CONFIRMED_H',
+            {
+              vendorId: updatedOrder.vendor_id,
+              orderId: updatedOrder.id,
+              description: `Order #${updatedOrder.project_number || updatedOrder.id} tidak dikonfirmasi pada Hari H`,
+            },
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking order confirmation violation', error);
     }
   }
 
@@ -3678,9 +3763,7 @@ export class OrderService {
 
     const buffer = await this.pdfService.generatePotrait('quotation-pdf', data);
     res.setHeader('Content-Type', 'application/pdf');
-    const customerName = quotation.order?.members?.full_name?.replace(/[^a-zA-Z0-9 ]/g, '') ?? 'Customer';
-    const quotationFilename = `Quotation - ${customerName} - Order ID ${quotation.order_id}.pdf`;
-    res.setHeader('Content-Disposition', `attachment; filename="${quotationFilename}"`);
+    res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);
   }
 
@@ -5152,9 +5235,6 @@ export class OrderService {
           },
         }),
       ]);
-
-      await this.whatsAppService.sendOrderCreatedNotification(order.id);
-
       return order;
     } catch (error) {
       console.log(error);

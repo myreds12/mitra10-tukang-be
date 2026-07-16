@@ -187,11 +187,18 @@ export class VendorService {
         order_date_to,
         is_paid,
         is_promotion,
-        id_vendor
+        id_vendor,
+        is_active,
       } = query;
 
       const formattedDate = new Date().toISOString().split('T')[0];
-      const skip = page * take - take;
+      const requestedTake = Number(take ?? 10);
+      const safeTake = requestedTake > 0 ? Math.min(requestedTake, 50) : undefined;
+      const skip = safeTake ? page * safeTake - safeTake : 0;
+      const currentDateRange = {
+        gte: new Date(`${formattedDate}T00:00:00.000Z`),
+        lte: new Date(`${formattedDate}T23:59:59.000Z`),
+      };
 
       const where: Prisma.vendorWhereInput = {
         AND: [
@@ -214,6 +221,9 @@ export class VendorService {
             : []),
           ...(date_from && date_to
             ? [{ created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) } }]
+            : []),
+          ...(is_active === 0 || is_active === 1
+            ? [{ is_active: Boolean(is_active) }]
             : []),
           ...(order_date_from && order_date_to ? [{
             orders: {
@@ -261,16 +271,27 @@ export class VendorService {
       const vendorList = await this.dbService.vendor.findMany({
         where,
         skip,
-        take: take > 0 ? take : undefined,
+        take: safeTake,
         include: {
           tukang: {
             include: {
               work_order_tukang: {
-                where: { deleted_at: null },
+                where: {
+                  deleted_at: null,
+                  work_orders: {
+                    deleted_at: null,
+                    OR: [
+                      { created_at: currentDateRange },
+                      { survey_date: currentDateRange },
+                      { work_start_date: currentDateRange },
+                      { work_end_date: currentDateRange },
+                    ],
+                  },
+                },
                 orderBy: { created_at: 'desc' },
                 include: {
                   work_orders: {
-                    include: { status: true, work_order_status: true }
+                    include: { status: true }
                   }
                 }
               }
@@ -298,7 +319,10 @@ export class VendorService {
             include: { service_type: true }
           },
           vendor_store: {
-            where: { store_id: {in: store_id} ,deleted_at: null },
+            where: {
+              ...(store_id?.length ? { store_id: { in: store_id } } : {}),
+              deleted_at: null,
+            },
             select: {
               id: true,
               vendor_id: true,
@@ -828,6 +852,9 @@ export class VendorService {
       const formattedUsername =
         updateVendorDto?.default_username.replace(/ /g, '_') ?? undefined;
 
+      // Check if pic_vendor exists to prevent undefined error
+      const existingPicVendor = vendors.pic_vendor?.[0];
+
       const vendorData: Prisma.vendorUpdateInput = {
         type: updateVendorDto?.vendor_type,
         pkp_nominal: updateVendorDto?.pkp_nominal,
@@ -852,10 +879,10 @@ export class VendorService {
         updated_by: user_id,
         bank: updateVendorDto.bank_id
           ? {
-            connect: {
-              id: updateVendorDto.bank_id,
-            },
-          }
+              connect: {
+                id: updateVendorDto.bank_id,
+              },
+            }
           : undefined,
         vendor_service: {
           upsert: vendorServiceUpsert,
@@ -865,37 +892,42 @@ export class VendorService {
         },
         ...(vendorFiles
           ? {
-            vendor_document: {
-              createMany: {
-                data: vendorFiles.flat(),
+              vendor_document: {
+                createMany: {
+                  data: vendorFiles.flat(),
+                },
               },
-            },
-          }
+            }
           : undefined),
         vendor_store: {
           upsert: vendorStoreUpsert,
         },
-        pic_vendor: {
-          update: {
-            where: {
-              id: vendors.pic_vendor[0].id,
-            },
-            data: {
-              email_address: updateVendorDto?.email_address ?? undefined,
-              pic_name: updateVendorDto?.pic_name ?? undefined,
-              users: {
+        // Only update pic_vendor if it exists (prevents error for legacy vendors)
+        ...(existingPicVendor
+          ? {
+              pic_vendor: {
                 update: {
-                  username: updateVendorDto.default_username
-                    ? formattedUsername
-                    : vendors.pic_vendor[0].users.username,
-                  password: updateVendorDto.password
-                    ? await hashSync(updateVendorDto.password, 12)
-                    : undefined,
+                  where: {
+                    id: existingPicVendor.id,
+                  },
+                  data: {
+                    email_address: updateVendorDto?.email_address ?? undefined,
+                    pic_name: updateVendorDto?.pic_name ?? undefined,
+                    users: {
+                      update: {
+                        username: updateVendorDto.default_username
+                          ? formattedUsername
+                          : existingPicVendor.users?.username,
+                        password: updateVendorDto.password
+                          ? await hashSync(updateVendorDto.password, 12)
+                          : undefined,
+                      },
+                    },
+                  },
                 },
               },
-            },
-          },
-        },
+            }
+          : {}),
       };
 
       const [syncVendorStore, syncArea, syncService, syncDocument, vendor] =

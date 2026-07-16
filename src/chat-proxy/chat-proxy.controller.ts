@@ -1,97 +1,115 @@
 import {
-    Controller,
-    Post,
-    Param,
-    ParseIntPipe,
-    UploadedFile,
-    UseInterceptors,
-    Req,
-    Body,
-    HttpCode,
-    HttpStatus,
-    BadRequestException,
-    ServiceUnavailableException,
-  } from '@nestjs/common';
-  import { FileInterceptor } from '@nestjs/platform-express';
-  import { ConfigService } from '@nestjs/config';
-  import { Request } from 'express';
-  
-  @Controller('chat-proxy')
-  export class ChatProxyController {
-    constructor(private readonly configService: ConfigService) {}
-  
-    @Post('rooms/:roomId/upload')
-    @HttpCode(HttpStatus.OK)
-    @UseInterceptors(FileInterceptor('file', {
-      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB - sama seperti live-chat-api
-    }))
-    async uploadFile(
-      @Param('roomId', ParseIntPipe) roomId: number,
-      @UploadedFile() file: Express.Multer.File,
-      @Body('caption') caption: string,
-      @Req() req: Request,
-    ) {
-      if (!file) {
-        throw new BadRequestException('File tidak ditemukan');
-      }
-  
-      const authHeader = req.headers.authorization;
-      if (!authHeader) {
-        throw new BadRequestException('Authorization header diperlukan');
-      }
-  
-      const liveChatApiUrl = this.configService.get<string>('LIVE_CHAT_API_URL');
-      if (!liveChatApiUrl) {
-        throw new ServiceUnavailableException(
-          'LIVE_CHAT_API_URL belum dikonfigurasi di backend',
-        );
-      }
-  
-      const targetUrl = `${liveChatApiUrl}/rooms/${roomId}/upload`;
-  
-      const form = new FormData();
-      const blob = new Blob([file.buffer], { type: file.mimetype });
-      form.append('file', blob, file.originalname);
-      if (caption) {
-        form.append('caption', caption);
-      }
-  
-      let response: Response;
-      try {
-        response = await fetch(targetUrl, {
-          method: 'POST',
-          body: form,
-          headers: {
-            Authorization: authHeader,
-          },
-        });
-      } catch (err) {
-        console.error('[ChatProxy] Gagal koneksi ke live-chat-api:', err);
-        throw new ServiceUnavailableException(
-          `Tidak dapat mengakses live-chat-api: ${err.message}`,
-        );
-      }
-  
-      const contentType = response.headers.get('content-type') || '';
-      let responseData: any;
-      if (contentType.includes('application/json')) {
-        responseData = await response.json();
-      } else {
-        const text = await response.text();
-        responseData = { message: text };
-      }
-  
-      if (!response.ok) {
-        console.error('[ChatProxy] live-chat-api error:', response.status, responseData);
-        throw new ServiceUnavailableException(
-          `live-chat-api error ${response.status}: ${
-            responseData?.message || JSON.stringify(responseData)
-          }`,
-        );
-      }
-  
-      // Return same format as live-chat-api: { success: true, data: message }
-      return responseData;
+  Controller,
+  Post,
+  Param,
+  ParseIntPipe,
+  UploadedFile,
+  UseInterceptors,
+  Req,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
+import { extname } from 'path';
+import { diskStorage } from 'multer';
+import { existsSync, mkdirSync } from 'fs';
+
+// Same mime types as live-chat-api
+const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const VIDEO_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/x-matroska',
+  'video/webm',
+  'video/mpeg',
+];
+const DOCUMENT_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+const ALLOWED_MIME_TYPES = [
+  ...IMAGE_MIME_TYPES,
+  ...VIDEO_MIME_TYPES,
+  ...DOCUMENT_MIME_TYPES,
+];
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+// Configure multer storage
+const storage = diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = './uploads';
+    if (!existsSync(uploadPath)) {
+      mkdirSync(uploadPath, { recursive: true });
     }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+  },
+});
+
+const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
+  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new BadRequestException('Tipe file tidak diizinkan'), false);
   }
-  
+};
+
+@Controller('chat-proxy')
+export class ChatProxyController {
+  constructor(private readonly configService: ConfigService) {}
+
+  @Post('rooms/:roomId/upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage,
+      fileFilter,
+      limits: { fileSize: MAX_FILE_SIZE },
+    }),
+  )
+  async uploadFile(
+    @Param('roomId', ParseIntPipe) roomId: number,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File tidak ditemukan');
+    }
+
+    const baseUrl =
+      this.configService.get<string>('API_URL')?.replace('/api', '') ||
+      `${req.protocol}://${req.get('host')}`;
+    const fileUrl = `${baseUrl}/public/${file.filename}`;
+
+    // Determine file type
+    const isVideo = VIDEO_MIME_TYPES.includes(file.mimetype);
+    const type = IMAGE_MIME_TYPES.includes(file.mimetype) ? 'image' : 'file';
+
+    return {
+      success: true,
+      data: {
+        id: 0, // Placeholder - not used by FE for file messages
+        roomId,
+        content: fileUrl,
+        fileName: file.originalname,
+        fileUrl,
+        type,
+        mimeType: file.mimetype,
+        size: file.size,
+        isVideo,
+        caption: null,
+        senderId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+}

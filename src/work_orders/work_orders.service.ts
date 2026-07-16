@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
@@ -13,15 +13,18 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { WorkOrderTukang } from './dto/wo-tukang.dto';
 import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class WorkOrdersService {
+  private readonly logger = new Logger(WorkOrdersService.name);
   constructor(
     private readonly dbService: PrismaService,
     private orderService: OrderService,
     private vendorService: VendorService,
     @InjectQueue('email') private emailQueue: Queue,
     private readonly whatsAppService: WhatsAppService,
+    private violationDetector: ViolationDetectorService,
   ) { }
 
   private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
@@ -1034,16 +1037,139 @@ export class WorkOrdersService {
 
       const work_order = await this.dbService.work_orders.findUnique({
         where: { id },
+        include: {
+          order: true,
+          work_order_evidences: true,
+        },
       });
+
       await this.orderService.setStatus(
         work_order.order_id,
         updateData.status_id,
         user,
       );
+
+      // =========================================
+      // VENDOR VIOLATION TRIGGERS
+      // =========================================
+      if (work_order?.order?.vendor_id) {
+        await this.checkDocumentationViolation(work_order, updateData, NEW_STATUS, files);
+        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+      }
+
       return work_order;
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  /**
+   * Trigger #12: Check dokumentasi foto (blur/tidak lengkap)
+   */
+  private async checkDocumentationViolation(
+    workOrder: any,
+    updateData: any,
+    newStatus: any,
+    files?: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
+  ): Promise<void> {
+    try {
+      const finalStatuses = ['WORKEND', 'SURVEYDONE', 'WORKENDSTEPONE', 'WORKENDSTEPTWO', 'WORKENDSTEPTHREE'];
+      const isFinalStatus = finalStatuses.some(
+        (status) => newStatus?.category?.toUpperCase() === status,
+      );
+
+      if (isFinalStatus) {
+        const existingEvidences = await this.dbService.work_order_evidences.findMany({
+          where: {
+            work_order_id: workOrder.id,
+            deleted_at: null,
+          },
+        });
+
+        const hasBefore =
+          Boolean(files?.work_order_before?.length) ||
+          existingEvidences.some((evidence) => evidence.type === 2);
+        const hasAfter =
+          Boolean(files?.work_order_after?.length) ||
+          existingEvidences.some((evidence) => evidence.type === 3);
+
+        if (!hasBefore || !hasAfter) {
+          await this.violationDetector.recordViolation(
+            'DOC_NOT_UPLOADED',
+            {
+              vendorId: workOrder.order.vendor_id,
+              orderId: workOrder.order_id,
+              workOrderId: workOrder.id,
+              description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto ${!hasBefore ? 'before' : ''}${!hasBefore && !hasAfter ? ' dan ' : ''}${!hasAfter ? 'after' : ''}`,
+            },
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking documentation violation', error);
+    }
+  }
+
+  /**
+   * Trigger #13: Check delay status update
+   */
+  private async checkStatusUpdateViolation(
+    workOrder: any,
+    newStatus: any,
+  ): Promise<void> {
+    try {
+      // Jika vendor mengupdate status ke progres (WORKSTART, dll)
+      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK'];
+      const isProgress = progressStatuses.some(
+        (s) => newStatus?.category?.toUpperCase().includes(s),
+      );
+
+      if (isProgress) {
+        // Status diupdate - tidak ada pelanggaran delay
+        this.logger.debug(
+          `Status updated for WO ${workOrder.id}. No delay violation.`,
+        );
+        return;
+      }
+
+      // Check delay jika vendor tidak mengupdate status
+      const lastUpdate = await this.dbService.work_order_status.findFirst({
+        where: {
+          work_order_id: workOrder.id,
+          deleted_at: null,
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      if (!lastUpdate) return;
+
+      const now = new Date();
+      const lastUpdateDate = new Date(lastUpdate.created_at);
+      const daysDiff = Math.floor(
+        (now.getTime() - lastUpdateDate.getTime()) / (24 * 60 * 60 * 1000),
+      );
+
+      // Jika sudah lebih dari 1 hari tanpa update status
+      if (daysDiff >= 1) {
+        const violationCode =
+          daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H1';
+
+        await this.violationDetector.recordViolation(
+          violationCode,
+          {
+            vendorId: workOrder.order.vendor_id,
+            orderId: workOrder.order_id,
+            workOrderId: workOrder.id,
+            description: `Work Order #${workOrder.id} tidak diupdate selama ${daysDiff} hari`,
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error checking status update violation', error);
     }
   }
 
@@ -1207,6 +1333,7 @@ export class WorkOrdersService {
       ) {
         await this.sendTukangAssignedWhatsApp(id);
       }
+
 
       const roles = (
         await this.dbService.users.findUniqueOrThrow({

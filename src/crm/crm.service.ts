@@ -10,7 +10,6 @@ import { GoogleScriptApiService } from './google-script-api.service';
 import { CRM_TYPE } from 'src/complaints/dto/crm_type.enum';
 import * as path from 'path';
 
-
 @Injectable()
 export class CrmService {
   private readonly logger = new Logger(CrmService.name);

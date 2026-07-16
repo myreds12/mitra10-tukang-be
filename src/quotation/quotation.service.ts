@@ -23,7 +23,7 @@ import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
-import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class QuotationService {
@@ -32,7 +32,7 @@ export class QuotationService {
     private readonly orderService: OrderService,
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
-    private readonly whatsAppService: WhatsAppService,
+    private violationDetector: ViolationDetectorService,
   ) { }
 
   private readonly logger = new Logger(QuotationService.name);
@@ -268,6 +268,12 @@ export class QuotationService {
           quotation.id,
           quotation.quotation_status,
         );
+
+        // =========================================
+        // VENDOR VIOLATION TRIGGER
+        // Check jika quotation dibuat setelah > 2-3 hari sejak Survey Selesai
+        // =========================================
+        await this.checkQuotationLateness(quotation, order);
       }
 
       await this.orderService.setStatus(
@@ -279,6 +285,67 @@ export class QuotationService {
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  /**
+   * Trigger #10, #11: Check quotation lateness sejak Survey Selesai
+   */
+  private async checkQuotationLateness(
+    quotation: any,
+    order: any,
+  ): Promise<void> {
+    try {
+      if (!order?.vendor_id) return;
+
+      // Cari history Survey Selesai
+      const surveyDoneHistory = await this.dbService.order_histories.findFirst({
+        where: {
+          order_id: order.id,
+          status: { category: 'SURVEYDONE' },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      if (!surveyDoneHistory) {
+        this.logger.debug(`No SURVEYDONE history found for order ${order.id}`);
+        return;
+      }
+
+      const surveyDoneDate = new Date(surveyDoneHistory.created_at);
+      const now = new Date();
+      const daysDiff = Math.floor(
+        (now.getTime() - surveyDoneDate.getTime()) / (24 * 60 * 60 * 1000),
+      );
+
+      this.logger.debug(
+        `Quotation #${quotation.id} created ${daysDiff} days after SURVEYDONE for order ${order.id}`,
+      );
+
+      // Jika quotation dibuat > H+2 atau H+3 sejak Survey Selesai, catat pelanggaran
+      if (daysDiff >= 3) {
+        await this.violationDetector.recordViolation(
+          'QUOTATION_LATE_H3',
+          {
+            vendorId: order.vendor_id,
+            orderId: order.id,
+            quotationId: quotation.id,
+            description: `Quotation terbit ${daysDiff} hari setelah Survey Selesai (limit: H+3)`,
+          },
+        );
+      } else if (daysDiff >= 2) {
+        await this.violationDetector.recordViolation(
+          'QUOTATION_LATE_H2',
+          {
+            vendorId: order.vendor_id,
+            orderId: order.id,
+            quotationId: quotation.id,
+            description: `Quotation terbit ${daysDiff} hari setelah Survey Selesai (limit: H+2)`,
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error checking quotation lateness', error);
     }
   }
 
@@ -1067,8 +1134,6 @@ export class QuotationService {
         user,
       );
 
-      await this.whatsAppService.sendQuotationNotification(quotation.id);
-
       return quotation;
     } catch (error) {
       console.error(error);
@@ -1143,8 +1208,6 @@ export class QuotationService {
         updated_by: user_id,
       },
     });
-
-    await this.whatsAppService.sendQuotationNotification(quotation.id);
 
     return quotation;
   }
@@ -1275,6 +1338,7 @@ export class QuotationService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async checkvalidity() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       // console.log('init checkvalidity');
       this.logger.log('init checkvalidity');

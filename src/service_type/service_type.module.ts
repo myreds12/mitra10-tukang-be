@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServiceTypeService } from './service_type.service';
-import { ServiceTypeController } from './service_type.controller';
+import { PublicServiceTypesController, ServiceTypeController } from './service_type.controller';
 
 @Module({
-  controllers: [ServiceTypeController],
+  controllers: [ServiceTypeController, PublicServiceTypesController],
   providers: [ServiceTypeService],
 })
 export class ServiceTypeModule {}

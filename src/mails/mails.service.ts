@@ -422,6 +422,12 @@ export class MailsService {
 
   @Cron(CronExpression.EVERY_5_SECONDS)
   async mailTriggerScheduler() {
+    // Hanya instance 0 yang boleh menjalankan scheduler ini.
+    // Di PM2 cluster mode, setiap instance mendapat NODE_APP_INSTANCE (0,1,2,...).
+    // Instance lain tetap idle — mencegah N×duplikat job di Redis queue.
+    const instanceId = process.env.NODE_APP_INSTANCE ?? '0';
+    if (instanceId !== '0') return;
+
     try {
       this.logger.verbose('Initiate mail trigger checks');
       const mail_messages = await this.dbService.email_messages.findMany({
@@ -619,20 +625,19 @@ export class MailsService {
         //   `[QuotationTrigger] Quotation ${quotation.id}: countMailLogs=${countSendedEmail}, jobExist=${!!jobExist}`,
         // );
 
-        // Log detail untuk memastikan filter-nya benar
-        // if (countSendedEmail >= 2) {
-        //   this.logger.verbose(
-        //     `[QuotationTrigger] Skipping quotation ${quotation.id}: already sent ${countSendedEmail} emails.`,
-        //   );
-        //   continue;
-        // }
+        if (countSendedEmail > 0) {
+          this.logger.verbose(
+            `[QuotationTrigger] Skipping quotation ${quotation.id}: already sent ${countSendedEmail} emails.`,
+          );
+          continue;
+        }
 
-        // if (jobExist) {
-        //   this.logger.verbose(
-        //     `[QuotationTrigger] Skipping quotation ${quotation.id}: job already exists in queue.`,
-        //   );
-        //   continue;
-        // }
+        if (jobExist) {
+          this.logger.verbose(
+            `[QuotationTrigger] Skipping quotation ${quotation.id}: job already exists in queue.`,
+          );
+          continue;
+        }
 
         // Jika memenuhi syarat => buat job baru
         const jobData = {
@@ -970,24 +975,22 @@ export class MailsService {
         const jobId = `send-csi-mail-${order.id}-${template_id}`;
         const jobExist = await this.emailQueue.getJob(jobId);
 
-        // if (!countSendedEmail && !jobExist) {
-        // this.logger.log(
-        //   `Sending email for csi ${order.id} status ${status_id}`,
-        // );
-        jobs.push({
-          name: 'send-csi-mail',
-          data: {
-            module_id: csi.id,
-            order_id: order.id,
-            template_id,
-          },
-          opts: {
-            jobId,
-            delay,
-          },
-        });
-        delay += 5000;
-        // }
+        // Guard dedup: skip jika sudah pernah dikirim atau job sudah ada di queue
+        if (!countSendedEmail && !jobExist) {
+          jobs.push({
+            name: 'send-csi-mail',
+            data: {
+              module_id: csi.id,
+              order_id: order.id,
+              template_id,
+            },
+            opts: {
+              jobId,
+              delay,
+            },
+          });
+          delay += 5000;
+        }
       }
 
       if (jobs.length > 0) {

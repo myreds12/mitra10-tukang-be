@@ -53,6 +53,14 @@ import { ComissionSalesIncentiveModule } from './comission_sales_incentive/comis
 import { ComissionStoreIncentiveModule } from './comission_store_incentive/comission_store_incentive.module';
 import { QuotationPromotionModule } from './quotation_promotion/quotation_promotion.module';
 import { CrmModule } from './crm/crm.module';
+import { VendorViolationModule } from './vendor-violation/vendor-violation.module';
+import { VendorSpModule } from './vendor-sp/vendor-sp.module';
+import { VendorRegistrationModule } from './vendor-registration/vendor-registration.module';
+import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
+import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
+import { ViolationDetectorService } from './common/services/violation-detector.service';
+
+const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
@@ -134,7 +142,7 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
       }),
     }),
     BrandsModule,
-    CsiModule,
+    // CsiModule, // Disabled - requires Google Sheets credentials
     StoreGroupModule,
     MailsModule,
     ConfigModule.forRoot({
@@ -165,9 +173,17 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
     WhatsAppModule,
     //manager
     ManagerModule,
+    // Vendor SP & Violation System
+    ...(isVendorSpEnabled ? [VendorViolationModule, VendorSpModule] : []),
+    VendorRegistrationModule,
+    ChatProxyModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    ViolationDetectorService,
+    ...(isVendorSpEnabled ? [VendorViolationScheduler] : []),
+  ],
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
 })

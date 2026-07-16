@@ -57,6 +57,29 @@ export class ServiceTypeService {
     }
   }
 
+  // Public endpoint - no auth required
+  async findAllPublic() {
+    try {
+      const service_type = await this.dbService.service_type.findMany({
+        where: {
+          is_active: true,
+          is_test: false,
+          deleted_at: null,
+        },
+        orderBy: {
+          service_type: 'asc',
+        },
+      });
+
+      return {
+        data: service_type,
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async findOne(id: number) {
     try {
       const service_type = await this.dbService.service_type.findFirst({

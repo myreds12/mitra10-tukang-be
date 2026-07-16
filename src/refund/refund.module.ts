@@ -6,10 +6,12 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Module({
   controllers: [RefundController],
-  providers: [RefundService, NotificationsService],
+  providers: [RefundService, NotificationsService, ViolationDetectorService],
+  exports: [RefundService, ViolationDetectorService],
   imports: [
     OrderModule,
     MulterModule.register({

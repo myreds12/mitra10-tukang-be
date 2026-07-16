@@ -1,0 +1,97 @@
+doctype html
+html(lang="id")
+    head
+        meta(charset='UTF-8')
+        meta(name='viewport' content='width=device-width, initial-scale=1.0')
+        link(href='https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC' crossorigin='anonymous')
+        title Pendaftaran Vendor Ditolak
+
+    style.
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            background-color: #dc3545;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header img {
+            width: 100px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 30px;
+            background-color: #f9f9f9;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .btn-website {
+            background-color: #183383;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+
+    body
+        div.email-container
+            div.header
+                img(src='https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png' alt='Logo Mitra10' style='width: 100px;')
+                h1 Instalasi & Service Mitra 10
+
+            div.content
+                h2 Halo, #{data.company_name}!
+                h3.text-danger Pendaftaran Vendor Anda Ditolak
+
+                p Mohon maaf, pendaftaran vendor Anda di Instalasi & Service Mitra10 belum lolos seleksi dan belum dapat diproses lebih lanjut.
+
+                div.alert-danger
+                    strong Alasan Penolakan:
+                    p #{data.rejection_reason}
+
+                h4 Apa yang bisa Anda lakukan?
+                ul
+                    li Perbaiki dan lengkapi kembali data atau dokumen yang diperlukan
+                    li Pastikan semua dokumen yang diupload masih berlaku dan jelas terbaca
+                    li Anda dapat melakukan pendaftaran ulang minimal setelah 1 bulan sejak tanggal penolakan
+                    if data.reapply_date
+                        li Pendaftaran ulang dapat dilakukan mulai #{data.reapply_date}
+                    li Daftarkan kembali melalui portal kami setelah masa tunggu tersebut selesai
+
+                center
+                    a.btn-website(href=data.website_url) Kunjungi Portal Mitra10
+
+                hr
+
+                p Jika tombol di atas tidak berfungsi, Anda dapat mengunjungi langsung:
+                p(style="word-break: break-all; font-size: 11px; color: #183383;") #{data.website_url}
+
+                p.mt-4 Jika Anda merasa ada kesalahan atau memiliki pertanyaan, silakan hubungi kami di customer.relation@mitra10.com
+
+            div.footer
+                p Anda menerima email ini karena #{data.company_name} telah mendaftar di
+                    a(href=data.website_url) instalasi.mitra10.com
+                p Hormat Kami,
+                strong Mitra10 Instalasi & Service
+                p Email ini dikirim secara otomatis. Mohon jangan membalas email ini.
+                p Hubungi kami: customer.relation@mitra10.com
+
+        script(src="https://code.jquery.com/jquery-3.5.1.slim.min.js")
+        script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js")

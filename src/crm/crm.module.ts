@@ -25,8 +25,7 @@ import { GoogleScriptApiService } from './google-script-api.service';
         project_id: configService.get<string>('CRM_PROJECT_ID'),
         private_key_id: configService.get<string>('CRM_PRIVATE_KEY_ID'),
         private_key: configService
-          .get<string>('CRM_PRIVATE_KEY')
-          .replace(/\\n/g, '\n'),
+          .get<string>('CRM_PRIVATE_KEY'),
         client_email: configService.get<string>('CRM_CLIENT_EMAIL'),
         client_id: configService.get<string>('CRM_CLIENT_ID'),
         auth_uri: configService.get<string>('CRM_AUTH_URI'),

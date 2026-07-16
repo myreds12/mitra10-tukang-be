@@ -62,6 +62,28 @@ export class BankService {
     }
   }
 
+  // Public endpoint - no auth required
+  async findAllPublic() {
+    try {
+      const banks = await this.dbService.bank.findMany({
+        where: {
+          is_active: true,
+          deleted_at: null,
+        },
+        orderBy: {
+          bank_name: 'asc',
+        },
+      });
+
+      return {
+        data: banks,
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async findOne(id: number) {
     try {
       const bank = await this.dbService.bank.findFirst({

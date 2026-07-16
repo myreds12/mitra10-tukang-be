@@ -6,10 +6,11 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Module({
   controllers: [RescheduleController],
-  providers: [RescheduleService, NotificationsService],
+  providers: [RescheduleService, NotificationsService, ViolationDetectorService],
   imports: [
     OrderModule,
     MulterModule.register({

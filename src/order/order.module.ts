@@ -8,11 +8,12 @@ import { BullModule } from '@nestjs/bull';
 import { PdfService } from 'src/common/service/pdf.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { fileFilter } from 'src/common/filters/file-filter';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Module({
   controllers: [OrderController],
-  providers: [OrderService, PdfService, NotificationsService],
-  exports: [OrderService],
+  providers: [OrderService, PdfService, NotificationsService, ViolationDetectorService],
+  exports: [OrderService, ViolationDetectorService],
   imports: [
     MulterModule.register({
       storage: diskStorage({

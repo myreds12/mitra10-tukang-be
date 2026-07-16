@@ -1,0 +1,34 @@
+doctype html
+html(lang="id")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport" content="width=device-width, initial-scale=1.0")
+        title Pendaftaran Vendor Diterima - Mitra10
+    body(style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;")
+        table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f0f2f5;")
+            tr
+                td(style="padding:40px 10px;")
+                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;")
+                        tr
+                            td(style="background-color:#183383;padding:28px 35px;text-align:center;")
+                                img(src="https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png" alt="Logo Mitra10" width="70" style="display:block;margin:0 auto 12px auto;border:0;")
+                                h1(style="color:#ffffff;font-size:20px;font-weight:700;margin:0;") Instalasi &amp; Service Mitra10
+                        tr
+                            td(style="padding:32px 35px;")
+                                h2(style="font-size:22px;color:#1a1a2e;margin:0 0 12px 0;") Terima kasih, #{data.company_name}
+                                p(style="font-size:14px;color:#495057;line-height:1.7;margin:0 0 16px 0;") Pendaftaran vendor Anda telah kami terima. Tim Mitra10 akan memproses dan meninjau data yang dikirimkan.
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f8f9fa;border-left:4px solid #183383;margin:20px 0;")
+                                    tr
+                                        td(style="padding:18px 20px;")
+                                            p(style="font-size:13px;font-weight:700;color:#183383;margin:0 0 12px 0;") Data kontak terdaftar
+                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Email perusahaan: #{data.email_address}
+                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Email PIC: #{data.pic_email}
+                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Telepon perusahaan: #{data.phone_number}
+                                            p(style="font-size:13px;color:#495057;margin:0;") Telepon PIC: #{data.pic_phone}
+                                p(style="font-size:14px;color:#495057;line-height:1.7;margin:0;") Informasi status pendaftaran akan dikirimkan melalui email yang didaftarkan. Pastikan email dan nomor telepon aktif agar tim kami dapat menghubungi Anda.
+                        tr
+                            td(style="background-color:#f8f9fa;padding:22px 35px;text-align:center;border-top:1px solid #e9ecef;")
+                                p(style="font-size:11px;color:#6c757d;line-height:1.6;margin:0 0 6px 0;") Hormat kami,
+                                    br
+                                    strong Mitra10 Instalasi &amp; Service
+                                p(style="font-size:11px;color:#6c757d;margin:0;") Email otomatis. Mohon jangan membalas.

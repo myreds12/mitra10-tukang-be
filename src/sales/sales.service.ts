@@ -1302,6 +1302,7 @@ export class SalesService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async deleteOrder() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const updatedSalesIncentives =
         await this.dbService.sales_incentive.findMany({
@@ -1375,6 +1376,7 @@ export class SalesService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async salesUserManagement() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -1433,6 +1435,7 @@ export class SalesService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async managementSalesSixMonth() {
+    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);

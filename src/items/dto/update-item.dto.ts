@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  Max,
   ValidateNested,
 } from 'class-validator';
 import { ITEM_TYPE } from '../enum/item_type.enum';
@@ -33,6 +34,7 @@ export class UpdateItemDto {
   is_active?: number;
 
   @Type(() => Number)
+  @Max(999999999)
   invoice_nominal?: number;
 
 

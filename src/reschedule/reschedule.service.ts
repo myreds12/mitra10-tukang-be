@@ -12,13 +12,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class RescheduleService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
-    private notifService: NotificationsService
+    private notifService: NotificationsService,
+    private violationDetector: ViolationDetectorService,
   ) { }
 
   async create(
@@ -414,6 +416,20 @@ export class RescheduleService {
     rescheduleEvidences: Express.Multer.File[],
   ) {
     const { id: userId } = user;
+    const existingReschedule = await this.dbService.reschedule.findFirst({
+      where: { id, deleted_at: null },
+      include: {
+        order: {
+          include: {
+            vendor: true,
+          },
+        },
+      },
+    });
+
+    if (!existingReschedule) {
+      throw new Error('Reschedule not found');
+    }
 
     const order = await this.dbService.orders.findFirst({
       where: { id: updateRescheduleDto.order_id },
@@ -584,6 +600,12 @@ export class RescheduleService {
         updatedReschedule.id,
         updatedReschedule.status_id
       );
+
+      await this.checkRescheduleChangeScheduleViolation(
+        existingReschedule,
+        updatedReschedule,
+        user,
+      );
     }
 
     if (status.category.toLowerCase().includes('rescheduleapprovedbyvendor') && order.order_history[0].status.category === 'TUKANGSURVEY' || order.order_history[0].status.category === 'SURVEYREQ') {
@@ -612,6 +634,49 @@ export class RescheduleService {
     }
 
     return updatedReschedule;
+  }
+
+  private async checkRescheduleChangeScheduleViolation(
+    previousReschedule: any,
+    updatedReschedule: any,
+    user: users,
+  ): Promise<void> {
+    try {
+      const vendorId = previousReschedule.order?.vendor_id;
+      if (!vendorId) return;
+
+      const currentUser = await this.dbService.users.findFirst({
+        where: { id: user.id },
+        include: { roles: true },
+      });
+
+      const isVendorUser = ['Owner Vendor', 'Admin Vendor'].includes(
+        currentUser?.roles?.name || '',
+      );
+
+      if (!isVendorUser) return;
+
+      const previousDate = new Date(previousReschedule.reschedule_date);
+      const newDate = new Date(updatedReschedule.reschedule_date);
+      const actionDate = new Date();
+      const isSameScheduleDate =
+        previousDate.toDateString() === actionDate.toDateString();
+      const isDateChanged = previousDate.getTime() !== newDate.getTime();
+
+      if (!isSameScheduleDate || !isDateChanged) return;
+
+      await this.violationDetector.recordViolation(
+        'RESCHEDULE_CHANGE_SCHEDULE',
+        {
+          vendorId,
+          orderId: previousReschedule.order_id,
+          description: `Vendor mengubah jadwal reschedule pada hari pelaksanaan untuk order #${previousReschedule.order_id}`,
+        },
+        user.id,
+      );
+    } catch (error) {
+      console.error('Error checking reschedule change schedule violation', error);
+    }
   }
 
   async getCode() {

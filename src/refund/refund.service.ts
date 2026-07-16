@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { UpdateRefundDto } from './dto/update-refund.dto';
 import { Prisma, users } from '@prisma/client';
@@ -12,13 +12,17 @@ import * as path from 'path';
 import { OrderService } from 'src/order/order.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class RefundService {
+  private readonly logger = new Logger(RefundService.name);
+
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
     private notifService: NotificationsService,
+    private violationDetector: ViolationDetectorService,
   ) { }
   async create(
     createRefundDto: CreateRefundDto,
@@ -32,6 +36,14 @@ export class RefundService {
           id: createRefundDto.order_id,
         },
         include: {
+          quotation: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              status: true,
+            },
+          },
           work_orders: {
             include: {
               work_order_tukang: true,
@@ -91,6 +103,15 @@ export class RefundService {
           refund.id,
           refund.refund_status,
         );
+
+        // =========================================
+        // VENDOR VIOLATION TRIGGER
+        // Check jumlah refund vendor per quarter
+        // =========================================
+        if (order?.vendor_id) {
+          await this.checkRefundViolation(order, refund);
+          await this.checkQuotationNotFulfilledViolation(order, refund);
+        }
       }
 
       await this.orderService.setStatus(
@@ -103,6 +124,95 @@ export class RefundService {
     } catch (error) {
       console.error(error);
       throw error;
+    }
+  }
+
+  /**
+   * Trigger #6, #7: Check refund count per quarter
+   * #6: 5 refund per quarter
+   * #7: 6-10 refund per quarter
+   */
+  private async checkRefundViolation(
+    order: any,
+    refund: any,
+  ): Promise<void> {
+    try {
+      const vendorId = order.vendor_id;
+      const now = new Date();
+      const quarter = Math.ceil((now.getMonth() + 1) / 3);
+      const year = now.getFullYear();
+
+      // Hitung total refund vendor di quarter ini
+      const refundCount = await this.violationDetector.countVendorRefundsInQuarter(
+        vendorId,
+        quarter,
+        year,
+      );
+
+      this.logger.debug(
+        `Vendor ${vendorId} has ${refundCount} refunds in Q${quarter}/${year}`,
+      );
+
+      // BRD Juni 2026: rule kedua berlaku untuk refund ke-6 sampai ke-10.
+      if (refundCount >= 6 && refundCount <= 10) {
+        await this.violationDetector.recordViolation(
+          'REFUND_6_10_PER_QUARTER',
+          {
+            vendorId,
+            orderId: order.id,
+            refundId: refund.id,
+            description: `Vendor memiliki ${refundCount} order refund di Q${quarter}/${year}`,
+          },
+        );
+      } else if (refundCount === 5) {
+        await this.violationDetector.recordViolation(
+          'REFUND_5_PER_QUARTER',
+          {
+            vendorId,
+            orderId: order.id,
+            refundId: refund.id,
+            description: `Vendor memiliki ${refundCount} order refund di Q${quarter}/${year}`,
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error checking refund violation', error);
+    }
+  }
+
+  private async checkQuotationNotFulfilledViolation(
+    order: any,
+    refund: any,
+  ): Promise<void> {
+    try {
+      if (!order?.vendor_id || !order?.quotation?.length) return;
+
+      const fulfilledQuotationStatuses = [
+        'QUOTEOUT',
+        'QUOTATIONPAID',
+        'QUOTATIONPAIDSTEPONE',
+        'QUOTATIONPAIDSTEPTWO',
+        'QUOTATIONPAIDSTEPTHREE',
+      ];
+
+      const fulfilledQuotation = order.quotation.find((quotation: any) =>
+        fulfilledQuotationStatuses.includes(quotation.status?.category),
+      );
+
+      if (!fulfilledQuotation) return;
+
+      await this.violationDetector.recordViolation(
+        'QUOTATION_NOT_FULFILLED',
+        {
+          vendorId: order.vendor_id,
+          orderId: order.id,
+          quotationId: fulfilledQuotation.id,
+          refundId: refund.id,
+          description: `Order #${order.project_number || order.id} refund setelah quotation ${fulfilledQuotation.quotation_number || fulfilledQuotation.id} terbit/disetujui`,
+        },
+      );
+    } catch (error) {
+      this.logger.error('Error checking quotation not fulfilled violation', error);
     }
   }
 

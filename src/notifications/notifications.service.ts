@@ -36,18 +36,21 @@ export class NotificationsService {
           module_id,
           module_type,
           status,
+          created_at: {
+            gte: new Date(Date.now() - 5000),
+          },
         },
-        take: 10,
-        orderBy: {
-          created_at: 'desc',
-        },
+        take: 1,
       });
 
       if (notifDuplicate.length > 0) {
         return;
       }
 
-      if (module_type === moduleTypeNotification.QUOTATION_PROMOTION) {
+      if (
+        module_type === moduleTypeNotification.QUOTATION_PROMOTION ||
+        module_type === moduleTypeNotification.VENDOR_REGISTRATION
+      ) {
         filteredRoles = ['Admin HO', 'Super User'];
       } else if (
         module_type === moduleTypeNotification.INVOICE &&
@@ -102,8 +105,13 @@ export class NotificationsService {
 
       let usersWithRoles = [];
 
-      if (module_type !== moduleTypeNotification.QUOTATION_PROMOTION) {
-        // Cari user dengan roles dan relevansi ID jika bukan QUOTATION_PROMOTION
+      if (
+        ![
+          moduleTypeNotification.QUOTATION_PROMOTION,
+          moduleTypeNotification.VENDOR_REGISTRATION,
+        ].includes(module_type)
+      ) {
+        // Cari user dengan roles dan relevansi ID jika bukan notification global admin.
         usersWithRoles = await this.dbService.users.findMany({
           where: {
             roles: {
@@ -200,6 +208,7 @@ export class NotificationsService {
                     moduleTypeNotification.INVOICE,
                     moduleTypeNotification.INCENTIVE,
                     moduleTypeNotification.QUOTATION_PROMOTION,
+                    moduleTypeNotification.VENDOR_REGISTRATION,
                   ],
                 },
                 status: { in: status },
@@ -242,7 +251,7 @@ export class NotificationsService {
       const statusIds = notifications
         .filter(
           (notification) =>
-            !['INVOICES', 'SALES INCENTIVE', 'QUOTATION_PROMOTION'].includes(
+            !['INVOICES', 'SALES INCENTIVE', 'QUOTATION_PROMOTION', 'VENDOR_REGISTRATION'].includes(
               notification.module_type,
             ),
         )
@@ -313,8 +322,16 @@ export class NotificationsService {
                 /_/g,
                 ' ',
               ) || notification.status;
+          } else if (notification.module_type === 'VENDOR_REGISTRATION') {
+            const registrationStatusMap = {
+              1: 'Menunggu Approve',
+              2: 'Proses Pitching',
+              3: 'Disetujui',
+              4: 'Ditolak',
+            };
+            statusDescription = registrationStatusMap[notification.status] || null;
           } else if (
-            !['INVOICES', 'INCENTIVE', 'QUOTATION_PROMOTION'].includes(
+            !['INVOICES', 'INCENTIVE', 'QUOTATION_PROMOTION', 'VENDOR_REGISTRATION'].includes(
               notification.module_type,
             )
           ) {
@@ -368,7 +385,10 @@ export class NotificationsService {
         }));
       } else {
         updates = dto.map(({ id, is_read }) => ({
-          where: { id },
+          where: {
+            id,
+            user_id: user.id,
+          },
           data: { is_read: Boolean(is_read) },
         }));
       }

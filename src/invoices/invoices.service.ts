@@ -207,6 +207,13 @@ export class InvoicesService {
                   Number(order.additional_fee);
               }
 
+              // Validasi safety net: jika totalMargin > grand_total, kemungkinan invoice_nominal salah
+              if (totalMargin > Number(order.grand_total)) {
+                this.logger.warn(
+                  `⚠️ Order ${order.id}: invoice_price (${totalMargin}) > grand_total (${order.grand_total}). Kemungkinan invoice_nominal item salah atau tidak sesuai dengan harga vendor.`,
+                );
+              }
+
               invoiceDetails.push({
                 order_id: order.id,
                 total: totalMargin,
@@ -701,6 +708,13 @@ export class InvoicesService {
                   )) + Number(order.additional_fee);
           }
           totalGrandTotal += total || 0;
+
+          // Validasi safety net: jika total > grand_total, kemungkinan invoice_nominal salah
+          if (total > Number(order.grand_total)) {
+            this.logger.warn(
+              `⚠️ Order ${order.id}: invoice_price (${total}) > grand_total (${order.grand_total}). Kemungkinan invoice_nominal item salah atau tidak sesuai dengan harga vendor.`,
+            );
+          }
         }
 
         return {
@@ -2118,31 +2132,39 @@ export class InvoicesService {
 
       // Proses setiap order dalam data
       data.forEach((order, index) => {
+        const toNumberMoney = (value: unknown) => {
+          const parsed = Number(value ?? 0);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+
         const calculateSurveyTotal = (quotationDetails, workStep) =>
           quotationDetails
             .filter(({ work_step }) => work_step === workStep)
-            .reduce((total, { quotation_special_price }) => total + Number(quotation_special_price), 0);
+            .reduce((total, { quotation_special_price }) => total + toNumberMoney(quotation_special_price), 0);
 
         const getCustomerTransaction = (order: any) => {
           const { payment_type: paymentType, grand_total: grandTotal, quotation } = order.order;
+          const orderGrandTotal = toNumberMoney(grandTotal);
+          const additionalFee = toNumberMoney(order.order.additional_fee);
 
-          if (paymentType !== PAYMENT_TYPE.SURVEY) return grandTotal;
-          if (!quotation?.length) return 0;
+          if (paymentType !== PAYMENT_TYPE.SURVEY) return orderGrandTotal + additionalFee;
+          if (!quotation?.length) return additionalFee;
 
           const { quotation_grand_total: quotationGrandTotal, quotation_details: quotationDetails } = quotation[0];
+          const quotationTotal = toNumberMoney(quotationGrandTotal);
           const surveyCalculators = {
-            1: () => grandTotal,
-            2: () => quotationGrandTotal,
-            3: () => calculateSurveyTotal(quotationDetails, 1),
-            4: () => calculateSurveyTotal(quotationDetails, 2),
-            5: () => calculateSurveyTotal(quotationDetails, 3),
+            1: () => orderGrandTotal + additionalFee,
+            2: () => quotationTotal + additionalFee,
+            3: () => calculateSurveyTotal(quotationDetails, 1) + additionalFee,
+            4: () => calculateSurveyTotal(quotationDetails, 2) + additionalFee,
+            5: () => calculateSurveyTotal(quotationDetails, 3) + additionalFee,
           };
 
           return surveyCalculators[order.type]?.();
         };
 
         const customer_transaction = getCustomerTransaction(order);
-        const invoice_price = order.total;
+        const invoice_price = toNumberMoney(order.total);
         const instalation_price =
           order.order.payment_type === 'gratis'
             ? 0

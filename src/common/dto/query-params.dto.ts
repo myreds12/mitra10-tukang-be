@@ -161,11 +161,6 @@ export class QueryParamsDto {
   @Type(() => Number)
   @IsIn([0, 1])
   is_active_warranty?: number;
-  
-  @IsOptional()
-  @Type(() => Number)
-  @IsIn([0, 1])
-  is_active?: number;
 
   @IsOptional()
   @IsNotEmpty()
@@ -275,6 +270,11 @@ export class QueryParamsDto {
   @Type(() => Number)
   // @IsIn([0, 1])
   is_promotion?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([0, 1])
+  is_active?: number;
 
   @IsOptional()
   @Type(() => Number)
