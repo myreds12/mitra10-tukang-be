@@ -192,7 +192,13 @@ export class VendorService {
       } = query;
 
       const formattedDate = new Date().toISOString().split('T')[0];
-      const skip = page * take - take;
+      const requestedTake = Number(take ?? 10);
+      const safeTake = requestedTake > 0 ? Math.min(requestedTake, 50) : undefined;
+      const skip = safeTake ? page * safeTake - safeTake : 0;
+      const currentDateRange = {
+        gte: new Date(`${formattedDate}T00:00:00.000Z`),
+        lte: new Date(`${formattedDate}T23:59:59.000Z`),
+      };
 
       const where: Prisma.vendorWhereInput = {
         AND: [
@@ -265,16 +271,27 @@ export class VendorService {
       const vendorList = await this.dbService.vendor.findMany({
         where,
         skip,
-        take: take > 0 ? take : undefined,
+        take: safeTake,
         include: {
           tukang: {
             include: {
               work_order_tukang: {
-                where: { deleted_at: null },
+                where: {
+                  deleted_at: null,
+                  work_orders: {
+                    deleted_at: null,
+                    OR: [
+                      { created_at: currentDateRange },
+                      { survey_date: currentDateRange },
+                      { work_start_date: currentDateRange },
+                      { work_end_date: currentDateRange },
+                    ],
+                  },
+                },
                 orderBy: { created_at: 'desc' },
                 include: {
                   work_orders: {
-                    include: { status: true, work_order_status: true }
+                    include: { status: true }
                   }
                 }
               }
@@ -302,7 +319,10 @@ export class VendorService {
             include: { service_type: true }
           },
           vendor_store: {
-            where: { store_id: {in: store_id} ,deleted_at: null },
+            where: {
+              ...(store_id?.length ? { store_id: { in: store_id } } : {}),
+              deleted_at: null,
+            },
             select: {
               id: true,
               vendor_id: true,
