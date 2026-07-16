@@ -1915,9 +1915,6 @@ model comission_store_incentive_evidence {
   comission_store_incentive comission_store_incentive @relation(fields: [comission_store_incentive_id], references: [id])
 }
 
-
-
-
 model manager {
   id       Int  @id @default(autoincrement())
   store_id Int?

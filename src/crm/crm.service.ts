@@ -16,7 +16,7 @@ export class CrmService {
     private readonly googleSheetConnectorService: GoogleSheetConnectorService,
     private readonly dbService: PrismaService,
     private configService: ConfigService,
-    private readonly googleScriptApiService: GoogleScriptApiService,
+    private readonly googleScriptApiService: GoogleScriptApiService
   ) {}
 
   async create(createCsiDto: CreateCsiDto) {
@@ -366,33 +366,18 @@ export class CrmService {
 
     // console.log(`${values.length} rows sent to the spreadsheet.`);
 
-    const complaintsevidence =
-      await this.dbService.complaint_evidence.findFirst({
-        where: {
-          complaint_history_id: complaintWithUser?.complaint_histories?.[0]?.id,
-        },
-      });
 
-    // DEBUG
-    console.log('history_id:', complaintWithUser?.complaint_histories?.[0]?.id);
-    console.log('complaintsevidence:', complaintsevidence);
-    console.log(
-      'documentPath:',
-      complaintsevidence?.evidence_location
-        ? path.join(
-            process.cwd(),
-            'public',
-            'complaints',
-            complaintsevidence.evidence_location,
-          )
-        : 'N/A',
-    );
+    const complaintsevidence = await this.dbService.complaint_evidence.findFirst({
+      where: {
+        complaint_history_id: complaintWithUser?.complaint_histories?.[0]?.id,
+      },
+    });
+    //console.log('complaintsevidence', complaintWithUser?.complaint_histories?.[0]?.id, complaintsevidence);
 
     // Payload kosong, nanti bisa diisi sesuai kebutuhan
-    const memberNumber =
-      complaintWithUser.orders?.members?.phone_number ??
-      complaintWithUser.orders?.members?.whatsapp_number ??
-      'N/A';
+    const memberNumber = complaintWithUser.orders?.members?.phone_number ??
+              complaintWithUser.orders?.members?.whatsapp_number ??
+              'N/A';
 
     const formattedNumber = memberNumber.startsWith('08')
       ? '628' + memberNumber.slice(2)
@@ -401,30 +386,21 @@ export class CrmService {
     //console.log(formattedNumber);
     const payload = {
       namaLengkap: complaintWithUser?.orders?.members?.full_name ?? 'N/A',
-      mobile: formattedNumber,
+      mobile:  formattedNumber,
       email: complaintWithUser?.orders?.members?.email ?? 'N/A',
       detail: complaintWithUser?.description ?? 'N/A',
-      receivedByInstallationWeb:
-        complaintWithUser?.orders?.store?.email ?? 'N/A',
-      receivedBy: complaintWithUser?.pic_name ?? 'N/A',
+      receivedByInstallationWeb: complaintWithUser?.orders?.store?.email ?? 'N/A',
+      receivedBy: complaintWithUser?.orders?.store?.email ?? 'N/A',
       melaluiMedia: complaintWithUser?.complaint_channels?.name ?? 'N/A',
-      locationIdInstallationWeb:
-        complaintWithUser?.orders?.store?.zip_code ?? 'N/A',
-      documentPath: complaintsevidence?.evidence_location
-        ? path.join(
-            process.cwd(),
-            'uploads',
-            'complaints',
-            complaintsevidence.evidence_location,
-          )
-        : 'N/A',
-      variable: 'Installasi yang dilakukan oleh vendor',
+      locationIdInstallationWeb: complaintWithUser?.orders?.store?.area?.area ?? 'N/A',
+      documentPath: complaintsevidence?.evidence_location ?? 'N/A', // path file kosong
+      variable:  'Installasi yang dilakukan oleh vendor',
     };
     //console.log('Payload for Google Script API:', payload);
     var result = await this.googleScriptApiService.sendFormWithFile(payload);
-
-    //console.log('result api', result.status);
-
+    
+    //console.log('result api', result.status); 
+    
     if (result.status === 200) {
       // Update `is_sync` to 1 for synced complaints
       const updateComplaint = await this.dbService.complaints.updateMany({

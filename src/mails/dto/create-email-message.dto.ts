@@ -18,6 +18,7 @@ export class CreateEmailMessageDto {
   email_type: MailType;
   
   @ValidateIf((o) => o.email_type === MailType.CSI)
+  @Type(() => Number)
   @IsNumber()
   csi_id: number;
   

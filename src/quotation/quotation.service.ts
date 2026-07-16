@@ -19,19 +19,14 @@ import { Response } from 'express';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as sharp from 'sharp'; // Untuk image processing dan validasi
 import { IncentiveStatus } from 'src/incentive/dto/incentive-status.enum';
 import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-type.enum';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
-import { promisify } from 'util';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class QuotationService {
-  private readonly unlinkAsync = promisify(fs.unlink);
-  private readonly accessAsync = promisify(fs.access);
-
   constructor(
     private readonly dbService: PrismaService,
     private readonly orderService: OrderService,
@@ -41,77 +36,6 @@ export class QuotationService {
   ) { }
 
   private readonly logger = new Logger(QuotationService.name);
-  private async cleanupOldFiles(quotationId: number, preserveFileIds: number[]): Promise<void> {
-    try {
-      const filesToDelete = await this.dbService.quotation_files.findMany({
-        where: {
-          quotation_id: quotationId,
-          id: { notIn: preserveFileIds },
-          deleted_at: { not: null },
-        },
-      });
-
-      const deletePromises = filesToDelete.map(async (file) => {
-        const filePath = path.join(__dirname, '..', '..', 'uploads', file.path);
-        return this.safeDeleteFile(filePath);
-      });
-
-      await Promise.allSettled(deletePromises);
-    } catch (error) {
-      this.logger.error('Error during file cleanup:', error);
-    }
-  }
-  private async validateImageFiles(files: Express.Multer.File[]): Promise<void> {
-    for (const file of files) {
-      try {
-        const filePath = path.join(__dirname, '..', '..', 'uploads', file.filename);
-        await this.accessAsync(filePath);
-
-        if (file.size > 10 * 1024 * 1024) {
-          throw new BadRequestException(`File ${file.originalname} terlalu besar (max 10MB)`);
-        }
-
-        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-        if (!allowedMimeTypes.includes(file.mimetype)) {
-          throw new BadRequestException(`File ${file.originalname} bukan format gambar yang valid`);
-        }
-
-        // Validate image integrity using sharp
-        const metadata = await sharp(filePath).metadata();
-        if (!metadata.width || !metadata.height) {
-          throw new BadRequestException(`File ${file.originalname} rusak atau tidak valid`);
-        }
-
-        if (metadata.width > 2048 || metadata.height > 2048) {
-          await sharp(filePath)
-            .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
-            .jpeg({ quality: 85 })
-            .toFile(filePath.replace(/\.[^/.]+$/, '_resized.jpg'));
-        }
-
-        this.logger.log(`✅ File validated: ${file.filename} (${metadata.width}x${metadata.height})`);
-      } catch (error) {
-        this.logger.error(`❌ File validation failed: ${file.filename}`, error);
-        throw new BadRequestException(`File ${file.originalname} tidak valid: ${error.message}`);
-      }
-    }
-  }
-  
-  private async safeDeleteFile(filePath: string): Promise<void> {
-    try {
-      await this.accessAsync(filePath);
-      await this.unlinkAsync(filePath);
-      this.logger.log(`✅ File deleted: ${filePath}`);
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        this.logger.warn(`⚠️ File not found (already deleted?): ${filePath}`);
-      } else {
-        this.logger.error(`❌ Failed to delete file: ${filePath}`, error);
-        throw error;
-      }
-    }
-  }
-
 
   async create(
     createQuotationDto: CreateQuotationDto,
@@ -164,7 +88,7 @@ export class QuotationService {
 
       let quotaionDetails: Array<Prisma.quotation_detailsCreateManyQuotationInput> =
         createQuotationDto.quotation_details.map((item) => {
-          if (typeof item.price === 'string'  && item.price.includes(',')) {
+          if (typeof item.price === 'string' && item.price.includes(',')) {
             throw new BadRequestException('Harga tidak boleh menggunakan koma. Gunakan titik sebagai pemisah desimal.');
           }
           if (typeof item.margin === 'string' && item.margin.includes(',')) {
@@ -174,7 +98,7 @@ export class QuotationService {
           const prices = Number(item?.is_customer ? 0 : item?.price ?? 0);
           const quantity = item.quantity;
 
-          
+
           const margin =
             item.margin_type === MarginType.PERCENTAGE
               ? +item.margin <= 100
@@ -563,11 +487,7 @@ export class QuotationService {
               deleted_at: null,
             },
           },
-          quotation_files: {
-            where: {
-              deleted_at: null,
-            },
-          },
+          quotation_files: true,
           quotation_details: {
             where: {
               deleted_at: null,
@@ -700,11 +620,7 @@ export class QuotationService {
             },
           },
           promotion: true,
-          quotation_files: {
-            where: {
-              deleted_at: null,
-            },
-          },
+          quotation_files: true,
           quotation_receipt: true,
           quotation_details: {
             where: {
@@ -786,8 +702,6 @@ export class QuotationService {
         where: { id },
         include: { promotion: true, quotation_follow_up: true },
       });
-      const evidence: any[] = [];
-
 
       // console.log('PAYLOAD', updateQuotationDto);
 
@@ -801,34 +715,21 @@ export class QuotationService {
           : undefined;
 
 
-      if (quotation_files?.length) {
-        await this.validateImageFiles(quotation_files);
-        const quotationFiles = quotation_files.map((item) => ({
+      const quotationfiles =
+        quotation_files?.map((item) => ({
           path: item.filename,
-          original_name: item.originalname,
-          mime_type: item.mimetype,
-          size: item.size,
           type: 1,
           created_by: user_id,
-          created_at: new Date(),
-        }));
-        evidence.push(...quotationFiles);
-      }
+        })) ?? [];
 
-      // Validate and process receipt files
-      if (quotation_receipts?.length) {
-        await this.validateImageFiles(quotation_receipts);
-        const receiptFiles = quotation_receipts.map((file) => ({
+      const receiptfile =
+        quotation_receipts?.map((file) => ({
           path: file.filename,
-          original_name: file.originalname,
-          mime_type: file.mimetype,
-          size: file.size,
           type: 2,
           created_by: user_id,
-          created_at: new Date(),
-        }));
-        evidence.push(...receiptFiles);
-      }
+        })) ?? [];
+
+      const evidence = [...quotationfiles, ...receiptfile];
 
       const quotationReceipts: Prisma.quotation_receiptUpsertWithWhereUniqueWithoutQuotationInput[] =
         updateQuotationDto.receipts_quotation
@@ -1195,8 +1096,6 @@ export class QuotationService {
           },
         }),
       ]);
-      await this.cleanupOldFiles(id, updateQuotationDto.preserve_files || []);
-
 
       if (quotation) {
         await this.notifService.create(

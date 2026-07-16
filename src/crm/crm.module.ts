@@ -8,10 +8,15 @@ import { GoogleScriptApiService } from './google-script-api.service';
 
 @Module({
   controllers: [CrmController],
-  providers: [CrmService, ConfigService, GoogleScriptApiService],
+  providers: [
+    CrmService, 
+    ConfigService,
+    GoogleScriptApiService // ⬅️ INI YANG KAMU KURANG],
+  ],
   exports: [CrmService],
   imports: [
     HttpModule,
+    ConfigModule, // ⬅️ WAJIB buat ConfigService
     GoogleSheetModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

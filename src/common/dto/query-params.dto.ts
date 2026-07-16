@@ -163,11 +163,6 @@ export class QueryParamsDto {
   is_active_warranty?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsIn([0, 1])
-  is_active?: number;
-
-  @IsOptional()
   @IsNotEmpty()
   group_by?: string;
 
@@ -278,6 +273,11 @@ export class QueryParamsDto {
 
   @IsOptional()
   @Type(() => Number)
+  @IsIn([0, 1])
+  is_active?: number;
+
+  @IsOptional()
+  @Type(() => Number)
   // @IsIn([0, 1])
   is_expired_warranty?: number;
 
@@ -294,4 +294,8 @@ export class QueryParamsDto {
   @IsOptional()
   // @IsIn([0, 1])
   is_manager?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  id_vendor?: any;
 }
