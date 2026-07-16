@@ -12,19 +12,36 @@ import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { WorkOrderTukang } from './dto/wo-tukang.dto';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 
 @Injectable()
 export class WorkOrdersService {
   private readonly logger = new Logger(WorkOrdersService.name);
-
   constructor(
     private readonly dbService: PrismaService,
     private orderService: OrderService,
     private vendorService: VendorService,
     @InjectQueue('email') private emailQueue: Queue,
+    private readonly whatsAppService: WhatsAppService,
     private violationDetector: ViolationDetectorService,
-  ) {}
+  ) { }
+
+  private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
+    try {
+      await this.whatsAppService.sendWorkOrderStatusNotification(workOrderId);
+    } catch (err) {
+      console.error('WA status notification failed:', err);
+    }
+  }
+
+  private async sendTukangAssignedWhatsApp(workOrderId: number) {
+    try {
+      await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
+    } catch (err) {
+      console.error('WA assign notification failed:', err);
+    }
+  }
 
   async create(
     dataDto: CreateWorkOrderDto,
@@ -138,6 +155,8 @@ export class WorkOrdersService {
       const [work_order] = await this.dbService.$transaction([
         this.dbService.work_orders.create(work_order_data),
       ]);
+
+      await this.sendTukangAssignedWhatsApp(work_order.id);
 
       return work_order;
     } catch (error) {
@@ -1029,6 +1048,15 @@ export class WorkOrdersService {
         updateData.status_id,
         user,
       );
+
+      // =========================================
+      // VENDOR VIOLATION TRIGGERS
+      // =========================================
+      if (work_order?.order?.vendor_id) {
+        await this.checkDocumentationViolation(work_order, updateData, NEW_STATUS, files);
+        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+      }
+
       return work_order;
     } catch (error) {
       console.error(error);
@@ -1297,6 +1325,15 @@ export class WorkOrdersService {
           return results;
         },
       );
+
+      if (
+        updateDto.replace_tukang?.some(
+          (item) => item.status === ReplaceTukangStatus.APPROVE,
+        )
+      ) {
+        await this.sendTukangAssignedWhatsApp(id);
+      }
+
 
       const roles = (
         await this.dbService.users.findUniqueOrThrow({
