@@ -180,8 +180,7 @@ export class TukangService {
       } = query;
       const skip = page * take - take;
 
-      const where: Prisma.tukangWhereInput = {
-        AND: [
+      const whereConditions = [
           ...(search
             ? [
                 {
@@ -268,7 +267,10 @@ export class TukangService {
           {
             deleted_at: null,
           },
-        ],
+        ].filter(Boolean) as Prisma.tukangWhereInput[];
+
+      const where: Prisma.tukangWhereInput = {
+        AND: whereConditions,
       };
 
       const tukang = await this.dbService.tukang.findMany({

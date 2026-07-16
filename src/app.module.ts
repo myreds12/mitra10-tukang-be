@@ -61,6 +61,7 @@ import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler
 import { ViolationDetectorService } from './common/services/violation-detector.service';
 
 const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
         },
         preview: {
           dir: join(process.cwd(), '/previews/'),
+          open: false,
         },
         template: {
           dir: join(process.cwd(), '/templates/'),
@@ -167,7 +169,8 @@ const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
     ComissionSalesIncentiveModule,
     ComissionStoreIncentiveModule,
     QuotationPromotionModule,
-    // CrmModule, // Disabled - requires Google Sheets credentials
+    CrmModule,
+    WhatsAppModule,
     //manager
     ManagerModule,
     // Vendor SP & Violation System
