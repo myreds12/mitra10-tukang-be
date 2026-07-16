@@ -18,7 +18,6 @@ import { NotificationsService } from "src/notifications/notifications.service";
 import { moduleTypeNotification } from "src/notifications/dto/notification-module-type.enum";
 import { CrmService } from "src/crm/crm.service";
 import { Cron } from "@nestjs/schedule";
-import { Cron } from "@nestjs/schedule";
 
 @Injectable()
 export class ComplaintsService {
