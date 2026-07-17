@@ -22,7 +22,8 @@ import { CreateEmailMessageDto } from './dto/create-email-message.dto';
 import { UpdateEmailMessageDto } from './dto/update-email-message.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { MailerService } from '@nestjs-modules/mailer';
-import { join } from 'path';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 import * as pug from 'pug';
 
 @UseGuards(JwtAuthGuard)
@@ -32,6 +33,15 @@ export class MailsController {
     private readonly mailsService: MailsService,
     private readonly mailerService: MailerService,
   ) { }
+
+  private getTemplatePath(templateName: string): string {
+    const candidates = [
+      resolve(__dirname, '..', '..', 'templates', templateName),
+      resolve(__dirname, '..', '..', '..', 'templates', templateName),
+    ];
+
+    return candidates.find((path) => existsSync(path)) ?? candidates[0];
+  }
 
   @Delete('/history/:id')
   @HttpCode(200)
@@ -136,7 +146,7 @@ export class MailsController {
       login_url: `${baseUrl}/login`,
     };
 
-    const templatePath = join(process.cwd(), 'templates', 'vendor-approval.pug');
+    const templatePath = this.getTemplatePath('vendor-approval.pug');
     const compiledFn = pug.compileFile(templatePath);
     const html = compiledFn({ data });
 
@@ -153,7 +163,7 @@ export class MailsController {
       website_url: 'https://instalasi.mitra10.com',
     };
 
-    const templatePath = join(process.cwd(), 'templates', 'vendor-rejection.pug');
+    const templatePath = this.getTemplatePath('vendor-rejection.pug');
     const compiledFn = pug.compileFile(templatePath);
     const html = compiledFn({ data });
 

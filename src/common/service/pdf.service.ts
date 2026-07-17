@@ -1,14 +1,25 @@
 /* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { create } from 'html-pdf';
-import { join } from 'path';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 import { renderFile } from 'pug';
 
 @Injectable()
 export class PdfService {
+  private getTemplatePath(templatePath: string): string {
+    const templateFile = `${templatePath}.pug`;
+    const candidates = [
+      resolve(__dirname, '..', '..', '..', 'templates', templateFile),
+      resolve(__dirname, '..', '..', '..', '..', 'templates', templateFile),
+    ];
+
+    return candidates.find((path) => existsSync(path)) ?? candidates[0];
+  }
+
   async generate(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(join('templates', `${templatePath}.pug`), {
+      const html = renderFile(this.getTemplatePath(templatePath), {
         data,
       });
 
@@ -39,7 +50,7 @@ export class PdfService {
 
   async generatePotrait(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(join('templates', `${templatePath}.pug`), {
+      const html = renderFile(this.getTemplatePath(templatePath), {
         data,
       });
 
@@ -64,7 +75,7 @@ export class PdfService {
 
   async generateLandscape(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(join('templates', `${templatePath}.pug`), {
+      const html = renderFile(this.getTemplatePath(templatePath), {
         data,
       });
 
