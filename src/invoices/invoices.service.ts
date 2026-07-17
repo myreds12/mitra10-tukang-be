@@ -28,6 +28,14 @@ export class InvoicesService {
     private pdfService: PdfService,
   ) { }
   private readonly logger = new Logger(InvoicesService.name);
+
+  private getInvoicesUploadPath(fileName?: string) {
+    const folderPath = path.resolve(__dirname, '..', '..', 'uploads', 'invoices');
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    return fileName ? path.join(folderPath, fileName) : folderPath;
+  }
+
   async create(
     createInvoiceDto: CreateInvoiceDto,
     user: users,
@@ -2409,9 +2417,14 @@ export class InvoicesService {
       invoice: invoices,
     };
 
-    const buffer = await this.pdfService.generate('invoice-pdf', data);
+    const buffer = await this.pdfService.generate('invoice-pdf', data) as Buffer;
+    const invoicePdfFileName = `${id}.pdf`;
+    const invoicePdfPath = this.getInvoicesUploadPath(invoicePdfFileName);
+
+    fs.writeFileSync(invoicePdfPath, buffer);
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=invoice.pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${invoicePdfFileName}`);
     res.send(buffer);
   }
   async rekonselPdf(id: number, res: Response) {
