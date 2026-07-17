@@ -9,6 +9,7 @@ import { VendorModule } from 'src/vendor/vendor.module';
 import { BullModule } from '@nestjs/bull';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [WorkOrdersController],
@@ -19,7 +20,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
     VendorModule,
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/work-orders',
+        destination: resolveUploadPath('work-orders'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

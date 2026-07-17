@@ -29,6 +29,7 @@ import { users } from '@prisma/client';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -148,7 +149,7 @@ export class ComplaintsController {
   @UseInterceptors(
     FilesInterceptor('complaint_evidences', 20, {
       storage: diskStorage({
-        destination: './uploads/complaints',
+        destination: resolveUploadPath('complaints'),
         filename: (req, file, cb) => {
           const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`;
           cb(null, uniqueName);

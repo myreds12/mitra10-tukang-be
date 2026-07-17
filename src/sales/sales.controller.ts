@@ -27,6 +27,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 interface UserRequest extends IExpressRequest {
   user: users;
@@ -71,7 +72,7 @@ export class SalesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads',
+        destination: resolveUploadPath(),
         filename: (req, file, cb) => {
           const filename = `${Date.now()}-${file.originalname}`;
           cb(null, filename);

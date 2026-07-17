@@ -3,11 +3,10 @@ import { InvoicesService } from './invoices.service';
 import { InvoicesController } from './invoices.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname, resolve } from 'path';
+import { extname } from 'path';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { PdfService } from 'src/common/service/pdf.service';
-
-const invoicesUploadPath = resolve(__dirname, '..', '..', 'uploads', 'invoices');
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [InvoicesController],
@@ -15,7 +14,7 @@ const invoicesUploadPath = resolve(__dirname, '..', '..', 'uploads', 'invoices')
   imports: [
     MulterModule.register({
       storage: diskStorage({
-        destination: invoicesUploadPath,
+        destination: resolveUploadPath('invoices'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

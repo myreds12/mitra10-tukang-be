@@ -20,12 +20,13 @@ import {
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { hashSync } from 'bcrypt';
-import { writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
+import { writeFileSync, unlinkSync } from 'fs';
 import { isAbsolute, join, relative, resolve } from 'path';
 import { RegistrationStatus } from './enums/registration-status.enum';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { Cron } from '@nestjs/schedule';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Injectable()
 export class VendorRegistrationService {
@@ -45,11 +46,7 @@ export class VendorRegistrationService {
 
   private saveFile(file: Express.Multer.File, subFolder: string = 'vendor'): string {
     try {
-      const uploadDir = join(process.cwd(), 'uploads', subFolder);
-      if (!existsSync(uploadDir)) {
-        mkdirSync(uploadDir, { recursive: true });
-      }
-
+      const uploadDir = resolveUploadPath(subFolder);
       const fileName = `${Date.now()}-${file.originalname}`;
       const filePath = join(uploadDir, fileName);
       writeFileSync(filePath, file.buffer as any);
@@ -100,9 +97,10 @@ export class VendorRegistrationService {
   }
 
   private deleteUploadedFile(storedPath: string) {
-    const uploadRoot = resolve(process.cwd(), 'uploads');
+    const uploadRoot = resolveUploadPath();
     const normalizedPath = storedPath.replace(/^[/\\]+/, '');
-    const absolutePath = resolve(process.cwd(), normalizedPath);
+    const relativeStoredPath = normalizedPath.replace(/^uploads[/\\]/, '');
+    const absolutePath = resolve(uploadRoot, relativeStoredPath);
     const relativePath = relative(uploadRoot, absolutePath);
 
     if (

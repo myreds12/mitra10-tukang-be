@@ -8,6 +8,7 @@ import { OrderModule } from 'src/order/order.module';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { CrmModule } from 'src/crm/crm.module';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [ComplaintsController],
@@ -21,7 +22,7 @@ import { ViolationDetectorService } from 'src/common/services/violation-detector
         files: 5,
       },
       storage: diskStorage({
-        destination: './uploads/complaints',
+        destination: resolveUploadPath('complaints'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

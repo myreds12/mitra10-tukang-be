@@ -4,6 +4,7 @@ import { ComissionSalesIncentiveController } from './comission_store_incentive.c
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 import { PdfService } from 'src/common/service/pdf.service';
 
 @Module({
@@ -12,7 +13,7 @@ import { PdfService } from 'src/common/service/pdf.service';
   imports: [
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/comission-sales-incentive',
+        destination: resolveUploadPath('comission-sales-incentive'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

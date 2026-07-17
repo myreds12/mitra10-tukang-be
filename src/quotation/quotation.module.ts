@@ -9,6 +9,7 @@ import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [QuotationController],
@@ -18,7 +19,7 @@ import { ViolationDetectorService } from 'src/common/services/violation-detector
     OrderModule,
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/quotation',
+        destination: resolveUploadPath('quotation'),
 
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;

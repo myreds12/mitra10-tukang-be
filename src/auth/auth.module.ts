@@ -11,6 +11,7 @@ import { BullModule } from '@nestjs/bull';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { extname } from 'path';
     }),
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/profile-picture',
+        destination: resolveUploadPath('profile-picture'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

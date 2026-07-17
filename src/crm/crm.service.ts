@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { GoogleScriptApiService } from './google-script-api.service';
 import { CRM_TYPE } from 'src/complaints/dto/crm_type.enum';
 import * as path from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Injectable()
 export class CrmService {
@@ -407,7 +408,7 @@ export class CrmService {
       // Complaint evidence files are stored under uploads/complaints.
       // Use the physical upload path so the CRM request includes the actual file blob.
       documentPath: complaintsevidence?.evidence_location
-      ? path.join(process.cwd(), 'uploads', 'complaints', complaintsevidence.evidence_location)
+      ? path.join(resolveUploadPath('complaints'), complaintsevidence.evidence_location)
       : 'N/A',
     };
     this.logger.log(

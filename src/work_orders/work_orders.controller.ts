@@ -28,6 +28,7 @@ import { RequestWithUser } from 'src/common/interface/request-with-user.interfac
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { WorkOrderTukang } from './dto/wo-tukang.dto';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @ApiTags('Work Orders')
 @ApiBearerAuth()
@@ -108,7 +109,7 @@ export class WorkOrdersController {
   @UseInterceptors(
     FilesInterceptor('file', 10, {
       storage: diskStorage({
-        destination: './uploads/request-tukang',
+        destination: resolveUploadPath('request-tukang'),
         filename: (req, file, callback) => {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

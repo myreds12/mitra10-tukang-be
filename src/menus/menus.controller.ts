@@ -18,13 +18,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Controller('menus')
 @UseGuards(JwtAuthGuard)
 @UseInterceptors(
   FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads/file',
+      destination: resolveUploadPath('file'),
       filename: (req, file, callback) => {
         const uniqueSuffix = Math.round(Math.random() * 1e9);
         const ext = extname(file.originalname);

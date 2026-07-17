@@ -9,6 +9,7 @@ import { PdfService } from 'src/common/service/pdf.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { fileFilter } from 'src/common/filters/file-filter';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [OrderController],
@@ -17,7 +18,7 @@ import { ViolationDetectorService } from 'src/common/services/violation-detector
   imports: [
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/receipt',
+        destination: resolveUploadPath('receipt'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

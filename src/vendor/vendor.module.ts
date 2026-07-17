@@ -6,6 +6,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path/posix';
 import { BullModule } from '@nestjs/bull';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [VendorController],
@@ -17,7 +18,7 @@ import { BullModule } from '@nestjs/bull';
         fileSize: 10 * 1024 * 1024, // Maksimal 10 MB
       },
       storage: diskStorage({
-        destination: './uploads/vendors', // Simpan di disk
+        destination: resolveUploadPath('vendors'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

@@ -6,6 +6,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { extname } from 'path';
 import { BullModule } from '@nestjs/bull';
 import { PdfService } from 'src/common/service/pdf.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [TukangController],
@@ -16,7 +17,7 @@ import { PdfService } from 'src/common/service/pdf.service';
         files: 12,
       },
       storage: diskStorage({
-        destination: './uploads/tukang',
+        destination: resolveUploadPath('tukang'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

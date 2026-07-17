@@ -22,6 +22,7 @@ import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @UseGuards(JwtAuthGuard)
 @Controller('remedials')
@@ -57,7 +58,7 @@ export class RemedialsController {
     FilesInterceptor('remedial_evidences', 20, {
       // ✅ Maksimal 20 file
       storage: diskStorage({
-        destination: './uploads/remedials',
+        destination: resolveUploadPath('remedials'),
         filename: (req, file, cb) => {
           const uniqueName = `${Date.now()}-${Math.round(
             Math.random() * 1e9,

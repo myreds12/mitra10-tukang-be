@@ -6,6 +6,7 @@ import { MailsService } from './mails.service';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { extname } from 'path';
     }),
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/mails-image',
+        destination: resolveUploadPath('mails-image'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

@@ -7,6 +7,7 @@ import { extname } from 'path';
 import { OrderModule } from 'src/order/order.module';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [RefundController],
@@ -16,7 +17,7 @@ import { ViolationDetectorService } from 'src/common/services/violation-detector
     OrderModule,
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/refunds',
+        destination: resolveUploadPath('refunds'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

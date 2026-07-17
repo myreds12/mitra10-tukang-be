@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
-import { existsSync, mkdirSync } from 'fs';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 // Same mime types as live-chat-api
 const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -43,11 +43,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 // Configure multer storage
 const storage = diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = './uploads';
-    if (!existsSync(uploadPath)) {
-      mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
+    cb(null, resolveUploadPath());
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;

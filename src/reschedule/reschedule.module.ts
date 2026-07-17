@@ -7,6 +7,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [RescheduleController],
@@ -18,7 +19,7 @@ import { ViolationDetectorService } from 'src/common/services/violation-detector
         files: 12,
       },
       storage: diskStorage({
-        destination: './uploads/reschedule',
+        destination: resolveUploadPath('reschedule'),
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
           const filename = `${uniqueSuffix}${extname(file.originalname)}`;

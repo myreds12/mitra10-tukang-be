@@ -4,6 +4,7 @@ import { QuotationPromotionController } from './quotation_promotion.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 import { PdfService } from 'src/common/service/pdf.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
@@ -13,7 +14,7 @@ import { NotificationsService } from 'src/notifications/notifications.service';
   imports: [
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads/quotation-promotion',
+        destination: resolveUploadPath('quotation-promotion'),
 
         filename(req, file, callback) {
           const uniqueSuffix = `${Date.now()}`;
