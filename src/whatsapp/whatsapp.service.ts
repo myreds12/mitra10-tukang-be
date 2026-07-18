@@ -106,7 +106,10 @@ export class WhatsAppService {
           include: {
             members: true,
             store: true,
-            service_type: true,
+            m_order_details: {
+              where: { deleted_at: null },
+              take: 1,
+            },
           },
         },
         work_order_tukang: {
@@ -132,10 +135,13 @@ export class WhatsAppService {
     }
 
     const craftsmanName =
-      workOrder.work_order_tukang
-        .map((item) => item.tukang?.full_name)
-        .filter(Boolean)
-        .join(', ') || '-';
+      [
+        ...new Set(
+          workOrder.work_order_tukang
+            .map((item) => item.tukang?.full_name)
+            .filter(Boolean),
+        ),
+      ].join(', ') || '-';
 
     await this.sendTemplate(
       phoneNumber,
@@ -144,7 +150,7 @@ export class WhatsAppService {
         customerName: workOrder.order?.members?.full_name ?? '-',
         storeName: workOrder.order?.store?.store_name ?? '-',
         orderId: String(workOrder.order_id),
-        surveyName: workOrder.order?.service_type?.service_type ?? workOrder.status?.description ?? '-',
+        surveyName: workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
         craftsmanName,
         surveyDate: this.formatDateTime(
           workOrder.request_work_time ??
@@ -206,6 +212,10 @@ export class WhatsAppService {
           include: {
             members: true,
             store: true,
+            m_order_details: {
+              where: { deleted_at: null },
+              take: 1,
+            },
           },
         },
       },
@@ -248,20 +258,23 @@ export class WhatsAppService {
     }
 
     const craftsmanName =
-      workOrder.work_order_tukang
-        .map((item) => item.tukang?.full_name)
-        .filter(Boolean)
-        .join(', ') || '-';
+      [
+        ...new Set(
+          workOrder.work_order_tukang
+            .map((item) => item.tukang?.full_name)
+            .filter(Boolean),
+        ),
+      ].join(', ') || '-';
 
     const params = this.buildProcessParams({
       customerName: workOrder.order?.members?.full_name ?? '-',
       storeName: workOrder.order?.store?.store_name ?? '-',
       orderId: String(workOrder.order_id),
       surveyName:
-        latestStatus?.status?.description ?? workOrder.status?.description ?? '-',
+        workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
       craftsmanName: craftsmanName,
       surveyDate: this.formatDateTime(
-        workOrder.request_work_time ?? workOrder.updated_at ?? new Date(),
+        workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
       ),
     });
 
