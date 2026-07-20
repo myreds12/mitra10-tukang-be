@@ -152,10 +152,9 @@ export class WhatsAppService {
         orderId: String(workOrder.order_id),
         surveyName: workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
         craftsmanName,
-        surveyDate: this.formatDateTime(
-          workOrder.request_work_time ??
-            workOrder.survey_date ??
-            workOrder.created_at,
+        surveyDate: this.formatDateTimeRange(
+          workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
+          workOrder.work_end_date,
         ),
       }),
     );
@@ -273,8 +272,9 @@ export class WhatsAppService {
       surveyName:
         workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
       craftsmanName: craftsmanName,
-      surveyDate: this.formatDateTime(
-        workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
+      surveyDate: this.formatDateTimeRange(
+        workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
+        workOrder.work_end_date,
       ),
     });
 
@@ -396,12 +396,41 @@ export class WhatsAppService {
       return String(value);
     }
 
-    return date.toLocaleString('id-ID', {
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: 'Asia/Jakarta',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-    });
+      hour12: false,
+    };
+
+    const parts = new Intl.DateTimeFormat('id-ID', options).formatToParts(date);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+
+    return `${get('day')}-${get('month')}-${get('year')} pukul ${get('hour')}:${get('minute')}`;
+  }
+
+  private formatDateTimeRange(start: Date | string, end?: Date | string | null) {
+    const startStr = this.formatDateTime(start);
+    if (!end) return startStr;
+
+    const endDate = new Date(end);
+    if (Number.isNaN(endDate.getTime())) return startStr;
+
+    const endParts = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(endDate);
+    const get = (type: string) => endParts.find((p) => p.type === type)?.value ?? '';
+
+    const endStr = `${get('day')}-${get('month')}-${get('year')} pukul ${get('hour')}:${get('minute')}`;
+    return `${startStr} sampai ${endStr}`;
   }
 }
