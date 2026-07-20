@@ -106,6 +106,10 @@ export class WhatsAppService {
           include: {
             members: true,
             store: true,
+            m_order_details: {
+              where: { deleted_at: null },
+              take: 1,
+            },
           },
         },
         work_order_tukang: {
@@ -131,10 +135,13 @@ export class WhatsAppService {
     }
 
     const craftsmanName =
-      workOrder.work_order_tukang
-        .map((item) => item.tukang?.full_name)
-        .filter(Boolean)
-        .join(', ') || '-';
+      [
+        ...new Set(
+          workOrder.work_order_tukang
+            .map((item) => item.tukang?.full_name)
+            .filter(Boolean),
+        ),
+      ].join(', ') || '-';
 
     await this.sendTemplate(
       phoneNumber,
@@ -143,12 +150,11 @@ export class WhatsAppService {
         customerName: workOrder.order?.members?.full_name ?? '-',
         storeName: workOrder.order?.store?.store_name ?? '-',
         orderId: String(workOrder.order_id),
-        surveyName: workOrder.status?.description ?? '-',
+        surveyName: workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
         craftsmanName,
-        surveyDate: this.formatDateTime(
-          workOrder.request_work_time ??
-            workOrder.survey_date ??
-            workOrder.created_at,
+        surveyDate: this.formatDateTimeRange(
+          workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
+          workOrder.work_end_date,
         ),
       }),
     );
@@ -205,6 +211,10 @@ export class WhatsAppService {
           include: {
             members: true,
             store: true,
+            m_order_details: {
+              where: { deleted_at: null },
+              take: 1,
+            },
           },
         },
       },
@@ -247,20 +257,24 @@ export class WhatsAppService {
     }
 
     const craftsmanName =
-      workOrder.work_order_tukang
-        .map((item) => item.tukang?.full_name)
-        .filter(Boolean)
-        .join(', ') || '-';
+      [
+        ...new Set(
+          workOrder.work_order_tukang
+            .map((item) => item.tukang?.full_name)
+            .filter(Boolean),
+        ),
+      ].join(', ') || '-';
 
     const params = this.buildProcessParams({
       customerName: workOrder.order?.members?.full_name ?? '-',
       storeName: workOrder.order?.store?.store_name ?? '-',
       orderId: String(workOrder.order_id),
       surveyName:
-        latestStatus?.status?.description ?? workOrder.status?.description ?? '-',
+        workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
       craftsmanName: craftsmanName,
-      surveyDate: this.formatDateTime(
-        workOrder.request_work_time ?? workOrder.updated_at ?? new Date(),
+      surveyDate: this.formatDateTimeRange(
+        workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
+        workOrder.work_end_date,
       ),
     });
 
@@ -382,12 +396,41 @@ export class WhatsAppService {
       return String(value);
     }
 
-    return date.toLocaleString('id-ID', {
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: 'Asia/Jakarta',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-    });
+      hour12: false,
+    };
+
+    const parts = new Intl.DateTimeFormat('id-ID', options).formatToParts(date);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+
+    return `${get('day')}-${get('month')}-${get('year')} pukul ${get('hour')}:${get('minute')}`;
+  }
+
+  private formatDateTimeRange(start: Date | string, end?: Date | string | null) {
+    const startStr = this.formatDateTime(start);
+    if (!end) return startStr;
+
+    const endDate = new Date(end);
+    if (Number.isNaN(endDate.getTime())) return startStr;
+
+    const endParts = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(endDate);
+    const get = (type: string) => endParts.find((p) => p.type === type)?.value ?? '';
+
+    const endStr = `${get('day')}-${get('month')}-${get('year')} pukul ${get('hour')}:${get('minute')}`;
+    return `${startStr} sampai ${endStr}`;
   }
 }
