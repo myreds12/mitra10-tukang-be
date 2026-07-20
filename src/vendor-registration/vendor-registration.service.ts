@@ -96,28 +96,33 @@ export class VendorRegistrationService {
     return [...new Set(paths)];
   }
 
-  private deleteUploadedFile(storedPath: string) {
-    const uploadRoot = resolveUploadPath();
-    const normalizedPath = storedPath.replace(/^[/\\]+/, '');
-    const relativeStoredPath = normalizedPath.replace(/^uploads[/\\]/, '');
-    const absolutePath = resolve(uploadRoot, relativeStoredPath);
-    const relativePath = relative(uploadRoot, absolutePath);
+// private deleteUploadedFile(storedPath: string) {
+//     const uploadRoot = resolveUploadPath();
+//     const normalizedPath = storedPath.replace(/^[/\\]+/, '');
+//     const relativeStoredPath = normalizedPath.replace(/^uploads[/\\]/, '');
 
-    if (
-      relativePath.startsWith('..') ||
-      isAbsolute(relativePath)
-    ) {
-      throw new Error(`Refusing to delete file outside uploads: ${storedPath}`);
-    }
+//     if (!relativeStoredPath.startsWith('vendor/')) {
+//       throw new Error(`Refusing to delete file outside vendor folder: ${storedPath}`);
+//     }
 
-    try {
-      unlinkSync(absolutePath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
-      }
-    }
-  }
+//     const absolutePath = resolve(uploadRoot, relativeStoredPath);
+//     const relativePath = relative(uploadRoot, absolutePath);
+
+//     if (
+//       relativePath.startsWith('..') ||
+//       isAbsolute(relativePath)
+//     ) {
+//       throw new Error(`Refusing to delete file outside uploads: ${storedPath}`);
+//     }
+
+//     try {
+//       unlinkSync(absolutePath);
+//     } catch (error) {
+//       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+//         throw error;
+//       }
+//     }
+//   }
 
   private parseTukangData(
     data?: TukangRegistrationDto[] | string | null,
@@ -927,7 +932,7 @@ export class VendorRegistrationService {
       try {
         const documentPaths =
           this.getRegistrationDocumentPaths(registration);
-        documentPaths.forEach((path) => this.deleteUploadedFile(path));
+        // documentPaths.forEach((path) => this.deleteUploadedFile(path));
 
         await this.dbService.$transaction(async (tx) => {
           await tx.vendor_registration.update({
