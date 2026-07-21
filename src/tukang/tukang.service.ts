@@ -868,9 +868,20 @@ export class TukangService {
       tukang,
     };
 
+    // Convert logo to base64 for PDF rendering
+    // html-pdf (PhantomJS) cannot reliably load external HTTPS URLs
+    const mitra10LogoBase64 = this.pdfService.getImageAsBase64(
+      path.join(process.cwd(), 'templates', 'public', 'img', 'logo-mitra.png'),
+    );
+
+    const dataWithLogo = {
+      ...data,
+      mitra10LogoBase64,
+    };
+
     console.log(data.tukang);
 
-    const buffer = await this.pdfService.generate('tukang-pdf', data);
+    const buffer = await this.pdfService.generate('tukang-pdf', dataWithLogo);
     // Set headers to download the PDF
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');

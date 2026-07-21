@@ -1,8 +1,8 @@
 /* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { create } from 'html-pdf';
-import { existsSync } from 'fs';
-import { resolve } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { resolve, extname } from 'path';
 import { renderFile } from 'pug';
 
 @Injectable()
@@ -15,6 +15,37 @@ export class PdfService {
     ];
 
     return candidates.find((path) => existsSync(path)) ?? candidates[0];
+  }
+
+  // ============================================================
+  // Helper: convert local image file to base64 data URI
+  // html-pdf (PhantomJS) cannot reliably load external HTTPS URLs
+  // Using base64 embeds images directly in the HTML, avoiding network issues
+  // ============================================================
+  getImageAsBase64(imagePath: string): string | null {
+    try {
+      if (!existsSync(imagePath)) {
+        console.warn(`Image file not found: ${imagePath}`);
+        return null;
+      }
+      const ext = extname(imagePath).toLowerCase().replace('.', '');
+      const mimeType =
+        ext === 'jpg' || ext === 'jpeg'
+          ? 'image/jpeg'
+          : ext === 'png'
+          ? 'image/png'
+          : ext === 'gif'
+          ? 'image/gif'
+          : ext === 'svg'
+          ? 'image/svg+xml'
+          : 'image/png';
+      const buffer = readFileSync(imagePath);
+      const base64 = buffer.toString('base64');
+      return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+      console.error(`Failed to convert image to base64: ${imagePath}`, error.message);
+      return null;
+    }
   }
 
   async generate(templatePath: string, data: any) {

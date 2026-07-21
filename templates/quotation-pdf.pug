@@ -7,13 +7,13 @@ html(lang="en")
   body(style="background-color: rgb(242, 242, 242); font-family: Arial, sans-serif; line-height: 1.1; letter-spacing: normal;")
     .container(style="max-width: 100%;margin: 0 auto; background-color: #ffffff; border-radius: 0.5rem; overflow: hidden;")
       .header
-        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co.com/DpFCt8g/Whats-App-Image-2024-10-10-at-15-42-16-3d05600b.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
+        img(src=`${data.headerImageBase64 ? data.headerImageBase64 : 'https://i.ibb.co.com/DpFCt8g/Whats-App-Image-2024-10-10-at-15-42-16-3d05600b.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
 
       .order-details(style="padding-left: 16px; padding-right: 16px;")
         table(style="width: 100%;")
           tr
             td(style="text-align: left;")
-              img(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png" alt="Mitra 10 Logo" style="height: 48px;")
+              img(src=`${data.mitra10LogoBase64 ? data.mitra10LogoBase64 : 'https://csahome.com/wp-content/uploads/2020/06/mitra10.png'}` alt="Mitra 10 Logo" style="height: 48px;")
             td(style="text-align: center;")
               p(style="font-size: 1.1rem; font-weight: bold;") Instalasi & Service Mitra 10
             td(style="text-align: right;")
@@ -139,7 +139,7 @@ html(lang="en")
         h2(style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;") Syarat & Ketentuan
         each item, index in data.message.terms_detail
           p(style="margin-bottom: 8px; color: #4a5568;font-size:0.9rem") #{index + 1 + '. ' + item.terms}
-        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
+        img(src=`${data.footerImageBase64 ? data.footerImageBase64 : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}`, alt="Footer Image" style="width: 100%; height: auto;")
 
 
 

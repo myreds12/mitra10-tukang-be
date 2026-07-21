@@ -718,7 +718,18 @@ export class QuotationPromotionService {
       },
     });
 
-    const buffer = await this.pdfService.generate('quotation-promotion', data);
+    // Convert logo to base64 for PDF rendering
+    // html-pdf (PhantomJS) cannot reliably load external HTTPS URLs
+    const mitra10LogoBase64 = this.pdfService.getImageAsBase64(
+      path.join(process.cwd(), 'templates', 'public', 'img', 'logo-mitra.png'),
+    );
+
+    const dataWithLogo = {
+      ...data,
+      mitra10LogoBase64,
+    };
+
+    const buffer = await this.pdfService.generate('quotation-promotion', dataWithLogo);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=quotation.pdf');
     res.send(buffer);

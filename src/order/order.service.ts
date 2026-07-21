@@ -16,7 +16,8 @@ import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
-import { createReadStream, existsSync, mkdirSync } from 'fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync } from 'fs';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 import { MailType } from 'src/mails/enum/mail_type.enum';
 import { basename, join } from 'path';
 import { PdfService } from 'src/common/service/pdf.service';
@@ -3752,11 +3753,31 @@ export class OrderService {
       throw new NotFoundException('message not found!');
     }
 
+    // Convert email message images to base64 for PDF rendering
+    // html-pdf (PhantomJS) cannot reliably load external HTTPS URLs
+    const mailsImageDir = resolveUploadPath('mails-image');
+    const headerImage = message.email_message_image?.find((img) => img.type === 1);
+    const footerImage = message.email_message_image?.find((img) => img.type === 2);
+
+    const headerImageBase64 = headerImage
+      ? this.pdfService.getImageAsBase64(join(mailsImageDir, headerImage.path))
+      : null;
+    const footerImageBase64 = footerImage
+      ? this.pdfService.getImageAsBase64(join(mailsImageDir, footerImage.path))
+      : null;
+
+    const mitra10LogoBase64 = this.pdfService.getImageAsBase64(
+      join(process.cwd(), 'templates', 'public', 'img', 'logo-mitra.png'),
+    );
+
     const data = {
       quotation,
       order: quotation.order,
       apiUrl: this.configService.get<string>('API_URL'),
       message,
+      headerImageBase64,
+      footerImageBase64,
+      mitra10LogoBase64,
     };
 
     // console.log(data.message);

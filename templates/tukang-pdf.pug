@@ -137,7 +137,7 @@ html(lang="en")
         .card-body
           .header
             .logo
-              img.logo-mitra(src="https://csahome.com/wp-content/uploads/2020/06/mitra10.png" alt="Mitra10")
+              img.logo-mitra(src=`${data.mitra10LogoBase64 ? data.mitra10LogoBase64 : 'https://csahome.com/wp-content/uploads/2020/06/mitra10.png'}` alt="Mitra10")
               h1 Instalasi & Service Mitra 10
           .content
             h3.fw-normal Laporan Performance Tukang
