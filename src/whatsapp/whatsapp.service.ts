@@ -397,7 +397,6 @@ export class WhatsAppService {
     }
 
     const options: Intl.DateTimeFormatOptions = {
-      timeZone: 'Asia/Jakarta',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -420,7 +419,6 @@ export class WhatsAppService {
     if (Number.isNaN(endDate.getTime())) return startStr;
 
     const endParts = new Intl.DateTimeFormat('id-ID', {
-      timeZone: 'Asia/Jakarta',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
