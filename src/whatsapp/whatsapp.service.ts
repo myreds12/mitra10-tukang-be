@@ -50,6 +50,7 @@ export class WhatsAppService {
     const filename = encodeURIComponent(
       `Quotation - ${customerName} - Order ID : ${quotation.order_id}.pdf`,
     );
+    const quotationFilename = `Quotation - ${customerName} - Order ID : ${quotation.order_id}.pdf`;
     const pdfUrl = `${this.getPublicBaseUrl()}/orders/quotation-pdf/${quotation.order_id}/${filename}`;
     await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_quotation_v2', {
       customerName: quotation.order?.members?.full_name ?? '-',
@@ -60,6 +61,7 @@ export class WhatsAppService {
           quotation.store?.phone_number_1 ?? quotation.store?.phone_number_2,
         ) ?? '-',
       media: {
+        title: quotationFilename,
         mediaLink: pdfUrl,
       },
     });
