@@ -123,7 +123,7 @@ export class WhatsAppService {
         surveyName: workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
         craftsmanName,
         surveyDate: this.formatDateTimeRange(
-          workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
+          workOrder.survey_date ?? workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.created_at,
           workOrder.work_end_date,
         ),
       }),
