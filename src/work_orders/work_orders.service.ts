@@ -43,6 +43,14 @@ export class WorkOrdersService {
     }
   }
 
+  private async sendOrderCompletedWhatsApp(orderId: number) {
+    try {
+      await this.whatsAppService.sendOrderCompletedNotification(orderId);
+    } catch (err) {
+      console.error('WA order completed notification failed:', err);
+    }
+  }
+
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
@@ -521,6 +529,7 @@ export class WorkOrdersService {
         },
         include: {
           work_order_status: true,
+          work_order_tukang: { where: { deleted_at: null } },
         },
       });
 
@@ -672,7 +681,7 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
-      if (dataDto.work_order_tukang?.length) {
+      if (dataDto.work_order_tukang?.length && !checkWorkOrder.work_order_tukang?.length) {
         await this.sendTukangAssignedWhatsApp(work_order.id);
       }
 
@@ -1053,8 +1062,12 @@ export class WorkOrdersService {
       // VENDOR VIOLATION TRIGGERS
       // =========================================
       if (work_order?.order?.vendor_id) {
-        await this.checkDocumentationViolation(work_order, updateData, NEW_STATUS, files);
+        await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
         await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+      }
+
+      if (NEW_STATUS?.category === 'WORKEND' && workOrder.status?.category !== 'WORKEND') {
+        await this.sendOrderCompletedWhatsApp(work_order.order_id);
       }
 
       return work_order;
