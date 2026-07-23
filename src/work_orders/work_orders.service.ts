@@ -27,14 +27,6 @@ export class WorkOrdersService {
     private violationDetector: ViolationDetectorService,
   ) { }
 
-  private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
-    try {
-      await this.whatsAppService.sendWorkOrderStatusNotification(workOrderId);
-    } catch (err) {
-      console.error('WA status notification failed:', err);
-    }
-  }
-
   private async sendTukangAssignedWhatsApp(workOrderId: number) {
     try {
       await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
@@ -1066,7 +1058,9 @@ export class WorkOrdersService {
         await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
       }
 
-      if (NEW_STATUS?.category === 'WORKEND' && workOrder.status?.category !== 'WORKEND') {
+      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
+      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
+      if (isWorkEndStatus && !wasWorkEndStatus) {
         await this.sendOrderCompletedWhatsApp(work_order.order_id);
       }
 

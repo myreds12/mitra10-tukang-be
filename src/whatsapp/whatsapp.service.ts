@@ -44,7 +44,13 @@ export class WhatsAppService {
       return;
     }
 
-    const pdfUrl = `${this.getPublicBaseUrl()}/orders/quotation-pdf/${quotation.order_id}`;
+    const customerName =
+      quotation.order?.members?.full_name?.replace(/[^a-zA-Z0-9 ]/g, '') ??
+      'Customer';
+    const filename = encodeURIComponent(
+      `Quotation - ${customerName} - Order ID : ${quotation.order_id}.pdf`,
+    );
+    const pdfUrl = `${this.getPublicBaseUrl()}/orders/quotation-pdf/${quotation.order_id}/${filename}`;
     await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_quotation_v2', {
       customerName: quotation.order?.members?.full_name ?? '-',
       bankName: quotation.store?.bank_name ?? '-',
@@ -57,44 +63,6 @@ export class WhatsAppService {
         mediaLink: pdfUrl,
       },
     });
-  }
-
-  async sendOrderCreatedNotification(orderId: number) {
-    const order = await this.dbService.orders.findFirst({
-      where: { id: orderId, deleted_at: null },
-      include: {
-        status: true,
-        members: true,
-        store: true,
-      },
-    });
-
-    if (!order) {
-      return;
-    }
-
-    const phoneNumber = this.normalizePhone(
-      order.members?.whatsapp_number ?? order.members?.phone_number,
-    );
-    if (!phoneNumber) {
-      this.logger.warn(
-        `Skipping order-created WA for order_id=${orderId}: customer number not found`,
-      );
-      return;
-    }
-
-    await this.sendTemplate(
-      phoneNumber,
-      this.processTemplateId,
-      this.buildProcessParams({
-        customerName: order.members?.full_name ?? '-',
-        storeName: order.store?.store_name ?? '-',
-        orderId: String(order.id),
-        surveyName: order.status?.description ?? '-',
-        craftsmanName: '-',
-        surveyDate: this.formatDateTime(order.request_survey ?? order.created_at),
-      }),
-    );
   }
 
   async sendTukangAssignedNotification(workOrderId: number) {
@@ -169,7 +137,7 @@ export class WhatsAppService {
       },
     });
 
-    if (!order || order.status?.category !== 'WORKEND') {
+    if (!order || !order.status?.category?.startsWith('WORKEND')) {
       return;
     }
 
@@ -189,98 +157,6 @@ export class WhatsAppService {
     });
   }
 
-  async sendWorkOrderStatusNotification(workOrderId: number) {
-    const workOrder = await this.dbService.work_orders.findFirst({
-      where: { id: workOrderId, deleted_at: null },
-      include: {
-        status: true,
-        work_order_status: {
-          where: { deleted_at: null },
-          orderBy: { created_at: 'desc' },
-          include: {
-            status: true,
-          },
-        },
-        work_order_tukang: {
-          where: { deleted_at: null },
-          include: {
-            tukang: true,
-          },
-        },
-        order: {
-          include: {
-            members: true,
-            store: true,
-            m_order_details: {
-              where: { deleted_at: null },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-
-    if (!workOrder) {
-      return;
-    }
-
-    const phoneNumber = this.normalizePhone(
-      workOrder.order?.members?.whatsapp_number ??
-        workOrder.order?.members?.phone_number,
-    );
-    if (!phoneNumber) {
-      this.logger.warn(
-        `Skipping process WA for work_order_id=${workOrderId}: customer number not found`,
-      );
-      return;
-    }
-
-    const latestStatus =
-      workOrder.work_order_status.find(
-        (item) => item.status_id === workOrder.status_id,
-      ) ??
-      workOrder.work_order_status.find((item) => item.status) ??
-      null;
-    const latestStatusCategory =
-      latestStatus?.status?.category ?? workOrder.status?.category ?? null;
-
-    if (latestStatusCategory === 'WORKEND') {
-      await this.sendTemplate(
-        phoneNumber,
-        'survei_tukang_instalasi_selesai_v3',
-        {
-          customerName: workOrder.order?.members?.full_name ?? '-',
-          orderId: String(workOrder.order_id),
-        },
-      );
-      return;
-    }
-
-    const craftsmanName =
-      [
-        ...new Set(
-          workOrder.work_order_tukang
-            .map((item) => item.tukang?.full_name)
-            .filter(Boolean),
-        ),
-      ].join(', ') || '-';
-
-    const params = this.buildProcessParams({
-      customerName: workOrder.order?.members?.full_name ?? '-',
-      storeName: workOrder.order?.store?.store_name ?? '-',
-      orderId: String(workOrder.order_id),
-      surveyName:
-        workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
-      craftsmanName: craftsmanName,
-      surveyDate: this.formatDateTimeRange(
-        workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.survey_date ?? workOrder.created_at,
-        workOrder.work_end_date,
-      ),
-    });
-
-    await this.sendTemplate(phoneNumber, this.processTemplateId, params);
-  }
-
   private buildProcessParams(params: {
     customerName: string;
     storeName: string;
@@ -295,7 +171,6 @@ export class WhatsAppService {
       orderId: params.orderId,
       surveyName: params.surveyName,
       craftsmanName: params.craftsmanName,
-      cratftsmanName: params.craftsmanName,
       surveyDate: params.surveyDate,
     };
   }
@@ -390,7 +265,7 @@ export class WhatsAppService {
     return apiUrl.replace(/\/$/, '');
   }
 
-  private formatDateTime(value: Date | string) {
+  private formatDateTimePart(value: Date | string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
       return String(value);
@@ -412,23 +287,10 @@ export class WhatsAppService {
   }
 
   private formatDateTimeRange(start: Date | string, end?: Date | string | null) {
-    const startStr = this.formatDateTime(start);
+    const startStr = this.formatDateTimePart(start);
     if (!end) return startStr;
 
-    const endDate = new Date(end);
-    if (Number.isNaN(endDate.getTime())) return startStr;
-
-    const endParts = new Intl.DateTimeFormat('id-ID', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).formatToParts(endDate);
-    const get = (type: string) => endParts.find((p) => p.type === type)?.value ?? '';
-
-    const endStr = `${get('day')}-${get('month')}-${get('year')} pukul ${get('hour')}:${get('minute')}`;
+    const endStr = this.formatDateTimePart(end);
     return `${startStr} sampai ${endStr}`;
   }
 }

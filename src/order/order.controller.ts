@@ -178,7 +178,7 @@ export class OrderController {
     return await this.orderService.orderFollowUp(createOrderFollowUp, req.user);
   }
 
-  @Get('/quotation-pdf/:order_id')
+  @Get(['/quotation-pdf/:order_id', '/quotation-pdf/:order_id/:filename'])
   @ApiOperation({
     summary: 'Download Quotation PDF',
     description: 'Generate and download quotation PDF for an order',
