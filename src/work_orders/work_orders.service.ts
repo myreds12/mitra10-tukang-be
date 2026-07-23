@@ -569,6 +569,19 @@ export class WorkOrdersService {
             },
           };
         });
+      const shouldSendAssignedWhatsApp = dataDto.work_order_tukang?.some(
+        (item) => {
+          if (!item.id) {
+            return true;
+          }
+
+          const existingTukang = checkWorkOrder.work_order_tukang.find(
+            (workOrderTukang) => workOrderTukang.id === item.id,
+          );
+
+          return existingTukang?.tukang_id !== item.tukang_id;
+        },
+      );
 
       const workOrderStatus: Prisma.work_order_statusCreateWithoutWork_orderInput =
       {
@@ -673,7 +686,7 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
-      if (dataDto.work_order_tukang?.length && !checkWorkOrder.work_order_tukang?.length) {
+      if (shouldSendAssignedWhatsApp) {
         await this.sendTukangAssignedWhatsApp(work_order.id);
       }
 
