@@ -269,24 +269,21 @@ export class WhatsAppService {
   }
 
   private formatDateTimePart(value: Date | string) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return String(value);
+    const rawValue = value instanceof Date ? value.toISOString() : String(value);
+    const match = rawValue.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/,
+    );
+
+    if (!match) {
+      return rawValue;
     }
 
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    };
+    const [, year, month, day, hour, minute] = match;
+    if (!hour || !minute) {
+      return `${day}-${month}-${year}`;
+    }
 
-    const parts = new Intl.DateTimeFormat('id-ID', options).formatToParts(date);
-    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-
-    return `${get('day')}-${get('month')}-${get('year')} pukul ${get('hour')}:${get('minute')}`;
+    return `${day}-${month}-${year} pukul ${hour}:${minute}`;
   }
 
   private formatDateTimeRange(start: Date | string, end?: Date | string | null) {
