@@ -30,7 +30,7 @@ export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
 
   private getInvoicesUploadPath(fileName?: string) {
-    const folderPath = path.resolve(__dirname, '..', '..', 'uploads', 'invoices');
+    const folderPath = path.resolve(process.cwd(), 'uploads', 'invoices');
     fs.mkdirSync(folderPath, { recursive: true });
 
     return fileName ? path.join(folderPath, fileName) : folderPath;

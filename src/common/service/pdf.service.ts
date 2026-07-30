@@ -9,12 +9,9 @@ import { renderFile } from 'pug';
 export class PdfService {
   private getTemplatePath(templatePath: string): string {
     const templateFile = `${templatePath}.pug`;
-    const candidates = [
-      resolve(__dirname, '..', '..', '..', 'templates', templateFile),
-      resolve(__dirname, '..', '..', '..', '..', 'templates', templateFile),
-    ];
+    const templateFullPath = resolve(process.cwd(), 'templates', templateFile);
 
-    return candidates.find((path) => existsSync(path)) ?? candidates[0];
+    return templateFullPath;
   }
 
   // ============================================================

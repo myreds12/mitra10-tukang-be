@@ -35,12 +35,9 @@ export class MailsController {
   ) { }
 
   private getTemplatePath(templateName: string): string {
-    const candidates = [
-      resolve(__dirname, '..', '..', 'templates', templateName),
-      resolve(__dirname, '..', '..', '..', 'templates', templateName),
-    ];
+    const templateFullPath = resolve(process.cwd(), 'templates', templateName);
 
-    return candidates.find((path) => existsSync(path)) ?? candidates[0];
+    return templateFullPath;
   }
 
   @Delete('/history/:id')

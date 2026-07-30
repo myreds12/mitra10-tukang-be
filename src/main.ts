@@ -12,17 +12,19 @@ import { PrismaValidationFilter } from './common/filters/prisma-validation-error
 import { NotFoundExceptionFilter } from './common/filters/not-found-exceptopm.filter';
 
 function resolveProjectPath(folderName: string): string {
-  const candidates = [
-    resolve(__dirname, '..', folderName),
-    resolve(__dirname, '..', '..', folderName),
-  ];
-
-  return candidates.find((path) => existsSync(path)) ?? candidates[0];
+  const uploadPath = resolve(process.cwd(), folderName);
+  return uploadPath;
 }
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: true,
+    cors: {
+      origin: process.env.CORS_ORIGIN || '*',
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    },
   });
 
   const swaggerConfig = new DocumentBuilder()
