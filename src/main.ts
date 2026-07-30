@@ -27,6 +27,8 @@ async function bootstrap() {
     },
   });
 
+  app.set('trust proxy', 1);
+
   const swaggerConfig = new DocumentBuilder()
     .setTitle('INSTALASI REST API')
     .setDescription('The Instalasi REST API Documentation')
