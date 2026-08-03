@@ -2589,4 +2589,139 @@ export class ReportsService {
       throw error;
     }
   }
+
+  private toNumber(value: unknown): number {
+    if (value == null) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'bigint') return Number(value);
+    if (typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+      return (value as { toNumber: () => number }).toNumber();
+    }
+    return Number(value);
+  }
+
+  async daerahTerlarisReport() {
+    const rows: any[] = await this.dbService.$queryRaw(Prisma.sql`
+      SELECT
+        COALESCE(a.area, 'Tidak diketahui') AS namaDaerah,
+        COUNT(o.id) AS jumlahPengajuan,
+        COALESCE(SUM(o.grand_total), 0) AS totalNilaiTransaksi,
+        COALESCE(SUM(d.jasa), 0) AS nilaiJasa,
+        COALESCE(SUM(d.material), 0) AS nilaiMaterial
+      FROM orders o
+      LEFT JOIN store s ON s.id = o.store_id AND s.deleted_at IS NULL
+      LEFT JOIN area a ON a.id = s.area_id
+      LEFT JOIN (
+        SELECT
+          q.order_id,
+          SUM(CASE WHEN qd.item_type = 2 THEN qd.final_price ELSE 0 END) AS jasa,
+          SUM(CASE WHEN qd.item_type = 1 THEN qd.final_price ELSE 0 END) AS material
+        FROM quotation q
+        JOIN quotation_details qd ON qd.quotation_id = q.id AND qd.deleted_at IS NULL
+        WHERE q.deleted_at IS NULL
+        GROUP BY q.order_id
+      ) d ON d.order_id = o.id
+      WHERE o.deleted_at IS NULL
+      GROUP BY COALESCE(a.area, 'Tidak diketahui')
+      ORDER BY jumlahPengajuan DESC
+    `);
+
+    const data = rows.map((r) => ({
+      namaDaerah: r.namaDaerah,
+      jumlahPengajuan: this.toNumber(r.jumlahPengajuan),
+      totalNilaiTransaksi: this.toNumber(r.totalNilaiTransaksi),
+      nilaiJasa: this.toNumber(r.nilaiJasa),
+      nilaiMaterial: this.toNumber(r.nilaiMaterial),
+    }));
+    return { data, meta: { total: data.length } };
+  }
+
+  async tokoJasaInstalasiReport() {
+    const rows: any[] = await this.dbService.$queryRaw(Prisma.sql`
+      SELECT
+        COALESCE(s.store_name, 'Tidak diketahui') AS namaToko,
+        o.payment_type AS jenisLayanan,
+        COUNT(o.id) AS jumlahPengajuan,
+        COALESCE(SUM(o.grand_total), 0) AS totalNilaiTransaksi,
+        COALESCE(SUM(d.jasa), 0) AS nilaiJasa,
+        COALESCE(SUM(d.material), 0) AS nilaiMaterial
+      FROM orders o
+      LEFT JOIN store s ON s.id = o.store_id AND s.deleted_at IS NULL
+      LEFT JOIN (
+        SELECT
+          q.order_id,
+          SUM(CASE WHEN qd.item_type = 2 THEN qd.final_price ELSE 0 END) AS jasa,
+          SUM(CASE WHEN qd.item_type = 1 THEN qd.final_price ELSE 0 END) AS material
+        FROM quotation q
+        JOIN quotation_details qd ON qd.quotation_id = q.id AND qd.deleted_at IS NULL
+        WHERE q.deleted_at IS NULL
+        GROUP BY q.order_id
+      ) d ON d.order_id = o.id
+      WHERE o.deleted_at IS NULL
+      GROUP BY COALESCE(s.store_name, 'Tidak diketahui'), o.payment_type
+      ORDER BY namaToko ASC, jumlahPengajuan DESC
+    `);
+
+    const data = rows.map((r) => ({
+      namaToko: r.namaToko,
+      jenisLayanan: r.jenisLayanan,
+      jumlahPengajuan: this.toNumber(r.jumlahPengajuan),
+      totalNilaiTransaksi: this.toNumber(r.totalNilaiTransaksi),
+      nilaiJasa: this.toNumber(r.nilaiJasa),
+      nilaiMaterial: this.toNumber(r.nilaiMaterial),
+    }));
+    return { data, meta: { total: data.length } };
+  }
+
+  async exportDaerahTokoExcel(res: Response) {
+    const [daerah, toko] = await Promise.all([
+      this.daerahTerlarisReport(),
+      this.tokoJasaInstalasiReport(),
+    ]);
+
+    const workbook = new exceljs.Workbook();
+
+    const sheetDaerah = workbook.addWorksheet('Daerah Terlaris');
+    sheetDaerah.columns = [
+      { header: 'Nama Daerah', key: 'namaDaerah', width: 25 },
+      { header: 'Jumlah Pengajuan', key: 'jumlahPengajuan', width: 18 },
+      { header: 'Total Nilai Transaksi', key: 'totalNilaiTransaksi', width: 22 },
+      { header: 'Nilai Jasa', key: 'nilaiJasa', width: 18 },
+      { header: 'Nilai Material', key: 'nilaiMaterial', width: 18 },
+    ];
+    sheetDaerah.addRows(daerah.data);
+    sheetDaerah.getRow(1).font = { bold: true };
+
+    const sheetToko = workbook.addWorksheet('Toko Jasa Instalasi');
+    sheetToko.columns = [
+      { header: 'Nama Toko', key: 'namaToko', width: 25 },
+      { header: 'Jenis Layanan', key: 'jenisLayanan', width: 28 },
+      { header: 'Jumlah Pengajuan', key: 'jumlahPengajuan', width: 18 },
+      { header: 'Total Nilai Transaksi', key: 'totalNilaiTransaksi', width: 22 },
+      { header: 'Nilai Jasa', key: 'nilaiJasa', width: 18 },
+      { header: 'Nilai Material', key: 'nilaiMaterial', width: 18 },
+    ];
+    sheetToko.addRows(toko.data);
+    sheetToko.getRow(1).font = { bold: true };
+
+    const now = Date.now();
+    const folderPath = './storage/excel/report';
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+    const excelFilePath = path.join(folderPath, `report-${now}.xlsx`);
+
+    await workbook.xlsx.writeFile(excelFilePath);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${path.basename(excelFilePath)}`,
+    );
+    const fileStream = fs.createReadStream(excelFilePath);
+    fileStream.pipe(res);
+  }
 }

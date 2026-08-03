@@ -81,4 +81,30 @@ export class ReportsController {
   async reportWorkOrder(@Query() query: QueryParamsDto) {
     return await this.reportsService.reportWorkOrder(query);
   }
+
+  @Get('/daerah-terlaris')
+  @UseGuards(JwtAuthGuard)
+  async reportDaerahTerlaris(
+    @Query() query: any,
+    @Res() res: IExpressResponse,
+  ) {
+    if (query.export === 'excel') {
+      return await this.reportsService.exportDaerahTokoExcel(res);
+    }
+    const result = await this.reportsService.daerahTerlarisReport();
+    return res.status(200).json(result);
+  }
+
+  @Get('/toko-jasa-instalasi')
+  @UseGuards(JwtAuthGuard)
+  async reportTokoJasaInstalasi(
+    @Query() query: any,
+    @Res() res: IExpressResponse,
+  ) {
+    if (query.export === 'excel') {
+      return await this.reportsService.exportDaerahTokoExcel(res);
+    }
+    const result = await this.reportsService.tokoJasaInstalasiReport();
+    return res.status(200).json(result);
+  }
 }
