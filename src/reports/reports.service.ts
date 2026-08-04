@@ -2600,7 +2600,53 @@ export class ReportsService {
     return Number(value);
   }
 
-  async daerahTerlarisReport() {
+  private toIntOrUndefined(value?: string): number | undefined {
+    const num = value == null ? NaN : Number(value);
+    return Number.isFinite(num) ? num : undefined;
+  }
+
+  private buildReportConditions(
+    params: {
+      orderYear?: string;
+      orderMonth?: string;
+      invoiceYear?: string;
+      invoiceMonth?: string;
+    } = {},
+  ): Prisma.Sql {
+    const conds: Prisma.Sql[] = [Prisma.sql`o.deleted_at IS NULL`];
+
+    const orderYear = this.toIntOrUndefined(params.orderYear);
+    const orderMonth = this.toIntOrUndefined(params.orderMonth);
+    if (orderYear) conds.push(Prisma.sql`YEAR(o.created_at) = ${orderYear}`);
+    if (orderMonth) conds.push(Prisma.sql`MONTH(o.created_at) = ${orderMonth}`);
+
+    const invYear = this.toIntOrUndefined(params.invoiceYear);
+    const invMonth = this.toIntOrUndefined(params.invoiceMonth);
+    if (invYear || invMonth) {
+      const innerConds: Prisma.Sql[] = [
+        Prisma.sql`ind.orderId = o.id AND ind.deletedAt IS NULL`,
+      ];
+      if (invYear) innerConds.push(Prisma.sql`YEAR(inv.created_at) = ${invYear}`);
+      if (invMonth) innerConds.push(Prisma.sql`MONTH(inv.created_at) = ${invMonth}`);
+      conds.push(Prisma.sql`EXISTS (
+        SELECT 1
+        FROM invoice_details ind
+        JOIN invoices inv ON inv.id = ind.invoiceId AND inv.deleted_at IS NULL
+        WHERE ${Prisma.join(innerConds, ' AND ')}
+      )`);
+    }
+
+    return Prisma.join(conds, ' AND ');
+  }
+
+  async daerahTerlarisReport(
+    params: {
+      orderYear?: string;
+      orderMonth?: string;
+      invoiceYear?: string;
+      invoiceMonth?: string;
+    } = {},
+  ) {
     const rows: any[] = await this.dbService.$queryRaw(Prisma.sql`
       SELECT
         COALESCE(a.area, 'Tidak diketahui') AS namaDaerah,
@@ -2621,7 +2667,7 @@ export class ReportsService {
         WHERE q.deleted_at IS NULL
         GROUP BY q.order_id
       ) d ON d.order_id = o.id
-      WHERE o.deleted_at IS NULL
+      WHERE ${this.buildReportConditions(params)}
       GROUP BY COALESCE(a.area, 'Tidak diketahui')
       ORDER BY jumlahPengajuan DESC
     `);
@@ -2636,7 +2682,14 @@ export class ReportsService {
     return { data, meta: { total: data.length } };
   }
 
-  async tokoJasaInstalasiReport() {
+  async tokoJasaInstalasiReport(
+    params: {
+      orderYear?: string;
+      orderMonth?: string;
+      invoiceYear?: string;
+      invoiceMonth?: string;
+    } = {},
+  ) {
     const rows: any[] = await this.dbService.$queryRaw(Prisma.sql`
       SELECT
         COALESCE(s.store_name, 'Tidak diketahui') AS namaToko,
@@ -2657,7 +2710,7 @@ export class ReportsService {
         WHERE q.deleted_at IS NULL
         GROUP BY q.order_id
       ) d ON d.order_id = o.id
-      WHERE o.deleted_at IS NULL
+      WHERE ${this.buildReportConditions(params)}
       GROUP BY COALESCE(s.store_name, 'Tidak diketahui'), o.payment_type
       ORDER BY namaToko ASC, jumlahPengajuan DESC
     `);
@@ -2673,10 +2726,18 @@ export class ReportsService {
     return { data, meta: { total: data.length } };
   }
 
-  async exportDaerahTokoExcel(res: Response) {
+  async exportDaerahTokoExcel(
+    res: Response,
+    params: {
+      orderYear?: string;
+      orderMonth?: string;
+      invoiceYear?: string;
+      invoiceMonth?: string;
+    } = {},
+  ) {
     const [daerah, toko] = await Promise.all([
-      this.daerahTerlarisReport(),
-      this.tokoJasaInstalasiReport(),
+      this.daerahTerlarisReport(params),
+      this.tokoJasaInstalasiReport(params),
     ]);
 
     const workbook = new exceljs.Workbook();
@@ -2710,6 +2771,221 @@ export class ReportsService {
       fs.mkdirSync(folderPath, { recursive: true });
     }
     const excelFilePath = path.join(folderPath, `report-${now}.xlsx`);
+
+    await workbook.xlsx.writeFile(excelFilePath);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${path.basename(excelFilePath)}`,
+    );
+    const fileStream = fs.createReadStream(excelFilePath);
+    fileStream.pipe(res);
+  }
+
+  async orderDetailReport(
+    params: {
+      orderYear?: string;
+      orderMonth?: string;
+      invoiceYear?: string;
+      invoiceMonth?: string;
+    } = {},
+  ) {
+    const where: Prisma.ordersWhereInput = { deleted_at: null };
+
+    const orderYear = this.toIntOrUndefined(params.orderYear);
+    const orderMonth = this.toIntOrUndefined(params.orderMonth);
+    if (orderYear) {
+      const y = orderYear;
+      if (orderMonth) {
+        where.created_at = {
+          gte: new Date(y, orderMonth - 1, 1),
+          lt: new Date(y, orderMonth, 1),
+        };
+      } else {
+        where.created_at = {
+          gte: new Date(y, 0, 1),
+          lt: new Date(y + 1, 0, 1),
+        };
+      }
+    }
+
+    const invYear = this.toIntOrUndefined(params.invoiceYear);
+    const invMonth = this.toIntOrUndefined(params.invoiceMonth);
+    if (invYear || invMonth) {
+      const y = invYear ?? new Date().getFullYear();
+      const created_at = invMonth
+        ? { gte: new Date(y, invMonth - 1, 1), lt: new Date(y, invMonth, 1) }
+        : { gte: new Date(y, 0, 1), lt: new Date(y + 1, 0, 1) };
+      where.invoice_details = {
+        some: { deleted_at: null, invoices: { created_at } },
+      };
+    }
+
+    const orders = await this.dbService.orders.findMany({
+      where,
+      include: {
+        store: {
+          select: { id: true, store_name: true, area: { select: { id: true, area: true } } },
+        },
+        vendor: { select: { id: true, company_name: true } },
+        m_order_details: { where: { deleted_at: null } },
+        complaints: { where: { deleted_at: null }, include: { status: true } },
+        invoice_details: {
+          where: { deleted_at: null },
+          include: {
+            invoices: { select: { id: true, invoice_number: true, created_at: true } },
+          },
+        },
+      },
+    });
+
+    const invoiceIds = orders.flatMap((o) => o.invoice_details.map((d) => d.invoices.id));
+    const approvedMap = new Map<number, Date>();
+    if (invoiceIds.length > 0) {
+      const logs = await this.dbService.invoice_logs.findMany({
+        where: { invoice_id: { in: invoiceIds } },
+        orderBy: { created_at: 'asc' },
+        select: { invoice_id: true, created_at: true, data: true },
+      });
+      for (const log of logs) {
+        try {
+          const payload = JSON.parse(log.data ?? '{}');
+          if (Number(payload?.status) === 2 && !approvedMap.has(log.invoice_id)) {
+            approvedMap.set(log.invoice_id, log.created_at);
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    const data = orders.map((order) => {
+      const invs = order.invoice_details.map((d) => d.invoices);
+      const submitted =
+        invs.length > 0
+          ? new Date(Math.min(...invs.map((i) => i.created_at.getTime())))
+          : null;
+      const approvedTimes = invs
+        .map((i) => approvedMap.get(i.id)?.getTime())
+        .filter((t): t is number => !!t);
+      const approved = approvedTimes.length > 0 ? new Date(Math.min(...approvedTimes)) : null;
+      const durasiProses =
+        submitted && approved
+          ? Math.max(0, Math.round((approved.getTime() - submitted.getTime()) / 86400000))
+          : null;
+
+      const penambahanMaterial = (order.m_order_details ?? [])
+        .filter((m) => m.created_at > order.created_at)
+        .map((m) => ({
+          namaMaterial: m.item_name,
+          quantity: Number(m.quantity),
+          unitPrice: Number(m.unit_price),
+          total: Number(m.total),
+          tanggalDitambahkan: m.created_at,
+          catatan: m.item_notes,
+        }));
+
+      const pengaduan = (order.complaints ?? []).map((c) => ({
+        id: c.id,
+        tanggalPengaduan: c.complaint_date,
+        kategori: c.type === 1 ? 'COMPLAINT' : 'PRIORITAS_LAIN',
+        status: c.status?.description ?? null,
+        deskripsi: c.description,
+      }));
+
+      return {
+        orderId: order.id,
+        projectNumber: order.project_number,
+        storeName: order.store?.store_name ?? null,
+        areaName: order.store?.area?.area ?? null,
+        vendorName: order.vendor?.company_name ?? null,
+        invoiceNumber: invs.map((i) => i.invoice_number).join(', ') || null,
+        invoiceSubmittedAt: submitted,
+        invoiceApprovedAt: approved,
+        durasiProses,
+        penambahanMaterial,
+        pengaduan,
+      };
+    });
+
+    return { data, meta: { total: data.length } };
+  }
+
+  async exportOrderDetailExcel(
+    res: Response,
+    params: {
+      orderYear?: string;
+      orderMonth?: string;
+      invoiceYear?: string;
+      invoiceMonth?: string;
+    } = {},
+  ) {
+    const report = await this.orderDetailReport(params);
+    const workbook = new exceljs.Workbook();
+
+    const sheetDetail = workbook.addWorksheet('Detail Order');
+    sheetDetail.columns = [
+      { header: 'Order ID', key: 'orderId', width: 10 },
+      { header: 'Project Number', key: 'projectNumber', width: 22 },
+      { header: 'Toko', key: 'storeName', width: 28 },
+      { header: 'Area', key: 'areaName', width: 20 },
+      { header: 'Vendor', key: 'vendorName', width: 28 },
+      { header: 'No Invoice', key: 'invoiceNumber', width: 24 },
+      { header: 'Tgl Pengajuan Invoice', key: 'invoiceSubmittedAt', width: 22 },
+      { header: 'Tgl Disetujui', key: 'invoiceApprovedAt', width: 22 },
+      { header: 'Durasi Proses (hari)', key: 'durasiProses', width: 18 },
+    ];
+    sheetDetail.addRows(report.data);
+    sheetDetail.getRow(1).font = { bold: true };
+
+    const sheetMaterial = workbook.addWorksheet('Penambahan Material');
+    sheetMaterial.columns = [
+      { header: 'Order ID', key: 'orderId', width: 10 },
+      { header: 'Project Number', key: 'projectNumber', width: 22 },
+      { header: 'Nama Material', key: 'namaMaterial', width: 28 },
+      { header: 'Qty', key: 'nominalQuantity', width: 10 },
+      { header: 'Harga Satuan', key: 'unitPrice', width: 16 },
+      { header: 'Total', key: 'total', width: 16 },
+      { header: 'Tgl Ditambahkan', key: 'tanggalDitambahkan', width: 22 },
+      { header: 'Catatan', key: 'catatan', width: 30 },
+    ];
+    const materialRows: any[] = [];
+    for (const order of report.data) {
+      for (const m of order.penambahanMaterial) {
+        materialRows.push({ orderId: order.orderId, projectNumber: order.projectNumber, ...m });
+      }
+    }
+    sheetMaterial.addRows(materialRows);
+    sheetMaterial.getRow(1).font = { bold: true };
+
+    const sheetPengaduan = workbook.addWorksheet('Pengaduan');
+    sheetPengaduan.columns = [
+      { header: 'Order ID', key: 'orderId', width: 10 },
+      { header: 'Project Number', key: 'projectNumber', width: 22 },
+      { header: 'Tgl Pengaduan', key: 'tanggalPengaduan', width: 22 },
+      { header: 'Kategori', key: 'kategori', width: 18 },
+      { header: 'Status', key: 'status', width: 24 },
+      { header: 'Deskripsi', key: 'deskripsi', width: 40 },
+    ];
+    const complaintRows: any[] = [];
+    for (const order of report.data) {
+      for (const c of order.pengaduan) {
+        complaintRows.push({ orderId: order.orderId, projectNumber: order.projectNumber, ...c });
+      }
+    }
+    sheetPengaduan.addRows(complaintRows);
+    sheetPengaduan.getRow(1).font = { bold: true };
+
+    const now = Date.now();
+    const folderPath = './storage/excel/report';
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+    const excelFilePath = path.join(folderPath, `order-detail-${now}.xlsx`);
 
     await workbook.xlsx.writeFile(excelFilePath);
 

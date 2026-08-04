@@ -82,16 +82,26 @@ export class ReportsController {
     return await this.reportsService.reportWorkOrder(query);
   }
 
+  private resolveReportParams(query: any) {
+    return {
+      orderYear: query.orderYear || query.order_year,
+      orderMonth: query.orderMonth || query.order_month,
+      invoiceYear: query.invoiceYear || query.invoice_year,
+      invoiceMonth: query.invoiceMonth || query.invoice_month,
+    };
+  }
+
   @Get('/daerah-terlaris')
   @UseGuards(JwtAuthGuard)
   async reportDaerahTerlaris(
     @Query() query: any,
     @Res() res: IExpressResponse,
   ) {
+    const params = this.resolveReportParams(query);
     if (query.export === 'excel') {
-      return await this.reportsService.exportDaerahTokoExcel(res);
+      return await this.reportsService.exportDaerahTokoExcel(res, params);
     }
-    const result = await this.reportsService.daerahTerlarisReport();
+    const result = await this.reportsService.daerahTerlarisReport(params);
     return res.status(200).json(result);
   }
 
@@ -101,10 +111,25 @@ export class ReportsController {
     @Query() query: any,
     @Res() res: IExpressResponse,
   ) {
+    const params = this.resolveReportParams(query);
     if (query.export === 'excel') {
-      return await this.reportsService.exportDaerahTokoExcel(res);
+      return await this.reportsService.exportDaerahTokoExcel(res, params);
     }
-    const result = await this.reportsService.tokoJasaInstalasiReport();
+    const result = await this.reportsService.tokoJasaInstalasiReport(params);
+    return res.status(200).json(result);
+  }
+
+  @Get('/order-details')
+  @UseGuards(JwtAuthGuard)
+  async reportOrderDetails(
+    @Query() query: any,
+    @Res() res: IExpressResponse,
+  ) {
+    const params = this.resolveReportParams(query);
+    if (query.export === 'excel') {
+      return await this.reportsService.exportOrderDetailExcel(res, params);
+    }
+    const result = await this.reportsService.orderDetailReport(params);
     return res.status(200).json(result);
   }
 }
