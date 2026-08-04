@@ -2794,121 +2794,140 @@ export class ReportsService {
       invoiceMonth?: string;
     } = {},
   ) {
-    const where: Prisma.ordersWhereInput = { deleted_at: null };
+    const whereSql = this.buildReportConditions(params);
 
-    const orderYear = this.toIntOrUndefined(params.orderYear);
-    const orderMonth = this.toIntOrUndefined(params.orderMonth);
-    if (orderYear) {
-      const y = orderYear;
-      if (orderMonth) {
-        where.created_at = {
-          gte: new Date(y, orderMonth - 1, 1),
-          lt: new Date(y, orderMonth, 1),
-        };
-      } else {
-        where.created_at = {
-          gte: new Date(y, 0, 1),
-          lt: new Date(y + 1, 0, 1),
-        };
+    const orderRows: any[] = await this.dbService.$queryRaw(Prisma.sql`
+      SELECT
+        o.id AS orderId,
+        o.project_number AS projectNumber,
+        o.created_at AS orderDate,
+        COALESCE(s.store_name, 'Tidak diketahui') AS storeName,
+        COALESCE(a.area, 'Tidak diketahui') AS areaName,
+        COALESCE(v.company_name, 'Tidak diketahui') AS vendorName,
+        invagg.submittedAt AS invoiceSubmittedAt,
+        invagg.approvedAt AS invoiceApprovedAt
+      FROM orders o
+      LEFT JOIN store s ON s.id = o.store_id AND s.deleted_at IS NULL
+      LEFT JOIN area a ON a.id = s.area_id
+      LEFT JOIN vendor v ON v.id = o.vendor_id AND v.deleted_at IS NULL
+      LEFT JOIN (
+        SELECT
+          ind.orderId AS orderId,
+          MIN(inv.created_at) AS submittedAt,
+          MIN(il.created_at) AS approvedAt
+        FROM invoice_details ind
+        JOIN invoices inv ON inv.id = ind.invoiceId AND inv.deleted_at IS NULL
+        LEFT JOIN (
+          SELECT invoice_id AS invoiceId, MIN(created_at) AS created_at
+          FROM invoice_logs
+          WHERE ISJSON(TRY_CAST(data AS NVARCHAR(MAX))) = 1
+            AND JSON_VALUE(TRY_CAST(data AS NVARCHAR(MAX)), '$.status') = '2'
+          GROUP BY invoice_id
+        ) il ON il.invoiceId = inv.id
+        WHERE ind.deletedAt IS NULL
+        GROUP BY ind.orderId
+      ) invagg ON invagg.orderId = o.id
+      WHERE ${whereSql}
+      ORDER BY o.id ASC
+    `);
+
+    const invoiceNumberRows: any[] = await this.dbService.$queryRaw(Prisma.sql`
+      SELECT
+        ind.orderId AS orderId,
+        inv.invoice_number AS invoiceNumber
+      FROM invoice_details ind
+      JOIN invoices inv ON inv.id = ind.invoiceId AND inv.deleted_at IS NULL
+      WHERE ind.deletedAt IS NULL
+      ORDER BY ind.orderId ASC, inv.id ASC
+    `);
+
+    const materialRows: any[] = await this.dbService.$queryRaw(Prisma.sql`
+      SELECT
+        mod.order_id AS orderId,
+        o.created_at AS orderDate,
+        mod.item_name AS namaMaterial,
+        mod.quantity AS quantity,
+        mod.unit_price AS unitPrice,
+        mod.total AS total,
+        mod.created_at AS tanggalDitambahkan,
+        mod.item_notes AS catatan
+      FROM m_order_details mod
+      JOIN orders o ON o.id = mod.order_id AND o.deleted_at IS NULL
+      WHERE ${whereSql}
+        AND mod.deleted_at IS NULL
+      ORDER BY mod.order_id ASC, mod.created_at ASC
+    `);
+
+    const complaintRows: any[] = await this.dbService.$queryRaw(Prisma.sql`
+      SELECT
+        c.order_id AS orderId,
+        c.complaint_date AS tanggalPengaduan,
+        c.type AS kategori,
+        st.description AS status,
+        c.description AS deskripsi
+      FROM complaints c
+      JOIN orders o ON o.id = c.order_id AND o.deleted_at IS NULL
+      LEFT JOIN status st ON st.id = c.complaint_status
+      WHERE ${whereSql}
+        AND c.deleted_at IS NULL
+      ORDER BY c.order_id ASC, c.complaint_date ASC
+    `);
+
+    const invoiceNumbersByOrder = new Map<number, string[]>();
+    for (const r of invoiceNumberRows) {
+      const list = invoiceNumbersByOrder.get(r.orderId) ?? [];
+      list.push(r.invoiceNumber);
+      invoiceNumbersByOrder.set(r.orderId, list);
+    }
+
+    const materialsByOrder = new Map<number, any[]>();
+    for (const r of materialRows) {
+      const addedAt = new Date(r.tanggalDitambahkan);
+      if (addedAt.getTime() > new Date(r.orderDate).getTime()) {
+        const list = materialsByOrder.get(r.orderId) ?? [];
+        list.push({
+          namaMaterial: r.namaMaterial,
+          quantity: Number(r.quantity),
+          unitPrice: this.toNumber(r.unitPrice),
+          total: this.toNumber(r.total),
+          tanggalDitambahkan: r.tanggalDitambahkan,
+          catatan: r.catatan,
+        });
+        materialsByOrder.set(r.orderId, list);
       }
     }
 
-    const invYear = this.toIntOrUndefined(params.invoiceYear);
-    const invMonth = this.toIntOrUndefined(params.invoiceMonth);
-    if (invYear || invMonth) {
-      const y = invYear ?? new Date().getFullYear();
-      const created_at = invMonth
-        ? { gte: new Date(y, invMonth - 1, 1), lt: new Date(y, invMonth, 1) }
-        : { gte: new Date(y, 0, 1), lt: new Date(y + 1, 0, 1) };
-      where.invoice_details = {
-        some: { deleted_at: null, invoices: { created_at } },
-      };
-    }
-
-    const orders = await this.dbService.orders.findMany({
-      where,
-      include: {
-        store: {
-          select: { id: true, store_name: true, area: { select: { id: true, area: true } } },
-        },
-        vendor: { select: { id: true, company_name: true } },
-        m_order_details: { where: { deleted_at: null } },
-        complaints: { where: { deleted_at: null }, include: { status: true } },
-        invoice_details: {
-          where: { deleted_at: null },
-          include: {
-            invoices: { select: { id: true, invoice_number: true, created_at: true } },
-          },
-        },
-      },
-    });
-
-    const invoiceIds = orders.flatMap((o) => o.invoice_details.map((d) => d.invoices.id));
-    const approvedMap = new Map<number, Date>();
-    if (invoiceIds.length > 0) {
-      const logs = await this.dbService.invoice_logs.findMany({
-        where: { invoice_id: { in: invoiceIds } },
-        orderBy: { created_at: 'asc' },
-        select: { invoice_id: true, created_at: true, data: true },
+    const complaintsByOrder = new Map<number, any[]>();
+    for (const r of complaintRows) {
+      const list = complaintsByOrder.get(r.orderId) ?? [];
+      list.push({
+        tanggalPengaduan: r.tanggalPengaduan,
+        kategori: r.kategori === 1 ? 'COMPLAINT' : 'PRIORITAS_LAIN',
+        status: r.status,
+        deskripsi: r.deskripsi,
       });
-      for (const log of logs) {
-        try {
-          const payload = JSON.parse(log.data ?? '{}');
-          if (Number(payload?.status) === 2 && !approvedMap.has(log.invoice_id)) {
-            approvedMap.set(log.invoice_id, log.created_at);
-          }
-        } catch {
-          continue;
-        }
-      }
+      complaintsByOrder.set(r.orderId, list);
     }
 
-    const data = orders.map((order) => {
-      const invs = order.invoice_details.map((d) => d.invoices);
-      const submitted =
-        invs.length > 0
-          ? new Date(Math.min(...invs.map((i) => i.created_at.getTime())))
-          : null;
-      const approvedTimes = invs
-        .map((i) => approvedMap.get(i.id)?.getTime())
-        .filter((t): t is number => !!t);
-      const approved = approvedTimes.length > 0 ? new Date(Math.min(...approvedTimes)) : null;
+    const data = orderRows.map((r) => {
+      const submitted = r.invoiceSubmittedAt ? new Date(r.invoiceSubmittedAt) : null;
+      const approved = r.invoiceApprovedAt ? new Date(r.invoiceApprovedAt) : null;
       const durasiProses =
         submitted && approved
           ? Math.max(0, Math.round((approved.getTime() - submitted.getTime()) / 86400000))
           : null;
-
-      const penambahanMaterial = (order.m_order_details ?? [])
-        .filter((m) => m.created_at > order.created_at)
-        .map((m) => ({
-          namaMaterial: m.item_name,
-          quantity: Number(m.quantity),
-          unitPrice: Number(m.unit_price),
-          total: Number(m.total),
-          tanggalDitambahkan: m.created_at,
-          catatan: m.item_notes,
-        }));
-
-      const pengaduan = (order.complaints ?? []).map((c) => ({
-        id: c.id,
-        tanggalPengaduan: c.complaint_date,
-        kategori: c.type === 1 ? 'COMPLAINT' : 'PRIORITAS_LAIN',
-        status: c.status?.description ?? null,
-        deskripsi: c.description,
-      }));
-
       return {
-        orderId: order.id,
-        projectNumber: order.project_number,
-        storeName: order.store?.store_name ?? null,
-        areaName: order.store?.area?.area ?? null,
-        vendorName: order.vendor?.company_name ?? null,
-        invoiceNumber: invs.map((i) => i.invoice_number).join(', ') || null,
+        orderId: r.orderId,
+        projectNumber: r.projectNumber,
+        storeName: r.storeName,
+        areaName: r.areaName,
+        vendorName: r.vendorName,
+        invoiceNumber: invoiceNumbersByOrder.get(r.orderId)?.join(', ') || null,
         invoiceSubmittedAt: submitted,
         invoiceApprovedAt: approved,
         durasiProses,
-        penambahanMaterial,
-        pengaduan,
+        penambahanMaterial: materialsByOrder.get(r.orderId) ?? [],
+        pengaduan: complaintsByOrder.get(r.orderId) ?? [],
       };
     });
 
