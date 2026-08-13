@@ -20,8 +20,6 @@ import {
   QueryVendorRegistrationDto,
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
-  ValidateTokenDto,
-  CreateUserFromTokenDto,
 } from './dto/vendor-registration.dto';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
@@ -64,32 +62,6 @@ export class VendorRegistrationController {
     @UploadedFiles() files: any,
   ) {
     return this.service.registerVendor(dto, files);
-  }
-
-  @Get('validate-token')
-  @ApiOperation({
-    summary: '[PUBLIC] Validate Registration Token',
-    description: 'Validate if the registration token is still valid and not expired. Used before creating user account.',
-  })
-  @ApiQuery({ name: 'token', description: 'Registration token from email', type: String, example: 'abc123def456' })
-  @ApiResponse({ status: 200, description: 'Token is valid, returns registration details' })
-  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
-  async validateToken(@Query() query: ValidateTokenDto) {
-    return this.service.validateToken(query.token);
-  }
-
-  @Post('create-user')
-  @ApiOperation({
-    summary: '[PUBLIC] Create User from Token',
-    description: 'Create vendor user account after email validation. Requires valid token from registration email.',
-  })
-  @ApiResponse({ status: 201, description: 'User created successfully. Vendor is now active.' })
-  @ApiResponse({ status: 400, description: 'Invalid token or data' })
-  async createUserFromToken(@Body() dto: CreateUserFromTokenDto & ValidateTokenDto) {
-    return this.service.createUserFromToken(dto.token, {
-      username: dto.username,
-      password: dto.password,
-    });
   }
 
   // ================================

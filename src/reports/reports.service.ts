@@ -2910,6 +2910,7 @@ export class ReportsService {
     }
 
     const data = orderRows.map((r) => {
+      const orderDate = r.orderDate ? new Date(r.orderDate) : null;
       const submitted = r.invoiceSubmittedAt ? new Date(r.invoiceSubmittedAt) : null;
       const approved = r.invoiceApprovedAt ? new Date(r.invoiceApprovedAt) : null;
       const durasiProses =
@@ -2919,6 +2920,7 @@ export class ReportsService {
       return {
         orderId: r.orderId,
         projectNumber: r.projectNumber,
+        orderDate,
         storeName: r.storeName,
         areaName: r.areaName,
         vendorName: r.vendorName,
@@ -2950,21 +2952,33 @@ export class ReportsService {
     sheetDetail.columns = [
       { header: 'Order ID', key: 'orderId', width: 10 },
       { header: 'Project Number', key: 'projectNumber', width: 22 },
+      { header: 'Tahun Order', key: 'orderYear', width: 12 },
+      { header: 'Tgl Order', key: 'orderDate', width: 20 },
       { header: 'Toko', key: 'storeName', width: 28 },
       { header: 'Area', key: 'areaName', width: 20 },
       { header: 'Vendor', key: 'vendorName', width: 28 },
       { header: 'No Invoice', key: 'invoiceNumber', width: 24 },
+      { header: 'Tahun Invoice', key: 'invoiceYear', width: 14 },
       { header: 'Tgl Pengajuan Invoice', key: 'invoiceSubmittedAt', width: 22 },
       { header: 'Tgl Disetujui', key: 'invoiceApprovedAt', width: 22 },
       { header: 'Durasi Proses (hari)', key: 'durasiProses', width: 18 },
     ];
-    sheetDetail.addRows(report.data);
+    const detailRows = report.data.map((r: any) => ({
+      ...r,
+      orderYear: r.orderDate ? new Date(r.orderDate).getFullYear() : null,
+      orderDate: r.orderDate,
+      invoiceYear: r.invoiceSubmittedAt
+        ? new Date(r.invoiceSubmittedAt).getFullYear()
+        : null,
+    }));
+    sheetDetail.addRows(detailRows);
     sheetDetail.getRow(1).font = { bold: true };
 
     const sheetMaterial = workbook.addWorksheet('Penambahan Material');
     sheetMaterial.columns = [
       { header: 'Order ID', key: 'orderId', width: 10 },
       { header: 'Project Number', key: 'projectNumber', width: 22 },
+      { header: 'Tahun', key: 'tahun', width: 10 },
       { header: 'Nama Material', key: 'namaMaterial', width: 28 },
       { header: 'Qty', key: 'nominalQuantity', width: 10 },
       { header: 'Harga Satuan', key: 'unitPrice', width: 16 },
@@ -2975,7 +2989,14 @@ export class ReportsService {
     const materialRows: any[] = [];
     for (const order of report.data) {
       for (const m of order.penambahanMaterial) {
-        materialRows.push({ orderId: order.orderId, projectNumber: order.projectNumber, ...m });
+        materialRows.push({
+          orderId: order.orderId,
+          projectNumber: order.projectNumber,
+          tahun: m.tanggalDitambahkan
+            ? new Date(m.tanggalDitambahkan).getFullYear()
+            : null,
+          ...m,
+        });
       }
     }
     sheetMaterial.addRows(materialRows);
@@ -2985,6 +3006,7 @@ export class ReportsService {
     sheetPengaduan.columns = [
       { header: 'Order ID', key: 'orderId', width: 10 },
       { header: 'Project Number', key: 'projectNumber', width: 22 },
+      { header: 'Tahun', key: 'tahun', width: 10 },
       { header: 'Tgl Pengaduan', key: 'tanggalPengaduan', width: 22 },
       { header: 'Kategori', key: 'kategori', width: 18 },
       { header: 'Status', key: 'status', width: 24 },
@@ -2993,7 +3015,14 @@ export class ReportsService {
     const complaintRows: any[] = [];
     for (const order of report.data) {
       for (const c of order.pengaduan) {
-        complaintRows.push({ orderId: order.orderId, projectNumber: order.projectNumber, ...c });
+        complaintRows.push({
+          orderId: order.orderId,
+          projectNumber: order.projectNumber,
+          tahun: c.tanggalPengaduan
+            ? new Date(c.tanggalPengaduan).getFullYear()
+            : null,
+          ...c,
+        });
       }
     }
     sheetPengaduan.addRows(complaintRows);

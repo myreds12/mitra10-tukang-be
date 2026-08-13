@@ -14,7 +14,6 @@ import {
   QueryVendorRegistrationDto,
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
-  CreateUserFromTokenDto,
   TukangRegistrationDto,
 } from './dto/vendor-registration.dto';
 import { Prisma } from '@prisma/client';
@@ -173,6 +172,26 @@ export class VendorRegistrationService {
     });
 
     return parsed;
+  }
+
+  private parseIntJsonArray(value?: string | number[] | null): number[] {
+    if (value === undefined || value === null || value === '') return [];
+    if (Array.isArray(value)) {
+      return value
+        .map((v) => Number(v))
+        .filter((v): v is number => Number.isInteger(v));
+    }
+    try {
+      const parsed = JSON.parse(value as string);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((v) => Number(v))
+          .filter((v): v is number => Number.isInteger(v));
+      }
+    } catch {
+      return [];
+    }
+    return [];
   }
 
   private formatRegistration(registration: any) {
@@ -670,8 +689,12 @@ export class VendorRegistrationService {
           throw new Error('Role vendor owner tidak ditemukan.');
         }
 
-        await tx.vendor_registration.update({
-          where: { id },
+        const transitionResult = await tx.vendor_registration.updateMany({
+          where: {
+            id,
+            status: RegistrationStatus.PROSES_PITCHING,
+            deleted_at: null,
+          },
           data: {
             status: RegistrationStatus.DISETUJUI,
             reviewed_by: userId,
@@ -681,6 +704,12 @@ export class VendorRegistrationService {
             updated_at: new Date(),
           },
         });
+
+        if (transitionResult.count === 0) {
+          throw new BadRequestException(
+            'Pendaftaran sudah diproses oleh admin lain atau status tidak valid.',
+          );
+        }
 
         await this.createHistory(tx, {
           vendor_registration_id: id,
@@ -700,25 +729,7 @@ export class VendorRegistrationService {
           },
         });
 
-        const credentialToken = randomBytes(32).toString('hex');
-        const credentialExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-        await tx.vendor_registration_token.upsert({
-          where: { registration_id: id },
-          create: {
-            registration_id: id,
-            token: credentialToken,
-            expires_at: credentialExpiresAt,
-            user_id: user.id,
-          },
-          update: {
-            token: credentialToken,
-            expires_at: credentialExpiresAt,
-            status: 1,
-            user_id: user.id,
-          },
-        });
-
-        // 2. Create vendor record
+        // 2. Create vendor record (with max_order from DTO if provided)
         const vendor = await tx.vendor.create({
           data: {
             company_name: registration.company_name,
@@ -787,14 +798,56 @@ export class VendorRegistrationService {
           }
         }
 
-        // 5. Queue email notification with credentials
+        const serviceTypeIds = this.parseIntJsonArray(registration.service_types);
+        for (const serviceTypeId of serviceTypeIds) {
+          await tx.vendor_service.create({
+            data: {
+              vendor_id: vendor.id,
+              service_type_id: serviceTypeId,
+              created_by: user.id,
+            },
+          });
+        }
+
+        const areaIds = this.parseIntJsonArray(registration.areas);
+        for (const areaId of areaIds) {
+          await tx.vendor_area.create({
+            data: {
+              vendor_id: vendor.id,
+              area_id: areaId,
+              created_by: user.id,
+            },
+          });
+        }
+
+        const storeIds = Array.isArray(dto.vendor_store)
+          ? dto.vendor_store.filter((id) => Number.isInteger(id))
+          : [];
+        for (const storeId of storeIds) {
+          await tx.vendor_store.create({
+            data: {
+              vendor_id: vendor.id,
+              store_id: storeId,
+              created_by: user.id,
+            },
+          });
+        }
+
+        if (Number.isInteger(dto.max_order) && dto.max_order! > 0) {
+          await tx.vendor.update({
+            where: { id: vendor.id },
+            data: { max_order: dto.max_order },
+          });
+        }
+
+        const approvalRecipient =
+          registration.pic_email || registration.email_address;
+
         await this.emailQueue.add(
           'send-vendor-approval-mail',
           {
-            to: registration.pic_email,
+            to: approvalRecipient,
             company_name: registration.company_name,
-            token: credentialToken,
-            expires_hours: 48,
             username: generatedUsername,
             password: generatedPassword,
           },
@@ -869,14 +922,26 @@ export class VendorRegistrationService {
           actor_id: userId,
         });
 
+        await tx.vendor_registration_token.updateMany({
+          where: {
+            registration_id: id,
+            status: { not: 2 },
+          },
+          data: {
+            status: 3,
+          },
+        });
+
         return currentRegistration;
       });
 
-      // Send rejection email
+      const rejectionRecipient =
+        registration.pic_email || registration.email_address;
+
       await this.emailQueue.add(
         'send-vendor-rejection-mail',
         {
-          to: registration.pic_email,
+          to: rejectionRecipient,
           company_name: registration.company_name,
           rejection_reason: dto.rejection_reason,
           reapply_date: this.formatCooldownDate(this.getRejectedCooldownUntil(new Date())),
@@ -1058,141 +1123,6 @@ export class VendorRegistrationService {
         return {
           message: 'Pendaftaran vendor berhasil dihapus permanen.',
           registration_id: id,
-        };
-      });
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // ================================
-  // PUBLIC: VALIDATE TOKEN
-  // ================================
-
-  async validateToken(token: string) {
-    try {
-      const tokenData = await this.dbService.vendor_registration_token.findFirst({
-        where: { token },
-        include: { registration: true },
-      });
-
-      if (!tokenData) {
-        throw new BadRequestException('Token tidak ditemukan atau tidak valid.');
-      }
-
-      if (tokenData.status === 2) {
-        throw new BadRequestException('Token sudah pernah digunakan.');
-      }
-
-      if (tokenData.expires_at < new Date()) {
-        throw new BadRequestException('Token sudah kadaluarsa.');
-      }
-
-      if (tokenData.status !== 1) {
-        throw new BadRequestException('Token tidak dapat digunakan.');
-      }
-
-      return {
-        valid: true,
-        registration_id: tokenData.registration_id,
-        company_name: tokenData.registration.company_name,
-        expires_at: tokenData.expires_at,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // ================================
-  // PUBLIC: CREATE USER FROM TOKEN
-  // ================================
-
-  async createUserFromToken(token: string, dto: CreateUserFromTokenDto) {
-    try {
-      return await this.dbService.$transaction(async (tx) => {
-        const tokenData = await tx.vendor_registration_token.findFirst({
-          where: {
-            token,
-            status: 1, // ACTIVE
-            expires_at: { gte: new Date() },
-          },
-          include: {
-            registration: true,
-          },
-        });
-
-        if (!tokenData) {
-          throw new BadRequestException(
-            'Token tidak valid atau sudah kadaluarsa.',
-          );
-        }
-
-        // Check if user already exists
-        const existingUser = await tx.users.findFirst({
-          where: { username: dto.username },
-        });
-
-        if (existingUser) {
-          throw new BadRequestException('Username sudah digunakan.');
-        }
-
-        // Get vendor owner role
-        const role = await tx.roles.findFirst({
-          where: { name: { contains: 'owner vendor' } },
-        });
-
-        if (!role) {
-          throw new BadRequestException('Role vendor tidak ditemukan.');
-        }
-
-        // Create user
-        const user = await tx.users.create({
-          data: {
-            username: dto.username,
-            password: hashSync(dto.password, 12),
-            role_id: role.id,
-          },
-        });
-
-        // Create vendor from registration
-        const vendor = await tx.vendor.create({
-          data: {
-            company_name: tokenData.registration.company_name,
-            address: tokenData.registration.address,
-            phone_number: tokenData.registration.phone_number,
-            email_address: tokenData.registration.email_address,
-            ktp_number: tokenData.registration.ktp_number,
-            npwp_number: tokenData.registration.npwp_number,
-            bank_id: tokenData.registration.bank_id,
-            pic_name: tokenData.registration.pic_name,
-            join_date: new Date(),
-            created_by: user.id,
-          },
-        });
-
-        // Create pic_vendor relation
-        await tx.pic_vendor.create({
-          data: {
-            vendor_id: vendor.id,
-            user_id: user.id,
-            pic_name: tokenData.registration.pic_name,
-            email_address: tokenData.registration.pic_email,
-          },
-        });
-
-        // Update token status
-        await tx.vendor_registration_token.update({
-          where: { id: tokenData.id },
-          data: {
-            status: 2, // USED
-            user_id: user.id,
-          },
-        });
-
-        return {
-          message: 'Akun berhasil dibuat. Silakan login.',
-          vendor_id: vendor.id,
-          user_id: user.id,
         };
       });
     } catch (error) {
