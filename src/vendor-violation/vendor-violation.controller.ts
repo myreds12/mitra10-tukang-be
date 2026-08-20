@@ -8,8 +8,11 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   ParseIntPipe,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorViolationService } from './vendor-violation.service';
@@ -21,6 +24,7 @@ import {
 } from './dto/create-violation-type.dto';
 import {
   CreateViolationLogDto,
+  ExportViolationLogDto,
   QueryViolationLogDto,
 } from './dto/create-violation-log.dto';
 import {
@@ -30,6 +34,8 @@ import {
 } from './dto/violation-revision-request.dto';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Response } from 'express';
+import * as fs from 'fs';
 
 @ApiTags('Vendor Violation')
 @ApiBearerAuth()
@@ -159,6 +165,74 @@ export class VendorViolationController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAllViolationLogs(@Query() query: QueryViolationLogDto) {
     return this.service.findAllViolationLogs(query);
+  }
+
+  // Pola proteksi endpoint export (konsisten dengan mayoritas controller
+  // lain di codebase): JWT auth saja (harus login), role-check manual
+  // di handler (harus Admin HO / Super User). Tanpa CASL granular.
+  @Get('log/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Export Vendor Violation Logs to Excel',
+    description:
+      'Download raw violation-log data (Sheet 1) plus per-vendor summary ' +
+      '(Sheet 2). Streams XLSX inline; no pagination. Hard-capped at 50k rows. ' +
+      'Role check di handler: Admin HO / Super User only.',
+  })
+  @ApiQuery({ name: 'format', required: false, enum: ['excel'], example: 'excel' })
+  @ApiQuery({ name: 'vendor_id', required: false, type: Number })
+  @ApiQuery({ name: 'quarter', required: false, type: Number })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'category', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'date_from', required: false, type: String, example: '2026-01-01' })
+  @ApiQuery({ name: 'date_to', required: false, type: String, example: '2026-03-31' })
+  @ApiResponse({ status: 200, description: 'XLSX attachment streamed inline' })
+  @ApiResponse({ status: 400, description: 'Invalid filters or row count exceeds limit' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  async exportViolationLog(
+    @Query() query: ExportViolationLogDto,
+    @User() user: any,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    const result = await this.service.exportViolationLogExcel(
+      query,
+      user?.id ?? null,
+    );
+
+    if (!fs.existsSync(result.filePath)) {
+      throw new NotFoundException(
+        `File export tidak ditemukan di server: ${result.fileName}`,
+      );
+    }
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.fileName}"`,
+    );
+    res.setHeader('X-Export-Row-Count', String(result.rowCount));
+
+    const stream = fs.createReadStream(result.filePath);
+    stream.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`export stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).end('Export stream error');
+      }
+    });
+    stream.pipe(res);
   }
 
   @Get('vendor/:vendorId/points')

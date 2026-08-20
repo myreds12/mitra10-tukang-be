@@ -331,6 +331,17 @@ export class QuotationService {
             orderId: order.id,
             quotationId: quotation.id,
             description: `Quotation terbit ${daysDiff} hari setelah Survey Selesai (limit: H+3)`,
+            // [POIN 6] SYSTEM_GENERATED — deteksi otomatis via scheduler
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                quotationId: quotation.id,
+                orderId: order.id,
+                daysSinceSurveyDone: daysDiff,
+                threshold: 'H+3',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       } else if (daysDiff >= 2) {
@@ -341,6 +352,17 @@ export class QuotationService {
             orderId: order.id,
             quotationId: quotation.id,
             description: `Quotation terbit ${daysDiff} hari setelah Survey Selesai (limit: H+2)`,
+            // [POIN 6] SYSTEM_GENERATED snapshot
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                quotationId: quotation.id,
+                orderId: order.id,
+                daysSinceSurveyDone: daysDiff,
+                threshold: 'H+2',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }

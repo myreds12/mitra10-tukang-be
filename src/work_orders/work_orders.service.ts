@@ -1105,6 +1105,22 @@ export class WorkOrdersService {
               orderId: workOrder.order_id,
               workOrderId: workOrder.id,
               description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto ${!hasBefore ? 'before' : ''}${!hasBefore && !hasAfter ? ' dan ' : ''}${!hasAfter ? 'after' : ''}`,
+              // [POIN 6] SYSTEM_GENERATED — deteksi otomatis via cron/status check,
+              // tidak ada bukti fisik individual per pelanggaran (foto belum diupload
+              // justru yg menjadi trigger-nya).
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  workOrderId: workOrder.id,
+                  orderId: workOrder.order_id,
+                  missingPhotos: [
+                    !hasBefore && 'before',
+                    !hasAfter && 'after',
+                  ].filter(Boolean),
+                  finalStatus: newStatus?.category,
+                  triggeredAt: new Date().toISOString(),
+                },
+              },
             },
           );
         }
@@ -1165,6 +1181,18 @@ export class WorkOrdersService {
             orderId: workOrder.order_id,
             workOrderId: workOrder.id,
             description: `Work Order #${workOrder.id} tidak diupdate selama ${daysDiff} hari`,
+            // [POIN 6] SYSTEM_GENERATED — deteksi otomatis, snapshot kondisi WO
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                workOrderId: workOrder.id,
+                orderId: workOrder.order_id,
+                daysSinceUpdate: daysDiff,
+                lastStatusUpdate: lastUpdate.created_at,
+                currentStatus: newStatus?.category,
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }

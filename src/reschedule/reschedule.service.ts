@@ -671,6 +671,19 @@ export class RescheduleService {
           vendorId,
           orderId: previousReschedule.order_id,
           description: `Vendor mengubah jadwal reschedule pada hari pelaksanaan untuk order #${previousReschedule.order_id}`,
+          // [POIN 6] SYSTEM_GENERATED snapshot — perubahan jadwal, bukan bukti fisik
+          evidence: {
+            provenance: 'SYSTEM_GENERATED',
+            snapshot: {
+              rescheduleId: previousReschedule.id,
+              orderId: previousReschedule.order_id,
+              previousDate: previousReschedule.reschedule_date,
+              newDate: updatedReschedule.reschedule_date,
+              isSameScheduleDate,
+              isDateChanged,
+              triggeredAt: new Date().toISOString(),
+            },
+          },
         },
         user.id,
       );

@@ -13,6 +13,7 @@ import {
   QueryViolationRevisionRequestDto,
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
+import { syncVendorSpDetails } from '../common/utils/vendor-sp-detail-sync.util';
 
 @Injectable()
 export class VendorViolationRevisionService {
@@ -291,9 +292,16 @@ export class VendorViolationRevisionService {
           updated_at: new Date(),
         },
       });
+      await syncVendorSpDetails(tx, {
+        vendorSpId: activeSp.id,
+        vendorId,
+        quarter,
+        year,
+        createdBy: userId,
+      });
     } else {
       const now = new Date();
-      await tx.vendor_sp.create({
+      const createdSp = await tx.vendor_sp.create({
         data: {
           vendor_id: vendorId,
           sp_level: spLevel,
@@ -307,6 +315,13 @@ export class VendorViolationRevisionService {
           notes: 'SP issued after approved violation point revision/reset.',
           created_by: userId,
         },
+      });
+      await syncVendorSpDetails(tx, {
+        vendorSpId: createdSp.id,
+        vendorId,
+        quarter,
+        year,
+        createdBy: userId,
       });
     }
 

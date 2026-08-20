@@ -187,6 +187,17 @@ export class ComplaintsService {
         description: `Komplain customer terkait ${complaintTypeText} untuk order #${
           order.project_number || order.id
         }`,
+        // [POIN 6] SYSTEM_GENERATED snapshot — komplain customer tidak punya
+        // bukti fisik yang bisa dilampirkan; snapshot event-nya saja.
+        evidence: {
+          provenance: 'SYSTEM_GENERATED',
+          snapshot: {
+            complaintId: complaint.id,
+            complaintType: complaint.type, // 1=jadwal, 2=pengerjaan
+            orderId: order.id,
+            triggeredAt: new Date().toISOString(),
+          },
+        },
       });
     } catch (error) {
       this.logger.error('Error checking customer complaint violation', error);

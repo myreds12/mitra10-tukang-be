@@ -80,6 +80,35 @@ export enum ViolationRevisionStatus {
 export const VIOLATION_TYPE_CACHE = new Map<string, number>();
 
 /**
+ * [POIN 6] Evidence provenance type. Disimpan di kolom evidence_provenance
+ * (String di DB karena SQL Server). Validasi di service-layer (recordViolation
+ * throw kalau evidence tidak valid).
+ *
+ * - MANUAL_UPLOAD: ada bukti fisik (foto, file, path) yang diupload user/manual.
+ *   Wajib menyertakan `path` non-empty.
+ * - SYSTEM_GENERATED: tidak ada bukti fisik — sistem auto-generate snapshot
+ *   JSON dari state kejadian (timestamp, ids, kondisi pemicu). Wajib menyertakan
+ *   `snapshot` non-empty object.
+ * - LEGACY: data historis sebelum fix ini — tidak ada tracking provenance.
+ *   Hanya untuk record lama (default value).
+ */
+export type EvidenceProvenance = 'MANUAL_UPLOAD' | 'SYSTEM_GENERATED' | 'LEGACY';
+
+export const EVIDENCE_PROVENANCE_VALUES: EvidenceProvenance[] = [
+  'MANUAL_UPLOAD',
+  'SYSTEM_GENERATED',
+  'LEGACY',
+];
+
+/**
+ * [POIN 6] Evidence payload. Union type — MANUAL_UPLOAD butuh path,
+ * SYSTEM_GENERATED butuh snapshot. recordViolation() akan validate.
+ */
+export type ViolationEvidence =
+  | { provenance: 'MANUAL_UPLOAD'; path: string }
+  | { provenance: 'SYSTEM_GENERATED'; snapshot: Record<string, any> };
+
+/**
  * Context untuk pelanggaran
  */
 export interface ViolationContext {
@@ -90,7 +119,13 @@ export interface ViolationContext {
   refundId?: number;
   complaintId?: number;
   description?: string;
-  evidencePath?: string;
+  /**
+   * [POIN 6] Evidence untuk pelanggaran ini — WAJIB diisi (Lapis 2 guard).
+   * Bisa berupa evidence_path (MANUAL_UPLOAD) atau snapshot kejadian sistem
+   * (SYSTEM_GENERATED). recordViolation() akan throw BadRequestException kalau
+   * kosong/invalid.
+   */
+  evidence: ViolationEvidence;
   additionalData?: Record<string, any>;
 }
 

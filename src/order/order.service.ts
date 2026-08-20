@@ -1771,6 +1771,15 @@ export class OrderService {
               vendorId: updatedOrder.vendor_id,
               orderId: updatedOrder.id,
               description: `Order #${updatedOrder.project_number || updatedOrder.id} tidak dikonfirmasi pada Hari H`,
+              // [POIN 6] SYSTEM_GENERATED — deteksi otomatis status order
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  orderId: updatedOrder.id,
+                  daysSinceCreated: daysDiff,
+                  triggeredAt: new Date().toISOString(),
+                },
+              },
             },
           );
         }

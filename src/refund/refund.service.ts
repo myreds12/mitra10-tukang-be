@@ -162,6 +162,19 @@ export class RefundService {
             orderId: order.id,
             refundId: refund.id,
             description: `Vendor memiliki ${refundCount} order refund di Q${quarter}/${year}`,
+            // [POIN 6] SYSTEM_GENERATED: tidak ada bukti fisik refund — snapshot
+            // data refund untuk audit-trail.
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                refundId: refund.id,
+                refundCount,
+                quarter,
+                year,
+                thresholdRange: '6-10',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       } else if (refundCount === 5) {
@@ -172,6 +185,18 @@ export class RefundService {
             orderId: order.id,
             refundId: refund.id,
             description: `Vendor memiliki ${refundCount} order refund di Q${quarter}/${year}`,
+            // [POIN 6] SYSTEM_GENERATED snapshot
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                refundId: refund.id,
+                refundCount,
+                quarter,
+                year,
+                thresholdHit: '5',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }
@@ -209,6 +234,17 @@ export class RefundService {
           quotationId: fulfilledQuotation.id,
           refundId: refund.id,
           description: `Order #${order.project_number || order.id} refund setelah quotation ${fulfilledQuotation.quotation_number || fulfilledQuotation.id} terbit/disetujui`,
+          // [POIN 6] SYSTEM_GENERATED snapshot
+          evidence: {
+            provenance: 'SYSTEM_GENERATED',
+            snapshot: {
+              refundId: refund.id,
+              quotationId: fulfilledQuotation.id,
+              fulfilledQuotationStatus: fulfilledQuotation.status?.category,
+              orderId: order.id,
+              triggeredAt: new Date().toISOString(),
+            },
+          },
         },
       );
     } catch (error) {

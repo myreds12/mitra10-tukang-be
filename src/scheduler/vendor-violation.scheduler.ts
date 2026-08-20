@@ -189,6 +189,16 @@ export class VendorViolationScheduler implements OnModuleInit {
             vendorId: order.vendor_id,
             orderId: order.id,
             description: `Order #${order.project_number || order.id} tidak dikonfirmasi selama ${daysDiff} hari`,
+            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                orderId: order.id,
+                daysSinceCreated: daysDiff,
+                checkType: 'checkLateQuotationConfirmations',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }
@@ -277,6 +287,17 @@ export class VendorViolationScheduler implements OnModuleInit {
             orderId: quotation.order_id,
             quotationId: quotation.id,
             description: `Quotation belum terbit selama ${daysSinceSurvey} hari sejak Survey Selesai`,
+            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                quotationId: quotation.id,
+                orderId: quotation.order_id,
+                daysSinceSurveyDone: daysSinceSurvey,
+                checkType: 'checkLateQuotations',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }
@@ -345,6 +366,17 @@ export class VendorViolationScheduler implements OnModuleInit {
             orderId: wo.order_id,
             workOrderId: wo.id,
             description: `Status work order tidak diupdate selama ${daysSinceUpdate} hari`,
+            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                workOrderId: wo.id,
+                orderId: wo.order_id,
+                daysSinceUpdate,
+                checkType: 'checkStaleWorkOrderStatuses',
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }
@@ -399,6 +431,17 @@ export class VendorViolationScheduler implements OnModuleInit {
           vendorId: reschedule.order.vendor_id,
           orderId: reschedule.order_id,
           description: `Reschedule #${reschedule.id} belum ditindaklanjuti vendor selama ${daysDiff} hari`,
+          // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+          evidence: {
+            provenance: 'SYSTEM_GENERATED',
+            snapshot: {
+              rescheduleId: reschedule.id,
+              orderId: reschedule.order_id,
+              daysSinceCreated: daysDiff,
+              checkType: 'checkPendingReschedules',
+              triggeredAt: new Date().toISOString(),
+            },
+          },
         },
       );
     }
