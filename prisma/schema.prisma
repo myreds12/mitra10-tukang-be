@@ -2003,6 +2003,13 @@ model vendor_violation_log {
   // Detail pelanggaran
     description     String?  @db.Text
     evidence_path   String?  @db.VarChar(500)   // Path ke bukti pelanggaran
+    // [POIN 6] Provenance evidence — MANUAL_UPLOAD (ada foto/file fisik),
+    // SYSTEM_GENERATED (snapshot JSON kejadian sistem), LEGACY (data lama
+    // sebelum fix ini, tanpa tracking provenance). Disimpan sebagai String
+    // (bukan Prisma enum) karena schema pakai SQL Server yang tidak support
+    // Prisma enum. Validasi di TS via union type 'EvidenceProvenance'.
+    // Nullable: data legacy sudah ada tanpa kolom ini — default LEGACY.
+    evidence_provenance String?  @db.VarChar(50)  @default("LEGACY")
     adjusted_point  Int?                         // Override poin setelah approval revisi/reset
     revision_note   String?  @db.Text
     revised_at      DateTime? @db.DateTime()
