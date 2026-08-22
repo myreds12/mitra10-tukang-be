@@ -8,12 +8,17 @@ import {
   Body,
   Param,
   Query,
+  Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   ParseIntPipe,
   ForbiddenException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorViolationService } from './vendor-violation.service';
 import { VendorViolationRevisionService } from './vendor-violation-revision.service';
@@ -33,9 +38,49 @@ import {
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
 import { User } from 'src/common/decorator/user.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { Response } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { Request, Response } from 'express';
+import { extname } from 'path';
+import { diskStorage } from 'multer';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 import * as fs from 'fs';
+
+// 10MB bukan 50MB (chat) karena evidence gambar/PDF tidak butuh preview video.
+const EVIDENCE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+];
+const MAX_EVIDENCE_SIZE = 10 * 1024 * 1024;
+
+const evidenceStorage = diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, resolveUploadPath('evidence'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `evidence-${uniqueSuffix}${extname(file.originalname)}`);
+  },
+});
+
+const evidenceFileFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: any,
+) => {
+  if (EVIDENCE_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new BadRequestException(
+        'Tipe file tidak diizinkan. Hanya gambar (jpg/png/gif/webp) dan PDF.',
+      ),
+      false,
+    );
+  }
+};
 
 @ApiTags('Vendor Violation')
 @ApiBearerAuth()
@@ -146,6 +191,45 @@ export class VendorViolationController {
     @User() user: any,
   ) {
     return this.service.createViolationLog(dto, user?.id);
+  }
+
+  // Pattern 2-step (upload → submit path) konsisten dengan chat-proxy.controller.ts.
+  @Post('log/upload')
+  @ApiOperation({
+    summary: 'Upload violation evidence file',
+    description:
+      'Upload image or PDF sebagai bukti pelanggaran. Return saved path untuk dipakai sebagai evidence_path saat POST /log.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file type or size' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: evidenceStorage,
+      fileFilter: evidenceFileFilter,
+      limits: { fileSize: MAX_EVIDENCE_SIZE },
+    }),
+  )
+  async uploadEvidence(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File tidak ditemukan');
+    }
+    const fileUrl = `${req.protocol}://${req.get('host')}/public/${file.filename}`;
+    const path = `/public/${file.filename}`;
+    return {
+      success: true,
+      data: {
+        path,
+        fileUrl,
+        fileName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      },
+    };
   }
 
   @Get('log')

@@ -938,4 +938,141 @@ export class VendorSpService {
 
     return { filePath, userFileName };
   }
+
+  /**
+   * Poin 4 (varian aggregate): PDF rekap LIST vendor tanpa pelanggaran pada
+   * quarter tsb. Bukan per-vendor certificate — ini bukti aggregate untuk
+   * audit/compliance. Filter opsional: category (lihat helper untuk semantik).
+   */
+  async generateCleanVendorRecapPdf(
+    quarter: number,
+    year: number,
+    category: string | undefined,
+    generatedBy?: number,
+  ): Promise<{ filePath: string; userFileName: string }> {
+    const cleanVendors = await this.reportQuery.getVendorsWithZeroViolations(
+      quarter,
+      year,
+      category,
+    );
+
+    const generatedAt = new Date();
+    const doc = this.pdfService.createDocument(generatedAt);
+
+    this.pdfService.addHeader(doc, {
+      title: 'REKAP VENDOR TANPA PELANGGARAN',
+      subtitle: `Periode Q${quarter} ${year}${category ? `    |    Kategori: ${category}` : ''}    |    Total vendor bersih: ${cleanVendors.length}`,
+    });
+
+    this.pdfService.addSection(doc, 'Informasi Dokumen', [
+      { label: 'Tanggal Generate', value: generatedAt.toISOString().slice(0, 10) },
+      { label: 'Quartal', value: `Q${quarter} ${year}` },
+      { label: 'Kategori Filter', value: category ?? 'Semua kategori' },
+      { label: 'Total Vendor Bersih', value: String(cleanVendors.length) },
+    ]);
+
+    if (cleanVendors.length === 0) {
+      this.pdfService.addSection(doc, 'Daftar Vendor', [
+        {
+          label: 'Catatan',
+          value: 'Tidak ada vendor tanpa pelanggaran pada periode ini.',
+        },
+      ]);
+    } else {
+      this.pdfService.addSection(doc, 'Daftar Vendor Bersih', []);
+      const rows = cleanVendors.map((v, i) => ({ no: i + 1, ...v }));
+      this.pdfService.addTable(doc, {
+        columns: [
+          {
+            key: 'no',
+            label: 'No',
+            width: 30,
+            align: 'center',
+            accessor: (r: any) => String(r.no),
+          },
+          {
+            key: 'company',
+            label: 'Nama Perusahaan',
+            width: 180,
+            accessor: (r: any) => r.company_name,
+          },
+          {
+            key: 'pic',
+            label: 'PIC',
+            width: 120,
+            accessor: (r: any) => r.pic_name ?? '-',
+          },
+          {
+            key: 'orders',
+            label: 'Total Order',
+            width: 70,
+            align: 'right',
+            accessor: (r: any) => String(r.total_orders),
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            width: 60,
+            align: 'center',
+            accessor: () => 'BERSIH',
+          },
+        ],
+        rows,
+      });
+    }
+
+    this.pdfService.addSignatureSection(doc, {
+      intro:
+        'Dokumen ini dicetak otomatis oleh sistem sebagai bukti daftar vendor bersih pelanggaran:',
+      signers: [
+        {
+          name: '(Admin HO)',
+          role: 'Head Office',
+          placeholder: 'Tanda tangan & cap',
+        },
+      ],
+    });
+
+    const ts = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+    const rand = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+    const catPart = category ? `-${category.toLowerCase()}` : '';
+    const fileName = `clean-recap-${quarter}-${year}${catPart}-${ts}-${rand}.pdf`;
+    const folder = path.resolve('./storage/pdf/vendor-sp');
+    const filePath = path.join(folder, fileName);
+    await this.pdfService.pipeAndSave(doc, filePath);
+
+    const userFileName = `Rekap_Vendor_Bersih_Q${quarter}_${year}${category ? '_' + category : ''}.pdf`;
+
+    try {
+      await this.dbService.logs.create({
+        data: {
+          module_type: 'EXPORT_PDF_CLEAN_VENDOR_RECAP',
+          module_id: null,
+          issuer_type: 'USER',
+          issuer_id: generatedBy ?? null,
+          properties: JSON.stringify({
+            quarter,
+            year,
+            category: category ?? null,
+            total_clean_vendors: cleanVendors.length,
+            file_path: filePath,
+            file_name: fileName,
+            user_file_name: userFileName,
+          }),
+        },
+      });
+    } catch (auditError) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[vendor-sp] audit log failed for clean vendor recap Q${quarter}/${year} reason=${(auditError as Error)?.message ?? auditError}`,
+      );
+    }
+
+    return { filePath, userFileName };
+  }
 }

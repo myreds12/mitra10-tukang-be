@@ -26,6 +26,7 @@ import {
 } from './dto/vendor-sp.dto';
 import { PenaltyReceiptDto } from './dto/penalty-receipt.dto';
 import { NoViolationCertificateDto } from './dto/no-violation-certificate.dto';
+import { CleanVendorRecapDto } from './dto/clean-vendor-recap.dto';
 import { QueryReactivationLogDto } from './dto/query-reactivation-log.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { User } from 'src/common/decorator/user.decorator';
@@ -316,6 +317,62 @@ export class VendorSpController {
     stream.on('error', (err) => {
       // eslint-disable-next-line no-console
       console.error(`no-violation-certificate stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).end('Export stream error');
+      }
+    });
+    stream.pipe(res);
+  }
+
+  // Poin 4 (varian aggregate): PDF rekap LIST vendor tanpa pelanggaran.
+  // Pattern konsisten dengan Poin 3 + Poin 4 (POST + body + role-check + file streaming).
+  @Post('clean-vendor-recap/export')
+  @ApiOperation({
+    summary: '[POIN 4] Export PDF Rekap Vendor Tanpa Pelanggaran',
+    description:
+      'Generate PDF berisi LIST semua vendor dengan 0 pelanggaran pada ' +
+      'quarter+year tsb. Filter kategori violation_type opsional. ' +
+      'Proteksi: JWT-only + role-check handler (Admin HO / Super User).',
+  })
+  @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
+  @ApiResponse({ status: 400, description: 'Invalid input (quarter/year/category)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  async exportCleanVendorRecap(
+    @Body() dto: CleanVendorRecapDto,
+    @User() user: any,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    const result = await this.service.generateCleanVendorRecapPdf(
+      dto.quarter,
+      dto.year,
+      dto.category,
+      user?.id ?? null,
+    );
+
+    if (!fs.existsSync(result.filePath)) {
+      throw new NotFoundException(
+        `File PDF tidak ditemukan di server: ${result.filePath}`,
+      );
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.userFileName}"`,
+    );
+
+    const stream = fs.createReadStream(result.filePath);
+    stream.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`clean-vendor-recap stream error: ${err.message}`);
       if (!res.headersSent) {
         res.status(500).end('Export stream error');
       }

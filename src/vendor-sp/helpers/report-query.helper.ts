@@ -102,6 +102,77 @@ export class ReportQueryHelper {
   }
 
   /**
+   * Filter `category` non-trivial: exclude vendor HANYA kalau dia punya
+   * pelanggaran di KATEGORI tsb. Vendor boleh punya pelanggaran di
+   * kategori lain — tetap masuk list.
+   */
+  async getVendorsWithZeroViolations(
+    quarter: number,
+    year: number,
+    category?: string,
+  ): Promise<
+    Array<{
+      id: number;
+      company_name: string;
+      pic_name: string;
+      email_address: string | null;
+      is_active: boolean;
+      total_orders: number;
+    }>
+  > {
+    const { start, end } = this.getQuarterRange(quarter, year);
+
+    const grouped = await this.prisma.vendor_violation_log.groupBy({
+      by: ['vendor_id'],
+      where: {
+        quarter,
+        year,
+        is_active: true,
+        deleted_at: null,
+        ...(category ? { violation_type: { category } } : {}),
+      },
+    });
+    const excludedIds = new Set(grouped.map((g) => g.vendor_id));
+
+    const vendors = await this.prisma.vendor.findMany({
+      where: {
+        deleted_at: null,
+        ...(excludedIds.size > 0
+          ? { NOT: { id: { in: Array.from(excludedIds) } } }
+          : {}),
+      },
+      select: {
+        id: true,
+        company_name: true,
+        pic_name: true,
+        email_address: true,
+        is_active: true,
+      },
+      orderBy: { company_name: 'asc' },
+    });
+
+    if (vendors.length === 0) return [];
+
+    const orderCounts = await this.prisma.orders.groupBy({
+      by: ['vendor_id'],
+      where: {
+        vendor_id: { in: vendors.map((v) => v.id) },
+        created_at: { gte: start, lte: end },
+        deleted_at: null,
+      },
+      _count: { _all: true },
+    });
+    const orderCountMap = new Map(
+      orderCounts.map((o) => [o.vendor_id, o._count._all]),
+    );
+
+    return vendors.map((v) => ({
+      ...v,
+      total_orders: orderCountMap.get(v.id) ?? 0,
+    }));
+  }
+
+  /**
    * Kuartal berjalan saat ini. Untuk Poin 4 validasi "kuartal harus lampau".
    */
   getCurrentQuarterInfo(now: Date = new Date()): {
