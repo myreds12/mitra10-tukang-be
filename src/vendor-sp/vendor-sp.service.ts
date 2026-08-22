@@ -726,7 +726,7 @@ export class VendorSpService {
     const fileName = `penalty-${vendorId}-${quarter}-${year}-${ts}-${rand}.pdf`;
     const folder = path.resolve('./storage/pdf/vendor-sp');
     const filePath = path.join(folder, fileName);
-    await this.pdfService.pipeAndSave(doc, filePath);
+    await this.pdfService.pipeAndSave(doc, filePath, generatedAt);
 
     // 8. User-facing filename (dikirim via Content-Disposition)
     const safeVendorName = (vendor.company_name || 'Vendor')
@@ -900,7 +900,7 @@ export class VendorSpService {
     const fileName = `no-violation-${vendorId}-${quarter}-${year}-${ts}-${rand}.pdf`;
     const folder = path.resolve('./storage/pdf/vendor-sp');
     const filePath = path.join(folder, fileName);
-    await this.pdfService.pipeAndSave(doc, filePath);
+    await this.pdfService.pipeAndSave(doc, filePath, generatedAt);
 
     // 8. User-facing filename
     const safeVendorName = (vendor.company_name || 'Vendor')
@@ -959,12 +959,15 @@ export class VendorSpService {
     const generatedAt = new Date();
     const doc = this.pdfService.createDocument(generatedAt);
 
-    this.pdfService.addHeader(doc, {
+    const catPart = category ? `-${category.toLowerCase()}` : '';
+
+    this.pdfService.addStyledHeader(doc, {
       title: 'REKAP VENDOR TANPA PELANGGARAN',
       subtitle: `Periode Q${quarter} ${year}${category ? `    |    Kategori: ${category}` : ''}    |    Total vendor bersih: ${cleanVendors.length}`,
+      documentNo: `CLEAN-RECAP-Q${quarter}-${year}${catPart}`,
     });
 
-    this.pdfService.addSection(doc, 'Informasi Dokumen', [
+    this.pdfService.addInfoBox(doc, 'Informasi Dokumen', [
       { label: 'Tanggal Generate', value: generatedAt.toISOString().slice(0, 10) },
       { label: 'Quartal', value: `Q${quarter} ${year}` },
       { label: 'Kategori Filter', value: category ?? 'Semua kategori' },
@@ -972,16 +975,22 @@ export class VendorSpService {
     ]);
 
     if (cleanVendors.length === 0) {
-      this.pdfService.addSection(doc, 'Daftar Vendor', [
+      this.pdfService.addInfoBox(doc, 'Daftar Vendor', [
         {
           label: 'Catatan',
           value: 'Tidak ada vendor tanpa pelanggaran pada periode ini.',
         },
       ]);
     } else {
-      this.pdfService.addSection(doc, 'Daftar Vendor Bersih', []);
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(12)
+        .fillColor('#183383')
+        .text('Daftar Vendor Bersih');
+      doc.moveDown(0.4);
+
       const rows = cleanVendors.map((v, i) => ({ no: i + 1, ...v }));
-      this.pdfService.addTable(doc, {
+      this.pdfService.addStyledTable(doc, {
         columns: [
           {
             key: 'no',
@@ -993,13 +1002,13 @@ export class VendorSpService {
           {
             key: 'company',
             label: 'Nama Perusahaan',
-            width: 180,
+            width: 200,
             accessor: (r: any) => r.company_name,
           },
           {
             key: 'pic',
             label: 'PIC',
-            width: 120,
+            width: 110,
             accessor: (r: any) => r.pic_name ?? '-',
           },
           {
@@ -1012,26 +1021,23 @@ export class VendorSpService {
           {
             key: 'status',
             label: 'Status',
-            width: 60,
+            width: 80,
             align: 'center',
             accessor: () => 'BERSIH',
           },
         ],
         rows,
+        repeatHeader: true,
       });
     }
 
-    this.pdfService.addSignatureSection(doc, {
-      intro:
-        'Dokumen ini dicetak otomatis oleh sistem sebagai bukti daftar vendor bersih pelanggaran:',
-      signers: [
-        {
-          name: '(Admin HO)',
-          role: 'Head Office',
-          placeholder: 'Tanda tangan & cap',
-        },
-      ],
-    });
+    this.pdfService.addSignatureBox(doc, [
+      {
+        name: '(Admin HO)',
+        role: 'Head Office',
+        placeholder: 'Tanda tangan & cap',
+      },
+    ], { position: 'right' });
 
     const ts = new Date()
       .toISOString()
@@ -1040,11 +1046,10 @@ export class VendorSpService {
     const rand = Math.floor(Math.random() * 10000)
       .toString()
       .padStart(4, '0');
-    const catPart = category ? `-${category.toLowerCase()}` : '';
     const fileName = `clean-recap-${quarter}-${year}${catPart}-${ts}-${rand}.pdf`;
     const folder = path.resolve('./storage/pdf/vendor-sp');
     const filePath = path.join(folder, fileName);
-    await this.pdfService.pipeAndSave(doc, filePath);
+    await this.pdfService.pipeAndSave(doc, filePath, generatedAt);
 
     const userFileName = `Rekap_Vendor_Bersih_Q${quarter}_${year}${category ? '_' + category : ''}.pdf`;
 
