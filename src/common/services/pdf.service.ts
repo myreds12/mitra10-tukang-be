@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+import PDFDocument = require('pdfkit');
 
 /**
  * Reusable PDF builder untuk Poin 3 (Penalty Receipt) dan Poin 4
