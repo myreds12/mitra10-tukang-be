@@ -260,3 +260,21 @@ export class CreateUserFromTokenDto {
   @MinLength(6, { message: 'Password harus memiliki minimal 6 karakter' })
   password: string;
 }
+
+export class UpdateTermsAndConditionsDto {
+  @ApiPropertyOptional({
+    description: 'Judul dokumen Syarat & Ketentuan',
+    example: 'Syarat dan Ketentuan Pendaftaran Vendor Mitra10',
+  })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @ApiPropertyOptional({
+    description: 'Konten T&C dalam format HTML (di-render read-only, tidak bisa didownload)',
+    example: '<h2>Syarat dan Ketentuan</h2><p>...</p>',
+  })
+  @IsOptional()
+  @IsString()
+  content?: string;
+}

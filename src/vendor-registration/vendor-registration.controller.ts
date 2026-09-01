@@ -20,6 +20,7 @@ import {
   QueryVendorRegistrationDto,
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
+  UpdateTermsAndConditionsDto,
 } from './dto/vendor-registration.dto';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
@@ -62,6 +63,83 @@ export class VendorRegistrationController {
     @UploadedFiles() files: any,
   ) {
     return this.service.registerVendor(dto, files);
+  }
+
+  // ================================
+  // PUBLIC: TERMS & CONDITIONS (T&C)
+  // ================================
+  // Catatan: route spesifik ini HARUS berada di atas @Get(':id') supaya tidak
+  // tertangkap sebagai parameter id.
+
+  @Get('terms-and-conditions')
+  @ApiOperation({
+    summary: '[PUBLIC] Get Active Terms & Conditions',
+    description:
+      'Ambil dokumen Syarat & Ketentuan aktif (HTML) untuk ditampilkan read-only. Tidak ada file yang bisa didownload - hanya konten untuk di-render.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns active terms and conditions content' })
+  @ApiResponse({ status: 404, description: 'No active terms and conditions found' })
+  async getActiveTermsAndConditions() {
+    return this.service.getActiveTermsAndConditions();
+  }
+
+  @Put('terms-and-conditions')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Update Terms & Conditions',
+    description: 'Update konten T&C (HTML) tanpa redeploy. Membuat versi baru dan menonaktifkan versi lama.',
+  })
+  @ApiResponse({ status: 200, description: 'Terms and conditions updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
+  async updateTermsAndConditions(
+    @Body() dto: UpdateTermsAndConditionsDto,
+    @User() user: any,
+  ) {
+    return this.service.updateTermsAndConditions(dto, user?.id);
+  }
+
+  // ================================
+  // REGISTRANT (PENDAFTAR) DASHBOARD
+  // ================================
+  // Endpoint khusus role "Pendaftar Vendor" - ownership di-check di service
+  // (role-check manual via getRoleName, tanpa CASL/PermissionsGuard).
+
+  @Get('me/registrations')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[PENDAFTAR] Get My Registrations',
+    description: 'Daftar pendaftaran vendor milik user yang login saja (ownership via user_id). Bukan semua pendaftar.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns registrations owned by the current user' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Pendaftar Vendor role only' })
+  async findMyRegistrations(@User() user: any) {
+    return this.service.findMyRegistrations(user?.id);
+  }
+
+  @Get('me/profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[PENDAFTAR] Get My Registrant Profile',
+    description: 'Profil ringkas akun pendaftar + pendaftaran terakhir untuk header dashboard.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns registrant profile' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Pendaftar Vendor role only' })
+  async getMyRegistrantProfile(@User() user: any) {
+    return this.service.getMyRegistrantProfile(user?.id);
+  }
+
+  @Get('me/home')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[PENDAFTAR] Get Home Content',
+    description: 'Konten statis halaman Home dashboard pendaftar (info & benefit Mitra10).',
+  })
+  @ApiResponse({ status: 200, description: 'Returns home content' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Pendaftar Vendor role only' })
+  async getRegistrantHomeContent(@User() user: any) {
+    await this.service.assertRegistrantAccess(user?.id);
+    return this.service.getRegistrantHomeContent();
   }
 
   // ================================

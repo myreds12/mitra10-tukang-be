@@ -341,8 +341,11 @@ model users {
   pic_vendor    pic_vendor[]
   notifications notifications[]
 
-  // Vendor Registration
-  registration_tokens vendor_registration_token[]
+  // Vendor Registration (akun pendaftar vendor)
+  vendor_registrations vendor_registration[] @relation("VendorRegistrationRegistrant")
+
+  // Vendor Registration (token create user)
+  registration_tokens vendor_registration_token[] @relation("VendorRegistrationTokenUser")
 }
 
 model sales {
@@ -2186,6 +2189,8 @@ model vendor_registration {
   pdp_consent     Boolean  @default(false)
   pdp_consent_at  DateTime? @db.DateTime()
 
+  // Relasi ke user akun pendaftar (auto-create saat registrasi; null jika belum ada)
+  user_id         Int?
   created_at      DateTime @default(now()) @db.DateTime()
   updated_at      DateTime? @db.DateTime()
   deleted_at      DateTime? @db.DateTime()
@@ -2194,6 +2199,7 @@ model vendor_registration {
   updated_by      Int?
   deleted_by      Int?
 
+  user            users?   @relation("VendorRegistrationRegistrant", fields: [user_id], references: [id])
   bank            bank?    @relation(fields: [bank_id], references: [id])
   registration_token vendor_registration_token?
   histories       vendor_registration_history[]
@@ -2202,7 +2208,25 @@ model vendor_registration {
   @@index([email_address])
   @@index([created_at])
   @@index([rejected_at])
-  @@index([documents_deleted_at])
+  @@index([user_id])
+}
+
+// Dokumen Syarat & Ketentuan (T&C) pendaftaran vendor - editable oleh Admin HO tanpa redeploy.
+// Disimpan sebagai HTML (bukan PDF) supaya mudah diupdate via Admin dan di-render read-only di frontend.
+// PLACEHOLDER: konten awal masih placeholder, perlu diganti tim/admin dengan konten resmi.
+model vendor_terms_and_conditions {
+  id          Int      @id @default(autoincrement())
+  title       String   @default("Syarat dan Ketentuan Pendaftaran Vendor Mitra10")
+  content     String   @db.NVarChar(Max) // HTML content, rendered read-only di frontend (no download)
+  version     Int      @default(1)
+  is_active   Boolean  @default(true)
+
+  created_at  DateTime @default(now()) @db.DateTime()
+  updated_at  DateTime? @db.DateTime()
+  deleted_at  DateTime? @db.DateTime()
+
+  created_by  Int?
+  updated_by  Int?
 }
 
 // Histori proses approval vendor registration
@@ -2242,7 +2266,7 @@ model vendor_registration_token {
   updated_at      DateTime? @db.DateTime()
 
   registration    vendor_registration @relation(fields: [registration_id], references: [id])
-  user            users?              @relation(fields: [user_id], references: [id])
+  user            users?              @relation("VendorRegistrationTokenUser", fields: [user_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([token])
   @@index([status])

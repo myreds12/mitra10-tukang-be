@@ -441,6 +441,47 @@ export class EmailProcessor {
     }
   }
 
+  @Process('send-registrant-account-mail')
+  async sendRegistrantAccountMail(job: Job<{
+    to: string;
+    company_name: string;
+    username: string;
+    password: string;
+  }>) {
+    try {
+      const { to, company_name, username, password } = job.data;
+
+      const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
+      const loginUrl = `${baseUrl}/login`;
+
+      const data = {
+        company_name,
+        username,
+        password,
+        website_url: baseUrl,
+        login_url: loginUrl,
+      };
+
+      await this.mailerService.sendMail({
+        to,
+        from: 'instalasi@mitra10.com',
+        subject: 'Akun Pendaftaran Vendor Anda - Mitra10',
+        template: 'registrant-account',
+        context: { data },
+      });
+
+      await this.maillogs(
+        0, // module_id not applicable for vendor registration
+        0, // email_message_id not applicable
+        { to, cc: '', bcc: '' },
+        1,
+        data,
+      );
+    } catch (error) {
+      this.logger.error(error);
+    }
+  }
+
   @Process('send-vendor-rejection-mail')
   async sendVendorRejectionMail(job: Job<{
     to: string;

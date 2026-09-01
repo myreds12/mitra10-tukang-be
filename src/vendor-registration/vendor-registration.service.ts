@@ -15,6 +15,7 @@ import {
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
   TukangRegistrationDto,
+  UpdateTermsAndConditionsDto,
 } from './dto/vendor-registration.dto';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
@@ -26,6 +27,9 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { Cron } from '@nestjs/schedule';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
+
+// Role khusus akun pendaftar vendor (belum di-approve; dibuat lewat migration seed)
+const PENDAFTAR_VENDOR_ROLE = 'Pendaftar Vendor';
 
 @Injectable()
 export class VendorRegistrationService {
@@ -299,6 +303,45 @@ export class VendorRegistrationService {
     }
   }
 
+  // Pattern role-check manual (konsisten dengan getRoleName di vendor-violation.service.ts)
+  async getRoleName(userId?: number): Promise<string | null> {
+    if (!userId) return null;
+    const user = await this.dbService.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      select: { roles: { select: { name: true } } },
+    });
+    return user?.roles?.name ?? null;
+  }
+
+  private async assertAdminHOOrSuperUser(userId?: number) {
+    const roleName = await this.getRoleName(userId);
+    if (!roleName || !['admin ho', 'super user'].includes(roleName.toLowerCase())) {
+      throw new ForbiddenException('Akses hanya untuk Admin HO / Super User.');
+    }
+  }
+
+  private async assertRegistrant(userId?: number) {
+    const roleName = await this.getRoleName(userId);
+    if (!roleName || roleName.toLowerCase() !== PENDAFTAR_VENDOR_ROLE.toLowerCase()) {
+      throw new ForbiddenException('Akses hanya untuk akun pendaftar vendor.');
+    }
+  }
+
+  // Username akun pendaftar: email PIC (fallback email perusahaan) di-sanitasi.
+  private buildRegistrantUsername(registration: {
+    pic_email?: string | null;
+    email_address?: string | null;
+  }): string {
+    const email = (registration.pic_email || registration.email_address || '').toLowerCase().trim();
+    const username = email.replace(/[^a-z0-9._-]/g, '');
+    return username || `pendaftar_${Date.now()}`;
+  }
+
+  // Role-check publik untuk endpoint dashboard pendaftar (dipanggil controller).
+  async assertRegistrantAccess(userId?: number) {
+    await this.assertRegistrant(userId);
+  }
+
   async registerVendor(dto: RegisterVendorDto, files?: any) {
     try {
       if (!dto.pdp_consent) {
@@ -308,6 +351,7 @@ export class VendorRegistrationService {
       }
 
       await this.assertRejectedCooldown(dto);
+
 
       // Check if email already registered
       const existing = await this.dbService.vendor_registration.findFirst({
@@ -330,6 +374,28 @@ export class VendorRegistrationService {
         );
       }
 
+      // Idempotensi akun pendaftar: tolak jika email PIC sudah dipakai pada
+      // pendaftaran yang masih berjalan (belum ditolak), supaya tidak ada user duplikat.
+      const existingPicRegistration = await this.dbService.vendor_registration.findFirst({
+        where: {
+          pic_email: dto.pic_email,
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+        },
+      });
+
+      if (existingPicRegistration) {
+        throw new BadRequestException(
+          `Email PIC sudah dipakai pada pendaftaran lain (ID ${existingPicRegistration.id}) yang sedang diproses. Gunakan email PIC lain.`,
+        );
+      }
+
       // Check if company already exists in vendor table
       const companyExists = await this.dbService.vendor.findFirst({
         where: {
@@ -341,6 +407,18 @@ export class VendorRegistrationService {
       if (companyExists) {
         throw new BadRequestException(
           'Nama perusahaan sudah terdaftar sebagai vendor.',
+        );
+      }
+
+      // Idempotensi username akun pendaftar (username = email PIC yang di-sanitasi)
+      const registrantUsername = this.buildRegistrantUsername(dto);
+      const existingUser = await this.dbService.users.findFirst({
+        where: { username: registrantUsername },
+      });
+
+      if (existingUser) {
+        throw new BadRequestException(
+          'Email PIC sudah terdaftar sebagai username akun. Silakan gunakan email PIC lain atau hubungi Admin Mitra10.',
         );
       }
 
@@ -389,6 +467,10 @@ export class VendorRegistrationService {
           ? dto.areas
           : JSON.stringify(dto.areas)
         : null;
+      // Password sementara acak yang aman; dikirim via email supaya pendaftar bisa
+      // login ke dashboard pendaftar dan memantau status (reset password tersedia).
+      const registrantPassword = `M1tr${randomBytes(4).toString('hex').toUpperCase()}@${new Date().getFullYear()}`;
+
 
       const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
       const registration = await this.dbService.$transaction(async (tx) => {
@@ -433,6 +515,39 @@ export class VendorRegistrationService {
           notes: 'Registrasi vendor berhasil disubmit.',
         });
 
+        // AUTO-CREATE AKUN PENDAFTAR (role "Pendaftar Vendor", BUKAN vendor aktif).
+        // Akun ini hanya untuk memantau status pendaftaran (dashboard Home & Status).
+        const registrantRole = await tx.roles.findFirst({
+          where: { name: PENDAFTAR_VENDOR_ROLE },
+        });
+        if (!registrantRole) {
+          throw new Error(
+            `Role "${PENDAFTAR_VENDOR_ROLE}" tidak ditemukan. Jalankan migration rekrut vendor.`,
+          );
+        }
+
+        const registrantUser = await tx.users.create({
+          data: {
+            username: registrantUsername,
+            password: hashSync(registrantPassword, 12),
+            role_id: registrantRole.id,
+          },
+        });
+
+        await tx.vendor_registration.update({
+          where: { id: createdRegistration.id },
+          data: { user_id: registrantUser.id },
+        });
+
+        await this.createHistory(tx, {
+          vendor_registration_id: createdRegistration.id,
+          from_status: RegistrationStatus.MENUNGGU_APPROVE,
+          to_status: RegistrationStatus.MENUNGGU_APPROVE,
+          action: 'REGISTRANT_ACCOUNT_CREATED',
+          notes: `Akun pendaftar dibuat otomatis (username: ${registrantUsername}).`,
+          actor_id: registrantUser.id,
+        });
+
         return createdRegistration;
       });
 
@@ -454,6 +569,21 @@ export class VendorRegistrationService {
       }
 
       try {
+        await this.emailQueue.add(
+          'send-registrant-account-mail',
+          {
+            to: dto.pic_email || dto.email_address,
+            company_name: dto.company_name,
+            username: registrantUsername,
+            password: registrantPassword,
+          },
+          { attempts: 3 },
+        );
+      } catch (registrantMailError) {
+        console.error('Failed to queue registrant account email:', registrantMailError);
+      }
+
+      try {
         await this.notifService.create(
           { vendor_registration: registration },
           'CREATE',
@@ -467,7 +597,8 @@ export class VendorRegistrationService {
       }
 
       return {
-        message: 'Pendaftaran berhasil submitted. Mohon tunggu konfirmasi dari admin HO.',
+        message:
+          'Pendaftaran berhasil disubmit. Username dan password sementara telah dikirim ke email PIC untuk memantau status pendaftaran.',
         registration_id: registration.id,
       };
     } catch (error) {
@@ -676,7 +807,6 @@ export class VendorRegistrationService {
 
         // Generate credentials
         const slug = registration.company_name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-        const generatedUsername = `vendor_${id}_${slug}`;
         const randomStr = randomBytes(4).toString('hex').toUpperCase();
         const generatedPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
         const hashedPassword = hashSync(generatedPassword, 12);
@@ -720,14 +850,47 @@ export class VendorRegistrationService {
           actor_id: userId,
         });
 
-        // 1. Create user immediately with bcrypt-hashed password
-        const user = await tx.users.create({
-          data: {
-            username: generatedUsername,
-            password: hashedPassword,
-            role_id: role.id,
-          },
-        });
+        // 1. Reuse akun pendaftar yang dibuat saat registrasi (jika ada):
+        //    promote role "Pendaftar Vendor" -> "Owner Vendor" sehingga user yang
+        //    sudah login sebagai pendaftar langsung menjadi vendor aktif.
+        //    Jika tidak ada (data lama), tetap buat user baru seperti sebelumnya.
+        const existingRegistrant = registration.user_id
+          ? await tx.users.findFirst({
+              where: { id: registration.user_id, deleted_at: null },
+            })
+          : null;
+
+        let user;
+        let generatedUsername = `vendor_${id}_${slug}`;
+
+        if (existingRegistrant) {
+          generatedUsername = existingRegistrant.username;
+          // Reset password baru (lebih aman) tetapi keep username yang sudah dipakai
+          user = await tx.users.update({
+            where: { id: existingRegistrant.id },
+            data: {
+              password: hashedPassword,
+              role_id: role.id,
+            },
+          });
+
+          await this.createHistory(tx, {
+            vendor_registration_id: id,
+            from_status: RegistrationStatus.DISETUJUI,
+            to_status: RegistrationStatus.DISETUJUI,
+            action: 'REGISTRANT_PROMOTED',
+            notes: `Akun pendaftar (${existingRegistrant.username}) dipromosikan menjadi Owner Vendor.`,
+            actor_id: userId,
+          });
+        } else {
+          user = await tx.users.create({
+            data: {
+              username: generatedUsername,
+              password: hashedPassword,
+              role_id: role.id,
+            },
+          });
+        }
 
         // 2. Create vendor record (with max_order from DTO if provided)
         const vendor = await tx.vendor.create({
@@ -1175,5 +1338,183 @@ export class VendorRegistrationService {
     } catch (error) {
       throw error;
     }
+  }
+
+  // ================================
+  // TERMS & CONDITIONS (Syarat & Ketentuan)
+  // ================================
+
+  // [PUBLIC] Ambil T&C aktif untuk ditampilkan read-only di halaman login/pendaftar.
+  async getActiveTermsAndConditions() {
+    const terms = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { is_active: true, deleted_at: null },
+      orderBy: { version: 'desc' },
+    });
+
+    if (!terms) {
+      throw new NotFoundException(
+        'Dokumen Syarat & Ketentuan belum tersedia. Silakan hubungi Admin Mitra10.',
+      );
+    }
+
+    return {
+      id: terms.id,
+      title: terms.title,
+      content: terms.content, // HTML content, di-render read-only (no download) di frontend
+      version: terms.version,
+      updated_at: terms.updated_at ?? terms.created_at,
+    };
+  }
+
+  // [ADMIN HO / SUPER USER] Update isi T&C (HTML) tanpa redeploy.
+  async updateTermsAndConditions(
+    dto: UpdateTermsAndConditionsDto,
+    userId: number,
+  ) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    const current = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { is_active: true, deleted_at: null },
+      orderBy: { version: 'desc' },
+    });
+
+    const content = dto.content ?? current?.content ?? '';
+    const title = dto.title ?? current?.title ?? 'Syarat dan Ketentuan Pendaftaran Vendor Mitra10';
+
+    // Versioning: set versi lama tidak aktif, create versi baru (audit trail).
+    if (current) {
+      await this.dbService.vendor_terms_and_conditions.update({
+        where: { id: current.id },
+        data: {
+          is_active: false,
+          updated_at: new Date(),
+          updated_by: userId,
+        },
+      });
+    }
+
+    const created = await this.dbService.vendor_terms_and_conditions.create({
+      data: {
+        title,
+        content,
+        version: (current?.version ?? 0) + 1,
+        is_active: true,
+        created_by: userId,
+      },
+    });
+
+    return {
+      message: 'Syarat & Ketentuan berhasil diperbarui.',
+      id: created.id,
+      version: created.version,
+    };
+  }
+
+  // ================================
+  // REGISTRANT (PENDAFTAR) DASHBOARD
+  // ================================
+
+  // [REGISTRANT] Daftar pendaftaran milik user yang login (ownership via user_id).
+  async findMyRegistrations(userId: number) {
+    await this.assertRegistrant(userId);
+
+    const registrations = await this.dbService.vendor_registration.findMany({
+      where: { user_id: userId, deleted_at: null },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return {
+      data: registrations.map((reg) => ({
+        id: reg.id,
+        company_name: reg.company_name,
+        pic_name: reg.pic_name,
+        pic_email: reg.pic_email,
+        pic_phone: reg.pic_phone,
+        status: reg.status,
+        rejection_reason: reg.rejection_reason,
+        created_at: reg.created_at,
+        updated_at: reg.updated_at,
+      })),
+      total: registrations.length,
+    };
+  }
+
+  // [REGISTRANT] Info profil ringkas untuk header dashboard pendaftar.
+  async getMyRegistrantProfile(userId: number) {
+    await this.assertRegistrant(userId);
+
+    const user = await this.dbService.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      select: {
+        id: true,
+        username: true,
+        vendor_registrations: {
+          where: { deleted_at: null },
+          orderBy: { created_at: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            company_name: true,
+            pic_name: true,
+            pic_email: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    return {
+      user_id: user?.id,
+      username: user?.username,
+      registration: user?.vendor_registrations?.[0] ?? null,
+    };
+  }
+
+  // [REGISTRANT] Home content statis (placeholder banner, konten hardcode V1).
+  // Rekomendasi improvement: pindahkan konten ke CMS/DB bila perlu update dinamis.
+  getRegistrantHomeContent() {
+    return {
+      title: 'Bergabung & Tumbuh Bersama Mitra10',
+      intro:
+        'Menjadi bagian dari jaringan Vendor Instalasi Mitra10 dan dapatkan berbagai kesempatan untuk mengembangkan bisnis, meningkatkan kompetensi, serta memperluas peluang pekerjaan bersama Mitra10.',
+      subtitle: 'Kenapa Bergabung Menjadi Vendor Mitra10?',
+      sub_intro:
+        'Dapatkan lebih dari sekadar order. Bergabung bersama jaringan Vendor Instalasi Mitra10 untuk mendapatkan peluang pekerjaan, meningkatkan kompetensi, dan mengembangkan bisnis Anda.',
+      benefits: [
+        {
+          icon: 'briefcase',
+          title: 'Peluang Order',
+          description: 'Kesempatan mendapatkan pekerjaan instalasi sesuai area dan kompetensi.',
+        },
+        {
+          icon: 'graduation-cap',
+          title: 'Pelatihan & Product Knowledge',
+          description: 'Edukasi produk, standar instalasi, dan peningkatan kompetensi.',
+        },
+        {
+          icon: 'book-open',
+          title: 'Akses Katalog & Informasi Produk',
+          description: 'Informasi produk dan kebutuhan layanan instalasi Mitra10.',
+        },
+        {
+          icon: 'gift',
+          title: 'Benefit Program Mitra',
+          description: 'Kesempatan mendapatkan program dan benefit khusus sesuai ketentuan.',
+        },
+        {
+          icon: 'chart-line',
+          title: 'Monitoring Digital',
+          description: 'Kelola dan pantau pekerjaan melalui sistem.',
+        },
+        {
+          icon: 'handshake',
+          title: 'Kembangkan Bisnis',
+          description: 'Perluas jaringan dan peluang pekerjaan bersama Mitra10.',
+        },
+        // PLACEHOLDER: 6 benefit di atas sesuai konten yang diberikan (hardcode V1).
+      ],
+      // PLACEHOLDER BANNER: perlu diganti dengan aset banner asli dari tim Mitra10.
+      banner_image: null,
+    };
   }
 }
