@@ -16,7 +16,7 @@ describe('CreateViolationLogDto — POIN 6 evidence_path wajib', () => {
     evidence_path: '/uploads/evidence/refund-foto-12345.png',
   };
 
-  const validateDto = (data: Partial) => {
+  const validateDto = (data: Partial<CreateViolationLogDto>) => {
     const dto = plainToInstance(CreateViolationLogDto, data);
     return validate(dto);
   };

@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { VendorRegistrationService } from './vendor-registration.service';
-import { PrismaService } from '../prisma/prisma.service'; 
+import { PrismaService } from '../prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bull';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { RegistrationStatus } from './enums/registration-status.enum';
 
 const mockPrismaService = {
   vendor_registration: {
@@ -11,15 +12,30 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
+    count: jest.fn(),
+  },
+  vendor_registration_history: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+    deleteMany: jest.fn(),
   },
   vendor_registration_token: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  vendor_terms_and_conditions: {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
   users: {
     findFirst: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   },
   roles: {
     findFirst: jest.fn(),
@@ -31,11 +47,25 @@ const mockPrismaService = {
   pic_vendor: {
     create: jest.fn(),
   },
-  $transaction: jest.fn(async (callback) => await callback(mockPrismaService)),
+  $transaction: jest.fn(async (callback: any) => await callback(mockPrismaService)),
 };
 
 const mockEmailQueue = {
   add: jest.fn(),
+};
+
+// User mock dengan role "Admin HO" untuk melewati assertAdminHO
+const mockAdminUser = {
+  id: 99,
+  deleted_at: null,
+  roles: { name: 'Admin HO' },
+};
+
+// User mock dengan role "Pendaftar Vendor" untuk endpoint dashboard pendaftar
+const mockRegistrantUser = {
+  id: 50,
+  deleted_at: null,
+  roles: { name: 'Pendaftar Vendor' },
 };
 
 describe('VendorRegistrationService', () => {
@@ -61,8 +91,21 @@ describe('VendorRegistrationService', () => {
     service = module.get<VendorRegistrationService>(VendorRegistrationService);
     prisma = module.get(PrismaService as any);
     emailQueue = module.get(getQueueToken('email'));
-    
+
     jest.clearAllMocks();
+  });
+
+  describe('getRoleName()', () => {
+    it('should return role name for existing user', async () => {
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      const roleName = await service.getRoleName(99);
+      expect(roleName).toBe('Admin HO');
+    });
+
+    it('should return null for missing user id', async () => {
+      const roleName = await service.getRoleName(undefined);
+      expect(roleName).toBeNull();
+    });
   });
 
   describe('registerVendor()', () => {
@@ -73,159 +116,206 @@ describe('VendorRegistrationService', () => {
       pic_phone: '123',
       pic_email: 'pic@pt.com',
       phone_number: '123',
-      address: 'Address'
+      address: 'Address',
+      pdp_consent: true,
     };
 
-    it('should create registration successfully', async () => {
+    it('should create registration and registrant account successfully', async () => {
       prisma.vendor_registration.findFirst.mockResolvedValue(null);
+      prisma.vendor.findFirst.mockResolvedValue(null);
+      prisma.users.findFirst.mockResolvedValue(null);
       prisma.vendor_registration.create.mockResolvedValue({ id: 1, ...validDto });
+      prisma.roles.findFirst.mockResolvedValue({ id: 10, name: 'Pendaftar Vendor' });
+      prisma.users.create.mockResolvedValue({ id: 50, username: 'pic@pt.com' });
+      prisma.vendor_registration.update.mockResolvedValue({ id: 1, user_id: 50 });
+      prisma.vendor_registration_history.create.mockResolvedValue({ id: 1 });
 
       const result = await service.registerVendor(validDto as any);
       expect(result).toBeDefined();
+      expect(result.registration_id).toBe(1);
       expect(prisma.vendor_registration.create).toHaveBeenCalled();
+      // Akun pendaftar dibuat otomatis dengan role "Pendaftar Vendor"
+      expect(prisma.users.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role_id: 10 }),
+        }),
+      );
+      // Registrasi ter-link ke akun pendaftar
+      expect(prisma.vendor_registration.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ user_id: 50 }),
+        }),
+      );
     });
 
     it('should handle duplicate email gracefully', async () => {
-      // Simulate existing email (status 1 or 2)
       prisma.vendor_registration.findFirst.mockResolvedValue({ id: 1, status: 1 });
 
       await expect(service.registerVendor(validDto as any)).rejects.toThrow(BadRequestException);
     });
 
-    // Generating unique token and sending email logic is in approveRegistration
-    // (Assuming token is generated on approval per your implementation context)
-  });
+    it('should reject duplicate PIC email while registration in progress', async () => {
+      prisma.vendor_registration.findFirst
+        .mockResolvedValueOnce(null) // email perusahaan belum terdaftar
+        .mockResolvedValueOnce({ id: 5, status: 1 }); // PIC email terpakai pendaftaran lain
 
-  describe('validateToken()', () => {
-    it('should return valid for active token', async () => {
-      const mockToken = { 
-        status: 1, 
-        expires_at: new Date(Date.now() + 100000),
-        registration: { company_name: 'Test PT' } 
-      };
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(mockToken);
-
-      const result = await service.validateToken('valid-token');
-      expect(result.valid).toBe(true);
-      expect(result.company_name).toBe('Test PT');
+      await expect(service.registerVendor(validDto as any)).rejects.toThrow(BadRequestException);
     });
 
-    it('should return invalid for expired token', async () => {
-      const mockToken = { 
-        status: 1, 
-        expires_at: new Date(Date.now() - 100000) // Expired
-      };
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(mockToken);
-
-      await expect(service.validateToken('expired-token')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should return invalid for already-used token', async () => {
-      const mockToken = { status: 2 }; // USED
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(mockToken);
-
-      await expect(service.validateToken('used-token')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should return invalid for non-existent token', async () => {
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(null);
-      await expect(service.validateToken('bad-token')).rejects.toThrow(BadRequestException);
+    it('should reject registration without pdp consent', async () => {
+      await expect(
+        service.registerVendor({ ...validDto, pdp_consent: false } as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
-  describe('createUserFromToken()', () => {
-    const dto = { username: 'testuser', password: 'password123' };
-    const mockToken = {
-      id: 1,
-      status: 1,
-      expires_at: new Date(Date.now() + 100000),
-      registration: { company_name: 'PT ABC', pic_name: 'PIC' }
-    };
+  describe('terms and conditions', () => {
+    it('getActiveTermsAndConditions() should return active terms', async () => {
+      prisma.vendor_terms_and_conditions.findFirst.mockResolvedValue({
+        id: 1,
+        title: 'Syarat dan Ketentuan',
+        content: '<p>Test</p>',
+        version: 1,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: null,
+      });
 
-    it('should create user successfully with valid token', async () => {
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(mockToken);
-      prisma.users.findFirst.mockResolvedValue(null); // Username valid
-      prisma.roles.findFirst.mockResolvedValue({ id: 2 }); // Role Vendor Owner
-      
-      prisma.users.create.mockResolvedValue({ id: 10 });
-      prisma.vendor.create.mockResolvedValue({ id: 20 });
-      
-      const result = await service.createUserFromToken('token', dto as any);
-      expect(result.message).toContain('berhasil');
-      expect(prisma.users.create).toHaveBeenCalled();
-      expect(prisma.vendor.create).toHaveBeenCalled();
+      const result = await service.getActiveTermsAndConditions();
+      expect(result.title).toBe('Syarat dan Ketentuan');
+      expect(result.content).toBe('<p>Test</p>');
     });
 
-    it('should activate vendor after user creation', async () => {
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(mockToken);
-      prisma.users.findFirst.mockResolvedValue(null);
-      prisma.roles.findFirst.mockResolvedValue({ id: 2 });
-      
-      // Implicit testing of vendor creation
-      await service.createUserFromToken('token', dto as any);
-      expect(prisma.vendor.create).toHaveBeenCalled();
-      expect(prisma.pic_vendor.create).toHaveBeenCalled();
-      expect(prisma.vendor_registration_token.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: 2 }) // USED
-      }));
+    it('getActiveTermsAndConditions() should throw when no active terms', async () => {
+      prisma.vendor_terms_and_conditions.findFirst.mockResolvedValue(null);
+      await expect(service.getActiveTermsAndConditions()).rejects.toThrow(NotFoundException);
     });
 
-    it('should reject invalid token', async () => {
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(null);
-      await expect(service.createUserFromToken('bad-token', dto as any)).rejects.toThrow(BadRequestException);
+    it('updateTermsAndConditions() should create new version (Admin HO only)', async () => {
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      prisma.vendor_terms_and_conditions.findFirst.mockResolvedValue({
+        id: 1,
+        title: 'Old',
+        content: 'Old content',
+        version: 1,
+        is_active: true,
+      });
+      prisma.vendor_terms_and_conditions.update.mockResolvedValue({ id: 1 });
+      prisma.vendor_terms_and_conditions.create.mockResolvedValue({
+        id: 2,
+        version: 2,
+      });
+
+      const result = await service.updateTermsAndConditions(
+        { content: '<p>New content</p>' } as any,
+        99,
+      );
+      expect(result.version).toBe(2);
+      expect(prisma.vendor_terms_and_conditions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ version: 2, is_active: true }),
+        }),
+      );
     });
 
-    it('should reject duplicate username', async () => {
-      prisma.vendor_registration_token.findFirst.mockResolvedValue(mockToken);
-      prisma.users.findFirst.mockResolvedValue({ id: 1, username: 'testuser' }); // Already exists
-      
-      await expect(service.createUserFromToken('token', dto as any)).rejects.toThrow(BadRequestException);
+    it('updateTermsAndConditions() should reject non-admin user', async () => {
+      prisma.users.findFirst.mockResolvedValue(mockRegistrantUser);
+      await expect(
+        service.updateTermsAndConditions({ content: 'x' } as any, 50),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('registrant dashboard', () => {
+    it('findMyRegistrations() should only return own registrations', async () => {
+      prisma.users.findFirst.mockResolvedValue(mockRegistrantUser);
+      prisma.vendor_registration.findMany.mockResolvedValue([
+        {
+          id: 1,
+          company_name: 'Test PT',
+          pic_name: 'PIC',
+          pic_email: 'pic@pt.com',
+          pic_phone: '123',
+          status: RegistrationStatus.MENUNGGU_APPROVE,
+          rejection_reason: null,
+          created_at: new Date(),
+          updated_at: null,
+        },
+      ]);
+
+      const result = await service.findMyRegistrations(50);
+      expect(result.total).toBe(1);
+      expect(result.data[0].company_name).toBe('Test PT');
+      // Ownership filter via user_id
+      expect(prisma.vendor_registration.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ user_id: 50 }),
+        }),
+      );
+    });
+
+    it('findMyRegistrations() should reject non-registrant user', async () => {
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      await expect(service.findMyRegistrations(99)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('getRegistrantHomeContent() should return static content', () => {
+      const content = service.getRegistrantHomeContent();
+      expect(content.title).toBe('Bergabung & Tumbuh Bersama Mitra10');
+      expect(content.benefits).toHaveLength(6);
     });
   });
 
   describe('approveRegistration()', () => {
-    it('should approve registration and activate vendor (create token)', async () => {
-      const mockReg = { id: 1, status: 1, email_address: 'test@pt.com', company_name: 'PT A' };
-      prisma.vendor_registration.findUnique.mockResolvedValue(mockReg);
-      prisma.vendor_registration.update.mockResolvedValue({ ...mockReg, status: 2 }); // APPROVED
-      prisma.vendor_registration_token.create.mockResolvedValue({ token: 'abc-123' });
-
-      await service.approveRegistration(1, 99);
-      
-      expect(prisma.vendor_registration.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: 2 })
-      }));
-      expect(prisma.vendor_registration_token.create).toHaveBeenCalled();
-      expect(emailQueue.add).toHaveBeenCalled(); // Should send email with token
-    });
-
     it('should throw NotFoundException when registration not found', async () => {
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      prisma.vendor_registration.findFirst.mockResolvedValue(null);
       prisma.vendor_registration.findUnique.mockResolvedValue(null);
-      await expect(service.approveRegistration(999, 99)).rejects.toThrow(NotFoundException);
+
+      await expect(
+        service.approveRegistration(999, {} as any, 99),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when already approved', async () => {
-      prisma.vendor_registration.findUnique.mockResolvedValue({ id: 1, status: 2 }); // Already approved
-      await expect(service.approveRegistration(1, 99)).rejects.toThrow(BadRequestException);
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      prisma.vendor_registration.findFirst.mockResolvedValue({ id: 1, status: 3 });
+
+      await expect(service.approveRegistration(1, {} as any, 99)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('rejectRegistration()', () => {
     it('should reject registration with reason', async () => {
-      const mockReg = { id: 1, status: 1, email_address: 'test@pt.com', company_name: 'PT A' };
-      prisma.vendor_registration.findUnique.mockResolvedValue(mockReg);
-      
-      await service.rejectRegistration(1, { rejection_reason: 'Bad doc' }, 99);
-      
-      expect(prisma.vendor_registration.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: 3, rejection_reason: 'Bad doc' })
-      }));
-      expect(emailQueue.add).toHaveBeenCalled(); // Reject email sent
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      prisma.vendor_registration.findFirst.mockResolvedValue({
+        id: 1,
+        status: 1,
+        email_address: 'test@pt.com',
+        company_name: 'PT A',
+      });
+
+      await service.rejectRegistration(1, { rejection_reason: 'Bad doc' } as any, 99);
+
+      expect(prisma.vendor_registration.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: RegistrationStatus.DITOLAK,
+            rejection_reason: 'Bad doc',
+          }),
+        }),
+      );
     });
 
     it('should throw NotFoundException when registration not found', async () => {
-      prisma.vendor_registration.findUnique.mockResolvedValue(null);
-      await expect(service.rejectRegistration(999, { rejection_reason: '' }, 99)).rejects.toThrow(NotFoundException);
+      prisma.users.findFirst.mockResolvedValue(mockAdminUser);
+      prisma.vendor_registration.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.rejectRegistration(999, { rejection_reason: '' } as any, 99),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -17,11 +17,17 @@ import { NotificationsService } from '../notifications/notifications.service';
  */
 describe('RefundService — POIN 6 callsite evidence', () => {
   let service: RefundService;
-  let violationDetectorSpy: { recordViolation: jest.Mock };
+  let violationDetectorSpy: {
+    countVendorRefundsInQuarter: jest.Mock;
+    recordViolation: jest.Mock;
+  };
   let prismaMock: any;
 
   beforeEach(async () => {
-    violationDetectorSpy = { recordViolation: jest.fn().mockResolvedValue(undefined) };
+    violationDetectorSpy = {
+      countVendorRefundsInQuarter: jest.fn(),
+      recordViolation: jest.fn().mockResolvedValue(undefined),
+    };
     prismaMock = {
       refund: {
         count: jest.fn(),
@@ -64,7 +70,7 @@ describe('RefundService — POIN 6 callsite evidence', () => {
 
   it('REFUND_5_PER_QUARTER → recordViolation dipanggil dengan SYSTEM_GENERATED + snapshot lengkap', async () => {
     // Setup: count = 5 (trigger threshold REFUND_5_PER_QUARTER)
-    prismaMock.refund.count.mockResolvedValue(5);
+    violationDetectorSpy.countVendorRefundsInQuarter.mockResolvedValue(5);
 
     const order = { id: 100, vendor_id: 1, project_number: 'PRJ-001' };
     const refund = { id: 50 };
@@ -90,7 +96,7 @@ describe('RefundService — POIN 6 callsite evidence', () => {
   });
 
   it('REFUND_6_10_PER_QUARTER → snapshot berisi thresholdRange: 6-10', async () => {
-    prismaMock.refund.count.mockResolvedValue(7);
+    violationDetectorSpy.countVendorRefundsInQuarter.mockResolvedValue(7);
 
     const order = { id: 200, vendor_id: 2, project_number: 'PRJ-002' };
     const refund = { id: 75 };

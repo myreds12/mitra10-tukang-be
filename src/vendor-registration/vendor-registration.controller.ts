@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { NotFoundException } from '@nestjs/common';
 import {
   Controller,
   Delete,
@@ -8,10 +9,12 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   ParseIntPipe,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorRegistrationService } from './vendor-registration.service';
@@ -23,8 +26,20 @@ import {
   UpdateTermsAndConditionsDto,
 } from './dto/vendor-registration.dto';
 import { User } from 'src/common/decorator/user.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { createReadStream } from 'fs';
+import { existsSync } from 'fs';
 
 @ApiTags('Vendor Registration')
 @ApiBearerAuth()
@@ -75,19 +90,129 @@ export class VendorRegistrationController {
   @ApiOperation({
     summary: '[PUBLIC] Get Active Terms & Conditions',
     description:
-      'Ambil dokumen Syarat & Ketentuan aktif (HTML) untuk ditampilkan read-only. Tidak ada file yang bisa didownload - hanya konten untuk di-render.',
+      'Ambil dokumen Syarat & Ketentuan aktif (HTML atau metadata PDF). Untuk tipe PDF, konten dilayani terpisah via GET /terms-and-conditions/file (streaming read-only).',
   })
   @ApiResponse({ status: 200, description: 'Returns active terms and conditions content' })
-  @ApiResponse({ status: 404, description: 'No active terms and conditions found' })
   async getActiveTermsAndConditions() {
     return this.service.getActiveTermsAndConditions();
   }
 
-  @Put('terms-and-conditions')
+  // Streaming PDF T&C aktif - READ-ONLY:
+  // - inline (bukan attachment) -> browser tampilkan viewer, TIDAK menawarkan download
+  // - Content-Disposition: inline tanpa filename download
+  // - cache disabled supaya link tidak bisa dipakai ulang di luar viewer
+  @Get('terms-and-conditions/file')
+  @ApiOperation({
+    summary: '[PUBLIC] Stream Active Terms & Conditions PDF (read-only)',
+    description:
+      'Stream file PDF T&C aktif untuk viewer inline. Read-only - tidak bisa didownload.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns PDF stream (inline, no download)' })
+  @ApiResponse({ status: 404, description: 'No active PDF terms and conditions' })
+  async streamActiveTermsPdf(@Res() res: any) {
+    const pdf = await this.service.getActiveTermsPdfPath();
+
+    if (!pdf) {
+      throw new NotFoundException(
+        'T&C aktif bukan tipe PDF atau file tidak ditemukan.',
+      );
+    }
+
+    if (!existsSync(pdf.absolutePath)) {
+      throw new NotFoundException('File PDF T&C tidak ditemukan di server.');
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    const stream = createReadStream(pdf.absolutePath);
+    stream.pipe(res);
+  }
+
+  @Get('terms-and-conditions/versions')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] List All Terms & Conditions Versions',
+    description: 'Riwayat semua versi T&C untuk halaman setting (versi aktif + arsip).',
+  })
+  @ApiResponse({ status: 200, description: 'Returns all terms and conditions versions' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
+  async listTermsAndConditions(@User() user: any) {
+    return this.service.listTermsAndConditions(user?.id);
+  }
+
+  @Get('terms-and-conditions/versions/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Get Terms & Conditions Version by ID',
+    description: 'Detail satu versi T&C (termasuk konten) untuk form edit.',
+  })
+  @ApiParam({ name: 'id', description: 'Version ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Returns terms and conditions version detail' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async getTermsVersionById(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.getTermsVersionById(id, user?.id);
+  }
+
+  @Put('terms-and-conditions/versions/:id/activate')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Activate Terms & Conditions Version',
+    description: 'Aktifkan satu versi T&C. Single-active: semua versi lain otomatis dinonaktifkan.',
+  })
+  @ApiParam({ name: 'id', description: 'Version ID', type: Number, example: 2 })
+  @ApiResponse({ status: 200, description: 'Version activated successfully' })
+  @ApiResponse({ status: 400, description: 'Version already active' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async activateTermsVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.activateTermsVersion(id, user?.id);
+  }
+
+  @Put('terms-and-conditions/versions/:id/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Deactivate Terms & Conditions Version',
+    description:
+      'Nonaktifkan versi T&C. Ditolak jika ini satu-satunya versi aktif (minimal 1 harus aktif).',
+  })
+  @ApiParam({ name: 'id', description: 'Version ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Version deactivated successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot deactivate the only active version' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async deactivateTermsVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.deactivateTermsVersion(id, user?.id);
+  }
+
+  @Put('terms-and-conditions')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', {storage: memoryStorage()}))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
     summary: '[ADMIN HO / SUPER USER] Update Terms & Conditions',
-    description: 'Update konten T&C (HTML) tanpa redeploy. Membuat versi baru dan menonaktifkan versi lama.',
+    description:
+      'Update T&C (HTML dari Quill atau upload PDF) tanpa redeploy. Membuat versi baru yang otomatis menjadi SATU-SATUNYA versi aktif.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        content: { type: 'string', description: 'HTML content (tipe HTML)' },
+        document_type: { type: 'string', enum: ['HTML', 'PDF'] },
+        file: { type: 'string', format: 'binary', description: 'File PDF (tipe PDF)' },
+      },
+    },
   })
   @ApiResponse({ status: 200, description: 'Terms and conditions updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -95,8 +220,9 @@ export class VendorRegistrationController {
   async updateTermsAndConditions(
     @Body() dto: UpdateTermsAndConditionsDto,
     @User() user: any,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.service.updateTermsAndConditions(dto, user?.id);
+    return this.service.updateTermsAndConditions(dto, user?.id, file);
   }
 
   // ================================

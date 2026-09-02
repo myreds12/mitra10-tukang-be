@@ -55,6 +55,7 @@ describe('ViolationDetectorService — checkAndIssueSP', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    process.env.VENDOR_SP_ENABLED = 'true';
     mockPrismaService.$transaction.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback(mockPrismaService),
@@ -73,6 +74,10 @@ describe('ViolationDetectorService — checkAndIssueSP', () => {
     notif = module.get<NotificationsService>(
       NotificationsService,
     ) as unknown as typeof mockNotificationsService;
+  });
+
+  afterEach(() => {
+    delete process.env.VENDOR_SP_ENABLED;
   });
 
   // Helper to drive the private method

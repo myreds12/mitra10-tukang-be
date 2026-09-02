@@ -1012,9 +1012,122 @@ async function main() {
   ]);
   console.log(`   ✅ Quotations: ${quotations.length} created`);
 
-  // ============================================
-  // SUMMARY
-  // ============================================
+// ============================================
+// 15. HOME CONTENT (Portal Instalasi - dashboard pendaftar)
+// ============================================
+console.log('\n🏠 Seeding Home Content...');
+
+const homeContent = await Promise.all([
+  // HERO - 1 entry
+  prisma.home_content.create({
+    data: {
+      section: 'HERO',
+      title: 'Bergabung & Tumbuh Bersama Mitra10',
+      subtitle: 'Menjadi bagian dari jaringan Vendor Instalasi Mitra10 dan dapatkan berbagai kesempatan untuk mengembangkan bisnis, meningkatkan kompetensi, serta memperluas peluang pekerjaan bersama Mitra10.',
+      order_index: 1,
+      is_active: true,
+    },
+  }),
+
+  // BENEFIT - 6 entries (fontawesome icon key di field 'icon')
+  prisma.home_content.create({
+    data: {
+      section: 'BENEFIT',
+      title: 'Peluang Order',
+      description: 'Akses eksklusif ke order instalasi dari jaringan Mitra10 di seluruh Indonesia. Peluang order stabil dan terus bertambah seiring ekspansi bisnis.',
+      icon: 'briefcase',
+      order_index: 1,
+      is_active: true,
+    },
+  }),
+  prisma.home_content.create({
+    data: {
+      section: 'BENEFIT',
+      title: 'Pelatihan & Product Knowledge',
+      description: 'Akses ke program pelatihan berkala untuk meningkatkan keterampilan teknis dan pengetahuan produk terbaru.',
+      icon: 'graduation-cap',
+      order_index: 2,
+      is_active: true,
+    },
+  }),
+  prisma.home_content.create({
+    data: {
+      section: 'BENEFIT',
+      title: 'Akses Katalog & Informasi Produk',
+      description: 'Lihat katalog produk Mitra10 dan informasi teknis terbaru untuk mendukung pekerjaan instalasi Anda.',
+      icon: 'book-open',
+      order_index: 3,
+      is_active: true,
+    },
+  }),
+  prisma.home_content.create({
+    data: {
+      section: 'BENEFIT',
+      title: 'Benefit Program Mitra',
+      description: 'Akses ke program loyalitas dan benefit eksklusif untuk vendor mitra aktif Mitra10.',
+      icon: 'gift',
+      order_index: 4,
+      is_active: true,
+    },
+  }),
+  prisma.home_content.create({
+    data: {
+      section: 'BENEFIT',
+      title: 'Monitoring Digital',
+      description: 'Dashboard digital untuk monitoring progress order, rating, dan feedback real-time dari Mitra10.',
+      icon: 'chart-line',
+      order_index: 5,
+      is_active: true,
+    },
+  }),
+  prisma.home_content.create({
+    data: {
+      section: 'BENEFIT',
+      title: 'Kembangkan Bisnis',
+      description: 'Dukungan untuk mengembangkan bisnis instalasi Anda melalui program kemitraan Mitra10 yang terus berkembang.',
+      icon: 'handshake',
+      order_index: 6,
+      is_active: true,
+    },
+  }),
+
+  // BANNER - 1 entry (image_url = null placeholder, admin upload nanti)
+  prisma.home_content.create({
+    data: {
+      section: 'BANNER',
+      title: 'Banner Utama Mitra10',
+      order_index: 1,
+      is_active: true,
+    },
+  }),
+
+  // CATALOG - 2 entries
+  prisma.home_content.create({
+    data: {
+      section: 'CATALOG',
+      title: 'Katalog Instalasi Lantai',
+      description: 'Layanan pemasangan lantai granit, keramik, dan vinyl untuk berbagai kebutuhan properti.',
+      icon: 'th-large',
+      order_index: 1,
+      is_active: true,
+    },
+  }),
+  prisma.home_content.create({
+    data: {
+      section: 'CATALOG',
+      title: 'Katalog Instalasi Dinding',
+      description: 'Layanan pemasangan dinding gypsum, keramik dinding, dan wall panel premium.',
+      icon: 'th-large',
+      order_index: 2,
+      is_active: true,
+    },
+  }),
+]);
+console.log(`   ✅ Home Content: ${homeContent.length} created`);
+
+// ============================================
+// SUMMARY
+// ============================================
   console.log('\n' + '='.repeat(50));
   console.log('✅ DATABASE SEEDING COMPLETED');
   console.log('='.repeat(50));
@@ -1042,6 +1155,7 @@ Summary:
 - Complaints: ${complaints.length}
 - Quotations: ${quotations.length}
 - Vendor Registrations: ${registrations.length}
+- Home Content: ${homeContent.length} (1 HERO + 6 BENEFIT + 1 BANNER + 2 CATALOG)
   `);
 
   console.log('\n🎯 Vendor SP Test Data:');

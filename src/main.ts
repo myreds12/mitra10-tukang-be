@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -51,6 +52,8 @@ async function bootstrap() {
 
   app.setBaseViewsDir(resolveProjectPath('templates'));
   app.setViewEngine('pug');
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   await app.listen(process.env.PORT);
 }

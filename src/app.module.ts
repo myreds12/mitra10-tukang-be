@@ -56,6 +56,9 @@ import { CrmModule } from './crm/crm.module';
 import { VendorViolationModule } from './vendor-violation/vendor-violation.module';
 import { VendorSpModule } from './vendor-sp/vendor-sp.module';
 import { VendorRegistrationModule } from './vendor-registration/vendor-registration.module';
+import { VendorPortalModule } from './vendor-portal/vendor-portal.module';
+import { RedisModule } from './common/redis/redis.module';
+import { HomeContentModule } from './home-content/home-content.module';
 import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
 import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
 import { ViolationDetectorService } from './common/services/violation-detector.service';
@@ -176,7 +179,10 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
     // Vendor SP & Violation System
     ...(isVendorSpEnabled ? [VendorViolationModule, VendorSpModule] : []),
     VendorRegistrationModule,
+    HomeContentModule,
     ChatProxyModule,
+    VendorPortalModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [

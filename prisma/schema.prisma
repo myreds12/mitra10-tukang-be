@@ -2212,14 +2212,19 @@ model vendor_registration {
 }
 
 // Dokumen Syarat & Ketentuan (T&C) pendaftaran vendor - editable oleh Admin HO tanpa redeploy.
-// Disimpan sebagai HTML (bukan PDF) supaya mudah diupdate via Admin dan di-render read-only di frontend.
-// PLACEHOLDER: konten awal masih placeholder, perlu diganti tim/admin dengan konten resmi.
+// Dua tipe dokumen: HTML (dibuat via editor Quill) atau PDF (file upload, disajikan
+// read-only via streaming endpoint - tidak bisa didownload).
+// HANYA SATU versi boleh aktif (enforced di service layer dengan transaction).
 model vendor_terms_and_conditions {
   id          Int      @id @default(autoincrement())
   title       String   @default("Syarat dan Ketentuan Pendaftaran Vendor Mitra10")
   content     String   @db.NVarChar(Max) // HTML content, rendered read-only di frontend (no download)
   version     Int      @default(1)
   is_active   Boolean  @default(true)
+
+  // Tipe dokumen: HTML (default) atau PDF
+  document_type String  @default("HTML") @db.VarChar(10) // HTML | PDF
+  file_path     String? @db.VarChar(500) // Path file PDF di storage (hanya untuk tipe PDF)
 
   created_at  DateTime @default(now()) @db.DateTime()
   updated_at  DateTime? @db.DateTime()
@@ -2270,4 +2275,24 @@ model vendor_registration_token {
 
   @@index([token])
   @@index([status])
+}
+
+// [PORTAL INSTALASI] Home content (hero/benefit/banner/catalog) untuk dashboard pendaftar vendor
+// section: HERO | BENEFIT | BANNER | CATALOG (string, no enum untuk fleksibilitas migration)
+model home_content {
+  id           Int      @id @default(autoincrement())
+  section      String   @db.VarChar(20)   // HERO | BENEFIT | BANNER | CATALOG
+  title        String?  @db.VarChar(200)
+  subtitle     String?  @db.VarChar(500)
+  description  String?  @db.Text
+  icon         String?  @db.VarChar(50)    // FontAwesome icon key (e.g. "briefcase", "graduation-cap")
+  image_url    String?  @db.VarChar(500)  // path relatif untuk upload BANNER/HERO image
+  order_index  Int      @default(0)
+  is_active    Boolean  @default(true)
+
+  created_at   DateTime @default(now()) @db.DateTime()
+  updated_at   DateTime? @db.DateTime()
+  updated_by   Int?
+
+  @@index([section, is_active, order_index])
 }

@@ -271,10 +271,20 @@ export class UpdateTermsAndConditionsDto {
   title?: string;
 
   @ApiPropertyOptional({
-    description: 'Konten T&C dalam format HTML (di-render read-only, tidak bisa didownload)',
+    description: 'Konten T&C dalam format HTML dari editor Quill (tipe HTML)',
     example: '<h2>Syarat dan Ketentuan</h2><p>...</p>',
   })
   @IsOptional()
   @IsString()
   content?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tipe dokumen: HTML (editor Quill) atau PDF (file upload)',
+    enum: ['HTML', 'PDF'],
+    default: 'HTML',
+    example: 'HTML',
+  })
+  @IsOptional()
+  @IsString()
+  document_type?: 'HTML' | 'PDF';
 }
