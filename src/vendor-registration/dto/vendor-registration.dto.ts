@@ -5,7 +5,9 @@ import {
   IsInt,
   IsArray,
   IsBoolean,
+  IsIn,
   MinLength,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -262,13 +264,16 @@ export class CreateUserFromTokenDto {
 }
 
 export class UpdateTermsAndConditionsDto {
-  @ApiPropertyOptional({
-    description: 'Judul dokumen Syarat & Ketentuan',
+  @ApiProperty({
+    description: 'Judul dokumen Syarat & Ketentuan (5-200 karakter)',
     example: 'Syarat dan Ketentuan Pendaftaran Vendor Mitra10',
+    minLength: 5,
+    maxLength: 200,
   })
-  @IsOptional()
   @IsString()
-  title?: string;
+  @MinLength(5, { message: 'Judul minimal 5 karakter' })
+  @MaxLength(200, { message: 'Judul maksimal 200 karakter' })
+  title: string;
 
   @ApiPropertyOptional({
     description: 'Konten T&C dalam format HTML dari editor Quill (tipe HTML)',
@@ -285,6 +290,8 @@ export class UpdateTermsAndConditionsDto {
     example: 'HTML',
   })
   @IsOptional()
-  @IsString()
+  @IsIn(['HTML', 'PDF'], {
+    message: 'document_type harus bernilai "HTML" atau "PDF"',
+  })
   document_type?: 'HTML' | 'PDF';
 }

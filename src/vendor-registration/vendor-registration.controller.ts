@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   Controller,
   Delete,
@@ -196,25 +196,47 @@ export class VendorRegistrationController {
 
   @Put('terms-and-conditions')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file', {storage: memoryStorage()}))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+          return;
+        }
+        cb(
+          new BadRequestException(
+            `File harus berformat PDF (application/pdf). Diterima: ${file.mimetype || 'unknown'}`,
+          ),
+          false,
+        );
+      },
+    }),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: '[ADMIN HO / SUPER USER] Update Terms & Conditions',
     description:
-      'Update T&C (HTML dari Quill atau upload PDF) tanpa redeploy. Membuat versi baru yang otomatis menjadi SATU-SATUNYA versi aktif.',
+      'Update T&C (HTML dari Quill atau upload PDF) tanpa redeploy. Membuat versi baru yang otomatis menjadi SATU-SATUNYA versi aktif. File PDF max 10 MB.',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        title: { type: 'string' },
+        title: { type: 'string', minLength: 5, maxLength: 200 },
         content: { type: 'string', description: 'HTML content (tipe HTML)' },
         document_type: { type: 'string', enum: ['HTML', 'PDF'] },
-        file: { type: 'string', format: 'binary', description: 'File PDF (tipe PDF)' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File PDF (tipe PDF, max 10 MB)',
+        },
       },
     },
   })
   @ApiResponse({ status: 200, description: 'Terms and conditions updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - validation failed (title length, PDF mime/size)' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
   async updateTermsAndConditions(

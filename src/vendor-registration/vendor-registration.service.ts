@@ -1469,7 +1469,7 @@ export class VendorRegistrationService {
 
       return tx.vendor_terms_and_conditions.create({
         data: {
-          title: dto.title?.trim() || 'Syarat dan Ketentuan Pendaftaran Vendor Mitra10',
+          title: dto.title.trim(),
           content: documentType === 'HTML' ? dto.content ?? '' : '',
           document_type: documentType,
           file_path: pdfPath,
