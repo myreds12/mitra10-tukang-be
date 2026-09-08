@@ -216,9 +216,9 @@ export class VendorRegistrationController {
   )
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: '[ADMIN HO / SUPER USER] Update Terms & Conditions',
+    summary: '[ADMIN HO / SUPER USER] Update Terms & Conditions (CREATE NEW VERSION)',
     description:
-      'Update T&C (HTML dari Quill atau upload PDF) tanpa redeploy. Membuat versi baru yang otomatis menjadi SATU-SATUNYA versi aktif. File PDF max 10 MB.',
+      'Update T&C (HTML dari Quill atau upload PDF) tanpa redeploy. Membuat versi baru yang otomatis menjadi SATU-SATUNYA versi aktif. File PDF max 10 MB. Untuk edit in-place pada versi yang sudah ada, gunakan PUT /terms-and-conditions/versions/:id.',
   })
   @ApiBody({
     schema: {
@@ -235,7 +235,7 @@ export class VendorRegistrationController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Terms and conditions updated successfully' })
+  @ApiResponse({ status: 200, description: 'Terms and conditions updated successfully (new version created)' })
   @ApiResponse({ status: 400, description: 'Bad Request - validation failed (title length, PDF mime/size)' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
@@ -245,6 +245,61 @@ export class VendorRegistrationController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.service.updateTermsAndConditions(dto, user?.id, file);
+  }
+
+  @Put('terms-and-conditions/versions/:id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+          return;
+        }
+        cb(
+          new BadRequestException(
+            `File harus berformat PDF (application/pdf). Diterima: ${file.mimetype || 'unknown'}`,
+          ),
+          false,
+        );
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Edit Terms & Conditions Version IN-PLACE',
+    description:
+      'Edit konten (title/content/file) dari versi T&C yang sudah ada TANPA membuat versi baru. Cocok untuk memperbaiki typo. Single-active TETAP berlaku — is_active versi yang diedit TIDAK berubah: edit versi aktif → tetap aktif; edit versi arsip → tetap arsip. Setelah edit, aktivasi manual jika diperlukan (lihat PUT /terms-and-conditions/versions/:id/activate).',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', minLength: 5, maxLength: 200 },
+        content: { type: 'string', description: 'HTML content (tipe HTML)' },
+        document_type: { type: 'string', enum: ['HTML', 'PDF'] },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File PDF baru (tipe PDF, max 10 MB) — opsional, gunakan existing jika tidak upload',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Version edited in place successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async editTermsVersionInPlace(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTermsAndConditionsDto,
+    @User() user: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.service.editTermsVersionInPlace(id, dto, user?.id, file);
   }
 
   // ================================

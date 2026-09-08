@@ -1488,6 +1488,76 @@ export class VendorRegistrationService {
     };
   }
 
+  // [ADMIN HO / SUPER USER] Edit IN-PLACE satu versi T&C yang sudah ada.
+  // Tidak membuat versi baru — hanya update konten (title/content/file) dari
+  // versi yang dimaksud. Cocok untuk memperbaiki typo tanpa menambah baris
+  // baru di audit trail. Single-active TETAP berlaku karena is_active TIDAK
+  // diubah: edit versi aktif → tetap aktif; edit versi arsip → tetap arsip.
+  async editTermsVersionInPlace(
+    id: number,
+    dto: UpdateTermsAndConditionsDto,
+    userId: number,
+    file?: Express.Multer.File,
+  ) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    const existing = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        `Versi Syarat & Ketentuan dengan ID ${id} tidak ditemukan.`,
+      );
+    }
+
+    const documentType = dto.document_type === 'PDF' ? 'PDF' : 'HTML';
+
+    if (documentType === 'PDF') {
+      if (!file && !existing.file_path) {
+        throw new BadRequestException(
+          'File PDF wajib diunggah untuk dokumen tipe PDF.',
+        );
+      }
+      if (file && (!file.mimetype || file.mimetype !== 'application/pdf')) {
+        throw new BadRequestException(
+          'File harus berformat PDF (application/pdf).',
+        );
+      }
+    } else {
+      const plainContent = (dto.content ?? '').replace(/<[^>]*>/g, '').trim();
+      if (!plainContent) {
+        throw new BadRequestException(
+          'Konten T&C (HTML) wajib diisi untuk dokumen tipe HTML.',
+        );
+      }
+    }
+
+    let pdfPath: string | null = existing.file_path;
+    if (documentType === 'PDF' && file) {
+      pdfPath = this.saveTermsFile(file);
+    }
+
+    const updated = await this.dbService.vendor_terms_and_conditions.update({
+      where: { id },
+      data: {
+        title: dto.title.trim(),
+        content: documentType === 'HTML' ? dto.content ?? '' : '',
+        document_type: documentType,
+        file_path: pdfPath,
+        updated_at: new Date(),
+        updated_by: userId,
+      },
+    });
+
+    return {
+      message: `Versi v${updated.version} berhasil diperbarui (in-place).`,
+      id: updated.id,
+      version: updated.version,
+      document_type: updated.document_type,
+      is_active: updated.is_active,
+    };
+  }
+
   // [ADMIN HO / SUPER USER] Aktivasi satu versi T&C.
   // Single-active: semua versi lain otomatis dinonaktifkan dalam transaction.
   async activateTermsVersion(id: number, userId: number) {
