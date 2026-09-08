@@ -3,67 +3,100 @@ html(lang="id")
     head
         meta(charset="UTF-8")
         meta(name="viewport" content="width=device-width, initial-scale=1.0")
-        title Akun Pendaftar Vendor - Mitra10
-    body(style="margin: 0; padding: 0; background-color: #f0f2f5; font-family: Arial, Helvetica, sans-serif;")
-        center(style="width: 100%; table-layout: fixed; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;")
-            table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f0f2f5;")
-                tr
-                    td(style="padding: 40px 10px;")
-                        table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px;")
-                            tr
-                                td(style="background-color: #183383; padding: 30px 35px; text-align: center;")
-                                    img(src="https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png" alt="Logo Mitra10" width="70" style="display: block; margin: 0 auto 12px auto; border: 0;")
-                                    h1(style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0; font-family: Arial, Helvetica, sans-serif;") Instalasi &amp; Service Mitra 10
-                            tr
-                                td(style="padding: 35px 35px 25px 35px;")
-                                    p(style="font-size: 22px; font-weight: 700; color: #1a1a2e; margin: 0 0 6px 0; font-family: Arial, Helvetica, sans-serif;") Halo, #{data.company_name}!
-                                    p(style="font-size: 16px; font-weight: 600; color: #183383; margin: 0 0 20px 0; font-family: Arial, Helvetica, sans-serif;") Akun Pendaftaran Vendor Anda Telah Dibuat
-                                    p(style="font-size: 14px; color: #495057; line-height: 1.6; margin: 20px 0 10px 0; font-family: Arial, Helvetica, sans-serif;")
-                                        | Terima kasih telah mendaftar sebagai vendor
-                                        strong(style="color: #183383;")  Instalasi &amp; Service Mitra10
-                                        | . Berikut adalah akun Anda untuk memantau status pendaftaran:
-                                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8f9fa; border-left: 4px solid #183383; margin: 20px 0;")
-                                        tr
-                                            td(style="padding: 18px 20px;")
-                                                p(style="font-size: 12px; font-weight: 700; color: #183383; margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.5px; font-family: Arial, Helvetica, sans-serif;") &#128273; Kredensial Akun Pendaftar
-                                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 10px;")
-                                                    tr
-                                                        td(style="font-size: 12px; color: #6c757d; font-family: Arial, Helvetica, sans-serif; width: 80px;") Username
-                                                        td(style="font-size: 14px; font-weight: 600; color: #183383; font-family: Arial, Helvetica, sans-serif;") #{data.username}
-                                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%")
-                                                    tr
-                                                        td(style="font-size: 12px; color: #6c757d; font-family: Arial, Helvetica, sans-serif; width: 80px;") Password
-                                                        td(style="font-size: 14px; font-weight: 600; color: #1a1a2e; font-family: Courier New, Courier, monospace;") #{data.password}
-                                    p(style="font-size: 14px; color: #495057; line-height: 1.6; margin: 20px 0 10px 0; font-family: Arial, Helvetica, sans-serif;")
-                                        | Dengan akun ini Anda dapat memantau status pendaftaran vendor melalui menu
-                                        strong  Status
-                                        |  setelah login. Status pendaftaran Anda saat ini:
-                                        strong  Menunggu Approve
-                                        | .
-                                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fff3cd; border: 1px solid #ffc107; margin: 20px 0;")
-                                        tr
-                                            td(style="padding: 16px 20px;")
-                                                p(style="font-size: 12px; font-weight: 700; color: #856404; margin: 0 0 4px 0; text-transform: uppercase; font-family: Arial, Helvetica, sans-serif;") &#9888; Catatan Penting
-                                                p(style="font-size: 12px; color: #856404; line-height: 1.5; margin: 0; font-family: Arial, Helvetica, sans-serif;")
-                                                    | Akun ini hanya untuk memantau status pendaftaran. Akses penuh sebagai vendor aktif akan diberikan setelah pendaftaran disetujui oleh Admin Mitra10.
-                                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 24px 0 16px 0;")
-                                        tr
-                                            td(style="text-align: center;")
-                                                a(href=data.login_url style="display: inline-block; background-color: #183383; color: #ffffff !important; padding: 14px 40px; border-radius: 6px; font-size: 15px; font-weight: 600; text-decoration: none; font-family: Arial, Helvetica, sans-serif;") Login &amp; Lihat Status
-                                    hr(style="border: none; border-top: 1px solid #e9ecef; margin: 24px 0;")
-                                    p(style="font-size: 11px; color: #6c757d; text-align: center; margin: 0 0 4px 0; font-family: Arial, Helvetica, sans-serif;") Link tidak berfungsi? Salin ke browser:
-                                    p(style="font-size: 11px; color: #183383; text-align: center; margin: 0; font-family: Arial, Helvetica, sans-serif; overflow-wrap: anywhere;")
-                                        a(href=data.login_url style="color: #183383; text-decoration: none;") #{data.login_url}
-                            tr
-                                td(style="background-color: #f8f9fa; padding: 24px 35px; text-align: center; border-top: 1px solid #e9ecef;")
-                                    p(style="font-size: 11px; color: #6c757d; line-height: 1.6; margin: 0 0 6px 0; font-family: Arial, Helvetica, sans-serif;")
-                                        | #{data.company_name} terdaftar di
-                                        a(href=data.website_url style="color: #183383; text-decoration: none; font-weight: 600;") instalasi.mitra10.com
-                                    p(style="font-size: 11px; color: #6c757d; line-height: 1.6; margin: 0 0 6px 0; font-family: Arial, Helvetica, sans-serif;")
-                                        | Hormat kami,
-                                        br
-                                        strong Mitra10 Instalasi &amp; Service
-                                    p(style="font-size: 11px; color: #6c757d; margin: 0 0 4px 0; font-family: Arial, Helvetica, sans-serif;") Email otomatis. Mohon jangan membalas.
-                                    p(style="font-size: 11px; color: #495057; margin: 0; font-family: Arial, Helvetica, sans-serif;")
-                                        | Hubungi:
-                                        strong  customer.relation@mitra10.com
+        title Akun Mitra10 Vendor sudah aktif
+    body(style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;")
+        table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f0f2f5;")
+            tr
+                td(style="padding:32px 10px;")
+                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e9ecef;box-shadow:0 4px 12px rgba(0,0,0,0.05);")
+
+                        tr
+                            td(align="center" style="background-color:#1E2A78;padding:36px 35px 32px 35px;")
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%")
+                                    tr
+                                        td(align="center" style="padding:0 0 12px 0;font-size:42px;line-height:1;color:#ffffff;")
+                                            | &#10003;
+                                        td(align="center" style="color:#ffffff;font-size:13px;font-weight:700;margin:0;letter-spacing:1.5px;text-transform:uppercase;")
+                                            | Pendaftaran Diterima
+                                        td(align="center" style="color:#a8b3e0;font-size:14px;margin:6px 0 0 0;")
+                                            | Halo, #{data.company_name}.
+
+                        tr
+                            td(style="padding:28px 35px 16px 35px;background-color:#ffffff;")
+                                p(style="font-size:15px;color:#1a1a2e;line-height:1.6;margin:0;text-align:center;")
+                                    | Pendaftaran vendor Anda sudah masuk. Akun untuk memantau status sudah aktif — kredensial di bawah ini bisa langsung dipakai untuk login.
+
+                        tr
+                            td(style="padding:0 35px 24px 35px;background-color:#ffffff;")
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#1E2A78;border-radius:8px;margin:0;")
+                                    tr
+                                        td(style="padding:24px 28px 26px 28px;")
+                                            p(style="color:#a8b3e0;font-size:11px;font-weight:700;margin:0 0 4px 0;text-transform:uppercase;letter-spacing:1.2px;")
+                                                | &#128273; Kredensial Login
+                                            p(style="color:#a8b3e0;font-size:12px;margin:0 0 18px 0;")
+                                                | Simpan email ini baik-baik. Anda butuh username & password ini untuk login.
+
+                                            p(style="color:#a8b3e0;font-size:10px;font-weight:700;margin:0 0 4px 0;text-transform:uppercase;letter-spacing:1.2px;")
+                                                | Username
+                                            p(style="background-color:#ffffff;color:#1E2A78;margin:0 0 16px 0;padding:12px 16px;border-radius:6px;font-family:Consolas,Menlo,Monaco,monospace;font-weight:700;font-size:18px;letter-spacing:0.5px;word-break:break-all;line-height:1.3;")
+                                                | #{data.username}
+
+                                            p(style="color:#a8b3e0;font-size:10px;font-weight:700;margin:0 0 4px 0;text-transform:uppercase;letter-spacing:1.2px;")
+                                                | Password
+                                            p(style="background-color:#ffffff;color:#1E2A78;margin:0;padding:12px 16px;border-radius:6px;font-family:Consolas,Menlo,Monaco,monospace;font-weight:700;font-size:18px;letter-spacing:0.5px;word-break:break-all;line-height:1.3;")
+                                                | #{data.password}
+
+                        tr
+                            td(align="center" style="padding:0 35px 28px 35px;background-color:#ffffff;")
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;")
+                                    tr
+                                        td(style="border-radius:6px;background-color:#16a34a;")
+                                            a(href=data.login_url target="_blank" style="display:inline-block;background-color:#16a34a;color:#ffffff !important;padding:14px 44px;border-radius:6px;font-size:15px;font-weight:700;text-decoration:none;letter-spacing:0.5px;font-family:Arial,Helvetica,sans-serif;border:1px solid #15803d;")
+                                                | Login Sekarang &rarr;
+
+                        tr
+                            td(style="padding:0 35px 28px 35px;background-color:#ffffff;")
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f8fafc;border-left:4px solid #1E2A78;border-radius:6px;margin:0;")
+                                    tr
+                                        td(style="padding:14px 18px;")
+                                            p(style="font-size:11px;font-weight:700;color:#1E2A78;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.8px;")
+                                                | Data Terdaftar
+                                            p(style="font-size:13px;color:#495057;margin:0 0 3px 0;line-height:1.5;")
+                                                span(style="color:#6c757d;display:inline-block;width:120px;") Email PIC
+                                                span(style="color:#1a1a2e;font-weight:600;word-break:break-all;") #{data.pic_email}
+                                            p(style="font-size:13px;color:#495057;margin:0 0 3px 0;line-height:1.5;")
+                                                span(style="color:#6c757d;display:inline-block;width:120px;") Telepon PIC
+                                                span(style="color:#1a1a2e;font-weight:600;") #{data.pic_phone}
+                                            p(style="font-size:13px;color:#495057;margin:0;line-height:1.5;")
+                                                span(style="color:#6c757d;display:inline-block;width:120px;") Email usaha
+                                                span(style="color:#1a1a2e;font-weight:600;word-break:break-all;") #{data.email_address}
+
+                        tr
+                            td(style="padding:0 35px 8px 35px;background-color:#ffffff;")
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#fffbeb;border-left:4px solid #f59e0b;border-radius:6px;margin:0;")
+                                    tr
+                                        td(style="padding:12px 16px;")
+                                            p(style="font-size:12px;color:#92400e;line-height:1.5;margin:0;")
+                                                strong Catatan:&nbsp;
+                                                span Akun ini hanya untuk memantau status pendaftaran. Akses penuh menyusul setelah Admin menyetujui pendaftaran Anda.
+
+                        tr
+                            td(align="center" style="padding:8px 35px 8px 35px;background-color:#ffffff;")
+                                p(style="font-size:11px;color:#6c757d;line-height:1.6;margin:18px 0 4px 0;")
+                                    | Tidak bisa klik tombol? Salin tautan ini ke browser:
+                                p(style="font-size:11px;color:#1E2A78;margin:0;word-break:break-all;font-family:Consolas,Menlo,Monaco,monospace;")
+                                    a(href=data.login_url target="_blank" style="color:#1E2A78;text-decoration:none;")
+                                        | #{data.login_url}
+
+                        tr
+                            td(style="background-color:#f8f9fa;padding:22px 35px;text-align:center;border-top:1px solid #e9ecef;")
+                                p(style="font-size:13px;color:#1a1a2e;line-height:1.5;margin:0 0 4px 0;font-weight:700;")
+                                    | Mitra10 Instalasi &amp; Service
+                                a(href=data.website_url target="_blank" style="color:#1E2A78;text-decoration:none;font-weight:600;font-size:12px;")
+                                    | instalasi.mitra10.com
+                                p(style="font-size:11px;color:#adb5bd;margin:10px 0 4px 0;")
+                                    | Email otomatis. Mohon jangan membalas.
+                                p(style="font-size:11px;color:#adb5bd;margin:0;")
+                                    | Pertanyaan? Hubungi&nbsp;
+                                    a(href="mailto:customer.relation@mitra10.com" style="color:#1E2A78;text-decoration:none;font-weight:600;")
+                                        | customer.relation@mitra10.com

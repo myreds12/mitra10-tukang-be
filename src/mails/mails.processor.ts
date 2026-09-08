@@ -362,7 +362,7 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(0, 0, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
     }
@@ -390,7 +390,7 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(0, 0, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
     }
@@ -429,13 +429,7 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(
-        0, // module_id not applicable for vendor registration
-        0, // email_message_id not applicable
-        { to, cc: '', bcc: '' },
-        1,
-        data,
-      );
+      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
     }
@@ -445,17 +439,34 @@ export class EmailProcessor {
   async sendRegistrantAccountMail(job: Job<{
     to: string;
     company_name: string;
+    email_address: string;
+    pic_email: string;
+    phone_number: string;
+    pic_phone: string;
     username: string;
     password: string;
   }>) {
     try {
-      const { to, company_name, username, password } = job.data;
+      const {
+        to,
+        company_name,
+        email_address,
+        pic_email,
+        phone_number,
+        pic_phone,
+        username,
+        password,
+      } = job.data;
 
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
       const loginUrl = `${baseUrl}/login`;
 
       const data = {
         company_name,
+        email_address,
+        pic_email,
+        phone_number,
+        pic_phone,
         username,
         password,
         website_url: baseUrl,
@@ -465,18 +476,12 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'instalasi@mitra10.com',
-        subject: 'Akun Pendaftaran Vendor Anda - Mitra10',
+        subject: `Akun Mitra10 Vendor ${company_name} sudah aktif`,
         template: 'registrant-account',
         context: { data },
       });
 
-      await this.maillogs(
-        0, // module_id not applicable for vendor registration
-        0, // email_message_id not applicable
-        { to, cc: '', bcc: '' },
-        1,
-        data,
-      );
+      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
     }
@@ -509,13 +514,7 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(
-        0,
-        0,
-        { to, cc: '', bcc: '' },
-        1,
-        data,
-      );
+      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
     }
@@ -1405,8 +1404,8 @@ export class EmailProcessor {
   }
 
   async maillogs(
-    moduleId: number,
-    emailMessageId: number,
+    moduleId: number | null,
+    emailMessageId: number | null,
     to: { cc: string; bcc: string; to: string },
     status: number,
     data: any = null,
@@ -1414,8 +1413,8 @@ export class EmailProcessor {
     try {
       const mail_logs = await this.dbService.mail_logs.create({
         data: {
-          moduleId: moduleId,
-          emailMessageId: emailMessageId,
+          moduleId: moduleId ?? null,
+          emailMessageId: emailMessageId ?? null,
           to: to.to,
           status,
           data: data ? JSON.stringify(data) : null,

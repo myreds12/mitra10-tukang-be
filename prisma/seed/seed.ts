@@ -15,26 +15,38 @@ import { UnitSeed } from './unit.seed';
 import { ComplaintChannelSeed } from './complaint-channels.seed';
 import { CategorySeed } from './categories-seed';
 import { BrandsSeed } from './brands-seed';
+import { HomeContentSeed } from './home-content-seed';
 
 const prisma = new PrismaClient();
 
+async function runSeed(name: string, fn: () => Promise<unknown>) {
+  try {
+    await fn();
+    console.log(`[seed] ${name}: OK`);
+  } catch (err: any) {
+    console.error(`[seed] ${name}: SKIPPED (${err?.message ?? 'unknown error'})`);
+  }
+}
+
 async function main() {
-  // await RolesSeed();
-  // await MenusSeed();
-  // await PermissionSeed();
-  // await CategorySeed();
-  // await ItemsSeed();
-  // await UsersSeed();
-  await MembersSeed();
-  // await PositionSeed();sa
-  // await StoreSeed();
-  // await BrandsSeed();
-  // await ServiceTypeSeed();
-  // await StatusSeed();
-  // await BankSeed();
-  // await CitySeed();
-  // await UnitSeed();
-  // await ComplaintChannelSeed();
+  // Setiap seed dibungkus try/catch supaya 1 gagal tidak hentikan seed lain
+  await runSeed('MembersSeed', MembersSeed);
+  await runSeed('HomeContentSeed', HomeContentSeed);
+  // await runSeed('RolesSeed', RolesSeed);
+  // await runSeed('MenusSeed', MenusSeed);
+  // await runSeed('PermissionSeed', PermissionSeed);
+  // await runSeed('CategorySeed', CategorySeed);
+  // await runSeed('ItemsSeed', ItemsSeed);
+  // await runSeed('UsersSeed', UsersSeed);
+  // await runSeed('PositionSeed', PositionSeed);
+  // await runSeed('StoreSeed', StoreSeed);
+  // await runSeed('BrandsSeed', BrandsSeed);
+  // await runSeed('ServiceTypeSeed', ServiceTypeSeed);
+  // await runSeed('StatusSeed', StatusSeed);
+  // await runSeed('BankSeed', BankSeed);
+  // await runSeed('CitySeed', CitySeed);
+  // await runSeed('UnitSeed', UnitSeed);
+  // await runSeed('ComplaintChannelSeed', ComplaintChannelSeed);
 }
 
 main()

@@ -1,8 +1,22 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/decorator/user.decorator';
 import { HomeStage, ProfileFlags, VendorPortalService, VendorPortalStatus } from './vendor-portal.service';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 import { VendorPortalGateway } from './vendor-portal.gateway';
 
 class UpdateStageDto {
@@ -30,16 +44,65 @@ export class VendorPortalController {
   ) {}
 
   /**
-   * Public read endpoint — used for initial render fallback when WS not connected
-   * (e.g. server-side render or before WS handshake).
+   * Public read endpoint — status pendaftaran vendor (stepper & profile completion).
    * Auth required — vendor must be logged in.
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getMe(@User() user: any): Promise<VendorPortalStatus> {
-    // For the registrant dashboard, look up by user_id
-    // (vendor_registration.user_id is set after approval)
     return this.service.getStatus({ userId: user?.id });
+  }
+
+  /**
+   * Endpoint detail kelengkapan dokumen vendor yang sedang login
+   */
+  @Get('me/documents')
+  @UseGuards(JwtAuthGuard)
+  async getMyDocuments(@User() user: any) {
+    return this.service.getDocuments({ userId: user?.id });
+  }
+
+  /**
+   * Endpoint upload & update kelengkapan dokumen vendor (KTP, NPWP, Portofolio, SIUP, Bank)
+   */
+  @Post('me/documents')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'ktp_photo', maxCount: 1 },
+        { name: 'npwp_photo', maxCount: 1 },
+        { name: 'compro_photo', maxCount: 1 },
+        { name: 'siup_photo', maxCount: 1 },
+        { name: 'vendor_photo', maxCount: 1 },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      },
+    ),
+  )
+  async updateMyDocuments(
+    @User() user: any,
+    @Body() body: any,
+    @UploadedFiles()
+    files: {
+      ktp_photo?: Express.Multer.File[];
+      npwp_photo?: Express.Multer.File[];
+      compro_photo?: Express.Multer.File[];
+      siup_photo?: Express.Multer.File[];
+      vendor_photo?: Express.Multer.File[];
+    },
+  ) {
+    const res = await this.service.updateDocuments(
+      { userId: user?.id },
+      body,
+      files,
+    );
+    if (res.status?.vendor_id) {
+      this.gateway.publishStatusUpdate(res.status.vendor_id, res.status);
+    }
+    return res;
   }
 
   @Get(':vendorId')
@@ -47,9 +110,50 @@ export class VendorPortalController {
     return this.service.getStatus({ vendorId });
   }
 
+  @Get(':vendorId/documents')
+  async getDocumentsById(@Param('vendorId', ParseIntPipe) vendorId: number) {
+    return this.service.getDocuments({ vendorId });
+  }
+
+  @Post(':vendorId/documents')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'ktp_photo', maxCount: 1 },
+        { name: 'npwp_photo', maxCount: 1 },
+        { name: 'compro_photo', maxCount: 1 },
+        { name: 'siup_photo', maxCount: 1 },
+        { name: 'vendor_photo', maxCount: 1 },
+      ],
+      {
+        storage: memoryStorage(),
+        limits: { fileSize: 10 * 1024 * 1024 },
+      },
+    ),
+  )
+  async updateDocumentsById(
+    @Param('vendorId', ParseIntPipe) vendorId: number,
+    @Body() body: any,
+    @UploadedFiles()
+    files: {
+      ktp_photo?: Express.Multer.File[];
+      npwp_photo?: Express.Multer.File[];
+      compro_photo?: Express.Multer.File[];
+      siup_photo?: Express.Multer.File[];
+      vendor_photo?: Express.Multer.File[];
+    },
+  ) {
+    const res = await this.service.updateDocuments(
+      { vendorId },
+      body,
+      files,
+    );
+    this.gateway.publishStatusUpdate(vendorId, res.status);
+    return res;
+  }
+
   /**
    * Admin endpoints (for testing/management).
-   * In real ops these would be behind an admin role-guard.
    */
   @Post(':vendorId/stage')
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))

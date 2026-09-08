@@ -53,7 +53,7 @@ export class HomeContentController {
   @ApiOperation({
     summary: '[PUBLIC] Ambil home content aktif',
     description:
-      'Return semua home content dengan is_active=true, diurutkan per section lalu order_index. ' +
+      'Return semua home content dengan is_active=true, diurutkan per order_index lalu id. ' +
       'Untuk dashboard pendaftar vendor dan homepage Instalasi portal.',
   })
   @ApiResponse({ status: 200, description: 'Returns active home content' })
@@ -73,6 +73,23 @@ export class HomeContentController {
   async findAll(@User() user: any) {
     await this.service.assertAdminHOOrSuperUser(user?.id);
     return this.service.findAll();
+  }
+
+  @Get('admin/sync-check')
+  @ApiOperation({
+    summary: '[ADMIN] Cek sinkronisasi dan integritas data home content',
+    description: 'Memvalidasi kelengkapan data per tipe, integritas file aset di disk, dan paritas render vendor.',
+  })
+  async verifySync(@User() user: any) {
+    await this.service.assertAdminHOOrSuperUser(user?.id);
+    return this.service.verifySync();
+  }
+
+  @Get('admin/active-unified')
+  @ApiOperation({ summary: '[ADMIN] Ambil paket home content aktif saat ini' })
+  async getActiveUnified(@User() user: any) {
+    await this.service.assertAdminHOOrSuperUser(user?.id);
+    return this.service.getActiveUnified();
   }
 
   @Get('admin/:id')
@@ -105,13 +122,13 @@ export class HomeContentController {
   }
 
   // ================================
-  // ADMIN - Image upload (untuk HERO/BANNER section)
+  // ADMIN - Image upload (untuk HERO/CATALOG)
   // ================================
 
   @Post('admin/upload-image')
   @ApiOperation({
-    summary: '[ADMIN] Upload gambar untuk HERO/BANNER',
-    description: 'Return image_url relatif yang bisa disimpan di field image_url home_content.',
+    summary: '[ADMIN] Upload gambar untuk HERO illustration atau CATALOG tile',
+    description: 'Return image_url relatif yang bisa disimpan di field payload home_content.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

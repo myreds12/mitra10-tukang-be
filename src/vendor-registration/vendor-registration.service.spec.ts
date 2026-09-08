@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bull';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { RegistrationStatus } from './enums/registration-status.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const mockPrismaService = {
   vendor_registration: {
@@ -24,12 +25,16 @@ const mockPrismaService = {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     deleteMany: jest.fn(),
   },
   vendor_terms_and_conditions: {
     findFirst: jest.fn(),
+    findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
+    count: jest.fn(),
   },
   users: {
     findFirst: jest.fn(),
@@ -52,6 +57,12 @@ const mockPrismaService = {
 
 const mockEmailQueue = {
   add: jest.fn(),
+};
+
+const mockNotificationsService = {
+  notifyUser: jest.fn().mockResolvedValue(undefined),
+  notifyRole: jest.fn().mockResolvedValue(undefined),
+  create: jest.fn().mockResolvedValue(undefined),
 };
 
 // User mock dengan role "Admin HO" untuk melewati assertAdminHO
@@ -84,6 +95,10 @@ describe('VendorRegistrationService', () => {
         {
           provide: getQueueToken('email'),
           useValue: mockEmailQueue,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
         },
       ],
     }).compile();
@@ -175,6 +190,7 @@ describe('VendorRegistrationService', () => {
         id: 1,
         title: 'Syarat dan Ketentuan',
         content: '<p>Test</p>',
+        document_type: 'HTML',
         version: 1,
         is_active: true,
         created_at: new Date(),
@@ -207,13 +223,17 @@ describe('VendorRegistrationService', () => {
       });
 
       const result = await service.updateTermsAndConditions(
-        { content: '<p>New content</p>' } as any,
+        { title: 'New T&C Title', content: '<p>New content</p>' } as any,
         99,
       );
       expect(result.version).toBe(2);
       expect(prisma.vendor_terms_and_conditions.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ version: 2, is_active: true }),
+          data: expect.objectContaining({
+            title: 'New T&C Title',
+            version: 2,
+            is_active: true,
+          }),
         }),
       );
     });

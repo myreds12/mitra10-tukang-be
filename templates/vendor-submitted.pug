@@ -4,31 +4,39 @@ html(lang="id")
         meta(charset="UTF-8")
         meta(name="viewport" content="width=device-width, initial-scale=1.0")
         title Pendaftaran Vendor Diterima - Mitra10
-    body(style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;")
+    body(style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;")
         table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f0f2f5;")
             tr
                 td(style="padding:40px 10px;")
-                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;")
+                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e9ecef;")
                         tr
-                            td(style="background-color:#183383;padding:28px 35px;text-align:center;")
-                                img(src="https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png" alt="Logo Mitra10" width="70" style="display:block;margin:0 auto 12px auto;border:0;")
-                                h1(style="color:#ffffff;font-size:20px;font-weight:700;margin:0;") Instalasi &amp; Service Mitra10
+                            td(style="background-color:#1E2A78;padding:32px 35px;text-align:center;")
+                                h1(style="color:#ffffff;font-size:20px;font-weight:700;margin:0;letter-spacing:0.3px;") Instalasi &amp; Service Mitra 10
                         tr
                             td(style="padding:32px 35px;")
-                                h2(style="font-size:22px;color:#1a1a2e;margin:0 0 12px 0;") Terima kasih, #{data.company_name}
-                                p(style="font-size:14px;color:#495057;line-height:1.7;margin:0 0 16px 0;") Pendaftaran vendor Anda telah kami terima. Tim Mitra10 akan memproses dan meninjau data yang dikirimkan.
-                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f8f9fa;border-left:4px solid #183383;margin:20px 0;")
+                                h2(style="font-size:20px;color:#1a1a2e;margin:0 0 16px 0;font-weight:700;") Pendaftaran #{data.company_name} sudah masuk.
+                                p(style="font-size:14px;color:#495057;line-height:1.6;margin:0 0 20px 0;")
+                                    | Tim Mitra10 akan tinjau data yang Anda kirimkan. Estimasi waktu tinjauan 1-3 hari kerja. Kami hubungi lewat email atau telepon PIC kalau ada yang perlu dilengkapi.
+                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f8f9fa;border-left:4px solid #1E2A78;border-radius:4px;margin:0 0 24px 0;")
                                     tr
-                                        td(style="padding:18px 20px;")
-                                            p(style="font-size:13px;font-weight:700;color:#183383;margin:0 0 12px 0;") Data kontak terdaftar
-                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Email perusahaan: #{data.email_address}
-                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Email PIC: #{data.pic_email}
-                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Telepon perusahaan: #{data.phone_number}
-                                            p(style="font-size:13px;color:#495057;margin:0;") Telepon PIC: #{data.pic_phone}
-                                p(style="font-size:14px;color:#495057;line-height:1.7;margin:0;") Informasi status pendaftaran akan dikirimkan melalui email yang didaftarkan. Pastikan email dan nomor telepon aktif agar tim kami dapat menghubungi Anda.
+                                        td(style="padding:18px 22px;")
+                                            p(style="font-size:11px;font-weight:700;color:#1E2A78;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.5px;") Data Terdaftar
+                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;line-height:1.6;")
+                                                span(style="color:#6c757d;display:inline-block;width:130px;") Email perusahaan
+                                                span(style="color:#1a1a2e;font-weight:600;") #{data.email_address}
+                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;line-height:1.6;")
+                                                span(style="color:#6c757d;display:inline-block;width:130px;") Email PIC
+                                                span(style="color:#1a1a2e;font-weight:600;") #{data.pic_email}
+                                            p(style="font-size:13px;color:#495057;margin:0;line-height:1.6;")
+                                                span(style="color:#6c757d;display:inline-block;width:130px;") Telepon PIC
+                                                span(style="color:#1a1a2e;font-weight:600;") #{data.pic_phone}
+                                p(style="font-size:13px;color:#6c757d;line-height:1.6;margin:0;padding:16px 18px;background-color:#fff8e1;border-radius:4px;border-left:3px solid #f59e0b;")
+                                    strong(style="color:#92400e;") Langkah selanjutnya:&nbsp;
+                                    span Email kedua berisi akun untuk memantau status pendaftaran akan dikirim beberapa saat lagi. Cek inbox Anda.
                         tr
                             td(style="background-color:#f8f9fa;padding:22px 35px;text-align:center;border-top:1px solid #e9ecef;")
-                                p(style="font-size:11px;color:#6c757d;line-height:1.6;margin:0 0 6px 0;") Hormat kami,
+                                p(style="font-size:12px;color:#6c757d;line-height:1.6;margin:0 0 4px 0;")
+                                    | Mitra10 Instalasi &amp; Service
                                     br
-                                    strong Mitra10 Instalasi &amp; Service
-                                p(style="font-size:11px;color:#6c757d;margin:0;") Email otomatis. Mohon jangan membalas.
+                                    a(href=data.website_url style="color:#1E2A78;text-decoration:none;font-weight:600;") instalasi.mitra10.com
+                                p(style="font-size:11px;color:#adb5bd;margin:0;") Email otomatis. Jangan balas.

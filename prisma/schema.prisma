@@ -2281,7 +2281,8 @@ model vendor_registration_token {
 // section: HERO | BENEFIT | BANNER | CATALOG (string, no enum untuk fleksibilitas migration)
 model home_content {
   id           Int      @id @default(autoincrement())
-  section      String   @db.VarChar(20)   // HERO | BENEFIT | BANNER | CATALOG
+  section      String   @db.VarChar(20)   // HERO | BENEFIT | CATALOG
+  payload      String?  @db.Text          // JSON payload per section_type
   title        String?  @db.VarChar(200)
   subtitle     String?  @db.VarChar(500)
   description  String?  @db.Text

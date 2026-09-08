@@ -553,7 +553,7 @@ export class VendorRegistrationService {
 
       try {
         await this.emailQueue.add(
-          'send-vendor-submitted-mail',
+          'send-registrant-account-mail',
           {
             to: dto.pic_email || dto.email_address,
             company_name: dto.company_name,
@@ -561,26 +561,13 @@ export class VendorRegistrationService {
             pic_email: dto.pic_email,
             phone_number: dto.phone_number,
             pic_phone: dto.pic_phone,
-          },
-          { attempts: 3 },
-        );
-      } catch (emailError) {
-        console.error('Failed to queue vendor submitted email:', emailError);
-      }
-
-      try {
-        await this.emailQueue.add(
-          'send-registrant-account-mail',
-          {
-            to: dto.pic_email || dto.email_address,
-            company_name: dto.company_name,
             username: registrantUsername,
             password: registrantPassword,
           },
           { attempts: 3 },
         );
-      } catch (registrantMailError) {
-        console.error('Failed to queue registrant account email:', registrantMailError);
+      } catch (emailError) {
+        console.error('Failed to queue vendor registration email:', emailError);
       }
 
       try {
