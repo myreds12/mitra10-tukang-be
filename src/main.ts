@@ -41,6 +41,9 @@ async function bootstrap() {
   app.useStaticAssets(resolveProjectPath('uploads'), {
     prefix: '/public/',
   });
+  app.useStaticAssets(resolveProjectPath('storage'), {
+    prefix: '/storage/',
+  });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalFilters(
     new HttpExceptionFilter(),

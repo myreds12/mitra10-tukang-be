@@ -16,6 +16,8 @@ import {
   BenefitPayload,
   CatalogPayload,
   SupportPayload,
+  ProgramPayload,
+  JobResultPayload,
 } from './dto/home-content.dto';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
@@ -29,6 +31,12 @@ export interface FormattedHomeContentItem {
   description: string | null;
   icon: string | null;
   image_url: string | null;
+  badge_label?: string | null;
+  cta_label?: string | null;
+  image_before_url?: string | null;
+  image_after_url?: string | null;
+  video_url?: string | null;
+  media_type?: 'before_after' | 'video' | null;
   payload: any;
   order_index: number;
   is_active: boolean;
@@ -83,7 +91,13 @@ export class HomeContentService {
       subtitle: item.subtitle,
       description: item.description,
       icon: item.icon,
-      image_url: item.image_url,
+      image_url: item.image_url ?? parsedPayload?.image_url ?? parsedPayload?.image ?? null,
+      badge_label: item.badge_label ?? parsedPayload?.badge_label ?? parsedPayload?.badge ?? null,
+      cta_label: item.cta_label ?? parsedPayload?.cta_label ?? null,
+      image_before_url: item.image_before_url ?? parsedPayload?.image_before_url ?? parsedPayload?.before_image ?? null,
+      image_after_url: item.image_after_url ?? parsedPayload?.image_after_url ?? parsedPayload?.after_image ?? null,
+      video_url: item.video_url ?? parsedPayload?.video_url ?? null,
+      media_type: item.media_type ?? parsedPayload?.media_type ?? (parsedPayload?.video_url ? 'video' : 'before_after'),
       payload: parsedPayload,
       order_index: item.order_index ?? 0,
       is_active: Boolean(item.is_active),
@@ -139,6 +153,7 @@ export class HomeContentService {
             title: b.title,
             description: b.description,
             icon: b.icon,
+            image_url: b.image || null,
             payload: b,
             is_active: true,
             status: 'active',
@@ -166,10 +181,80 @@ export class HomeContentService {
         });
       }
 
-      // 4. SUPPORT item (for "Hubungi Tim Support" button in header/home)
+      // 4. PROGRAM items (Program Berjalan)
+      if (Array.isArray(p.programs)) {
+        p.programs
+          .filter((prog: any) => prog.is_active !== false && Boolean((prog.description && prog.description.trim()) || prog.image_url || prog.image))
+          .forEach((prog: any, idx: number) => {
+            const imgUrl = prog.image_url || prog.image || null;
+            const badge = prog.badge_label || prog.badge || null;
+            const cta = prog.cta_label || null;
+            items.push({
+              id: activeUnified.id * 10000 + (idx + 1),
+              section: 'PROGRAM_BERJALAN',
+              section_type: 'PROGRAM_BERJALAN',
+              title: prog.title || null,
+              description: prog.description || '',
+              image_url: imgUrl,
+              badge_label: badge,
+              cta_label: cta,
+              link_url: prog.link_url || null,
+              payload: { ...prog, image_url: imgUrl, badge_label: badge, cta_label: cta },
+              is_active: true,
+              status: 'active',
+              order_index: prog.order_index ?? idx + 1,
+            });
+          });
+      }
+
+      // 5. JOB_RESULT items (Hasil Pekerjaan / Before-After / Video)
+      if (Array.isArray(p.job_results)) {
+        p.job_results
+          .filter((job: any) => {
+            const isActive = job.is_active !== false;
+            const isVideo = job.media_type === 'video' || Boolean(job.video_url);
+            if (isVideo) {
+              return isActive && Boolean(job.video_url);
+            }
+            return isActive && Boolean(job.image_before_url || job.before_image || job.image);
+          })
+          .forEach((job: any, idx: number) => {
+            const isVideo = job.media_type === 'video' || Boolean(job.video_url);
+            const beforeImg = job.image_before_url || job.before_image || job.image || null;
+            const afterImg = job.image_after_url || job.after_image || null;
+            const videoUrl = job.video_url || null;
+            const badge = job.badge_label || job.tag || job.badge || (isVideo ? 'Video Dokumentasi' : 'Before - After');
+            items.push({
+              id: activeUnified.id * 100000 + (idx + 1),
+              section: 'HASIL_PEKERJAAN',
+              section_type: 'HASIL_PEKERJAAN',
+              title: job.title,
+              description: job.description,
+              media_type: isVideo ? 'video' : 'before_after',
+              image_url: beforeImg,
+              image_before_url: beforeImg,
+              image_after_url: afterImg,
+              video_url: videoUrl,
+              badge_label: badge,
+              payload: {
+                ...job,
+                media_type: isVideo ? 'video' : 'before_after',
+                video_url: videoUrl,
+                image_before_url: beforeImg,
+                image_after_url: afterImg,
+                badge_label: badge,
+              },
+              is_active: true,
+              status: 'active',
+              order_index: job.order_index ?? idx + 1,
+            });
+          });
+      }
+
+      // 6. SUPPORT item (for "Hubungi Tim Support" button in header/home)
       if (p.support) {
         items.push({
-          id: activeUnified.id * 10000 + 1,
+          id: activeUnified.id * 1000000 + 1,
           section: 'SUPPORT',
           section_type: 'SUPPORT',
           title: p.support.support_label || 'Hubungi Tim Support',
@@ -191,7 +276,17 @@ export class HomeContentService {
       orderBy: [{ order_index: 'asc' }, { id: 'asc' }],
     });
 
-    return rawItems.map((item) => this.formatItem(item));
+    return rawItems
+      .filter((item) => {
+        if (['PROGRAM', 'PROGRAM_BERJALAN'].includes(item.section)) {
+          return Boolean(item.description || item.image_url);
+        }
+        if (['JOB_RESULT', 'HASIL_PEKERJAAN'].includes(item.section)) {
+          return Boolean(item.image_before_url || item.image_url || (item as any).video_url);
+        }
+        return true;
+      })
+      .map((item) => this.formatItem(item));
   }
 
   /**
@@ -269,6 +364,11 @@ export class HomeContentService {
         order_index: dto.order_index ?? 0,
         is_active: isActive,
         updated_by: userId,
+        badge_label: dto.badge_label ?? (validatedPayload as any)?.badge_label ?? null,
+        cta_label: dto.cta_label ?? (validatedPayload as any)?.cta_label ?? null,
+        image_before_url: dto.image_before_url ?? (validatedPayload as any)?.image_before_url ?? null,
+        image_after_url: dto.image_after_url ?? (validatedPayload as any)?.image_after_url ?? null,
+        image_url: dto.image_url ?? (validatedPayload as any)?.image_url ?? (validatedPayload as any)?.image ?? null,
       },
     });
 
@@ -327,6 +427,11 @@ export class HomeContentService {
         title: dto.title !== undefined ? dto.title : existing.title,
         ...(validatedPayload && { payload: JSON.stringify(validatedPayload) }),
         ...(dto.order_index !== undefined && { order_index: dto.order_index }),
+        ...(dto.badge_label !== undefined ? { badge_label: dto.badge_label } : (validatedPayload as any)?.badge_label ? { badge_label: (validatedPayload as any).badge_label } : {}),
+        ...(dto.cta_label !== undefined ? { cta_label: dto.cta_label } : (validatedPayload as any)?.cta_label ? { cta_label: (validatedPayload as any).cta_label } : {}),
+        ...(dto.image_before_url !== undefined ? { image_before_url: dto.image_before_url } : (validatedPayload as any)?.image_before_url ? { image_before_url: (validatedPayload as any).image_before_url } : {}),
+        ...(dto.image_after_url !== undefined ? { image_after_url: dto.image_after_url } : (validatedPayload as any)?.image_after_url ? { image_after_url: (validatedPayload as any).image_after_url } : {}),
+        ...(dto.image_url !== undefined ? { image_url: dto.image_url } : (validatedPayload as any)?.image_url ? { image_url: (validatedPayload as any).image_url } : {}),
         is_active: isActive,
         updated_at: new Date(),
         updated_by: userId,
@@ -354,9 +459,11 @@ export class HomeContentService {
       return true;
     }
     const cleaned = filePath.replace(/^[/\\]+/, '').replace(/^uploads[/\\]+/, '');
+    const storageCleaned = filePath.replace(/^[/\\]+/, '').replace(/^storage[/\\]+/, '');
     const fullPath1 = resolve(process.cwd(), 'uploads', cleaned);
     const fullPath2 = resolve(process.cwd(), filePath.replace(/^[/\\]+/, ''));
-    return existsSync(fullPath1) || existsSync(fullPath2);
+    const fullPath3 = resolve(process.cwd(), 'storage', storageCleaned);
+    return existsSync(fullPath1) || existsSync(fullPath2) || existsSync(fullPath3);
   }
 
   /**
@@ -381,6 +488,8 @@ export class HomeContentService {
       hero: 0,
       benefit: 0,
       catalog: 0,
+      program: 0,
+      job_result: 0,
       support: 0,
     };
 
@@ -450,6 +559,16 @@ export class HomeContentService {
             message: `Data benefit #${idx + 1} belum lengkap.`,
           });
         }
+        if (b.image && !this.checkFileExists(b.image)) {
+          issues.push({
+            id: item.id,
+            section_type: 'BENEFIT',
+            title: `Ikon/Gambar Benefit #${idx + 1}`,
+            issue_type: 'asset',
+            severity: 'warning',
+            message: `File gambar "${b.image}" tidak ditemukan di disk server (akan fallback ke ikon emoji).`,
+          });
+        }
       });
     }
 
@@ -477,6 +596,14 @@ export class HomeContentService {
           });
         }
       });
+    }
+
+    if (Array.isArray(p.programs)) {
+      sectionCounts.program = p.programs.length;
+    }
+
+    if (Array.isArray(p.job_results)) {
+      sectionCounts.job_result = p.job_results.length;
     }
 
     if (p.support) {
