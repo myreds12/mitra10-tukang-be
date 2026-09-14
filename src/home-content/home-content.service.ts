@@ -152,7 +152,7 @@ export class HomeContentService {
             section_type: 'BENEFIT',
             title: b.title,
             description: b.description,
-            icon: b.icon,
+            icon: (b.icon && !b.icon.includes('?')) ? b.icon : null,
             image_url: b.image || null,
             payload: b,
             is_active: true,
@@ -549,7 +549,7 @@ export class HomeContentService {
     if (Array.isArray(p.benefits)) {
       sectionCounts.benefit = p.benefits.length;
       p.benefits.forEach((b, idx) => {
-        if (!b.icon || !b.title || !b.description) {
+        if (!b.title || !b.description) {
           issues.push({
             id: item.id,
             section_type: 'BENEFIT',

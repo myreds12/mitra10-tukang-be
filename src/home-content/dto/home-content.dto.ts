@@ -129,7 +129,6 @@ export function validateSectionPayload(
       errors.push('UNIFIED_HOME: Minimal harus ada 1 item `benefits`.');
     } else {
       payload.benefits.forEach((b: any, idx: number) => {
-        if (!b.icon) errors.push(`BENEFIT #${idx + 1}: Icon emoji wajib diisi.`);
         if (!b.title) errors.push(`BENEFIT #${idx + 1}: Judul wajib diisi.`);
         if (!b.description) errors.push(`BENEFIT #${idx + 1}: Deskripsi wajib diisi.`);
       });
@@ -141,9 +140,6 @@ export function validateSectionPayload(
       payload.catalogs.forEach((c: any, idx: number) => {
         if (!c.name) errors.push(`CATALOG #${idx + 1}: Nama kategori wajib diisi.`);
         if (!c.link_url) errors.push(`CATALOG #${idx + 1}: Link URL wajib diisi.`);
-        if (!c.image && !c.icon_fallback) {
-          errors.push(`CATALOG #${idx + 1}: Icon fallback wajib diisi jika gambar kosong.`);
-        }
       });
     }
 
@@ -170,7 +166,7 @@ export function validateSectionPayload(
         illustration_image: payload.hero.illustration_image ? String(payload.hero.illustration_image).trim() : null,
       },
       benefits: payload.benefits.map((b: any) => ({
-        icon: String(b.icon || '📦').trim(),
+        icon: b.icon && !b.icon.includes('?') ? String(b.icon).trim() : '',
         title: String(b.title || '').trim(),
         description: String(b.description || '').trim(),
         accent_color: (b.accent_color || 'brand-blue') as BenefitAccentColor,
@@ -178,10 +174,10 @@ export function validateSectionPayload(
       })),
       catalogs: payload.catalogs.map((c: any) => ({
         name: String(c.name || '').trim(),
-        image: c.image ? String(c.image).trim() : null,
-        icon_fallback: c.icon_fallback ? String(c.icon_fallback).trim() : '💡',
+        link_url: String(c.link_url || '').trim(),
         badge_text: c.badge_text ? String(c.badge_text).trim() : null,
-        link_url: String(c.link_url || 'https://www.mitra10.com').trim(),
+        icon_fallback: c.icon_fallback ? String(c.icon_fallback).trim() : '',
+        image: c.image ? String(c.image).trim() : null,
         button_label: c.button_label ? String(c.button_label).trim() : 'Lihat Produk →',
         button_style: (c.button_style === 'secondary' ? 'secondary' : 'primary') as CatalogButtonStyle,
       })),
