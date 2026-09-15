@@ -24,6 +24,7 @@ import { WorkOrderMaterialType } from 'src/work_orders/dto/work-order-material-t
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { moduleTypeNotification } from 'src/notifications/dto/notification-module-type.enum';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
 
 @Injectable()
 export class QuotationService {
@@ -33,6 +34,7 @@ export class QuotationService {
     private notifService: NotificationsService,
     @InjectQueue('email') private emailQueue: Queue,
     private violationDetector: ViolationDetectorService,
+    private readonly whatsAppService: WhatsAppService,
   ) { }
 
   private readonly logger = new Logger(QuotationService.name);
@@ -722,7 +724,7 @@ export class QuotationService {
       const { quotation_files, quotation_receipts } = files;
       const quotationForUpdate = await this.dbService.quotation.findFirst({
         where: { id },
-        include: { promotion: true, quotation_follow_up: true },
+        include: { promotion: true, quotation_follow_up: true, status: true },
       });
 
       // console.log('PAYLOAD', updateQuotationDto);
@@ -1119,6 +1121,8 @@ export class QuotationService {
         }),
       ]);
 
+      let shouldSendQuotationWhatsApp = false;
+
       if (quotation) {
         await this.notifService.create(
           {
@@ -1131,6 +1135,10 @@ export class QuotationService {
           quotation.id,
           quotation.quotation_status,
         );
+
+        shouldSendQuotationWhatsApp =
+          quotation.status?.category === 'QUOTEOUT' &&
+          quotationForUpdate.status?.category !== 'QUOTEOUT';
       }
 
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
@@ -1155,6 +1163,14 @@ export class QuotationService {
         quotation.quotation_status,
         user,
       );
+
+      if (shouldSendQuotationWhatsApp) {
+        try {
+          await this.whatsAppService.sendQuotationNotification(quotation.id);
+        } catch (err) {
+          console.error('WA quotation notification failed:', err);
+        }
+      }
 
       return quotation;
     } catch (error) {
@@ -1230,6 +1246,14 @@ export class QuotationService {
         updated_by: user_id,
       },
     });
+
+    if (status.category === 'QUOTEOUT' && quotationFind.status?.category !== 'QUOTEOUT') {
+      try {
+        await this.whatsAppService.sendQuotationNotification(quotation.id);
+      } catch (err) {
+        console.error('WA quotation notification failed:', err);
+      }
+    }
 
     return quotation;
   }

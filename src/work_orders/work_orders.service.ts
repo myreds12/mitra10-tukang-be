@@ -27,19 +27,19 @@ export class WorkOrdersService {
     private violationDetector: ViolationDetectorService,
   ) { }
 
-  private async sendWorkOrderStatusWhatsApp(workOrderId: number) {
-    try {
-      await this.whatsAppService.sendWorkOrderStatusNotification(workOrderId);
-    } catch (err) {
-      console.error('WA status notification failed:', err);
-    }
-  }
-
   private async sendTukangAssignedWhatsApp(workOrderId: number) {
     try {
       await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
     } catch (err) {
       console.error('WA assign notification failed:', err);
+    }
+  }
+
+  private async sendOrderCompletedWhatsApp(orderId: number) {
+    try {
+      await this.whatsAppService.sendOrderCompletedNotification(orderId);
+    } catch (err) {
+      console.error('WA order completed notification failed:', err);
     }
   }
 
@@ -521,6 +521,7 @@ export class WorkOrdersService {
         },
         include: {
           work_order_status: true,
+          work_order_tukang: { where: { deleted_at: null } },
         },
       });
 
@@ -568,6 +569,19 @@ export class WorkOrdersService {
             },
           };
         });
+      const shouldSendAssignedWhatsApp = dataDto.work_order_tukang?.some(
+        (item) => {
+          if (!item.id) {
+            return true;
+          }
+
+          const existingTukang = checkWorkOrder.work_order_tukang.find(
+            (workOrderTukang) => workOrderTukang.id === item.id,
+          );
+
+          return existingTukang?.tukang_id !== item.tukang_id;
+        },
+      );
 
       const workOrderStatus: Prisma.work_order_statusCreateWithoutWork_orderInput =
       {
@@ -672,7 +686,7 @@ export class WorkOrdersService {
         dataDto.work_order_status,
         user,
       );
-      if (dataDto.work_order_tukang?.length) {
+      if (shouldSendAssignedWhatsApp) {
         await this.sendTukangAssignedWhatsApp(work_order.id);
       }
 
@@ -1053,8 +1067,14 @@ export class WorkOrdersService {
       // VENDOR VIOLATION TRIGGERS
       // =========================================
       if (work_order?.order?.vendor_id) {
-        await this.checkDocumentationViolation(work_order, updateData, NEW_STATUS, files);
+        await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
         await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+      }
+
+      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
+      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
+      if (isWorkEndStatus && !wasWorkEndStatus) {
+        await this.sendOrderCompletedWhatsApp(work_order.order_id);
       }
 
       return work_order;
