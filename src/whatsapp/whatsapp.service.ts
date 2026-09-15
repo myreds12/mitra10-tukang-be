@@ -7,7 +7,7 @@ import { lastValueFrom } from 'rxjs';
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
-  private readonly processTemplateId = 'survei_tukang_instalasi_proses_v2';
+  private readonly processTemplateId = 'survei_tukang_instalasi_proses_v3';
 
   constructor(
     private readonly httpService: HttpService,
