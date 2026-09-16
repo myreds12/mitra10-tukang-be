@@ -119,26 +119,37 @@ export class OrderService {
         }
       }
 
-      const orderDetailItems = await this.dbService.items.findMany({
-        where: {
-          id: {
-            in: createOrderDto.order_details.map(({ item_id }) => item_id),
-          },
-          deleted_at: null,
-          is_active: true,
-        },
-        include: {
-          category: true,
-          prices: {
-            where: {
-              periodic_start: { lte: new Date() },
-              periodic_end: { gte: new Date() },
-            },
-          },
-        },
-      });
+      const validItemIds = (createOrderDto.order_details || [])
+        .map((x) =>
+          x?.item_id !== undefined && x?.item_id !== null
+            ? Number(x.item_id)
+            : null,
+        )
+        .filter((x): x is number => x !== null && !isNaN(x) && x > 0);
 
-      if (orderDetailItems.some((item) => item === null))
+      const orderDetailItems =
+        validItemIds.length > 0
+          ? await this.dbService.items.findMany({
+              where: {
+                id: {
+                  in: validItemIds,
+                },
+                deleted_at: null,
+                is_active: true,
+              },
+              include: {
+                category: true,
+                prices: {
+                  where: {
+                    periodic_start: { lte: new Date() },
+                    periodic_end: { gte: new Date() },
+                  },
+                },
+              },
+            })
+          : [];
+
+      if (validItemIds.length > 0 && orderDetailItems.length === 0)
         throw new BadRequestException('Item not found!');
 
       let grand_total = 0;
@@ -166,11 +177,16 @@ export class OrderService {
       const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
         createOrderDto.order_details.map((item) => {
           let total = 0;
-          const currentItem = orderDetailItems?.find(
-            ({ id }) => id === item?.item_id,
-          );
+          const parsedItemId =
+            item?.item_id !== undefined && item?.item_id !== null
+              ? Number(item.item_id)
+              : null;
+          const currentItem =
+            parsedItemId && !isNaN(parsedItemId)
+              ? orderDetailItems?.find(({ id }) => id === parsedItemId)
+              : null;
           const itemPrice =
-            currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
+            currentItem?.prices?.filter((x) => item.quantity >= x.min_order)?.[0]
               ?.price ??
             currentItem?.default_price ??
             0;
@@ -183,14 +199,20 @@ export class OrderService {
           if (
             PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY === createOrderDto.payment_type
           ) {
-            total = Number(itemPrice) * item.quantity;
+            total = Number(itemPrice) * Number(item.quantity || 1);
             grand_total += total;
             grand_total_comission += comission;
           }
 
           return {
-            ...item,
-            item_notes: item?.item_notes,
+            item_id:
+              parsedItemId && !isNaN(parsedItemId) && parsedItemId > 0
+                ? parsedItemId
+                : null,
+            item_code: item?.item_code ?? null,
+            item_name: item?.item_name ?? null,
+            item_notes: item?.item_notes ?? '',
+            quantity: Number(item?.quantity) || 1,
             unit_price: itemPrice,
             created_by: user_id,
             total,
@@ -5071,23 +5093,28 @@ export class OrderService {
         });
       }
 
-      const requestedItemCodes = dto?.order_details?.map((x) => x?.item_code);
+      const requestedItemCodes = (dto?.order_details || [])
+        .map((x) => x?.item_code)
+        .filter((code): code is string => Boolean(code));
 
-      const items = await this.dbService.items.findMany({
-        where: {
-          deleted_at: null,
-          item_code: { in: requestedItemCodes },
-        },
-        include: {
-          category: true,
-          prices: {
-            where: {
-              periodic_start: { lte: new Date() },
-              periodic_end: { gte: new Date() },
-            },
-          },
-        },
-      });
+      const items =
+        requestedItemCodes.length > 0
+          ? await this.dbService.items.findMany({
+              where: {
+                deleted_at: null,
+                item_code: { in: requestedItemCodes },
+              },
+              include: {
+                category: true,
+                prices: {
+                  where: {
+                    periodic_start: { lte: new Date() },
+                    periodic_end: { gte: new Date() },
+                  },
+                },
+              },
+            })
+          : [];
 
       const foundItemCodes = new Set(items.map((item) => item.item_code));
       const missingItems = requestedItemCodes.filter(
