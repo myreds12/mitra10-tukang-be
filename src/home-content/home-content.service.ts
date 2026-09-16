@@ -165,15 +165,23 @@ export class HomeContentService {
       // 3. CATALOG items
       if (Array.isArray(p.catalogs)) {
         p.catalogs.forEach((c, idx) => {
+          const cleanName = c.name ? String(c.name).replace(/\?+/g, '').trim() : '';
+          const cleanBadge = c.badge_text ? String(c.badge_text).replace(/\?+/g, '').trim() : null;
+          const cleanIcon = (c.icon_fallback && !c.icon_fallback.includes('?')) ? String(c.icon_fallback).trim() : null;
           items.push({
             id: activeUnified.id * 1000 + (idx + 1),
             section: 'CATALOG',
             section_type: 'CATALOG',
-            title: c.name,
+            title: cleanName,
             description: c.link_url,
-            icon: c.icon_fallback || null,
+            icon: cleanIcon,
             image_url: c.image || null,
-            payload: c,
+            payload: {
+              ...c,
+              name: cleanName,
+              badge_text: cleanBadge,
+              icon_fallback: cleanIcon,
+            },
             is_active: true,
             status: 'active',
             order_index: idx + 1,

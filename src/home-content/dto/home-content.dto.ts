@@ -173,10 +173,10 @@ export function validateSectionPayload(
         image: b.image ? String(b.image).trim() : null,
       })),
       catalogs: payload.catalogs.map((c: any) => ({
-        name: String(c.name || '').trim(),
+        name: String(c.name || '').replace(/\?+/g, '').trim(),
         link_url: String(c.link_url || '').trim(),
-        badge_text: c.badge_text ? String(c.badge_text).trim() : null,
-        icon_fallback: c.icon_fallback ? String(c.icon_fallback).trim() : '',
+        badge_text: c.badge_text ? String(c.badge_text).replace(/\?+/g, '').trim() : null,
+        icon_fallback: c.icon_fallback && !c.icon_fallback.includes('?') ? String(c.icon_fallback).trim() : '',
         image: c.image ? String(c.image).trim() : null,
         button_label: c.button_label ? String(c.button_label).trim() : 'Lihat Produk →',
         button_style: (c.button_style === 'secondary' ? 'secondary' : 'primary') as CatalogButtonStyle,

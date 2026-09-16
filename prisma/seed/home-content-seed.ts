@@ -52,7 +52,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Electrical & Lighting',
       image: null,
-      icon_fallback: '💡',
+      icon_fallback: '',
       badge_text: 'Populer',
       link_url: 'https://www.mitra10.com/alat-listrik',
       button_label: 'Lihat Produk →',
@@ -61,7 +61,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Flooring & Wall',
       image: null,
-      icon_fallback: '🧱',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/lantai-dinding',
       button_label: 'Lihat Produk →',
@@ -70,7 +70,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Bath & Kitchen',
       image: null,
-      icon_fallback: '🚿',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/kamar-mandi-dapur',
       button_label: 'Lihat Produk →',
@@ -79,7 +79,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Paint & Sundries',
       image: null,
-      icon_fallback: '🎨',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/cat',
       button_label: 'Lihat Produk →',
@@ -88,7 +88,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Hardware',
       image: null,
-      icon_fallback: '🔒',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/sistem-keamanan-rumah',
       button_label: 'Lihat Produk →',
@@ -97,7 +97,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Building & Materials',
       image: null,
-      icon_fallback: '🏗️',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/bahan-bangunan',
       button_label: 'Lihat Produk →',
@@ -106,7 +106,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Tools',
       image: null,
-      icon_fallback: '🧰',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/perkakas',
       button_label: 'Lihat Produk →',
@@ -115,7 +115,7 @@ export const DEFAULT_UNIFIED_HOME_PAYLOAD = {
     {
       name: 'Houseware & Hobbies',
       image: null,
-      icon_fallback: '🏠',
+      icon_fallback: '',
       badge_text: null,
       link_url: 'https://www.mitra10.com/peralatan-rumah-tangga',
       button_label: 'Lihat Produk →',
