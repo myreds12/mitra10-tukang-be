@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   UseGuards,
   UseInterceptors,
   UploadedFiles,
@@ -49,8 +50,14 @@ export class VendorPortalController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getMe(@User() user: any): Promise<VendorPortalStatus> {
-    return this.service.getStatus({ userId: user?.id });
+  async getMe(
+    @User() user: any,
+    @Query('fresh') fresh?: string,
+  ): Promise<VendorPortalStatus> {
+    return this.service.getStatus({
+      userId: user?.id,
+      forceFresh: fresh === 'true' || fresh === '1',
+    });
   }
 
   /**

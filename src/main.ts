@@ -22,7 +22,14 @@ async function bootstrap() {
     cors: {
       origin: process.env.CORS_ORIGIN || '*',
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Cache-Control',
+        'Pragma',
+      ],
       preflightContinue: false,
       optionsSuccessStatus: 204,
     },

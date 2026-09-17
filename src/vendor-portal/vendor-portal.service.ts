@@ -197,17 +197,23 @@ export class VendorPortalService {
     return 'pendaftaran';
   }
 
-  async getStatus(opts: { vendorId?: number; userId?: number }): Promise<VendorPortalStatus> {
+  async getStatus(opts: {
+    vendorId?: number;
+    userId?: number;
+    forceFresh?: boolean;
+  }): Promise<VendorPortalStatus> {
     const keyId = opts.vendorId ?? opts.userId;
     if (!keyId) {
       throw new NotFoundException('vendorId or userId required');
     }
-    const cached = await this.redis.get(this.REDIS_KEY(keyId));
-    if (cached) {
-      try {
-        return JSON.parse(cached) as VendorPortalStatus;
-      } catch {
-        // fallthrough to DB
+    if (!opts.forceFresh) {
+      const cached = await this.redis.get(this.REDIS_KEY(keyId));
+      if (cached) {
+        try {
+          return JSON.parse(cached) as VendorPortalStatus;
+        } catch {
+          // fallthrough to DB
+        }
       }
     }
     const status = await this.buildFromDb(opts);
