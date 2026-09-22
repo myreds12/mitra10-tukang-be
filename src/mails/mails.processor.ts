@@ -334,6 +334,7 @@ export class EmailProcessor {
 
   @Process('send-vendor-submitted-mail')
   async sendVendorSubmittedMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
     email_address: string;
@@ -342,7 +343,7 @@ export class EmailProcessor {
     pic_phone: string;
   }>) {
     try {
-      const { to, company_name, email_address, pic_email, phone_number, pic_phone } = job.data;
+      const { registration_id, to, company_name, email_address, pic_email, phone_number, pic_phone } = job.data;
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
       const data = {
@@ -362,19 +363,25 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 
   @Process('send-vendor-pitching-mail')
   async sendVendorPitchingMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
   }>) {
     try {
-      const { to, company_name } = job.data;
+      const { registration_id, to, company_name } = job.data;
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
       const data = {
@@ -390,14 +397,20 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 
   @Process('send-vendor-approval-mail')
   async sendVendorApprovalMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
     token: string;
@@ -406,7 +419,7 @@ export class EmailProcessor {
     password: string;
   }>) {
     try {
-      const { to, company_name, token, expires_hours, username, password } = job.data;
+      const { registration_id, to, company_name, token, expires_hours, username, password } = job.data;
 
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
       const loginUrl = `${baseUrl}/login`;
@@ -429,14 +442,20 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 
   @Process('send-registrant-account-mail')
   async sendRegistrantAccountMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
     email_address: string;
@@ -448,6 +467,7 @@ export class EmailProcessor {
   }>) {
     try {
       const {
+        registration_id,
         to,
         company_name,
         email_address,
@@ -481,21 +501,27 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 
   @Process('send-vendor-rejection-mail')
   async sendVendorRejectionMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
     rejection_reason?: string;
     reapply_date?: string;
   }>) {
     try {
-      const { to, company_name, rejection_reason, reapply_date } = job.data;
+      const { registration_id, to, company_name, rejection_reason, reapply_date } = job.data;
       
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
@@ -514,9 +540,14 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(null, null, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 

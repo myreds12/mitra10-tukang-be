@@ -216,6 +216,71 @@ export class VendorRegistrationService {
     };
   }
 
+  private async attachEmailStatus(registrations: any[]) {
+    if (!registrations || registrations.length === 0) {
+      return [];
+    }
+
+    const registrationIds = registrations
+      .map((r) => r.id)
+      .filter((id): id is number => typeof id === 'number');
+    const emails = Array.from(
+      new Set(
+        registrations
+          .flatMap((r) => [r.pic_email, r.email_address])
+          .filter((e): e is string => Boolean(e && typeof e === 'string' && e.trim() !== '')),
+      ),
+    );
+
+    const conditions: any[] = [];
+    if (registrationIds.length > 0) {
+      conditions.push({ moduleId: { in: registrationIds } });
+    }
+    for (const email of emails) {
+      conditions.push({ to: { contains: email } });
+    }
+
+    const mailLogs =
+      conditions.length > 0
+        ? await this.dbService.mail_logs.findMany({
+            where: {
+              OR: conditions,
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [];
+
+    return registrations.map((reg) => {
+      const recipient = reg.pic_email || reg.email_address;
+      const log = mailLogs.find(
+        (ml) =>
+          ml.moduleId === reg.id ||
+          (recipient && ml.to && ml.to.toLowerCase() === recipient.toLowerCase()),
+      );
+
+      const emailStatus = log
+        ? {
+            sent: log.status === 1,
+            status: log.status === 1 ? 'TERKIRIM' : 'GAGAL',
+            sent_at: log.createdAt,
+            recipient: log.to,
+            log_id: log.id,
+          }
+        : {
+            sent: false,
+            status: 'BELUM_TERKIRIM',
+            sent_at: null,
+            recipient,
+            log_id: null,
+          };
+
+      return {
+        ...reg,
+        email_status: emailStatus,
+      };
+    });
+  }
+
   private async assertAdminHO(userId?: number) {
     if (!userId) {
       throw new ForbiddenException('Akses hanya untuk Admin HO.');
@@ -555,6 +620,7 @@ export class VendorRegistrationService {
         await this.emailQueue.add(
           'send-registrant-account-mail',
           {
+            registration_id: registration.id,
             to: dto.pic_email || dto.email_address,
             company_name: dto.company_name,
             email_address: dto.email_address,
@@ -658,8 +724,10 @@ export class VendorRegistrationService {
         this.formatRegistration(reg),
       );
 
+      const withEmailStatus = await this.attachEmailStatus(formattedRegistrations);
+
       return {
-        data: formattedRegistrations,
+        data: withEmailStatus,
         meta: { total, page, take, skip },
       };
     } catch (error) {
@@ -687,11 +755,14 @@ export class VendorRegistrationService {
         orderBy: { created_at: 'asc' },
       });
 
-      return this.formatRegistration({
+      const formatted = this.formatRegistration({
         ...registration,
         histories,
         history: histories,
       });
+
+      const [withEmail] = await this.attachEmailStatus([formatted]);
+      return withEmail;
     } catch (error) {
       throw error;
     }
@@ -723,6 +794,235 @@ export class VendorRegistrationService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async getEmailStatus(id: number, userId?: number) {
+    await this.assertAdminHO(userId);
+    const registration = await this.dbService.vendor_registration.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!registration) {
+      throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
+    }
+
+    const recipient = registration.pic_email || registration.email_address;
+    const conditions: any[] = [{ moduleId: id }];
+    if (recipient) {
+      conditions.push({ to: { contains: recipient } });
+    }
+    const mailLogs = await this.dbService.mail_logs.findMany({
+      where: {
+        OR: conditions,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const latestLog = mailLogs[0];
+    return {
+      registration_id: id,
+      sent: latestLog ? latestLog.status === 1 : false,
+      status: latestLog ? (latestLog.status === 1 ? 'TERKIRIM' : 'GAGAL') : 'BELUM_TERKIRIM',
+      sent_at: latestLog ? latestLog.createdAt : null,
+      recipient,
+      history: mailLogs.map((l) => ({
+        id: l.id,
+        to: l.to,
+        status: l.status === 1 ? 'TERKIRIM' : 'GAGAL',
+        sent_at: l.createdAt,
+      })),
+    };
+  }
+
+  async resendEmail(id: number, userId?: number) {
+    await this.assertAdminHO(userId);
+
+    const registration = await this.dbService.vendor_registration.findFirst({
+      where: { id, deleted_at: null },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!registration) {
+      throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
+    }
+
+    const recipient = registration.pic_email || registration.email_address;
+    if (!recipient) {
+      throw new BadRequestException('Data email tidak ditemukan untuk pendaftaran ini.');
+    }
+
+    // 1. If registration is approved (status = 3), resend approval credentials
+    if (registration.status === RegistrationStatus.DISETUJUI) {
+      const randomStr = randomBytes(4).toString('hex').toUpperCase();
+      const generatedPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
+      const hashedPassword = hashSync(generatedPassword, 12);
+
+      let user = registration.user;
+      if (!user) {
+        user = await this.dbService.users.findFirst({
+          where: {
+            username: {
+              contains: registration.company_name
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 8),
+            },
+          },
+        });
+      }
+
+      if (user) {
+        await this.dbService.users.update({
+          where: { id: user.id },
+          data: { password: hashedPassword },
+        });
+      }
+
+      const username = user?.username || recipient;
+
+      await this.emailQueue.add(
+        'send-vendor-approval-mail',
+        {
+          registration_id: registration.id,
+          to: recipient,
+          company_name: registration.company_name,
+          token: '',
+          expires_hours: 48,
+          username,
+          password: generatedPassword,
+        },
+        { attempts: 3 },
+      );
+
+      await this.createHistory(this.dbService, {
+        vendor_registration_id: id,
+        from_status: registration.status,
+        to_status: registration.status,
+        action: 'RESEND_EMAIL',
+        notes: `Admin HO mengirim ulang email persetujuan & kredensial vendor ke ${recipient}.`,
+        actor_id: userId,
+      });
+
+      return {
+        success: true,
+        message: `Email persetujuan vendor berhasil dikirim ulang ke ${recipient}.`,
+        recipient,
+      };
+    }
+
+    // 2. If registration is rejected (status = 4), resend rejection notification
+    if (registration.status === RegistrationStatus.DITOLAK) {
+      await this.emailQueue.add(
+        'send-vendor-rejection-mail',
+        {
+          registration_id: registration.id,
+          to: recipient,
+          company_name: registration.company_name,
+          rejection_reason: registration.rejection_reason || 'Tidak ada alasan spesifik diberikan.',
+          reapply_date: this.formatCooldownDate(
+            this.getRejectedCooldownUntil(registration.rejected_at || new Date()),
+          ),
+        },
+        { attempts: 3 },
+      );
+
+      await this.createHistory(this.dbService, {
+        vendor_registration_id: id,
+        from_status: registration.status,
+        to_status: registration.status,
+        action: 'RESEND_EMAIL',
+        notes: `Admin HO mengirim ulang email penolakan ke ${recipient}.`,
+        actor_id: userId,
+      });
+
+      return {
+        success: true,
+        message: `Email penolakan berhasil dikirim ulang ke ${recipient}.`,
+        recipient,
+      };
+    }
+
+    // 3. For MENUNGGU_APPROVE (1) or PROSES_PITCHING (2): Resend registrant account credentials
+    let user = registration.user;
+    if (!user && registration.user_id) {
+      user = await this.dbService.users.findUnique({
+        where: { id: registration.user_id },
+      });
+    }
+
+    const registrantUsername = (
+      registration.pic_email || registration.email_address
+    )
+      .toLowerCase()
+      .trim();
+
+    if (!user) {
+      user = await this.dbService.users.findFirst({
+        where: { username: registrantUsername },
+      });
+    }
+
+    const randomStr = randomBytes(4).toString('hex').toUpperCase();
+    const registrantPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
+    const hashedPassword = hashSync(registrantPassword, 12);
+
+    if (user) {
+      await this.dbService.users.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+    } else {
+      const registrantRole = await this.dbService.roles.findFirst({
+        where: { name: PENDAFTAR_VENDOR_ROLE },
+      });
+      if (registrantRole) {
+        user = await this.dbService.users.create({
+          data: {
+            username: registrantUsername,
+            password: hashedPassword,
+            role_id: registrantRole.id,
+          },
+        });
+        await this.dbService.vendor_registration.update({
+          where: { id: registration.id },
+          data: { user_id: user.id },
+        });
+      }
+    }
+
+    await this.emailQueue.add(
+      'send-registrant-account-mail',
+      {
+        registration_id: registration.id,
+        to: recipient,
+        company_name: registration.company_name,
+        email_address: registration.email_address,
+        pic_email: registration.pic_email,
+        phone_number: registration.phone_number,
+        pic_phone: registration.pic_phone,
+        username: user?.username || registrantUsername,
+        password: registrantPassword,
+      },
+      { attempts: 3 },
+    );
+
+    await this.createHistory(this.dbService, {
+      vendor_registration_id: id,
+      from_status: registration.status,
+      to_status: registration.status,
+      action: 'RESEND_EMAIL',
+      notes: `Admin HO mengirim ulang email akun pendaftar ke ${recipient}.`,
+      actor_id: userId,
+    });
+
+    return {
+      success: true,
+      message: `Email akun pendaftar berhasil dikirim ulang ke ${recipient}.`,
+      recipient,
+    };
   }
 
   // ================================
@@ -773,6 +1073,7 @@ export class VendorRegistrationService {
           await this.emailQueue.add(
             'send-vendor-pitching-mail',
             {
+              registration_id: id,
               to: registration.pic_email || registration.email_address,
               company_name: registration.company_name,
             },
@@ -996,6 +1297,7 @@ export class VendorRegistrationService {
         await this.emailQueue.add(
           'send-vendor-approval-mail',
           {
+            registration_id: id,
             to: approvalRecipient,
             company_name: registration.company_name,
             username: generatedUsername,
@@ -1091,6 +1393,7 @@ export class VendorRegistrationService {
       await this.emailQueue.add(
         'send-vendor-rejection-mail',
         {
+          registration_id: id,
           to: rejectionRecipient,
           company_name: registration.company_name,
           rejection_reason: dto.rejection_reason,

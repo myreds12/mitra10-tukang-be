@@ -487,6 +487,36 @@ export class VendorRegistrationController {
     return this.service.rejectRegistration(id, dto, user?.id);
   }
 
+  @Post(':id/resend-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Kirim Ulang Email Pendaftar Vendor',
+    description: 'Kirim ulang email kredensial/notifikasi ke vendor pendaftar.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Email berhasil dikirim ulang' })
+  async resendEmail(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.resendEmail(id, user?.id);
+  }
+
+  @Get(':id/email-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Cek Status Pengiriman Email Vendor',
+    description: 'Cek log status pengiriman email terakhir untuk pendaftar vendor.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Status email berhasil diambil' })
+  async getEmailStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.getEmailStatus(id, user?.id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
