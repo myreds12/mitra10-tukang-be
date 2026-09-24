@@ -64,16 +64,20 @@ html(lang="id")
 
                 div.alert-danger
                     strong Alasan Penolakan:
-                    p #{data.rejection_reason}
+                    p(style="margin-bottom: 0;") #{data.rejection_reason || 'Belum memenuhi kriteria'}
 
-                h4 Apa yang bisa Anda lakukan?
+                h4 Ketentuan & Informasi Pendaftaran:
                 ul
-                    li Perbaiki dan lengkapi kembali data atau dokumen yang diperlukan
-                    li Pastikan semua dokumen yang diupload masih berlaku dan jelas terbaca
-                    li Anda dapat melakukan pendaftaran ulang minimal setelah 1 bulan sejak tanggal penolakan
-                    if data.reapply_date
-                        li Pendaftaran ulang dapat dilakukan mulai #{data.reapply_date}
-                    li Daftarkan kembali melalui portal kami setelah masa tunggu tersebut selesai
+                    li
+                        strong Belum memenuhi kriteria
+                        if data.rejection_reason && data.rejection_reason !== 'Belum memenuhi kriteria'
+                            |  (Catatan: #{data.rejection_reason})
+                    li
+                        strong Dapat melakukan pendaftaran ulang setelah 1 bulan
+                        if data.reapply_date
+                            |  (mulai #{data.reapply_date})
+                    li
+                        strong Data pendaftaran akan dihapus dari sistem 3 hari setelah pengajuan di tolak
 
                 center
                     a.btn-website(href=data.website_url) Kunjungi Portal Mitra10

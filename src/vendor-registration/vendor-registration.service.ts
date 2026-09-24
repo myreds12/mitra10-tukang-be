@@ -35,7 +35,7 @@ const PENDAFTAR_VENDOR_ROLE = 'Pendaftar Vendor';
 export class VendorRegistrationService {
   private readonly logger = new Logger(VendorRegistrationService.name);
   private readonly rejectedCooldownDays = 30;
-  private readonly rejectedDocumentRetentionHours = 36;
+  private readonly rejectedDocumentRetentionHours = 72;
 
   constructor(
     private readonly dbService: PrismaService,
@@ -680,7 +680,16 @@ export class VendorRegistrationService {
 
       const where: Prisma.vendor_registrationWhereInput = {
         deleted_at: null,
-        ...(status ? { status } : {}),
+        ...(status
+          ? { status }
+          : {
+              status: {
+                in: [
+                  RegistrationStatus.MENUNGGU_APPROVE,
+                  RegistrationStatus.PROSES_PITCHING,
+                ],
+              },
+            }),
         ...(company_name
           ? { company_name: { contains: company_name } }
           : {}),
@@ -735,12 +744,69 @@ export class VendorRegistrationService {
     }
   }
 
+  private async enrichHistoriesWithActor(histories: any[]) {
+    if (!histories || histories.length === 0) return [];
+
+    const actorIds = Array.from(
+      new Set(
+        histories
+          .map((h: any) => h.actor_id)
+          .filter((id: any): id is number => typeof id === 'number'),
+      ),
+    );
+
+    let actorMap: Record<number, { username: string; role_name?: string }> = {};
+    if (actorIds.length > 0) {
+      try {
+        const users = await this.dbService.users.findMany({
+          where: { id: { in: actorIds } },
+          select: {
+            id: true,
+            username: true,
+            roles: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+        users.forEach((u) => {
+          actorMap[u.id] = {
+            username: u.username,
+            role_name: u.roles?.name,
+          };
+        });
+      } catch (err) {
+        // ignore if query fails
+      }
+    }
+
+    return histories.map((h: any) => {
+      const actorInfo = h.actor_id ? actorMap[h.actor_id] : null;
+      let actorDisplay = 'Sistem';
+      if (actorInfo) {
+        actorDisplay = actorInfo.role_name
+          ? `${actorInfo.username} (${actorInfo.role_name})`
+          : actorInfo.username;
+      } else if (h.actor_id) {
+        actorDisplay = `Admin #${h.actor_id}`;
+      }
+
+      return {
+        ...h,
+        actor_username: actorInfo?.username || null,
+        actor_role: actorInfo?.role_name || null,
+        actor_display: actorDisplay,
+      };
+    });
+  }
+
   async findOneRegistration(id: number, userId?: number) {
     try {
       await this.assertAdminHO(userId);
 
       const registration = await this.dbService.vendor_registration.findFirst({
-        where: { id, deleted_at: null },
+        where: { id },
         include: {
           bank: true,
         },
@@ -750,10 +816,11 @@ export class VendorRegistrationService {
         throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
       }
 
-      const histories = await (this.dbService as any).vendor_registration_history.findMany({
+      const rawHistories = await (this.dbService as any).vendor_registration_history.findMany({
         where: { vendor_registration_id: id },
         orderBy: { created_at: 'asc' },
       });
+      const histories = await this.enrichHistoriesWithActor(rawHistories);
 
       const formatted = this.formatRegistration({
         ...registration,
@@ -773,17 +840,18 @@ export class VendorRegistrationService {
       await this.assertAdminHO(userId);
 
       const registration = await this.dbService.vendor_registration.findFirst({
-        where: { id, deleted_at: null },
+        where: { id },
       });
 
       if (!registration) {
         throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
       }
 
-      const histories = await (this.dbService as any).vendor_registration_history.findMany({
+      const rawHistories = await (this.dbService as any).vendor_registration_history.findMany({
         where: { vendor_registration_id: id },
         orderBy: { created_at: 'asc' },
       });
+      const histories = await this.enrichHistoriesWithActor(rawHistories);
 
       return {
         registration_id: id,
@@ -1120,6 +1188,8 @@ export class VendorRegistrationService {
             notes: dto.notes,
             updated_by: userId,
             updated_at: new Date(),
+            deleted_at: new Date(),
+            deleted_by: userId,
           },
         });
 
@@ -1351,11 +1421,14 @@ export class VendorRegistrationService {
           );
         }
 
+        const rejectionReason =
+          dto.rejection_reason?.trim() || 'Belum memenuhi kriteria';
+
         await tx.vendor_registration.update({
           where: { id },
           data: {
             status: RegistrationStatus.DITOLAK,
-            rejection_reason: dto.rejection_reason,
+            rejection_reason: rejectionReason,
             reviewed_by: userId,
             reviewed_at: new Date(),
             rejected_at: new Date(),
@@ -1370,7 +1443,7 @@ export class VendorRegistrationService {
           from_status: currentRegistration.status,
           to_status: RegistrationStatus.DITOLAK,
           action: 'REJECTED',
-          notes: dto.rejection_reason || dto.notes || 'Pendaftaran vendor ditolak.',
+          notes: rejectionReason,
           actor_id: userId,
         });
 
@@ -1390,13 +1463,16 @@ export class VendorRegistrationService {
       const rejectionRecipient =
         registration.pic_email || registration.email_address;
 
+      const rejectionReason =
+        dto.rejection_reason?.trim() || 'Belum memenuhi kriteria';
+
       await this.emailQueue.add(
         'send-vendor-rejection-mail',
         {
           registration_id: id,
           to: rejectionRecipient,
           company_name: registration.company_name,
-          rejection_reason: dto.rejection_reason,
+          rejection_reason: rejectionReason,
           reapply_date: this.formatCooldownDate(this.getRejectedCooldownUntil(new Date())),
         },
         { attempts: 3 },

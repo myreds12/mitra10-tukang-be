@@ -527,7 +527,7 @@ export class EmailProcessor {
 
       const data = {
         company_name,
-        rejection_reason: rejection_reason || 'Tidak ada alasan spesifik diberikan.',
+        rejection_reason: rejection_reason || 'Belum memenuhi kriteria',
         reapply_date,
         website_url: baseUrl,
       };

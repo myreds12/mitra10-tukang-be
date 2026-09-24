@@ -7,12 +7,14 @@ import { extname, join } from 'path';
 
 export type HomeSection = 'HERO' | 'BENEFIT' | 'BANNER' | 'CATALOG';
 export type HomeStage =
+  | 'menunggu_approve'
+  | 'proses_pitching'
+  | 'approved'
+  | 'rejected'
   | 'pendaftaran'
   | 'verifikasi'
   | 'review_admin'
-  | 'approval'
-  | 'approved'
-  | 'rejected';
+  | 'approval';
 
 export interface ProfileFlags {
   company_data: boolean;
@@ -26,7 +28,10 @@ export interface VendorPortalStatus {
   vendor_id: number;
   vendor_name: string;
   stage: HomeStage;
+  status_int: number;
   stage_note?: string;
+  rejection_reason?: string;
+  reapply_date?: string;
   profile: ProfileFlags;
   profile_completion: number; // 0..100
   profile_completed: number; // count
@@ -35,10 +40,8 @@ export interface VendorPortalStatus {
 }
 
 const STAGE_ORDER: HomeStage[] = [
-  'pendaftaran',
-  'verifikasi',
-  'review_admin',
-  'approval',
+  'menunggu_approve',
+  'proses_pitching',
   'approved',
 ];
 
@@ -127,7 +130,8 @@ export class VendorPortalService {
       return {
         vendor_id: opts.vendorId ?? opts.userId ?? 0,
         vendor_name: 'Pendaftar Vendor',
-        stage: 'pendaftaran',
+        stage: 'menunggu_approve',
+        status_int: 1,
         profile: emptyProfile,
         profile_completion: 0,
         profile_completed: 0,
@@ -138,6 +142,18 @@ export class VendorPortalService {
 
     const statusInt = row.status;
     const stage = this.statusIntToStage(statusInt);
+
+    let reapplyDate: string | undefined = undefined;
+    if (statusInt === 4) {
+      const baseDate = row.rejected_at ? new Date(row.rejected_at) : new Date(row.updated_at || Date.now());
+      const cooldown = new Date(baseDate);
+      cooldown.setDate(cooldown.getDate() + 30);
+      reapplyDate = cooldown.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      });
+    }
 
     // HITUNG DATA REALTIME KELENGKAPAN DOKUMEN DARI KOLOM DATABASE RIIL
     const hasCompanyData = Boolean(
@@ -178,7 +194,10 @@ export class VendorPortalService {
       vendor_id: row.id,
       vendor_name: row.company_name || 'Vendor',
       stage,
+      status_int: statusInt,
       stage_note: row.notes || undefined,
+      rejection_reason: row.rejection_reason || (statusInt === 4 ? 'Belum memenuhi kriteria' : undefined),
+      reapply_date: reapplyDate,
       profile,
       profile_completion: comp.pct,
       profile_completed: comp.done,
@@ -188,13 +207,11 @@ export class VendorPortalService {
   }
 
   private statusIntToStage(statusInt: number): HomeStage {
-    if (statusInt === 1) return 'pendaftaran';
-    if (statusInt === 2) return 'verifikasi';
-    if (statusInt === 3) return 'review_admin';
-    if (statusInt === 4) return 'approval';
-    if (statusInt === 5) return 'approved';
-    if (statusInt === 6) return 'rejected';
-    return 'pendaftaran';
+    if (statusInt === 1) return 'menunggu_approve';
+    if (statusInt === 2) return 'proses_pitching';
+    if (statusInt === 3) return 'approved';
+    if (statusInt === 4) return 'rejected';
+    return 'menunggu_approve';
   }
 
   async getStatus(opts: {
@@ -390,13 +407,15 @@ export class VendorPortalService {
   }
 
   private stageToStatusInt(stage: HomeStage): number {
-    const map: Record<HomeStage, number> = {
+    const map: Record<string, number> = {
+      menunggu_approve: 1,
+      proses_pitching: 2,
+      approved: 3,
+      rejected: 4,
       pendaftaran: 1,
       verifikasi: 2,
-      review_admin: 3,
-      approval: 4,
-      approved: 5,
-      rejected: 6,
+      review_admin: 2,
+      approval: 2,
     };
     return map[stage] ?? 1;
   }
