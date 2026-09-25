@@ -501,7 +501,7 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'instalasi@mitra10.com',
-        subject: 'Pendaftaran Vendor Diterima - Mitra10',
+        subject: 'Notifikasi Pendaftaran Vendor Instalasi Mitra10',
         template: 'vendor-submitted',
         context: { data },
       });
@@ -580,7 +580,7 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'instalasi@mitra10.com',
-        subject: 'Pendaftaran Vendor Disetujui - Mitra10',
+        subject: 'Notifikasi Vendor Resmi Terdaftar sebagai Mitra Mitra10',
         template: 'vendor-approval',
         context: { data },
       });
@@ -639,7 +639,7 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'instalasi@mitra10.com',
-        subject: `Akun Mitra10 Vendor ${company_name} sudah aktif`,
+        subject: 'Notifikasi Pendaftaran Vendor Instalasi Mitra10',
         template: 'registrant-account',
         context: { data },
       });
@@ -670,7 +670,7 @@ export class EmailProcessor {
 
       const data = {
         company_name,
-        rejection_reason: rejection_reason || 'Belum memenuhi kriteria',
+        rejection_reason: rejection_reason || 'Belum memenuhi kriteria yang ditetapkan oleh Mitra10.',
         reapply_date,
         website_url: baseUrl,
       };
@@ -678,7 +678,7 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'instalasi@mitra10.com',
-        subject: 'Pendaftaran Vendor Ditolak - Mitra10',
+        subject: 'Notifikasi Penolakan Pendaftaran Vendor Mitra10',
         template: 'vendor-rejection',
         context: { data },
       });
