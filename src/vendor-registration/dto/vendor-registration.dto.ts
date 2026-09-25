@@ -1,6 +1,7 @@
 import {
   IsString,
   IsOptional,
+  IsNotEmpty,
   IsEmail,
   IsInt,
   IsArray,
@@ -86,10 +87,10 @@ export class RegisterVendorDto {
   @IsString()
   pic_phone: string;
 
-  @ApiPropertyOptional({ description: 'KTP number of PIC', example: '3201234567890001' })
-  @IsOptional()
+  @ApiProperty({ description: 'KTP number of PIC', example: '3201234567890001' })
+  @IsNotEmpty({ message: 'Nomor KTP PIC wajib diisi' })
   @IsString()
-  ktp_number?: string;
+  ktp_number: string;
 
   @ApiPropertyOptional({ description: 'NPWP number of company', example: '012345678901234' })
   @IsOptional()

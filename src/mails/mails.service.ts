@@ -10,12 +10,16 @@ import { MailType } from './enum/mail_type.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
+import { MailerService } from '@nestjs-modules/mailer';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MailsService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
+    private readonly mailerService: MailerService,
+    private readonly configService: ConfigService,
   ) { }
 
   private readonly logger = new Logger(MailsService.name);
@@ -1020,5 +1024,236 @@ export class MailsService {
         status: 1,
       },
     });
+  }
+
+  // ================================
+  // TEST SEND EMAIL (DIAGNOSTIC & TRACING)
+  // ================================
+  async sendTestEmail(targetEmail: string) {
+    const startTime = Date.now();
+    const debugLogs: string[] = [];
+    const steps: { name: string; status: 'SUCCESS' | 'FAILED'; duration_ms: number; details?: any }[] = [];
+
+    const logEntry = (msg: string) => {
+      const timestamp = new Date().toISOString();
+      const formatted = `[${timestamp}] ${msg}`;
+      debugLogs.push(formatted);
+      this.logger.log(msg);
+    };
+
+    logEntry(`Memulai proses pengujian pengiriman email ke: ${targetEmail}`);
+
+    // Step 1: Validasi target email
+    const step1Start = Date.now();
+    logEntry(`Step 1: Validasi input email "${targetEmail}"`);
+    if (!targetEmail || !targetEmail.includes('@')) {
+      steps.push({ name: 'Validasi Email', status: 'FAILED', duration_ms: Date.now() - step1Start, details: 'Format email tidak valid' });
+      return {
+        success: false,
+        status: 'FAILED',
+        error_type: 'VALIDATION_ERROR',
+        message: 'Format email tidak valid',
+        steps,
+        logs: debugLogs,
+      };
+    }
+    steps.push({ name: 'Validasi Email', status: 'SUCCESS', duration_ms: Date.now() - step1Start });
+
+    // Step 2: Cek Konfigurasi SMTP
+    const step2Start = Date.now();
+    const smtpHost = this.configService.get<string>('MAIL_HOST') || 'mail5.mitra10.com';
+    const smtpPort = Number(this.configService.get<number>('MAIL_PORT')) || 25;
+    const smtpUser = this.configService.get<string>('MAIL_USERNAME') || '';
+    const mailDefaults = this.configService.get<string>('MAIL_DEFAULTS') || '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
+
+    logEntry(`Step 2: Membaca konfigurasi SMTP -> Host: ${smtpHost}, Port: ${smtpPort}, User: ${smtpUser}, From: ${mailDefaults}`);
+    steps.push({
+      name: 'Pemeriksaan Konfigurasi SMTP',
+      status: 'SUCCESS',
+      duration_ms: Date.now() - step2Start,
+      details: { host: smtpHost, port: smtpPort, user: smtpUser, from: mailDefaults },
+    });
+
+    // Step 3: Siapkan Dummy Data untuk index.pug
+    const step3Start = Date.now();
+    logEntry(`Step 3: Mempersiapkan dummy data untuk template index.pug`);
+    const apiUrl = this.configService.get<string>('API_URL') || 'https://instalasi.mitra10.com';
+    const dummyData = {
+      apiUrl,
+      message: {
+        title: 'Uji Coba Pengiriman Email SMTP Mitra10',
+        welcome_header: 'Halo,',
+        greetings: 'Terima kasih telah menggunakan layanan Mitra10.',
+        footer: 'Email ini dikirim otomatis oleh sistem untuk pengujian koneksi SMTP dan template index.pug.',
+        information_detail: [
+          { information: `Pengujian koneksi SMTP ke server ${smtpHost}:${smtpPort}` },
+          { information: 'Rendering template Pug index.pug berhasil dijalankan' },
+          { information: 'Waktu eksekusi: ' + new Date().toLocaleString('id-ID') },
+        ],
+        terms_detail: [
+          { terms: 'Pesan ini adalah pesan uji coba teknis internal.' },
+          { terms: 'Jika Anda menerima email ini, berarti koneksi SMTP server Mitra10 berfungsi normal.' },
+        ],
+        email_message_image: [],
+      },
+      order: {
+        id: 999999,
+        created_at: new Date(),
+        status: {
+          category: 'ORDER_TEST',
+          description: 'Uji Coba Sistem SMTP',
+        },
+        members: {
+          full_name: 'Tester Mitra10',
+          email: targetEmail,
+        },
+        project_number: '081234567890',
+        project_address: 'Jl. Letjen S. Parman No. Kav. 21, Jakarta Barat',
+        grand_total: 150000,
+        store: {
+          store_name: 'Mitra10 Daan Mogot',
+          bank_name: 'BCA',
+          bank_number: '1234567890',
+          bank_account: 'PT Catur Mitra Sejati Sentosa',
+          email: 'instalasi@mitra10.com',
+          phone_number_1: '08111222333',
+          phone_number_2: '08111222334',
+        },
+        order_details: [
+          {
+            item_code: 'TEST-001',
+            item_name: 'Uji Coba Pengiriman Email SMTP',
+            service_name: 'Jasa Testing Sistem',
+            quantity: 1,
+          },
+        ],
+      },
+    };
+    steps.push({ name: 'Persiapan Dummy Data', status: 'SUCCESS', duration_ms: Date.now() - step3Start });
+
+    // Step 4: Kirim Email via MailerService
+    const step4Start = Date.now();
+    logEntry(`Step 4: Mengirim email via mailerService.sendMail() menggunakan template "index"...`);
+
+    try {
+      const sendResult = await this.mailerService.sendMail({
+        to: targetEmail,
+        from: mailDefaults,
+        subject: 'Uji Coba Pengiriman Email SMTP Mitra10 (index.pug)',
+        template: 'index',
+        context: { data: dummyData },
+      });
+
+      const sendDuration = Date.now() - step4Start;
+      logEntry(`Step 4: Pengiriman BERHASIL dalam ${sendDuration}ms! Response SMTP: ${sendResult?.response || 'OK'}`);
+      steps.push({
+        name: 'Pengiriman Email via MailerService',
+        status: 'SUCCESS',
+        duration_ms: sendDuration,
+        details: {
+          messageId: sendResult?.messageId,
+          accepted: sendResult?.accepted,
+          rejected: sendResult?.rejected,
+          response: sendResult?.response,
+        },
+      });
+
+      const totalDuration = Date.now() - startTime;
+      logEntry(`Proses selesai sukses dalam ${totalDuration}ms.`);
+
+      return {
+        success: true,
+        status: 'SUCCESS',
+        message: `Email pengujian berhasil dikirim ke ${targetEmail}`,
+        recipient: targetEmail,
+        template: 'index.pug',
+        total_duration_ms: totalDuration,
+        smtp_config: {
+          host: smtpHost,
+          port: smtpPort,
+          user: smtpUser,
+          tls_rejectUnauthorized: false,
+          from: mailDefaults,
+        },
+        send_result: {
+          messageId: sendResult?.messageId,
+          accepted: sendResult?.accepted,
+          rejected: sendResult?.rejected,
+          response: sendResult?.response,
+        },
+        steps,
+        logs: debugLogs,
+      };
+    } catch (error: any) {
+      const sendDuration = Date.now() - step4Start;
+      logEntry(`Step 4: Pengiriman GAGAL dalam ${sendDuration}ms! Error: ${error?.message}`);
+      steps.push({
+        name: 'Pengiriman Email via MailerService',
+        status: 'FAILED',
+        duration_ms: sendDuration,
+        details: {
+          message: error?.message,
+          code: error?.code,
+          response: error?.response,
+          responseCode: error?.responseCode,
+          command: error?.command,
+        },
+      });
+
+      // Diagnosis analisa sumber error (apakah dari SMTP server atau kode)
+      let diagnosis = 'Terjadi kesalahan saat pengiriman email.';
+      let errorType = 'UNKNOWN_ERROR';
+
+      if (error?.code === 'ESOCKET' && (error?.message?.includes('certificate') || error?.message?.includes('self signed'))) {
+        errorType = 'TLS_CERTIFICATE_ERROR';
+        diagnosis = 'Masalah dari Kode/Konfigurasi Node.js: Sertifikat TLS server SMTP ditolak karena private/self-signed CA. Solusi: pastikan opsi tls: { rejectUnauthorized: false } pada transport MailerModule.';
+      } else if (error?.code === 'ECONNREFUSED') {
+        errorType = 'SMTP_CONNECTION_REFUSED';
+        diagnosis = `Masalah Jaringan / VPN: Koneksi ke ${smtpHost}:${smtpPort} ditolak. Pastikan server SMTP aktif dan koneksi VPN Mitra10 aktif.`;
+      } else if (error?.code === 'ETIMEDOUT' || (error?.code === 'ESOCKET' && error?.message?.includes('ETIMEDOUT'))) {
+        errorType = 'SMTP_CONNECTION_TIMEOUT';
+        diagnosis = `Masalah Jaringan / VPN: Koneksi ke ${smtpHost}:${smtpPort} mengalami timeout. Server internal mail5 (172.16.0.2) hanya dapat diakses saat terhubung ke VPN SSTP Mitra10.`;
+      } else if (error?.code === 'EAUTH' || error?.responseCode === 535) {
+        errorType = 'SMTP_AUTHENTICATION_FAILED';
+        diagnosis = `Masalah Autentikasi / Gateway: Username atau password akun SMTP "${smtpUser}" ditolak (535 authentication failed). Jika VPN terputus, domain mail5.mitra10.com me-resolve ke public gateway (101.255.76.251) yang menolak akun lokal. Pastikan VPN SSTP Mitra10 terhubung.`;
+      } else if (error?.code === 'EENVELOPE' || error?.responseCode === 550 || error?.responseCode === 553) {
+        errorType = 'SMTP_RECIPIENT_REJECTED';
+        diagnosis = `Masalah dari Alamat Email: Server SMTP menolak alamat penerima "${targetEmail}" atau pengirim "${mailDefaults}".`;
+      } else if (error?.name === 'PugRenderError' || error?.message?.includes('pug')) {
+        errorType = 'TEMPLATE_RENDER_ERROR';
+        diagnosis = 'Masalah dari Kode Template: Terjadi kesalahan sintaks atau variabel null saat compile templates/index.pug.';
+      }
+
+      logEntry(`Diagnosis Error: [${errorType}] ${diagnosis}`);
+
+      const totalDuration = Date.now() - startTime;
+      return {
+        success: false,
+        status: 'FAILED',
+        error_type: errorType,
+        message: error?.message || 'Gagal mengirim email',
+        diagnosis,
+        recipient: targetEmail,
+        template: 'index.pug',
+        total_duration_ms: totalDuration,
+        smtp_config: {
+          host: smtpHost,
+          port: smtpPort,
+          user: smtpUser,
+          tls_rejectUnauthorized: false,
+          from: mailDefaults,
+        },
+        error_details: {
+          code: error?.code,
+          command: error?.command,
+          response: error?.response,
+          responseCode: error?.responseCode,
+          message: error?.message,
+        },
+        steps,
+        logs: debugLogs,
+        stack: error?.stack,
+      };
+    }
   }
 }

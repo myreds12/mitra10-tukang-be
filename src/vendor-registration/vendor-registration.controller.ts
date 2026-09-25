@@ -80,6 +80,24 @@ export class VendorRegistrationController {
     return this.service.registerVendor(dto, files);
   }
 
+  @Get('check-unique')
+  @ApiOperation({
+    summary: '[PUBLIC] Cek keunikan NPWP, KTP PIC, atau KTP Tukang',
+    description: 'Cek apakah nomor NPWP, KTP PIC, atau KTP Tukang sudah terdaftar di database.',
+  })
+  @ApiQuery({ name: 'type', enum: ['npwp', 'ktp_pic', 'ktp_tukang'], required: true })
+  @ApiQuery({ name: 'value', type: String, required: true })
+  @ApiResponse({ status: 200, description: 'Hasil pengecekan keunikan' })
+  async checkUnique(
+    @Query('type') type: 'npwp' | 'ktp_pic' | 'ktp_tukang',
+    @Query('value') value: string,
+  ) {
+    if (!type || !['npwp', 'ktp_pic', 'ktp_tukang'].includes(type)) {
+      throw new BadRequestException('Parameter type harus berupa npwp, ktp_pic, atau ktp_tukang.');
+    }
+    return this.service.checkUnique(type, value || '');
+  }
+
   // ================================
   // PUBLIC: TERMS & CONDITIONS (T&C)
   // ================================

@@ -124,6 +124,11 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
             // privateKey: configService.get<string>('SPREADSHEETS.PRIVATE_KEY'),
             pass: configService.get<string>('MAIL_PASSWORD'),
           },
+          tls: {
+            rejectUnauthorized: false,
+          },
+          debug: true,
+          logger: true,
         },
         defaults: {
           from: configService.get<string>('MAIL_DEFAULTS'),

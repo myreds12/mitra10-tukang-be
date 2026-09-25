@@ -25,8 +25,8 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import * as pug from 'pug';
+import { TestSendEmailDto } from './dto/test-send-email.dto';
 
-@UseGuards(JwtAuthGuard)
 @Controller('mails')
 export class MailsController {
   constructor(
@@ -40,6 +40,7 @@ export class MailsController {
     return templateFullPath;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete('/history/:id')
   @HttpCode(200)
   async removeHistory(@Param('id') id: string) {
@@ -57,6 +58,7 @@ export class MailsController {
     return result;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @HttpCode(201)
   @UseInterceptors(
@@ -79,6 +81,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   @HttpCode(200)
   async findAll(@Query() query: QueryParamsDto) {
@@ -86,6 +89,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @HttpCode(200)
   async findOne(@Param('id') id: string) {
@@ -93,6 +97,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @HttpCode(200)
   @UseInterceptors(
@@ -118,6 +123,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(200)
   async remove(@Req() req: RequestWithUser, @Param('id') id: string) {
@@ -165,5 +171,21 @@ export class MailsController {
     const html = compiledFn({ data });
 
     return { html };
+  }
+
+  // ================================
+  // TEST SEND EMAIL (DIAGNOSTIC & TRACING)
+  // ================================
+
+  @Post('send-email')
+  @HttpCode(200)
+  async sendEmail(@Body() body: TestSendEmailDto) {
+    return await this.mailsService.sendTestEmail(body.email);
+  }
+
+  @Post('test-send')
+  @HttpCode(200)
+  async testSend(@Body() body: TestSendEmailDto) {
+    return await this.mailsService.sendTestEmail(body.email);
   }
 }

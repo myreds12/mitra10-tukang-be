@@ -407,6 +407,250 @@ export class VendorRegistrationService {
     await this.assertRegistrant(userId);
   }
 
+  async checkUnique(
+    type: 'npwp' | 'ktp_pic' | 'ktp_tukang',
+    value: string,
+  ): Promise<{ is_registered: boolean; message: string }> {
+    const trimmed = (value || '').trim();
+    if (!trimmed) {
+      return { is_registered: false, message: '' };
+    }
+
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (type === 'npwp') {
+      const regOrConditions: Prisma.vendor_registrationWhereInput[] = [
+        { npwp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        regOrConditions.push({ npwp_number: digits });
+      }
+
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: regOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+      }
+
+      const vendorOrConditions: Prisma.vendorWhereInput[] = [
+        { npwp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        vendorOrConditions.push({ npwp_number: digits });
+      }
+
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: vendorOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+      }
+
+      if (digits.length >= 10) {
+        const activeRegs = await this.dbService.vendor_registration.findMany({
+          where: {
+            deleted_at: null,
+            status: {
+              in: [
+                RegistrationStatus.MENUNGGU_APPROVE,
+                RegistrationStatus.PROSES_PITCHING,
+                RegistrationStatus.DISETUJUI,
+              ],
+            },
+            npwp_number: { not: null },
+          },
+          select: { npwp_number: true },
+        });
+
+        if (activeRegs.some((r) => r.npwp_number && r.npwp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+        }
+
+        const activeVendors = await this.dbService.vendor.findMany({
+          where: {
+            deleted_at: null,
+            npwp_number: { not: null },
+          },
+          select: { npwp_number: true },
+        });
+
+        if (activeVendors.some((v) => v.npwp_number && v.npwp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (type === 'ktp_pic') {
+      const regOrConditions: Prisma.vendor_registrationWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        regOrConditions.push({ ktp_number: digits });
+      }
+
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: regOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'KTP Sudah terdaftar' };
+      }
+
+      const vendorOrConditions: Prisma.vendorWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        vendorOrConditions.push({ ktp_number: digits });
+      }
+
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: vendorOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'KTP Sudah terdaftar' };
+      }
+
+      if (digits.length >= 10) {
+        const activeRegs = await this.dbService.vendor_registration.findMany({
+          where: {
+            deleted_at: null,
+            status: {
+              in: [
+                RegistrationStatus.MENUNGGU_APPROVE,
+                RegistrationStatus.PROSES_PITCHING,
+                RegistrationStatus.DISETUJUI,
+              ],
+            },
+            ktp_number: { not: null },
+          },
+          select: { ktp_number: true },
+        });
+
+        if (activeRegs.some((r) => r.ktp_number && r.ktp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'KTP Sudah terdaftar' };
+        }
+
+        const activeVendors = await this.dbService.vendor.findMany({
+          where: {
+            deleted_at: null,
+            ktp_number: { not: null },
+          },
+          select: { ktp_number: true },
+        });
+
+        if (activeVendors.some((v) => v.ktp_number && v.ktp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'KTP Sudah terdaftar' };
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (type === 'ktp_tukang') {
+      const tukangOrConditions: Prisma.tukangWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        tukangOrConditions.push({ ktp_number: digits });
+      }
+
+      const existingTukang = await this.dbService.tukang.findFirst({
+        where: {
+          deleted_at: null,
+          OR: tukangOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingTukang) {
+        return { is_registered: true, message: 'No KTP sudah terdaftar' };
+      }
+
+      const activeRegsWithTukang = await this.dbService.vendor_registration.findMany({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          tukang_data: { not: null },
+          OR: [
+            { tukang_data: { contains: trimmed } },
+            ...(digits ? [{ tukang_data: { contains: digits } }] : []),
+          ],
+        },
+        select: { tukang_data: true },
+      });
+
+      for (const reg of activeRegsWithTukang) {
+        const tukangs = this.parseTukangData(reg.tukang_data);
+        for (const t of tukangs) {
+          const tKtp = (t.ktp_number || (t as any).no_ktp || '').trim();
+          if (tKtp && (tKtp === trimmed || (digits && tKtp.replace(/\D/g, '') === digits))) {
+            return { is_registered: true, message: 'No KTP sudah terdaftar' };
+          }
+        }
+      }
+
+      if (digits.length >= 10) {
+        const tukangsWithKtp = await this.dbService.tukang.findMany({
+          where: {
+            deleted_at: null,
+            ktp_number: { not: null },
+          },
+          select: { ktp_number: true },
+        });
+
+        if (tukangsWithKtp.some((t) => t.ktp_number && t.ktp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'No KTP sudah terdaftar' };
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    return { is_registered: false, message: '' };
+  }
+
   async registerVendor(dto: RegisterVendorDto, files?: any) {
     try {
       if (!dto.pdp_consent) {
@@ -416,6 +660,42 @@ export class VendorRegistrationService {
       }
 
       await this.assertRejectedCooldown(dto);
+
+      // 1. Validasi KTP PIC wajib diisi dan belum terdaftar
+      if (!dto.ktp_number || !dto.ktp_number.trim()) {
+        throw new BadRequestException('Nomor KTP PIC wajib diisi.');
+      }
+      const ktpPicCheck = await this.checkUnique('ktp_pic', dto.ktp_number);
+      if (ktpPicCheck.is_registered) {
+        throw new BadRequestException(ktpPicCheck.message || 'KTP Sudah terdaftar');
+      }
+
+      // 2. Validasi NPWP Perusahaan jika diisi belum terdaftar
+      if (dto.npwp_number && dto.npwp_number.trim()) {
+        const npwpCheck = await this.checkUnique('npwp', dto.npwp_number);
+        if (npwpCheck.is_registered) {
+          throw new BadRequestException(npwpCheck.message || 'No NPWP sudah terdaftar');
+        }
+      }
+
+      // 3. Validasi KTP tukang tidak duplikat internal & belum terdaftar
+      const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
+      const seenTukangKtps = new Set<string>();
+      for (const [idx, t] of tukangData.entries()) {
+        const tKtp = (t.ktp_number || (t as any).no_ktp || '').trim();
+        if (tKtp) {
+          const key = tKtp.replace(/\D/g, '') || tKtp;
+          if (seenTukangKtps.has(key)) {
+            throw new BadRequestException(`No KTP tukang (${tKtp}) pada baris ke-${idx + 1} duplikat.`);
+          }
+          seenTukangKtps.add(key);
+
+          const tukangKtpCheck = await this.checkUnique('ktp_tukang', tKtp);
+          if (tukangKtpCheck.is_registered) {
+            throw new BadRequestException(`No KTP tukang (${tKtp}) sudah terdaftar.`);
+          }
+        }
+      }
 
 
       // Check if email already registered
@@ -536,8 +816,6 @@ export class VendorRegistrationService {
       // login ke dashboard pendaftar dan memantau status (reset password tersedia).
       const registrantPassword = `M1tr${randomBytes(4).toString('hex').toUpperCase()}@${new Date().getFullYear()}`;
 
-
-      const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
       const registration = await this.dbService.$transaction(async (tx) => {
         const createdRegistration = await tx.vendor_registration.create({
           data: {
