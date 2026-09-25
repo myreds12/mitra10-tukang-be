@@ -175,6 +175,28 @@ export class MailsController {
     return { html };
   }
 
+  @Get('preview/registrant-account')
+  async previewRegistrantAccountMail() {
+    const baseUrl = 'https://instalasi.mitra10.com';
+    const data = {
+      company_name: 'PT Mitra Sukses Bersama',
+      email_address: 'admin@mitrasukses.com',
+      pic_email: 'dony.pic@mitrasukses.com',
+      phone_number: '081234567890',
+      pic_phone: '081234567891',
+      username: 'mitra_sukses_vendor',
+      password: 'GeneratedSecurePassword123!',
+      website_url: baseUrl,
+      login_url: `${baseUrl}/login`,
+    };
+
+    const templatePath = this.getTemplatePath('registrant-account.pug');
+    const compiledFn = pug.compileFile(templatePath);
+    const html = compiledFn({ data });
+
+    return { html };
+  }
+
   // ================================
   // TEST SEND EMAIL (DIAGNOSTIC & TRACING)
   // ================================

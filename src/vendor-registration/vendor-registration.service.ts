@@ -392,14 +392,19 @@ export class VendorRegistrationService {
     }
   }
 
-  // Username akun pendaftar: email PIC (fallback email perusahaan) di-sanitasi.
+  // Username akun pendaftar: menggunakan email PIC (fallback email perusahaan) secara utuh (@ tidak dihilangkan).
   private buildRegistrantUsername(registration: {
     pic_email?: string | null;
     email_address?: string | null;
   }): string {
-    const email = (registration.pic_email || registration.email_address || '').toLowerCase().trim();
-    const username = email.replace(/[^a-z0-9._-]/g, '');
-    return username || `pendaftar_${Date.now()}`;
+    const email = (
+      registration.pic_email ||
+      registration.email_address ||
+      ''
+    )
+      .toLowerCase()
+      .trim();
+    return email || `pendaftar_${Date.now()}@temp.local`;
   }
 
   // Role-check publik untuk endpoint dashboard pendaftar (dipanggil controller).
@@ -408,7 +413,7 @@ export class VendorRegistrationService {
   }
 
   async checkUnique(
-    type: 'npwp' | 'ktp_pic' | 'ktp_tukang',
+    type: 'npwp' | 'ktp_pic' | 'ktp_tukang' | 'email' | 'email_address' | 'pic_email',
     value: string,
   ): Promise<{ is_registered: boolean; message: string }> {
     const trimmed = (value || '').trim();
@@ -648,6 +653,117 @@ export class VendorRegistrationService {
       return { is_registered: false, message: '' };
     }
 
+    if (type === 'email' || type === 'email_address' || type === 'pic_email') {
+      const emailLower = trimmed.toLowerCase();
+
+      // 1. Cek vendor_registration yang aktif (MENUNGGU_APPROVE, PROSES_PITCHING, DISETUJUI)
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+            { pic_email: trimmed },
+            { pic_email: emailLower },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      // 2. Cek vendor_registration yang ditolak (cooldown 30 hari)
+      const rejectedReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          anonymized_at: null,
+          status: RegistrationStatus.DITOLAK,
+          rejected_at: { not: null },
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+            { pic_email: trimmed },
+            { pic_email: emailLower },
+          ],
+        },
+        orderBy: { rejected_at: 'desc' },
+        select: { id: true, rejected_at: true },
+      });
+
+      if (rejectedReg && rejectedReg.rejected_at) {
+        const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+        const elapsedMs = Date.now() - new Date(rejectedReg.rejected_at).getTime();
+        if (elapsedMs < cooldownMs) {
+          const remainingDays = Math.max(1, Math.ceil((cooldownMs - elapsedMs) / (24 * 60 * 60 * 1000)));
+          return {
+            is_registered: true,
+            message: `Email masih dalam masa cooldown penolakan (${remainingDays} hari lagi)`,
+          };
+        }
+      }
+
+      // 3. Cek vendor aktif di tabel vendor
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      // 4. Cek pic_vendor di tabel pic_vendor
+      const existingPicVendor = await this.dbService.pic_vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingPicVendor) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      // 5. Cek username di tabel users (baik raw email atau normalized username)
+      const normalizedUsername = emailLower.replace(/[^a-z0-9._-]/g, '');
+      const existingUser = await this.dbService.users.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { username: trimmed },
+            { username: emailLower },
+            { username: normalizedUsername },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingUser) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
     return { is_registered: false, message: '' };
   }
 
@@ -698,47 +814,19 @@ export class VendorRegistrationService {
       }
 
 
-      // Check if email already registered
-      const existing = await this.dbService.vendor_registration.findFirst({
-        where: {
-          email_address: dto.email_address,
-          deleted_at: null,
-          status: {
-            in: [
-              RegistrationStatus.MENUNGGU_APPROVE,
-              RegistrationStatus.PROSES_PITCHING,
-              RegistrationStatus.DISETUJUI,
-            ],
-          },
-        },
-      });
-
-      if (existing) {
-        throw new BadRequestException(
-          'Email ini sudah terdaftar dalam sistem.',
-        );
+      // Check if email already registered (Perusahaan & PIC)
+      if (dto.email_address && dto.email_address.trim()) {
+        const emailCheck = await this.checkUnique('email', dto.email_address);
+        if (emailCheck.is_registered) {
+          throw new BadRequestException(emailCheck.message || 'Email Perusahaan sudah terdaftar.');
+        }
       }
 
-      // Idempotensi akun pendaftar: tolak jika email PIC sudah dipakai pada
-      // pendaftaran yang masih berjalan (belum ditolak), supaya tidak ada user duplikat.
-      const existingPicRegistration = await this.dbService.vendor_registration.findFirst({
-        where: {
-          pic_email: dto.pic_email,
-          deleted_at: null,
-          status: {
-            in: [
-              RegistrationStatus.MENUNGGU_APPROVE,
-              RegistrationStatus.PROSES_PITCHING,
-              RegistrationStatus.DISETUJUI,
-            ],
-          },
-        },
-      });
-
-      if (existingPicRegistration) {
-        throw new BadRequestException(
-          `Email PIC sudah dipakai pada pendaftaran lain (ID ${existingPicRegistration.id}) yang sedang diproses. Gunakan email PIC lain.`,
-        );
+      if (dto.pic_email && dto.pic_email.trim()) {
+        const picEmailCheck = await this.checkUnique('email', dto.pic_email);
+        if (picEmailCheck.is_registered) {
+          throw new BadRequestException(picEmailCheck.message || 'Email PIC sudah terdaftar.');
+        }
       }
 
       // Check if company already exists in vendor table
@@ -755,15 +843,21 @@ export class VendorRegistrationService {
         );
       }
 
-      // Idempotensi username akun pendaftar (username = email PIC yang di-sanitasi)
+      // Idempotensi username akun pendaftar (username = email pendaftar utuh termasuk @)
       const registrantUsername = this.buildRegistrantUsername(dto);
       const existingUser = await this.dbService.users.findFirst({
-        where: { username: registrantUsername },
+        where: {
+          deleted_at: null,
+          OR: [
+            { username: registrantUsername },
+            { username: registrantUsername.replace(/[^a-z0-9._-]/g, '') },
+          ],
+        },
       });
 
       if (existingUser) {
         throw new BadRequestException(
-          'Email PIC sudah terdaftar sebagai username akun. Silakan gunakan email PIC lain atau hubungi Admin Mitra10.',
+          'Email sudah terdaftar sebagai akun pengguna. Silakan gunakan email lain atau hubungi Admin Mitra10.',
         );
       }
 
@@ -1300,14 +1394,20 @@ export class VendorRegistrationService {
     }
 
     const registrantUsername = (
-      registration.pic_email || registration.email_address
+      registration.pic_email || registration.email_address || ''
     )
       .toLowerCase()
       .trim();
 
     if (!user) {
       user = await this.dbService.users.findFirst({
-        where: { username: registrantUsername },
+        where: {
+          deleted_at: null,
+          OR: [
+            { username: registrantUsername },
+            { username: registrantUsername.replace(/[^a-z0-9._-]/g, '') },
+          ],
+        },
       });
     }
 
@@ -1316,9 +1416,12 @@ export class VendorRegistrationService {
     const hashedPassword = hashSync(registrantPassword, 12);
 
     if (user) {
-      await this.dbService.users.update({
+      user = await this.dbService.users.update({
         where: { id: user.id },
-        data: { password: hashedPassword },
+        data: {
+          username: registrantUsername,
+          password: hashedPassword,
+        },
       });
     } else {
       const registrantRole = await this.dbService.roles.findFirst({
@@ -1496,16 +1599,23 @@ export class VendorRegistrationService {
             })
           : null;
 
+        const registrantEmail = (
+          registration.pic_email || registration.email_address || ''
+        )
+          .toLowerCase()
+          .trim();
+
         let user;
-        let generatedUsername = `vendor_${id}_${slug}`;
+        let generatedUsername = registrantEmail || `vendor_${id}_${slug}`;
 
         if (existingRegistrant) {
-          generatedUsername = existingRegistrant.username;
-          // Reset password baru (lebih aman) tetapi keep username yang sudah dipakai
+          generatedUsername = registrantEmail || existingRegistrant.username;
+          // Pertahankan password akun pendaftar agar vendor tetap dapat login dengan kredensial dari email pendaftaran,
+          // dan pastikan username memakai email utuh (@ tidak dihilangkan).
           user = await tx.users.update({
             where: { id: existingRegistrant.id },
             data: {
-              password: hashedPassword,
+              username: generatedUsername,
               role_id: role.id,
             },
           });
@@ -1515,7 +1625,7 @@ export class VendorRegistrationService {
             from_status: RegistrationStatus.DISETUJUI,
             to_status: RegistrationStatus.DISETUJUI,
             action: 'REGISTRANT_PROMOTED',
-            notes: `Akun pendaftar (${existingRegistrant.username}) dipromosikan menjadi Owner Vendor.`,
+            notes: `Akun pendaftar (${generatedUsername}) dipromosikan menjadi Owner Vendor.`,
             actor_id: userId,
           });
         } else {
@@ -1573,7 +1683,7 @@ export class VendorRegistrationService {
                     address: registration.address,
                     phone_number: phoneNumber,
                     ktp_number: ktpNumber,
-                    email: `${generatedUsername}_tukang${idx + 1}@temp.local`,
+                    email: `tukang_${vendor.id}_${idx + 1}@temp.local`,
                     bod: new Date('1990-01-01'),
                     created_by: user.id,
                     vendor_id: vendor.id,

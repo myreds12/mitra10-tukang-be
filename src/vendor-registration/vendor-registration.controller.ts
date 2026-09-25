@@ -82,18 +82,19 @@ export class VendorRegistrationController {
 
   @Get('check-unique')
   @ApiOperation({
-    summary: '[PUBLIC] Cek keunikan NPWP, KTP PIC, atau KTP Tukang',
-    description: 'Cek apakah nomor NPWP, KTP PIC, atau KTP Tukang sudah terdaftar di database.',
+    summary: '[PUBLIC] Cek keunikan NPWP, KTP PIC, KTP Tukang, atau Email',
+    description: 'Cek apakah nomor NPWP, KTP PIC, KTP Tukang, atau Email sudah terdaftar di database.',
   })
-  @ApiQuery({ name: 'type', enum: ['npwp', 'ktp_pic', 'ktp_tukang'], required: true })
+  @ApiQuery({ name: 'type', enum: ['npwp', 'ktp_pic', 'ktp_tukang', 'email', 'email_address', 'pic_email'], required: true })
   @ApiQuery({ name: 'value', type: String, required: true })
   @ApiResponse({ status: 200, description: 'Hasil pengecekan keunikan' })
   async checkUnique(
-    @Query('type') type: 'npwp' | 'ktp_pic' | 'ktp_tukang',
+    @Query('type') type: 'npwp' | 'ktp_pic' | 'ktp_tukang' | 'email' | 'email_address' | 'pic_email',
     @Query('value') value: string,
   ) {
-    if (!type || !['npwp', 'ktp_pic', 'ktp_tukang'].includes(type)) {
-      throw new BadRequestException('Parameter type harus berupa npwp, ktp_pic, atau ktp_tukang.');
+    const allowed = ['npwp', 'ktp_pic', 'ktp_tukang', 'email', 'email_address', 'pic_email'];
+    if (!type || !allowed.includes(type)) {
+      throw new BadRequestException('Parameter type tidak valid.');
     }
     return this.service.checkUnique(type, value || '');
   }
