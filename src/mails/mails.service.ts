@@ -25,6 +25,53 @@ export class MailsService {
 
   private readonly logger = new Logger(MailsService.name);
 
+  /**
+   * Helper terpadu untuk pengiriman email dengan fallback langsung jika queue bermasalah
+   */
+  async sendMailDirectOrQueue(options: {
+    to: string;
+    subject: string;
+    template: string;
+    context: any;
+    from?: string;
+    bcc?: string;
+    cc?: string;
+    queueJobName?: string;
+    queueData?: any;
+  }) {
+    if (options.queueJobName) {
+      try {
+        return await this.emailQueue.add(
+          options.queueJobName,
+          options.queueData || {
+            to: options.to,
+            subject: options.subject,
+            template: options.template,
+            context: options.context,
+          },
+          { attempts: 3, delay: 1000 },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Failed to enqueue email job ${options.queueJobName}, falling back to direct send: ${err.message}`,
+        );
+      }
+    }
+
+    return await this.mailerService.sendMail({
+      to: options.to,
+      from:
+        options.from ||
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        'instalasi@mitra10.com',
+      subject: options.subject,
+      template: options.template,
+      context: options.context,
+      bcc: options.bcc,
+      cc: options.cc,
+    });
+  }
+
   async create(
     createEmailMessageDto: CreateEmailMessageDto,
     user_id: number,
@@ -449,7 +496,7 @@ export class MailsService {
         return;
       }
 
-      for (let index = 2; index < mail_messages.length; index++) {
+      for (let index = 0; index < mail_messages.length; index++) {
         const template = mail_messages[index];
         if (template.trigger_id) {
           switch (template.email_type) {

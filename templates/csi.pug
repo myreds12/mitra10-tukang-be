@@ -67,7 +67,9 @@ html(lang="en")
       overflow: hidden;
     `)
     .header
-      img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : ''}` alt="Header Email Image" style="width: 100%; height: auto")
+      - var headerImg = (data.message && data.message.email_message_image && data.message.email_message_image.find) ? data.message.email_message_image.find((x) => x.type === 1) : null
+      - var headerSrc = (headerImg && headerImg.path) ? `${data.apiUrl}/public/mails-image/${headerImg.path}` : ''
+      img(src=headerSrc, alt="Header Email Image" style="width: 100%; height: auto")
     .order-details(style="padding-left: 16px; padding-right: 16px")
       table.table-desktop(style="width: 100%; border-collapse: collapse")
         tr
@@ -156,4 +158,6 @@ html(lang="en")
       - var formateCreatedAt = new Date().toLocaleDateString('id-ID', { year: 'numeric' });
       | &copy; #{formateCreatedAt} Mitra10. All rights reserved.
     .footer-banner
-      img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : ''}` alt="Footer Email Image" style="width: 100%; height: auto")
+      - var footerImg = (data.message && data.message.email_message_image && data.message.email_message_image.find) ? data.message.email_message_image.find((x) => x.type === 2) : null
+      - var footerSrc = (footerImg && footerImg.path) ? `${data.apiUrl}/public/mails-image/${footerImg.path}` : ''
+      img(src=footerSrc, alt="Footer Email Image" style="width: 100%; height: auto")

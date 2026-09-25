@@ -26,6 +26,8 @@ import { moduleTypeNotification } from 'src/notifications/dto/notification-modul
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class OrderService {
@@ -37,7 +39,7 @@ export class OrderService {
     private notifService: NotificationsService,
     private configService: ConfigService,
     private violationDetector: ViolationDetectorService,
-
+    @InjectQueue('email') private emailQueue: Queue,
   ) { }
   // Tambahkan sebagai private method di dalam OrderService
   private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
@@ -307,6 +309,24 @@ export class OrderService {
           order.id,
           order.project_status_id,
         );
+
+        try {
+          await this.emailQueue.add(
+            'send-order-mail',
+            {
+              module_id: order.id,
+              template_id: undefined,
+            },
+            {
+              jobId: `send-order-mail-${order.id}-${order.project_status_id}`,
+              attempts: 3,
+              delay: 2000,
+            },
+          );
+          this.logger.log(`Enqueued send-order-mail for order #${order.id}`);
+        } catch (queueErr) {
+          this.logger.error(`Failed to enqueue order mail for order #${order.id}: ${queueErr.message}`);
+        }
       }
 
       await this.addHistory(
@@ -1506,6 +1526,33 @@ export class OrderService {
           orderQuery.id,
           orderQuery.project_status_id,
         );
+
+        if (
+          updateOrderDto?.project_status_id &&
+          updateOrderDto.project_status_id !== order.project_status_id
+        ) {
+          try {
+            await this.emailQueue.add(
+              'send-order-mail',
+              {
+                module_id: orderQuery.id,
+                template_id: undefined,
+              },
+              {
+                jobId: `send-order-mail-${orderQuery.id}-${orderQuery.project_status_id}`,
+                attempts: 3,
+                delay: 2000,
+              },
+            );
+            this.logger.log(
+              `Enqueued send-order-mail for order #${orderQuery.id} status change to ${orderQuery.project_status_id}`,
+            );
+          } catch (queueErr) {
+            this.logger.error(
+              `Failed to enqueue order mail for order #${orderQuery.id}: ${queueErr.message}`,
+            );
+          }
+        }
       }
 
       await this.addHistory(
