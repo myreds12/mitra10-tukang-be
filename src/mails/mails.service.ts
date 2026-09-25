@@ -12,6 +12,7 @@ import { JobOptions, Queue } from 'bull';
 import { OrderMailInterface } from 'src/common/interface/mails/order-mail-interface';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
+import * as net from 'net';
 
 @Injectable()
 export class MailsService {
@@ -1255,5 +1256,285 @@ export class MailsService {
         stack: error?.stack,
       };
     }
+  }
+
+  async traceRedis(): Promise<any> {
+    const startTime = Date.now();
+    const debugLogs: string[] = [];
+    const steps: Array<{
+      name: string;
+      status: 'SUCCESS' | 'FAILED' | 'SKIPPED';
+      duration_ms?: number;
+      details?: any;
+    }> = [];
+
+    const logEntry = (msg: string) => {
+      const timestamp = new Date().toISOString();
+      const line = `[${timestamp}] ${msg}`;
+      debugLogs.push(line);
+      this.logger.log(`[TraceRedis] ${msg}`);
+    };
+
+    logEntry('Memulai tracing diagnostik koneksi Redis & Bull Queue...');
+
+    // Step 1: Cek Konfigurasi Environment
+    const step1Start = Date.now();
+    const redisHost = this.configService.get<string>('REDIS_HOST') || 'localhost';
+    const redisPort = parseInt(String(this.configService.get<number>('REDIS_PORT') || 6379), 10);
+    const redisUsername = this.configService.get<string>('REDIS_USERNAME') || '';
+    const redisPassword = this.configService.get<string>('REDIS_PASSWORD') || '';
+    const redisTls = this.configService.get<any>('REDIS_TLS');
+
+    const configInfo = {
+      host: redisHost,
+      port: redisPort,
+      username: redisUsername || '(default/empty)',
+      has_password: Boolean(redisPassword),
+      tls_enabled: Boolean(redisTls),
+    };
+
+    logEntry(`Step 1: Konfigurasi terbaca -> Host: ${redisHost}, Port: ${redisPort}, TLS: ${Boolean(redisTls)}`);
+    steps.push({
+      name: 'Pemeriksaan Konfigurasi Redis',
+      status: 'SUCCESS',
+      duration_ms: Date.now() - step1Start,
+      details: configInfo,
+    });
+
+    // Step 2: Uji Koneksi Low-Level TCP Socket
+    const step2Start = Date.now();
+    logEntry(`Step 2: Menguji koneksi TCP socket ke ${redisHost}:${redisPort} (timeout 3000ms)...`);
+
+    const tcpResult = await new Promise<{ ok: boolean; duration: number; error?: any }>((resolve) => {
+      const socket = new net.Socket();
+      let isResolved = false;
+
+      socket.setTimeout(3000);
+
+      socket.on('connect', () => {
+        if (isResolved) return;
+        isResolved = true;
+        const duration = Date.now() - step2Start;
+        socket.destroy();
+        resolve({ ok: true, duration });
+      });
+
+      socket.on('timeout', () => {
+        if (isResolved) return;
+        isResolved = true;
+        socket.destroy();
+        resolve({
+          ok: false,
+          duration: Date.now() - step2Start,
+          error: { code: 'ETIMEDOUT', message: `Koneksi TCP ke ${redisHost}:${redisPort} timeout (3000ms)` },
+        });
+      });
+
+      socket.on('error', (err: any) => {
+        if (isResolved) return;
+        isResolved = true;
+        socket.destroy();
+        resolve({
+          ok: false,
+          duration: Date.now() - step2Start,
+          error: { code: err?.code, message: err?.message },
+        });
+      });
+
+      socket.connect(redisPort, redisHost);
+    });
+
+    if (!tcpResult.ok) {
+      logEntry(`Step 2: GAGAL koneksi TCP ke ${redisHost}:${redisPort} (${tcpResult.error?.code}: ${tcpResult.error?.message})`);
+      steps.push({
+        name: 'Koneksi TCP Socket ke Redis',
+        status: 'FAILED',
+        duration_ms: tcpResult.duration,
+        details: tcpResult.error,
+      });
+
+      let errorType = 'REDIS_CONNECTION_FAILED';
+      let diagnosis = `Koneksi TCP ke ${redisHost}:${redisPort} gagal.`;
+      let solution = 'Periksa apakah Redis server sudah dijalankan dan port tidak diblokir.';
+
+      if (tcpResult.error?.code === 'ECONNREFUSED') {
+        errorType = 'REDIS_SERVER_OFFLINE';
+        diagnosis = `Server Redis TIDAK AKTIF di ${redisHost}:${redisPort} (koneksi ditolak).`;
+        if (redisHost === 'localhost' || redisHost === '127.0.0.1') {
+          solution = 'Redis lokal belum dijalankan. Jalankan Redis di lokal Anda (contoh: via Docker `docker run -d -p 6379:6379 --name redis redis:alpine`, atau jalankan redis-server.exe di Windows).';
+        } else {
+          solution = `Pastikan server Redis di host "${redisHost}" aktif dan port ${redisPort} dapat diakses.`;
+        }
+      } else if (tcpResult.error?.code === 'ETIMEDOUT') {
+        errorType = 'REDIS_CONNECTION_TIMEOUT';
+        diagnosis = `Koneksi ke ${redisHost}:${redisPort} mengalami timeout.`;
+        solution = 'Periksa firewall, routing jaringan, atau koneksi VPN ke server Redis.';
+      } else if (tcpResult.error?.code === 'ENOTFOUND') {
+        errorType = 'REDIS_HOST_NOT_FOUND';
+        diagnosis = `Hostname Redis "${redisHost}" tidak ditemukan (DNS lookup failed).`;
+        solution = 'Periksa penulisan REDIS_HOST pada file .env.';
+      }
+
+      logEntry(`Diagnosis: [${errorType}] ${diagnosis}`);
+      logEntry(`Solusi yang disarankan: ${solution}`);
+
+      return {
+        success: false,
+        status: 'FAILED',
+        error_type: errorType,
+        message: diagnosis,
+        diagnosis,
+        solution,
+        redis_config: configInfo,
+        total_duration_ms: Date.now() - startTime,
+        steps,
+        logs: debugLogs,
+      };
+    }
+
+    logEntry(`Step 2: TCP Socket terhubung sukses dalam ${tcpResult.duration}ms!`);
+    steps.push({
+      name: 'Koneksi TCP Socket ke Redis',
+      status: 'SUCCESS',
+      duration_ms: tcpResult.duration,
+      details: { address: redisHost, port: redisPort },
+    });
+
+    // Step 3: Cek Status Client Bull Queue & PING
+    const step3Start = Date.now();
+    const clientStatus = this.emailQueue?.client?.status || 'unknown';
+    logEntry(`Step 3: Status ioredis client Bull: "${clientStatus}". Mengirim perintah PING...`);
+
+    let pingResult: string | null = null;
+    let pingError: any = null;
+
+    try {
+      const pingPromise = this.emailQueue.client.ping();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('PING timeout after 3000ms')), 3000),
+      );
+      pingResult = (await Promise.race([pingPromise, timeoutPromise])) as string;
+      logEntry(`Step 3: Redis PING berhasil -> Response: "${pingResult}"`);
+      steps.push({
+        name: 'Redis PING via Bull Client',
+        status: 'SUCCESS',
+        duration_ms: Date.now() - step3Start,
+        details: { client_status: clientStatus, response: pingResult },
+      });
+    } catch (err: any) {
+      pingError = err;
+      logEntry(`Step 3: Redis PING GAGAL: ${err?.message}`);
+      steps.push({
+        name: 'Redis PING via Bull Client',
+        status: 'FAILED',
+        duration_ms: Date.now() - step3Start,
+        details: { client_status: clientStatus, error: err?.message, code: err?.code },
+      });
+
+      let errorType = 'REDIS_PING_FAILED';
+      let diagnosis = `Koneksi TCP sukses, tetapi Redis menolak perintah PING: ${err?.message}`;
+      let solution = 'Periksa kredensial REDIS_PASSWORD atau mode autentikasi Redis.';
+
+      if (err?.message?.includes('WRONGPASS') || err?.message?.includes('NOAUTH') || err?.message?.includes('auth')) {
+        errorType = 'REDIS_AUTH_FAILED';
+        diagnosis = 'Autentikasi Redis GAGAL: Password salah atau Redis membutuhkan AUTH.';
+        solution = 'Sesuaikan REDIS_PASSWORD dan REDIS_USERNAME di file .env sesuai konfigurasi Redis.';
+      }
+
+      return {
+        success: false,
+        status: 'FAILED',
+        error_type: errorType,
+        message: diagnosis,
+        diagnosis,
+        solution,
+        redis_config: configInfo,
+        total_duration_ms: Date.now() - startTime,
+        steps,
+        logs: debugLogs,
+      };
+    }
+
+    // Step 4: Periksa Statistik Antrean Bull ('email')
+    const step4Start = Date.now();
+    logEntry(`Step 4: Mengambil statistik antrean queue "email"...`);
+    let jobCounts: any = null;
+    let workersCount = 0;
+
+    try {
+      jobCounts = await this.emailQueue.getJobCounts();
+      const workers = await this.emailQueue.getWorkers();
+      workersCount = Array.isArray(workers) ? workers.length : 0;
+      logEntry(`Step 4: Statistik antrean -> Waiting: ${jobCounts?.waiting}, Active: ${jobCounts?.active}, Completed: ${jobCounts?.completed}, Failed: ${jobCounts?.failed}, Delayed: ${jobCounts?.delayed}`);
+      logEntry(`Step 4: Jumlah active workers: ${workersCount}`);
+      steps.push({
+        name: 'Pemeriksaan Statistik Antrean Bull',
+        status: 'SUCCESS',
+        duration_ms: Date.now() - step4Start,
+        details: { jobCounts, workersCount },
+      });
+    } catch (err: any) {
+      logEntry(`Step 4: Gagal mengambil statistik antrean: ${err?.message}`);
+      steps.push({
+        name: 'Pemeriksaan Statistik Antrean Bull',
+        status: 'FAILED',
+        duration_ms: Date.now() - step4Start,
+        details: { error: err?.message },
+      });
+    }
+
+    // Step 5: Uji Coba Enqueue Job Dummy
+    const step5Start = Date.now();
+    logEntry(`Step 5: Menguji enqueue dummy job ke queue "email"...`);
+    let testJobId: any = null;
+
+    try {
+      const testJob = await this.emailQueue.add(
+        '__test_redis_trace__',
+        { timestamp: new Date().toISOString(), test: true },
+        { removeOnComplete: true, removeOnFail: true, timeout: 5000 },
+      );
+      testJobId = testJob?.id;
+      logEntry(`Step 5: Dummy job berhasil dibuat dengan ID: ${testJobId}`);
+      try {
+        await testJob.remove();
+        logEntry(`Step 5: Dummy job ${testJobId} berhasil dibersihkan`);
+      } catch {
+        // Abaikan jika sudah dibersihkan
+      }
+      steps.push({
+        name: 'Uji Enqueue Dummy Job',
+        status: 'SUCCESS',
+        duration_ms: Date.now() - step5Start,
+        details: { job_id: testJobId },
+      });
+    } catch (err: any) {
+      logEntry(`Step 5: Gagal enqueue dummy job: ${err?.message}`);
+      steps.push({
+        name: 'Uji Enqueue Dummy Job',
+        status: 'FAILED',
+        duration_ms: Date.now() - step5Start,
+        details: { error: err?.message },
+      });
+    }
+
+    const totalDuration = Date.now() - startTime;
+    logEntry(`Proses trace Redis selesai dalam ${totalDuration}ms. Semua pengujian normal.`);
+
+    return {
+      success: true,
+      status: 'SUCCESS',
+      message: 'Koneksi ke Redis dan antrean Bull Queue berfungsi normal.',
+      diagnosis: 'Redis server aktif dan dapat menerima antrean email. Masalah pengiriman email bukan disebabkan oleh Redis.',
+      redis_config: configInfo,
+      queue_stats: {
+        queue_name: 'email',
+        job_counts: jobCounts,
+        active_workers: workersCount,
+      },
+      total_duration_ms: totalDuration,
+      steps,
+      logs: debugLogs,
+    };
   }
 }

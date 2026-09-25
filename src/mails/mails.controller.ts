@@ -26,7 +26,9 @@ import { existsSync } from 'fs';
 import { resolve } from 'path';
 import * as pug from 'pug';
 import { TestSendEmailDto } from './dto/test-send-email.dto';
+import { ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 
+@ApiTags('Mails')
 @Controller('mails')
 export class MailsController {
   constructor(
@@ -187,5 +189,28 @@ export class MailsController {
   @HttpCode(200)
   async testSend(@Body() body: TestSendEmailDto) {
     return await this.mailsService.sendTestEmail(body.email);
+  }
+
+  // ================================
+  // TRACE REDIS & BULL QUEUE (DIAGNOSTIC)
+  // ================================
+
+  @Get('trace-redis')
+  @ApiOperation({
+    summary: 'Trace koneksi Redis & Bull Queue',
+    description: 'Diagnostik koneksi TCP ke Redis, status client Bull Queue, dan statistik antrean email.',
+  })
+  async traceRedisGet() {
+    return await this.mailsService.traceRedis();
+  }
+
+  @Post('trace-redis')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Trace koneksi Redis & Bull Queue (POST)',
+    description: 'Diagnostik koneksi TCP ke Redis, status client Bull Queue, dan statistik antrean email.',
+  })
+  async traceRedisPost() {
+    return await this.mailsService.traceRedis();
   }
 }
