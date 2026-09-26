@@ -82,17 +82,60 @@ export class VendorRegistrationController {
 
   @Get('check-unique')
   @ApiOperation({
-    summary: '[PUBLIC] Cek keunikan NPWP, KTP PIC, KTP Tukang, atau Email',
-    description: 'Cek apakah nomor NPWP, KTP PIC, KTP Tukang, atau Email sudah terdaftar di database.',
+    summary: '[PUBLIC] Cek keunikan NPWP, KTP PIC, KTP Tukang, Email, Nama Perusahaan, atau Nomor Telepon',
+    description: 'Cek apakah field pendaftaran vendor sudah terdaftar di database.',
   })
-  @ApiQuery({ name: 'type', enum: ['npwp', 'ktp_pic', 'ktp_tukang', 'email', 'email_address', 'pic_email'], required: true })
+  @ApiQuery({
+    name: 'type',
+    enum: [
+      'npwp',
+      'ktp_pic',
+      'ktp_tukang',
+      'email',
+      'email_address',
+      'pic_email',
+      'company_name',
+      'company',
+      'phone',
+      'phone_company',
+      'phone_pic',
+      'phone_tukang',
+    ],
+    required: true,
+  })
   @ApiQuery({ name: 'value', type: String, required: true })
   @ApiResponse({ status: 200, description: 'Hasil pengecekan keunikan' })
   async checkUnique(
-    @Query('type') type: 'npwp' | 'ktp_pic' | 'ktp_tukang' | 'email' | 'email_address' | 'pic_email',
+    @Query('type')
+    type:
+      | 'npwp'
+      | 'ktp_pic'
+      | 'ktp_tukang'
+      | 'email'
+      | 'email_address'
+      | 'pic_email'
+      | 'company_name'
+      | 'company'
+      | 'phone'
+      | 'phone_company'
+      | 'phone_pic'
+      | 'phone_tukang',
     @Query('value') value: string,
   ) {
-    const allowed = ['npwp', 'ktp_pic', 'ktp_tukang', 'email', 'email_address', 'pic_email'];
+    const allowed = [
+      'npwp',
+      'ktp_pic',
+      'ktp_tukang',
+      'email',
+      'email_address',
+      'pic_email',
+      'company_name',
+      'company',
+      'phone',
+      'phone_company',
+      'phone_pic',
+      'phone_tukang',
+    ];
     if (!type || !allowed.includes(type)) {
       throw new BadRequestException('Parameter type tidak valid.');
     }

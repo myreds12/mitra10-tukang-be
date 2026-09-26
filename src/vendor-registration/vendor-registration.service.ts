@@ -412,8 +412,48 @@ export class VendorRegistrationService {
     await this.assertRegistrant(userId);
   }
 
+  private getPhoneVariants(phone: string): string[] {
+    const trimmed = (phone || '').trim();
+    if (!trimmed) return [];
+    const variants = new Set<string>();
+    variants.add(trimmed);
+
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      variants.add(digits);
+      if (digits.startsWith('0')) {
+        const rest = digits.slice(1);
+        variants.add(rest);
+        variants.add('62' + rest);
+        variants.add('+62' + rest);
+      } else if (digits.startsWith('62')) {
+        const rest = digits.slice(2);
+        variants.add('0' + rest);
+        variants.add(rest);
+        variants.add('+' + digits);
+      } else {
+        variants.add('0' + digits);
+        variants.add('62' + digits);
+        variants.add('+62' + digits);
+      }
+    }
+    return Array.from(variants);
+  }
+
   async checkUnique(
-    type: 'npwp' | 'ktp_pic' | 'ktp_tukang' | 'email' | 'email_address' | 'pic_email',
+    type:
+      | 'npwp'
+      | 'ktp_pic'
+      | 'ktp_tukang'
+      | 'email'
+      | 'email_address'
+      | 'pic_email'
+      | 'company_name'
+      | 'company'
+      | 'phone'
+      | 'phone_company'
+      | 'phone_pic'
+      | 'phone_tukang',
     value: string,
   ): Promise<{ is_registered: boolean; message: string }> {
     const trimmed = (value || '').trim();
@@ -422,6 +462,149 @@ export class VendorRegistrationService {
     }
 
     const digits = trimmed.replace(/\D/g, '');
+
+    if (type === 'company_name' || type === 'company') {
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          company_name: trimmed,
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'Nama Perusahaan sudah terdaftar' };
+      }
+
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          company_name: trimmed,
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'Nama Perusahaan sudah terdaftar' };
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (
+      type === 'phone' ||
+      type === 'phone_company' ||
+      type === 'phone_pic' ||
+      type === 'phone_tukang'
+    ) {
+      const phoneVariants = this.getPhoneVariants(trimmed);
+      const lastDigits = digits.length >= 9 ? digits.slice(-9) : (digits.length >= 7 ? digits : '');
+
+      // 1. Cek vendor aktif di tabel vendor
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { phone_number: { in: phoneVariants } },
+            ...(lastDigits ? [{ phone_number: { contains: lastDigits } }] : []),
+          ],
+        },
+        select: { id: true, phone_number: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+      }
+
+      // 2. Cek vendor_registration aktif (MENUNGGU_APPROVE, PROSES_PITCHING, DISETUJUI)
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: [
+            { phone_number: { in: phoneVariants } },
+            { pic_phone: { in: phoneVariants } },
+            ...(lastDigits
+              ? [
+                  { phone_number: { contains: lastDigits } },
+                  { pic_phone: { contains: lastDigits } },
+                ]
+              : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+      }
+
+      // 3. Cek tabel tukang
+      const existingTukang = await this.dbService.tukang.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { phone_number: { in: phoneVariants } },
+            ...(lastDigits ? [{ phone_number: { contains: lastDigits } }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingTukang) {
+        return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+      }
+
+      // 4. Cek tukang_data di vendor_registration aktif
+      const activeRegsWithTukang = await this.dbService.vendor_registration.findMany({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          tukang_data: { not: null },
+          OR: [
+            ...phoneVariants.map((p) => ({ tukang_data: { contains: p } })),
+            ...(lastDigits ? [{ tukang_data: { contains: lastDigits } }] : []),
+          ],
+        },
+        select: { tukang_data: true },
+      });
+
+      for (const reg of activeRegsWithTukang) {
+        const tukangs = this.parseTukangData(reg.tukang_data);
+        for (const t of tukangs) {
+          const tPhone = (t.phone_number || (t as any).no_hp || '').trim();
+          const tDigits = tPhone.replace(/\D/g, '');
+          if (
+            tPhone &&
+            (phoneVariants.includes(tPhone) ||
+              (lastDigits && tDigits.includes(lastDigits)))
+          ) {
+            return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+          }
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
 
     if (type === 'npwp') {
       const regOrConditions: Prisma.vendor_registrationWhereInput[] = [
@@ -584,6 +767,25 @@ export class VendorRegistrationService {
         }
       }
 
+      const tukangKtpConditions: Prisma.tukangWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        tukangKtpConditions.push({ ktp_number: digits });
+      }
+
+      const existingTukangWithPicKtp = await this.dbService.tukang.findFirst({
+        where: {
+          deleted_at: null,
+          OR: tukangKtpConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingTukangWithPicKtp) {
+        return { is_registered: true, message: 'KTP Sudah terdaftar' };
+      }
+
       return { is_registered: false, message: '' };
     }
 
@@ -604,6 +806,51 @@ export class VendorRegistrationService {
       });
 
       if (existingTukang) {
+        return { is_registered: true, message: 'No KTP sudah terdaftar' };
+      }
+
+      const picRegConditions: Prisma.vendor_registrationWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        picRegConditions.push({ ktp_number: digits });
+      }
+
+      const existingPicReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: picRegConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingPicReg) {
+        return { is_registered: true, message: 'No KTP sudah terdaftar' };
+      }
+
+      const vendorKtpConditions: Prisma.vendorWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        vendorKtpConditions.push({ ktp_number: digits });
+      }
+
+      const existingPicVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: vendorKtpConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingPicVendor) {
         return { is_registered: true, message: 'No KTP sudah terdaftar' };
       }
 
@@ -777,26 +1024,88 @@ export class VendorRegistrationService {
 
       await this.assertRejectedCooldown(dto);
 
-      // 1. Validasi KTP PIC wajib diisi dan belum terdaftar
+      // 1. Validasi Nama Perusahaan wajib diisi & belum terdaftar
+      if (!dto.company_name || !dto.company_name.trim()) {
+        throw new BadRequestException('Nama Perusahaan wajib diisi.');
+      }
+      const companyCheck = await this.checkUnique('company_name', dto.company_name);
+      if (companyCheck.is_registered) {
+        throw new BadRequestException(companyCheck.message || 'Nama Perusahaan sudah terdaftar.');
+      }
+
+      // 2. Validasi Email Perusahaan wajib diisi & belum terdaftar
+      if (!dto.email_address || !dto.email_address.trim()) {
+        throw new BadRequestException('Email Perusahaan wajib diisi.');
+      }
+      const emailCheck = await this.checkUnique('email', dto.email_address);
+      if (emailCheck.is_registered) {
+        throw new BadRequestException(emailCheck.message || 'Email Perusahaan sudah terdaftar.');
+      }
+
+      // 3. Validasi Telepon Perusahaan wajib diisi & belum terdaftar
+      if (!dto.phone_number || !dto.phone_number.trim()) {
+        throw new BadRequestException('Nomor Telepon Perusahaan wajib diisi.');
+      }
+      const phoneCheck = await this.checkUnique('phone', dto.phone_number);
+      if (phoneCheck.is_registered) {
+        throw new BadRequestException(phoneCheck.message || 'Nomor Telepon Perusahaan sudah terdaftar.');
+      }
+
+      // 4. Validasi NPWP Perusahaan jika diisi belum terdaftar
+      if (dto.npwp_number && dto.npwp_number.trim()) {
+        const npwpCheck = await this.checkUnique('npwp', dto.npwp_number);
+        if (npwpCheck.is_registered) {
+          throw new BadRequestException(npwpCheck.message || 'No NPWP sudah terdaftar.');
+        }
+      }
+
+      // 5. Nama PIC wajib diisi (nama pic boleh sama, tidak dicek keunikan)
+      if (!dto.pic_name || !dto.pic_name.trim()) {
+        throw new BadRequestException('Nama PIC wajib diisi.');
+      }
+
+      // 6. Validasi Telepon PIC wajib diisi & belum terdaftar
+      if (!dto.pic_phone || !dto.pic_phone.trim()) {
+        throw new BadRequestException('Nomor HP PIC wajib diisi.');
+      }
+      const picPhoneCheck = await this.checkUnique('phone', dto.pic_phone);
+      if (picPhoneCheck.is_registered) {
+        throw new BadRequestException(picPhoneCheck.message || 'Nomor HP PIC sudah terdaftar.');
+      }
+
+      // 7. Validasi Email PIC wajib diisi & belum terdaftar
+      if (!dto.pic_email || !dto.pic_email.trim()) {
+        throw new BadRequestException('Email PIC wajib diisi.');
+      }
+      const picEmailCheck = await this.checkUnique('email', dto.pic_email);
+      if (picEmailCheck.is_registered) {
+        throw new BadRequestException(picEmailCheck.message || 'Email PIC sudah terdaftar.');
+      }
+
+      // 8. Validasi KTP PIC wajib diisi dan belum terdaftar
       if (!dto.ktp_number || !dto.ktp_number.trim()) {
         throw new BadRequestException('Nomor KTP PIC wajib diisi.');
       }
       const ktpPicCheck = await this.checkUnique('ktp_pic', dto.ktp_number);
       if (ktpPicCheck.is_registered) {
-        throw new BadRequestException(ktpPicCheck.message || 'KTP Sudah terdaftar');
+        throw new BadRequestException(ktpPicCheck.message || 'KTP Sudah terdaftar.');
       }
 
-      // 2. Validasi NPWP Perusahaan jika diisi belum terdaftar
-      if (dto.npwp_number && dto.npwp_number.trim()) {
-        const npwpCheck = await this.checkUnique('npwp', dto.npwp_number);
-        if (npwpCheck.is_registered) {
-          throw new BadRequestException(npwpCheck.message || 'No NPWP sudah terdaftar');
-        }
+      // 9. Validasi duplikasi internal antar email & telepon perusahaan vs PIC
+      if (dto.email_address.trim().toLowerCase() === dto.pic_email.trim().toLowerCase()) {
+        throw new BadRequestException('Email Perusahaan dan Email PIC tidak boleh sama.');
+      }
+      const compPhoneDigits = dto.phone_number.replace(/\D/g, '');
+      const picPhoneDigits = dto.pic_phone.replace(/\D/g, '');
+      if (compPhoneDigits && picPhoneDigits && compPhoneDigits === picPhoneDigits) {
+        throw new BadRequestException('Nomor Telepon Perusahaan dan Nomor HP PIC tidak boleh sama.');
       }
 
-      // 3. Validasi KTP tukang tidak duplikat internal & belum terdaftar
+      // 10. Validasi Tukang: nama boleh sama, KTP & HP TIDAK boleh sama
       const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
       const seenTukangKtps = new Set<string>();
+      const seenTukangPhones = new Set<string>();
+
       for (const [idx, t] of tukangData.entries()) {
         const tKtp = (t.ktp_number || (t as any).no_ktp || '').trim();
         if (tKtp) {
@@ -811,36 +1120,20 @@ export class VendorRegistrationService {
             throw new BadRequestException(`No KTP tukang (${tKtp}) sudah terdaftar.`);
           }
         }
-      }
 
+        const tPhone = (t.phone_number || (t as any).no_hp || '').trim();
+        if (tPhone) {
+          const phoneKey = tPhone.replace(/\D/g, '') || tPhone;
+          if (seenTukangPhones.has(phoneKey)) {
+            throw new BadRequestException(`No HP tukang (${tPhone}) pada baris ke-${idx + 1} duplikat.`);
+          }
+          seenTukangPhones.add(phoneKey);
 
-      // Check if email already registered (Perusahaan & PIC)
-      if (dto.email_address && dto.email_address.trim()) {
-        const emailCheck = await this.checkUnique('email', dto.email_address);
-        if (emailCheck.is_registered) {
-          throw new BadRequestException(emailCheck.message || 'Email Perusahaan sudah terdaftar.');
+          const tukangPhoneCheck = await this.checkUnique('phone', tPhone);
+          if (tukangPhoneCheck.is_registered) {
+            throw new BadRequestException(`No HP tukang (${tPhone}) sudah terdaftar.`);
+          }
         }
-      }
-
-      if (dto.pic_email && dto.pic_email.trim()) {
-        const picEmailCheck = await this.checkUnique('email', dto.pic_email);
-        if (picEmailCheck.is_registered) {
-          throw new BadRequestException(picEmailCheck.message || 'Email PIC sudah terdaftar.');
-        }
-      }
-
-      // Check if company already exists in vendor table
-      const companyExists = await this.dbService.vendor.findFirst({
-        where: {
-          company_name: dto.company_name,
-          deleted_at: null,
-        },
-      });
-
-      if (companyExists) {
-        throw new BadRequestException(
-          'Nama perusahaan sudah terdaftar sebagai vendor.',
-        );
       }
 
       // Idempotensi username akun pendaftar (username = email pendaftar utuh termasuk @)
