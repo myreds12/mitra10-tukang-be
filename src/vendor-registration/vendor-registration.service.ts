@@ -2303,13 +2303,15 @@ export class VendorRegistrationService {
     }
   }
 
-  async deleteRegistration(id: number, userId: number) {
+  async deleteRegistration(id: number, userId?: number) {
     try {
-      await this.assertAdminHO(userId);
+      if (userId) {
+        await this.assertAdminHO(userId);
+      }
 
       return await this.dbService.$transaction(async (tx) => {
         const registration = await tx.vendor_registration.findFirst({
-          where: { id, deleted_at: null },
+          where: { id },
         });
 
         if (!registration) {
@@ -2317,6 +2319,8 @@ export class VendorRegistrationService {
             `Pendaftaran dengan ID ${id} tidak ditemukan.`,
           );
         }
+
+        const registrantUserId = registration.user_id;
 
         await (tx as any).vendor_registration_history.deleteMany({
           where: { vendor_registration_id: id },
@@ -2330,11 +2334,59 @@ export class VendorRegistrationService {
           where: { id },
         });
 
+        // Hapus juga akun pendaftar (role "Pendaftar Vendor") jika dibuat saat registrasi
+        if (registrantUserId) {
+          const registrantUser = await tx.users.findUnique({
+            where: { id: registrantUserId },
+            include: { roles: true },
+          });
+
+          if (
+            registrantUser &&
+            registrantUser.roles?.name === PENDAFTAR_VENDOR_ROLE
+          ) {
+            await tx.notifications.deleteMany({
+              where: { user_id: registrantUserId },
+            });
+            await tx.users.delete({
+              where: { id: registrantUserId },
+            });
+          }
+        }
+
         return {
           message: 'Pendaftaran vendor berhasil dihapus permanen.',
           registration_id: id,
         };
       });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async deleteRegistrationByEmail(email: string, userId?: number) {
+    try {
+      if (userId) {
+        await this.assertAdminHO(userId);
+      }
+
+      const normalizedEmail = (email || '').trim().toLowerCase();
+      const registration = await this.dbService.vendor_registration.findFirst({
+        where: {
+          OR: [
+            { email_address: normalizedEmail },
+            { pic_email: normalizedEmail },
+          ],
+        },
+      });
+
+      if (!registration) {
+        throw new NotFoundException(
+          `Pendaftaran vendor dengan email "${email}" tidak ditemukan.`,
+        );
+      }
+
+      return await this.deleteRegistration(registration.id, userId);
     } catch (error) {
       throw error;
     }

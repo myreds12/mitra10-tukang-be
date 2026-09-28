@@ -579,11 +579,32 @@ export class VendorRegistrationController {
     return this.service.getEmailStatus(id, user?.id);
   }
 
+  @Delete('by-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Delete Vendor Registration by Email',
+    description: 'Hard delete a vendor registration record and its associated registrant user account by email.',
+  })
+  @ApiQuery({ name: 'email', description: 'Applicant email or company email to delete', type: String, required: true })
+  @ApiResponse({ status: 200, description: 'Registration deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Email parameter is required' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Registration not found' })
+  async deleteRegistrationByEmail(
+    @Query('email') email: string,
+    @User() user: any,
+  ) {
+    if (!email || !email.trim()) {
+      throw new BadRequestException('Parameter email wajib diisi.');
+    }
+    return this.service.deleteRegistrationByEmail(email.trim(), user?.id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Delete Vendor Registration',
-    description: 'Hard delete a vendor registration record. Existing active vendor/user data is not removed.',
+    description: 'Hard delete a vendor registration record and its associated registrant user account.',
   })
   @ApiParam({ name: 'id', description: 'Registration ID to delete', type: Number, example: 1 })
   @ApiResponse({ status: 200, description: 'Registration deleted successfully' })
