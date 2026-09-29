@@ -137,7 +137,6 @@ export class ItemsService {
   async findAll(queryParamsDto: QueryParamsDto) {
     try {
       const {
-        search,
         take,
         page,
         all_store,
@@ -146,6 +145,7 @@ export class ItemsService {
         item_type,
         is_promotion,
       } = queryParamsDto;
+      const search = queryParamsDto.search?.trim();
       // const category_id = +search ? Number.parseInt(search) : undefined;
 
       const allStore = await this.dbService.store
@@ -190,38 +190,46 @@ export class ItemsService {
               },
             ]
             : []),
-          ...(is_promotion === 1
+          ...((is_promotion === 1 || validStoreIds.length > 0)
             ? [
               {
                 prices: {
                   some: {
                     deleted_at: null,
-                    periodic_start: {
-                      lte: todayEnd,
-                    },
-                    periodic_end: {
-                      gte: todayStart,
-                    }
-                  },
-                },
-              },
-            ]
-            : []),
-          ...(validStoreIds.length > 0
-            ? [
-              {
-                prices: {
-                  some: {
-                    deleted_at: null,
-                    is_active: true,
-                    price_stores: {
-                      some: {
-                        deleted_at: null,
-                        store_id: {
-                          in: validStoreIds,
+                    is_active: { not: false },
+                    ...(is_promotion === 1
+                      ? {
+                        periodic_start: {
+                          lte: todayEnd,
                         },
-                      },
-                    },
+                        periodic_end: {
+                          gte: todayStart,
+                        },
+                      }
+                      : {}),
+                    ...(validStoreIds.length > 0
+                      ? {
+                        OR: [
+                          {
+                            price_stores: {
+                              none: {
+                                deleted_at: null,
+                              },
+                            },
+                          },
+                          {
+                            price_stores: {
+                              some: {
+                                deleted_at: null,
+                                store_id: {
+                                  in: validStoreIds,
+                                },
+                              },
+                            },
+                          },
+                        ],
+                      }
+                      : {}),
                   },
                 },
               },
@@ -311,6 +319,7 @@ export class ItemsService {
                   deleted_at: null,
                 },
                 select: {
+                  store_id: true,
                   store: {
                     select: {
                       id: true,
