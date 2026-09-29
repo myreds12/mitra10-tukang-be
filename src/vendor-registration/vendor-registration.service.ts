@@ -1332,21 +1332,29 @@ export class VendorRegistrationService {
     try {
       await this.assertAdminHO(userId);
 
+      const pageNum = Math.max(1, parseInt(String(query.page || 1), 10) || 1);
+      const takeNum = Math.max(1, parseInt(String(query.take || 10), 10) || 10);
+      const skip = (pageNum - 1) * takeNum;
+
       const {
-        page = 1,
-        take = 10,
         status,
         search,
         company_name,
         date_from,
         date_to,
       } = query;
-      const skip = page * take - take;
+
+      const statusNum =
+        status !== undefined && status !== null && String(status) !== ''
+          ? parseInt(String(status), 10)
+          : undefined;
 
       const where: Prisma.vendor_registrationWhereInput = {
         deleted_at: null,
-        ...(status
-          ? { status }
+        ...(statusNum !== undefined && !isNaN(statusNum)
+          ? statusNum > 0
+            ? { status: statusNum }
+            : {} // Status 0 artinya "Semua" status (all)
           : {
               status: {
                 in: [
@@ -1355,24 +1363,25 @@ export class VendorRegistrationService {
                 ],
               },
             }),
-        ...(company_name
-          ? { company_name: { contains: company_name } }
-          : {}),
-        ...(search
+        ...(search && search.trim()
           ? {
               OR: [
-                { company_name: { contains: search } },
-                { pic_name: { contains: search } },
-                { email_address: { contains: search } },
-                { phone_number: { contains: search } },
+                { company_name: { contains: search.trim() } },
+                { pic_name: { contains: search.trim() } },
+                { email_address: { contains: search.trim() } },
+                { phone_number: { contains: search.trim() } },
               ],
             }
+          : company_name && company_name.trim()
+          ? { company_name: { contains: company_name.trim() } }
           : {}),
         ...(date_from || date_to
           ? {
               created_at: {
-                ...(date_from ? { gte: new Date(date_from) } : {}),
-                ...(date_to
+                ...(date_from && !isNaN(new Date(date_from).getTime())
+                  ? { gte: new Date(date_from) }
+                  : {}),
+                ...(date_to && !isNaN(new Date(date_to).getTime())
                   ? { lte: new Date(`${date_to}T23:59:59.999Z`) }
                   : {}),
               },
@@ -1384,7 +1393,7 @@ export class VendorRegistrationService {
         this.dbService.vendor_registration.findMany({
           where,
           skip,
-          take,
+          take: takeNum,
           orderBy: { created_at: 'desc' },
           include: {
             bank: true,
@@ -1399,10 +1408,17 @@ export class VendorRegistrationService {
       );
 
       const withEmailStatus = await this.attachEmailStatus(formattedRegistrations);
+      const totalPages = Math.ceil(total / takeNum) || 1;
 
       return {
         data: withEmailStatus,
-        meta: { total, page, take, skip },
+        meta: {
+          total,
+          page: pageNum,
+          take: takeNum,
+          skip,
+          total_pages: totalPages,
+        },
       };
     } catch (error) {
       throw error;

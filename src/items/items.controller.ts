@@ -33,7 +33,13 @@ export class ItemsController {
   }
 
   @Get('/')
-  async findAll(@Query() queryParamsDto: QueryParamsDto) {
+  async findAll(
+    @Query() queryParamsDto: QueryParamsDto,
+    @Req() request: RequestWithUser,
+  ) {
+    if (request.query && String(request.query['take']) === '0') {
+      queryParamsDto.take = 0;
+    }
     return await this.itemsService.findAll(queryParamsDto);
   }
 
