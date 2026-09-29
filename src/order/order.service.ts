@@ -828,6 +828,11 @@ export class OrderService {
 
       return {
         data: ordersWithUser,
+        total: count,
+        page,
+        take,
+        orderGrandTotal,
+        orderPaidGrandTotal,
         meta: {
           total: count,
           orderGrandTotal,

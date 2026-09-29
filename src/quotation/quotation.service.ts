@@ -609,6 +609,10 @@ export class QuotationService {
 
       return {
         data: quotationWithUser,
+        total,
+        page,
+        take,
+        quotationGrandTotal,
         meta: {
           skip,
           take,
