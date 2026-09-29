@@ -143,8 +143,12 @@ export class OrderService {
                 category: true,
                 prices: {
                   where: {
-                    periodic_start: { lte: new Date() },
-                    periodic_end: { gte: new Date() },
+                    deleted_at: null,
+                    is_active: true,
+                    OR: [
+                      { periodic_end: { gte: new Date() } },
+                      { periodic_end: null },
+                    ],
                   },
                 },
               },
@@ -1226,8 +1230,12 @@ export class OrderService {
                 category: true,
                 prices: {
                   where: {
-                    periodic_start: { lte: new Date() },
-                    periodic_end: { gte: new Date() },
+                    deleted_at: null,
+                    is_active: true,
+                    OR: [
+                      { periodic_end: { gte: new Date() } },
+                      { periodic_end: null },
+                    ],
                   },
                 },
               },
@@ -1269,8 +1277,12 @@ export class OrderService {
             category: true,
             prices: {
               where: {
-                periodic_start: { lte: new Date() },
-                periodic_end: { gte: new Date() },
+                deleted_at: null,
+                is_active: true,
+                OR: [
+                  { periodic_end: { gte: new Date() } },
+                  { periodic_end: null },
+                ],
               },
             },
           },
@@ -5155,8 +5167,12 @@ export class OrderService {
                 category: true,
                 prices: {
                   where: {
-                    periodic_start: { lte: new Date() },
-                    periodic_end: { gte: new Date() },
+                    deleted_at: null,
+                    is_active: true,
+                    OR: [
+                      { periodic_end: { gte: new Date() } },
+                      { periodic_end: null },
+                    ],
                   },
                 },
               },

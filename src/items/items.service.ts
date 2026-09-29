@@ -192,47 +192,71 @@ export class ItemsService {
             : []),
           ...((is_promotion === 1 || validStoreIds.length > 0)
             ? [
-              {
-                prices: {
-                  some: {
-                    deleted_at: null,
-                    is_active: { not: false },
-                    ...(is_promotion === 1
-                      ? {
-                        periodic_start: {
-                          lte: todayEnd,
+              search
+                ? {
+                  OR: [
+                    {
+                      prices: {
+                        some: {
+                          deleted_at: null,
+                          is_active: { not: false },
                         },
-                        periodic_end: {
-                          gte: todayStart,
+                      },
+                    },
+                    {
+                      prices: {
+                        none: {
+                          deleted_at: null,
                         },
-                      }
-                      : {}),
-                    ...(validStoreIds.length > 0
-                      ? {
-                        OR: [
-                          {
-                            price_stores: {
-                              none: {
-                                deleted_at: null,
+                      },
+                    },
+                  ],
+                }
+                : {
+                  prices: {
+                    some: {
+                      deleted_at: null,
+                      is_active: { not: false },
+                      ...(is_promotion === 1
+                        ? {
+                          OR: [
+                            {
+                              periodic_end: {
+                                gte: todayStart,
                               },
                             },
-                          },
-                          {
-                            price_stores: {
-                              some: {
-                                deleted_at: null,
-                                store_id: {
-                                  in: validStoreIds,
+                            {
+                              periodic_end: null,
+                            },
+                          ],
+                        }
+                        : {}),
+                      ...(validStoreIds.length > 0
+                        ? {
+                          OR: [
+                            {
+                              price_stores: {
+                                none: {
+                                  deleted_at: null,
                                 },
                               },
                             },
-                          },
-                        ],
-                      }
-                      : {}),
+                            {
+                              price_stores: {
+                                some: {
+                                  deleted_at: null,
+                                  store_id: {
+                                    in: validStoreIds,
+                                  },
+                                },
+                              },
+                            },
+                          ],
+                        }
+                        : {}),
+                    },
                   },
                 },
-              },
             ]
             : []),
           ...(item_type ? [{ type: { in: item_type } }] : []),
