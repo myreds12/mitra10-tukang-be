@@ -190,49 +190,59 @@ export class ItemsService {
               },
             ]
             : []),
-          ...((is_promotion === 1 || validStoreIds.length > 0)
+          ...(is_promotion === 1
             ? [
-              search
-                ? {
+              {
+                prices: {
+                  some: {
+                    deleted_at: null,
+                    is_active: { not: false },
+                    OR: [
+                      {
+                        periodic_end: {
+                          gte: todayStart,
+                        },
+                      },
+                      {
+                        periodic_end: null,
+                      },
+                    ],
+                    ...(validStoreIds.length > 0
+                      ? {
+                        OR: [
+                          {
+                            price_stores: {
+                              none: {
+                                deleted_at: null,
+                              },
+                            },
+                          },
+                          {
+                            price_stores: {
+                              some: {
+                                deleted_at: null,
+                                store_id: {
+                                  in: validStoreIds,
+                                },
+                              },
+                            },
+                          },
+                        ],
+                      }
+                      : {}),
+                  },
+                },
+              },
+            ]
+            : validStoreIds.length > 0
+              ? [
+                {
                   OR: [
                     {
                       prices: {
                         some: {
                           deleted_at: null,
                           is_active: { not: false },
-                        },
-                      },
-                    },
-                    {
-                      prices: {
-                        none: {
-                          deleted_at: null,
-                        },
-                      },
-                    },
-                  ],
-                }
-                : {
-                  prices: {
-                    some: {
-                      deleted_at: null,
-                      is_active: { not: false },
-                      ...(is_promotion === 1
-                        ? {
-                          OR: [
-                            {
-                              periodic_end: {
-                                gte: todayStart,
-                              },
-                            },
-                            {
-                              periodic_end: null,
-                            },
-                          ],
-                        }
-                        : {}),
-                      ...(validStoreIds.length > 0
-                        ? {
                           OR: [
                             {
                               price_stores: {
@@ -252,13 +262,20 @@ export class ItemsService {
                               },
                             },
                           ],
-                        }
-                        : {}),
+                        },
+                      },
                     },
-                  },
+                    {
+                      prices: {
+                        none: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
                 },
-            ]
-            : []),
+              ]
+              : []),
           ...(item_type ? [{ type: { in: item_type } }] : []),
           ...(is_free === 1
             ? [
