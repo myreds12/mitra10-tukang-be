@@ -7,7 +7,7 @@ import { lastValueFrom } from 'rxjs';
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
-  private readonly processTemplateId = 'survei_tukang_instalasi_proses_v3';
+  private readonly processTemplateId = 'survei_tukang_instalasi_proses_v4';
 
   constructor(
     private readonly httpService: HttpService,
@@ -52,7 +52,7 @@ export class WhatsAppService {
     );
     const quotationFilename = `Quotation - ${customerName} - Order ID : ${quotation.order_id}.pdf`;
     const pdfUrl = `${this.getPublicBaseUrl()}/orders/quotation-pdf/${quotation.order_id}/${filename}`;
-    await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_quotation_v2', {
+    await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_quotation_v3', {
       customerName: quotation.order?.members?.full_name ?? '-',
       bankName: quotation.store?.bank_name ?? '-',
       accountNumber: quotation.store?.bank_number ?? '-',
@@ -153,7 +153,7 @@ export class WhatsAppService {
       return;
     }
 
-    await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_selesai_v3', {
+    await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_selesai_v4', {
       customerName: order.members?.full_name ?? '-',
       orderId: String(order.id),
     });
@@ -173,7 +173,6 @@ export class WhatsAppService {
       orderId: params.orderId,
       surveyName: params.surveyName,
       craftsmanName: params.craftsmanName,
-      cratftsmanName: params.craftsmanName,
       surveyDate: params.surveyDate,
     };
   }
