@@ -32,7 +32,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: [self-hosted, windows, theseus]
+    runs-on: [self-hosted, windows]
     env:
       APP_DIR:         "C:\\apps\\tukangapi"
       PM_NAME:         "tukangapi"
