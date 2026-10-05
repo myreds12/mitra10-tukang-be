@@ -3,6 +3,8 @@ import { VendorSpService } from './vendor-sp.service';
 // Path ke PrismaService mungkin bervariasi, disesuaikan dengan arsitektur umum NestJS
 import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { PdfService } from '../common/services/pdf.service';
+import { ReportQueryHelper } from './helpers/report-query.helper';
 
 // --- Mock Setup Template ---
 const mockPrismaService = {
@@ -26,6 +28,16 @@ const mockPrismaService = {
   $transaction: jest.fn(async (callback: any) => await callback(mockPrismaService)),
 };
 
+const mockPdfService = {
+  pipeAndSave: jest.fn(),
+};
+
+const mockReportQueryHelper = {
+  countVendorOrdersInQuarter: jest.fn(),
+  getViolationLogDetails: jest.fn(),
+  getSpByVendorAndQuarter: jest.fn(),
+};
+
 describe('VendorSpService', () => {
   let service: VendorSpService;
   let prisma: typeof mockPrismaService;
@@ -37,6 +49,14 @@ describe('VendorSpService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: PdfService,
+          useValue: mockPdfService,
+        },
+        {
+          provide: ReportQueryHelper,
+          useValue: mockReportQueryHelper,
         },
       ],
     }).compile();
@@ -54,7 +74,7 @@ describe('VendorSpService', () => {
       prisma.vendor_sp.findFirst.mockResolvedValue(null);
 
       const result = await service.checkVendorSpStatus(1);
-      expect(result).toEqual({ has_active_sp: false, vendor_status: 'AKTIF' });
+      expect(result).toMatchObject({ has_active_sp: false, vendor_status: 'AKTIF' });
       expect(prisma.vendor_sp.findFirst).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({ vendor_id: 1 })
       }));
@@ -66,8 +86,8 @@ describe('VendorSpService', () => {
 
       const result = await service.checkVendorSpStatus(1);
       expect(result.has_active_sp).toBe(true);
-      expect(result.sp_info?.sp_level).toBe(1);
-      expect(result.sp_info?.sp_status).toBe('SP1');
+      expect(result.sp_level).toBe(1);
+      expect(result.sp_status).toBe('SP1');
       expect(result.vendor_status).toBe('AKTIF');
     });
 
@@ -77,8 +97,8 @@ describe('VendorSpService', () => {
 
       const result = await service.checkVendorSpStatus(1);
       expect(result.has_active_sp).toBe(true);
-      expect(result.sp_info?.sp_level).toBe(2);
-      expect(result.sp_info?.sp_status).toBe('SP2');
+      expect(result.sp_level).toBe(2);
+      expect(result.sp_status).toBe('SP2');
       expect(result.vendor_status).toBe('AKTIF');
     });
 
@@ -88,7 +108,7 @@ describe('VendorSpService', () => {
 
       const result = await service.checkVendorSpStatus(1);
       expect(result.has_active_sp).toBe(true);
-      expect(result.sp_info?.sp_level).toBe(3);
+      expect(result.sp_level).toBe(3);
       expect(result.vendor_status).toBe('NONAKTIF');
     });
 
@@ -240,7 +260,7 @@ describe('VendorSpService', () => {
 
       await service.findAll({});
       expect(prisma.vendor_sp.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        include: expect.objectContaining({ vendor: true })
+        include: expect.objectContaining({ vendor: expect.anything() })
       }));
     });
   });

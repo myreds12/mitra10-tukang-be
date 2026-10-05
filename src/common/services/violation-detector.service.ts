@@ -15,6 +15,7 @@ import {
   ViolationContext,
   ViolationEvidence,
   ViolationResult,
+  ESCALATION_CHAINS,
 } from '../../common/enum/violation-type.enum';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { moduleTypeNotification } from '../../notifications/dto/notification-module-type.enum';
@@ -71,23 +72,84 @@ export class ViolationDetectorService {
       // 2. Get current quarter dan year
       const { quarter, year } = this.getCurrentQuarterYear();
 
-      // 3. Check jika pelanggaran sudah pernah dicatat untuk order ini (prevent duplicate)
-      const isDuplicate = await this.checkDuplicateViolation(
-        context.vendorId,
-        violationType.id,
-        context.orderId,
-        quarter,
-        year,
-      );
+      // [OPSI B: ESKALASI] Check jika tipe pelanggaran ini bagian dari rantai eskalasi
+      const chainInfo = context.orderId
+        ? this.getEscalationChainForCode(violationCode)
+        : null;
 
-      if (isDuplicate) {
-        this.logger.debug(`Duplicate violation skipped: ${violationCode} for vendor ${context.vendorId}`);
-        return {
-          success: false,
-          pointAdded: 0,
-          newTotalPoints: 0,
-          message: 'Pelanggaran sudah pernah dicatat untuk order ini',
-        };
+      if (chainInfo && context.orderId) {
+        const existingChainLog = await this.dbService.vendor_violation_log.findFirst({
+          where: {
+            vendor_id: context.vendorId,
+            order_id: context.orderId,
+            quarter,
+            year,
+            deleted_at: null,
+            is_active: true,
+            violation_type: {
+              code: { in: chainInfo.chain },
+            },
+          },
+          include: {
+            violation_type: true,
+          },
+        });
+
+        if (existingChainLog) {
+          const existingRank =
+            chainInfo.chain.indexOf(existingChainLog.violation_type.code) + 1;
+
+          if (existingRank < chainInfo.rank) {
+            // Eskalasi: Tier lebih tinggi -> update log yang sudah ada
+            return await this.escalateViolation(
+              existingChainLog,
+              violationType,
+              context,
+              userId,
+            );
+          } else {
+            // Tier sama atau sudah di tier lebih tinggi -> skip idempotency
+            this.logger.debug(
+              `Duplicate or already escalated violation skipped: ${violationCode} (existing: ${existingChainLog.violation_type.code}) for vendor ${context.vendorId}`,
+            );
+            return {
+              success: false,
+              pointAdded: 0,
+              newTotalPoints: await this.calculateTotalPoints(
+                context.vendorId,
+                quarter,
+                year,
+              ),
+              message:
+                'Pelanggaran sudah pernah dicatat atau dieskalasi untuk order ini',
+            };
+          }
+        }
+      } else {
+        // 3. Check jika pelanggaran non-chain sudah pernah dicatat untuk order ini (prevent duplicate)
+        const isDuplicate = await this.checkDuplicateViolation(
+          context.vendorId,
+          violationType.id,
+          context.orderId,
+          quarter,
+          year,
+        );
+
+        if (isDuplicate) {
+          this.logger.debug(
+            `Duplicate violation skipped: ${violationCode} for vendor ${context.vendorId}`,
+          );
+          return {
+            success: false,
+            pointAdded: 0,
+            newTotalPoints: await this.calculateTotalPoints(
+              context.vendorId,
+              quarter,
+              year,
+            ),
+            message: 'Pelanggaran sudah pernah dicatat untuk order ini',
+          };
+        }
       }
 
       // 4. Simpan ke vendor_violation_log
@@ -155,6 +217,149 @@ export class ViolationDetectorService {
         deleted_at: null,
       },
     });
+  }
+
+  /**
+   * Helper untuk mendeteksi apakah kode pelanggaran memiliki rantai eskalasi
+   */
+  private getEscalationChainForCode(
+    code: string,
+  ): { chainKey: string; chain: string[]; rank: number } | null {
+    for (const [chainKey, chain] of Object.entries(ESCALATION_CHAINS)) {
+      const idx = chain.indexOf(code);
+      if (idx !== -1) {
+        return { chainKey, chain, rank: idx + 1 };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Eskalasi pelanggaran yang sudah ada ke tier lebih tinggi (Opsi B: Maks 1 Penalti per Order)
+   * Mengupdate log existing alih-alih membuat baris baru.
+   *
+   * @param existingLogOrId Violation log yang ada (object atau ID)
+   * @param newViolationTypeOrCode Jenis pelanggaran baru (object atau kode string)
+   * @param context Context pelanggaran
+   * @param userId User pembuat / pengeskalasi
+   */
+  async escalateViolation(
+    existingLogOrId: number | any,
+    newViolationTypeOrCode: string | any,
+    context: ViolationContext,
+    userId?: number,
+  ): Promise<ViolationResult> {
+    if (process.env.VENDOR_SP_ENABLED !== 'true') {
+      return {
+        success: false,
+        pointAdded: 0,
+        newTotalPoints: 0,
+        message: 'Vendor SP feature is disabled',
+      };
+    }
+
+    let existingLog = existingLogOrId;
+    if (typeof existingLogOrId === 'number') {
+      existingLog = await this.dbService.vendor_violation_log.findUnique({
+        where: { id: existingLogOrId },
+        include: { violation_type: true },
+      });
+      if (!existingLog) {
+        throw new NotFoundException(
+          `Violation log #${existingLogOrId} tidak ditemukan`,
+        );
+      }
+    }
+
+    let newViolationType = newViolationTypeOrCode;
+    if (typeof newViolationTypeOrCode === 'string') {
+      newViolationType = await this.getViolationType(newViolationTypeOrCode);
+      if (!newViolationType) {
+        throw new NotFoundException(
+          `Violation type ${newViolationTypeOrCode} tidak ditemukan`,
+        );
+      }
+    }
+
+    const { quarter, year } = this.getCurrentQuarterYear();
+
+    // Hitung selisih poin jika ada
+    const oldPoint = existingLog.violation_type?.point ?? 1;
+    const newPoint = newViolationType.point ?? 1;
+    const pointAdded = Math.max(0, newPoint - oldPoint);
+
+    // Build evidence snapshot dengan metadata eskalasi
+    let snapshot: Record<string, any> = {};
+    if (context.evidence && (context.evidence as any).snapshot) {
+      snapshot = { ...(context.evidence as any).snapshot };
+    } else if (existingLog.evidence_path) {
+      try {
+        snapshot = JSON.parse(existingLog.evidence_path);
+      } catch {
+        snapshot = { rawEvidence: existingLog.evidence_path };
+      }
+    }
+
+    snapshot.escalated_from = existingLog.violation_type?.code || 'UNKNOWN';
+    snapshot.escalated_at = new Date().toISOString();
+
+    let evidencePath = JSON.stringify(snapshot);
+    if (evidencePath.length > 500) {
+      evidencePath = evidencePath.slice(0, 500);
+    }
+
+    // Update log existing
+    await this.dbService.vendor_violation_log.update({
+      where: { id: existingLog.id },
+      data: {
+        violation_type_id: newViolationType.id,
+        description: context.description || newViolationType.description,
+        evidence_path: evidencePath,
+        evidence_provenance:
+          context.evidence?.provenance ||
+          existingLog.evidence_provenance ||
+          'SYSTEM_GENERATED',
+        updated_by: userId ?? null,
+        updated_at: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `Violation escalated: ${existingLog.violation_type?.code} -> ${newViolationType.code} | Vendor: ${context.vendorId} | Log ID: ${existingLog.id}`,
+    );
+
+    // Recalculate total points
+    const totalPoints = await this.calculateTotalPoints(
+      context.vendorId,
+      quarter,
+      year,
+    );
+
+    // Check & issue / sync SP
+    const spResult = await this.checkAndIssueSP(
+      context.vendorId,
+      totalPoints,
+      quarter,
+      year,
+      userId,
+    );
+
+    // Notifikasi eskalasi ke vendor
+    await this.sendViolationNotification(
+      context.vendorId,
+      newViolationType.name,
+      pointAdded,
+      totalPoints,
+    );
+
+    return {
+      success: true,
+      violationLogId: existingLog.id,
+      pointAdded,
+      newTotalPoints: totalPoints,
+      spIssued: spResult,
+      message: `Pelanggaran dieskalasi ke "${newViolationType.name}". Total poin: ${totalPoints}`,
+    };
   }
 
   /**

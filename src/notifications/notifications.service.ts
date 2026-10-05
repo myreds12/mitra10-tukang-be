@@ -58,24 +58,31 @@ export class NotificationsService {
       ) {
         filteredRoles = ['Finance'];
         ({ vendor_id } = dataParse.invoices);
+      } else if (
+        module_type === moduleTypeNotification.VENDOR_SP ||
+        module_type === moduleTypeNotification.VENDOR_VIOLATION
+      ) {
+        vendor_id = dataParse?.vendor_id ?? module_id;
       } else if (module_type !== moduleTypeNotification.INVOICE) {
-        ({ sales_id, store_id, vendor_id } = dataParse.orders);
+        if (dataParse?.orders) {
+          ({ sales_id, store_id, vendor_id } = dataParse.orders);
 
-        const workOrders = await this.dbService.work_orders.findMany({
-          where: { order_id: dataParse.orders.id },
-          select: {
-            work_order_tukang: {
-              select: { tukang_id: true },
+          const workOrders = await this.dbService.work_orders.findMany({
+            where: { order_id: dataParse.orders.id },
+            select: {
+              work_order_tukang: {
+                select: { tukang_id: true },
+              },
             },
-          },
-        });
+          });
 
-        if (workOrders.length > 0) {
-          tukang_ids = workOrders.flatMap((wo) =>
-            wo.work_order_tukang.map((wot) => wot.tukang_id),
-          );
-        } else {
-          tukang_ids = [];
+          if (workOrders.length > 0) {
+            tukang_ids = workOrders.flatMap((wo) =>
+              wo.work_order_tukang.map((wot) => wot.tukang_id),
+            );
+          } else {
+            tukang_ids = [];
+          }
         }
       } else {
         ({ vendor_id } = dataParse.invoices);

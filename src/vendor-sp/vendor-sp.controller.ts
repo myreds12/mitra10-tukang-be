@@ -379,4 +379,26 @@ export class VendorSpController {
     });
     stream.pipe(res);
   }
+
+  @Post('trigger-weekly-warning')
+  @ApiOperation({
+    summary: 'Trigger Weekly Vendor SP Warning Notifications (Manual)',
+    description:
+      'Mengecek seluruh vendor yang total poinnya mendekati threshold SP (>= 70%) dan mengirimkan notifikasi mingguan ke PIC Vendor (Owner Vendor & Admin Vendor). ' +
+      'Dilengkapi idempotency guard (1x per minggu ISO per vendor) dan audit logging. ' +
+      'Proteksi: JWT-only + role-check handler (Admin HO / Super User).',
+  })
+  @ApiResponse({ status: 200, description: 'Result of weekly warning notification process' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  async triggerWeeklyWarning(@User() user: any) {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    return this.service.sendWeeklyWarningNotifications(user?.id);
+  }
 }

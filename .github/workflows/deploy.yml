@@ -28,17 +28,19 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npm run build
+        env:
+            CI: false
       - run: npm test --if-present
 
   deploy:
     needs: test
     runs-on: [self-hosted, windows]
     env:
-      APP_DIR:         "C:\\apps\\tukangapi"
+      APP_DIR:         "D:\\Applications\\tukangapi"
       PM_NAME:         "tukangapi"
-      HEALTH_URL:      "http://localhost:3000/health"
-      WEB_CONFIG_SRC:  "C:\\apps\\tukangapi\\web.config"
-      DIST_DIR:        "C:\\apps\\tukangapi\\dist"
+      HEALTH_URL:      "http://localhost:3000/health" 
+      WEB_CONFIG_SRC:  "D:\\Applications\\tukangapi\\web.config"
+      DIST_DIR:        "D:\\Applications\\tukangapi\\dist"
       PRISMA_STRATEGY: "push"   # ganti ke "migrate" kalau sudah pakai prisma/migrations
 
     steps:

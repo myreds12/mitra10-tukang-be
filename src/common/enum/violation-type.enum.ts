@@ -143,3 +143,24 @@ export interface ViolationResult {
   };
   message: string;
 }
+
+/**
+ * Escalation chains untuk pelanggaran berjenjang (Opsi B: Maks 1 Penalti per Order).
+ * Tiap array terurut dari tier terendah (rank 1) ke tier tertinggi.
+ */
+export const ESCALATION_CHAINS: Record<string, string[]> = {
+  KONFIRMASI_ORDER: [
+    ViolationTypeCode.ORDER_NOT_CONFIRMED_H,
+    ViolationTypeCode.ORDER_NOT_CONFIRMED_H1,
+    ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS,
+  ],
+  QUOTATION_LATE: [
+    ViolationTypeCode.QUOTATION_LATE_H2,
+    ViolationTypeCode.QUOTATION_LATE_H3,
+  ],
+  STATUS_NOT_UPDATED: [
+    ViolationTypeCode.STATUS_NOT_UPDATED_H,
+    ViolationTypeCode.STATUS_NOT_UPDATED_H1,
+    ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS,
+  ],
+};

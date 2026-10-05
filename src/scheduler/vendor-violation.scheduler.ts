@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { ViolationDetectorService } from '../common/services/violation-detector.service';
 import { ViolationTypeCode } from '../common/enum/violation-type.enum';
+import { VendorSpService } from '../vendor-sp/vendor-sp.service';
 
 @Injectable()
 export class VendorViolationScheduler implements OnModuleInit {
@@ -12,6 +13,7 @@ export class VendorViolationScheduler implements OnModuleInit {
   constructor(
     private readonly dbService: PrismaService,
     private readonly violationDetector: ViolationDetectorService,
+    private readonly vendorSpService: VendorSpService,
   ) {}
 
   private isPrimaryInstance(): boolean {
@@ -125,23 +127,47 @@ export class VendorViolationScheduler implements OnModuleInit {
   }
 
   /**
+   * JOB 4: Weekly Vendor SP Warning
+   * Setiap Senin jam 08:00 WIB (01:00 UTC)
+   * Kirim notifikasi peringatan ke vendor yang total poin penalty-nya mendekati threshold SP (>= 70%)
+   */
+  @Cron('0 1 * * 1') // 01:00 UTC every Monday (08:00 WIB)
+  async handleWeeklyWarningCheck() {
+    if (!this.isPrimaryInstance()) return;
+
+    this.logger.log('=== Starting Weekly Vendor SP Warning Check ===');
+    const startTime = Date.now();
+
+    try {
+      const result = await this.vendorSpService.sendWeeklyWarningNotifications();
+      const duration = Date.now() - startTime;
+      this.logger.log(
+        `=== Weekly Vendor SP Warning Check completed in ${duration}ms: ${result.totalApproaching} vendors evaluated ===`,
+      );
+    } catch (error) {
+      this.logger.error('Weekly Vendor SP Warning Check failed', error);
+    }
+  }
+
+  /**
    * Check order yang tidak dikonfirmasi
-   * Pelanggaran #2: Tidak terkonfirmasi H+1
-   * Pelanggaran #3: Tidak terkonfirmasi >H+1
+   * Pelanggaran #1: Tidak terkonfirmasi pada Hari H (ORDER_NOT_CONFIRMED_H)
+   * Pelanggaran #2: Tidak terkonfirmasi pada H+1 (ORDER_NOT_CONFIRMED_H1)
+   * Pelanggaran #3: Tidak terkonfirmasi pada >H+1 (ORDER_NOT_CONFIRMED_H_PLUS)
    */
   private async checkUnconfirmedOrders() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    const twoDaysAgo = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
 
-    // Status yang mengindikasikan order belum dikonfirmasi vendor
-    const unconfirmedStatuses = ['SURVEYREQ', 'TUKANGSURVEY'];
+    // Status yang mengindikasikan order belum dikonfirmasi vendor:
+    // SURVEYREQ (order survey belum dialokasikan ke tukang)
+    // WORKREQ (order non-survey/pemasangan langsung belum dialokasikan ke tukang)
+    const unconfirmedStatuses = ['SURVEYREQ', 'WORKREQ'];
 
     // Cari order yang:
     // 1. Punya vendor
     // 2. Statusnya belum dikonfirmasi
-    // 3. Created today (untuk H+1 dan >H+1)
+    // 3. Masuk sebelum hari ini (lt: today)
     const orders = await this.dbService.orders.findMany({
       where: {
         vendor_id: { not: null },
@@ -150,15 +176,12 @@ export class VendorViolationScheduler implements OnModuleInit {
           category: { in: unconfirmedStatuses },
         },
         created_at: {
-          lte: yesterday, // Created yesterday or earlier
+          lt: today,
         },
       },
       include: {
         vendor: true,
-        order_history: {
-          orderBy: { created_at: 'desc' },
-          take: 1,
-        },
+        work_orders: true,
       },
     });
 
@@ -167,19 +190,36 @@ export class VendorViolationScheduler implements OnModuleInit {
     for (const order of orders) {
       if (!order.vendor_id) continue;
 
-      const createdAt = new Date(order.created_at);
-      const daysDiff = Math.floor(
-        (today.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000),
+      // Basis tanggal: work_orders.created_at (tanggal order masuk ke vendor), fallback ke order.created_at
+      const assignedDate = order.work_orders?.created_at
+        ? new Date(order.work_orders.created_at)
+        : new Date(order.created_at);
+
+      const assignedMidnight = new Date(
+        assignedDate.getFullYear(),
+        assignedDate.getMonth(),
+        assignedDate.getDate(),
+      );
+
+      const daysDiff = Math.round(
+        (today.getTime() - assignedMidnight.getTime()) / (24 * 60 * 60 * 1000),
       );
 
       let violationCode: string | null = null;
+      let description: string | null = null;
 
-      if (daysDiff >= 2) {
+      if (daysDiff >= 3) {
         // >H+1
         violationCode = ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS;
-      } else if (daysDiff === 1) {
+        description = `Order #${order.project_number || order.id} tidak dikonfirmasi lebih dari H+1 (${daysDiff} hari)`;
+      } else if (daysDiff === 2) {
         // H+1
         violationCode = ViolationTypeCode.ORDER_NOT_CONFIRMED_H1;
+        description = `Order #${order.project_number || order.id} tidak dikonfirmasi pada H+1`;
+      } else if (daysDiff === 1) {
+        // Hari H (1 hari kalender sejak ditugaskan, hari H baru saja lewat)
+        violationCode = ViolationTypeCode.ORDER_NOT_CONFIRMED_H;
+        description = `Order #${order.project_number || order.id} tidak dikonfirmasi pada Hari H`;
       }
 
       if (violationCode) {
@@ -188,14 +228,15 @@ export class VendorViolationScheduler implements OnModuleInit {
           {
             vendorId: order.vendor_id,
             orderId: order.id,
-            description: `Order #${order.project_number || order.id} tidak dikonfirmasi selama ${daysDiff} hari`,
+            description,
             // [POIN 6] SYSTEM_GENERATED — cron job scheduler
             evidence: {
               provenance: 'SYSTEM_GENERATED',
               snapshot: {
                 orderId: order.id,
-                daysSinceCreated: daysDiff,
-                checkType: 'checkLateQuotationConfirmations',
+                daysSinceAssigned: daysDiff,
+                checkType: 'checkUnconfirmedOrders',
+                tier: violationCode,
                 triggeredAt: new Date().toISOString(),
               },
             },
@@ -206,67 +247,87 @@ export class VendorViolationScheduler implements OnModuleInit {
   }
 
   /**
-   * Check quotation yang terbit terlambat
-   * Pelanggaran #10: Quotation > H+2 sejak Survey Selesai
-   * Pelanggaran #11: Quotation > H+3 sejak Survey Selesai
+   * Check quotation yang terbit terlambat / belum dibuat sejak Survey Selesai
+   * Pelanggaran #10: Quotation > H+2 sejak Survey Selesai (QUOTATION_LATE_H2)
+   * Pelanggaran #11: Quotation > H+3 sejak Survey Selesai (QUOTATION_LATE_H3)
    */
   private async checkLateQuotations() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Get status IDs for filtering
-    const quoteInStatus = await this.dbService.status.findFirst({
-      where: { category: 'QUOTEIN' },
-    });
-    const quoteDraftStatus = await this.dbService.status.findFirst({
-      where: { category: 'QUOTATIONDRAFT' },
-    });
+    // Status SURVEYDONE
     const surveyDoneStatus = await this.dbService.status.findFirst({
       where: { category: 'SURVEYDONE' },
     });
 
-    if (!quoteInStatus || !surveyDoneStatus) {
-      this.logger.warn('Required status not found for late quotation check');
+    if (!surveyDoneStatus) {
+      this.logger.warn('SURVEYDONE status not found for late quotation check');
       return;
     }
 
-    const quotationStatusIds = [quoteInStatus.id];
-    if (quoteDraftStatus) {
-      quotationStatusIds.push(quoteDraftStatus.id);
-    }
-
-    // Cari quotation yang:
-    // 1. Statusnya QUOTEIN atau QUOTATIONDRAFT
-    // 2. Quotation sudah > 3 hari sejak SURVEYDONE
-    const quotations = await this.dbService.quotation.findMany({
+    // Status quotation yang menandakan quotation sudah terbit/disubmit oleh vendor
+    const submittedStatuses = await this.dbService.status.findMany({
       where: {
-        quotation_status: { in: quotationStatusIds },
+        category: {
+          in: ['QUOTEIN', 'QUOTEOUT', 'QUOTATIONPAID', 'QUOTATIONAPPROVED'],
+        },
+      },
+      select: { id: true },
+    });
+    const submittedStatusIds = submittedStatuses.map((s) => s.id);
+
+    // Cari order yang:
+    // 1. Punya vendor
+    // 2. Tidak deleted
+    // 3. Sudah SURVEYDONE di order_history
+    // 4. Belum ada quotation yang disubmit (tidak ada quotation sama sekali, atau hanya DRAFT)
+    const orders = await this.dbService.orders.findMany({
+      where: {
+        vendor_id: { not: null },
         deleted_at: null,
+        order_history: {
+          some: {
+            status_id: surveyDoneStatus.id,
+          },
+        },
+        quotation: {
+          none: {
+            quotation_status: { in: submittedStatusIds },
+            deleted_at: null,
+          },
+        },
       },
       include: {
-        order: {
-          include: {
-            order_history: {
-              where: { status_id: surveyDoneStatus.id },
-              orderBy: { created_at: 'desc' },
-              take: 1,
-            },
-          },
+        vendor: true,
+        order_history: {
+          where: { status_id: surveyDoneStatus.id },
+          orderBy: { created_at: 'desc' },
+          take: 1,
+        },
+        quotation: {
+          where: { deleted_at: null },
+          take: 1,
         },
       },
     });
 
-    this.logger.log(`Found ${quotations.length} quotations to check for lateness`);
+    this.logger.log(`Found ${orders.length} orders to check for late quotation`);
 
-    for (const quotation of quotations) {
-      const surveyDoneHistory = quotation.order?.order_history?.[0];
+    for (const order of orders) {
+      if (!order.vendor_id) continue;
 
+      const surveyDoneHistory = order.order_history?.[0];
       if (!surveyDoneHistory) continue;
-      if (!quotation.order?.vendor_id) continue;
 
       const surveyDoneDate = new Date(surveyDoneHistory.created_at);
-      const daysSinceSurvey = Math.floor(
-        (today.getTime() - surveyDoneDate.getTime()) / (24 * 60 * 60 * 1000),
+      const surveyMidnight = new Date(
+        surveyDoneDate.getFullYear(),
+        surveyDoneDate.getMonth(),
+        surveyDoneDate.getDate(),
+      );
+
+      const daysSinceSurvey = Math.round(
+        (today.getTime() - surveyMidnight.getTime()) / (24 * 60 * 60 * 1000),
       );
 
       let violationCode: string | null = null;
@@ -274,8 +335,8 @@ export class VendorViolationScheduler implements OnModuleInit {
       if (daysSinceSurvey >= 3) {
         // >H+3
         violationCode = ViolationTypeCode.QUOTATION_LATE_H3;
-      } else if (daysSinceSurvey >= 2) {
-        // >H+2
+      } else if (daysSinceSurvey === 2) {
+        // H+2 (atau > H+2)
         violationCode = ViolationTypeCode.QUOTATION_LATE_H2;
       }
 
@@ -283,18 +344,18 @@ export class VendorViolationScheduler implements OnModuleInit {
         await this.violationDetector.recordViolation(
           violationCode,
           {
-            vendorId: quotation.order.vendor_id,
-            orderId: quotation.order_id,
-            quotationId: quotation.id,
-            description: `Quotation belum terbit selama ${daysSinceSurvey} hari sejak Survey Selesai`,
+            vendorId: order.vendor_id,
+            orderId: order.id,
+            quotationId: order.quotation?.[0]?.id,
+            description: `Quotation belum dibuat/terbit selama ${daysSinceSurvey} hari sejak Survey Selesai (limit: ${daysSinceSurvey >= 3 ? 'H+3' : 'H+2'})`,
             // [POIN 6] SYSTEM_GENERATED — cron job scheduler
             evidence: {
               provenance: 'SYSTEM_GENERATED',
               snapshot: {
-                quotationId: quotation.id,
-                orderId: quotation.order_id,
+                orderId: order.id,
                 daysSinceSurveyDone: daysSinceSurvey,
                 checkType: 'checkLateQuotations',
+                tier: violationCode,
                 triggeredAt: new Date().toISOString(),
               },
             },
