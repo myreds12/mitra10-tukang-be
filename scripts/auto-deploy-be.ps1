@@ -1,26 +1,30 @@
 # =========================================================
-# auto-deploy-be.ps1
+# scripts/deploy/auto-deploy-be.ps1
 # Auto deploy untuk Backend (tukangapi) di server THESEUS
-# Alur: cek update -> (install jika perlu) -> (prisma jika perlu)
+# Dipanggil oleh GitHub Actions (deploy.yml)
+# Alur: pull -> (install jika perlu) -> (prisma jika perlu)
 #       -> build -> copy web.config ke dist -> pm2 restart -> health check
 # =========================================================
 
 $ErrorActionPreference = "Stop"
 
-# ---------- KONFIGURASI (SESUAIKAN INI) ----------
-$AppDir       = "D:\Applications\tukangapi"                     # path project BE di server theseus
-$Branch       = "main"
-$PmName       = "tukangapi"                             # nama proses pm2 BE
-$HealthUrl    = "http://localhost:3000/health"          # ganti sesuai endpoint health check BE
-$LogFile      = "D:\Applications\deploy\deploy-be.log"
-$Lock         = "D:\Applications\deploy\deploy-be.lock"
-$WebConfigSrc = "D:\Applications\tukangapi\web.config"           # master web.config, DI LUAR folder dist
-$DistDir      = "D:\Applications\tukangapi\dist"                 # folder hasil build
+# ---------- DIAMBIL DARI ENV WORKFLOW (kalau ada), fallback ke default ----------
+$AppDir  = if ($env:APP_DIR) { $env:APP_DIR } else { "D:\Applications\tukangapi" }
+$Branch  = if ($env:BRANCH)  { $env:BRANCH }  else { "main" }
+$PmName  = if ($env:PM_NAME) { $env:PM_NAME } else { "tukangapi" }
+$HealthUrl    = if ($env:HEALTH_URL)     { $env:HEALTH_URL }     else { "http://localhost:3000/health" }
+$WebConfigSrc = if ($env:WEB_CONFIG_SRC) { $env:WEB_CONFIG_SRC } else { "D:\Applications\tukangapi\web.config" }
+$DistDir      = if ($env:DIST_DIR)       { $env:DIST_DIR }       else { "D:\Applications\tukangapi\dist" }
+$PrismaStrategy = if ($env:PRISMA_STRATEGY) { $env:PRISMA_STRATEGY } else { "push" }
 
-# Pilih strategi prisma: "push" (db push, cepat tapi bisa destruktif)
-# atau "migrate" (migrate deploy, lebih aman kalau sudah pakai file migration)
-$PrismaStrategy = "push"    # ganti ke "migrate" kalau sudah pakai folder prisma/migrations
+# ---------- KONFIGURASI LOG (SESUAIKAN SEKALI SAJA) ----------
+$LogDir  = "D:\Applications\deploy"
+$LogFile = Join-Path $LogDir "deploy-be.log"
+$Lock    = Join-Path $LogDir "deploy-be.lock"
 # ---------------------------------------------------
+
+# Pastikan folder log ada, auto-create kalau belum
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 
 function Log($msg) {
     $line = "$(Get-Date -Format 's') | $msg"
@@ -58,16 +62,10 @@ try {
     $local  = (git rev-parse HEAD).Trim()
     $remote = (git rev-parse "origin/$Branch").Trim()
 
-    if ($local -eq $remote) {
-        Log "Tidak ada commit baru. Skip deploy."
-        exit 0
-    }
-
     Log "======================================================"
-    Log "Ada update: $local -> $remote"
+    Log "Deploy BE dipicu oleh GitHub Actions ($local -> $remote)"
 
-    # Cek file apa saja yang berubah
-    $changedFiles  = git diff --name-only $local $remote
+    $changedFiles  = if ($local -ne $remote) { git diff --name-only $local $remote } else { @() }
     $depsChanged   = $changedFiles -match "package-lock\.json" -or $changedFiles -match "^package\.json$"
     $prismaChanged = $changedFiles -match "prisma/schema\.prisma" -or $changedFiles -match "^prisma/migrations/"
 
@@ -100,6 +98,7 @@ try {
         }
 
         Log "Build backend..."
+        $env:CI = "false"     # cegah build gagal gara-gara warning ESLint dianggap error
         Run "npm run build"
 
         Copy-WebConfig
@@ -124,11 +123,13 @@ try {
         git reset --hard $local
         if ($depsChanged) { npm ci }
         if ($prismaChanged) { npx prisma generate }
+        $env:CI = "false"
         npm run build
         Copy-WebConfig
         pm2 restart $PmName --update-env
 
         Log "Rollback selesai, BE kembali ke versi lama"
+        throw   # lempar lagi errornya supaya job Actions ikut ditandai gagal (merah)
     }
 }
 finally {

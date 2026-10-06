@@ -1,143 +1,7 @@
 # =========================================================
 # .github/workflows/deploy.yml  (taruh di repo mitra10-tukang-be)
 # Jalan di self-hosted runner yang terpasang di server THESEUS
-# =========================================================
-
-name: Deploy Backend Production
-
-on:
-  push:
-    branches: [vendor-sp-registration]
-  workflow_dispatch:   # bisa trigger manual dari tab Actions kalau perlu
-
-concurrency:
-  group: deploy-be-prod
-  cancel-in-progress: false   # jangan cancel deploy yang lagi jalan
-
-jobs:
-  test:
-    runs-on: ubuntu-latest   # test jalan di cloud GitHub, bukan di theseus
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run build
-        env:
-            CI: false
-      - run: npm test --if-present
-
-  deploy:
-    needs: test
-    runs-on: [self-hosted, windows]
-    env:
-      APP_DIR:         "D:\\Applications\\tukangapi"
-      PM_NAME:         "tukangapi"
-      HEALTH_URL:      "http://localhost:3000/health" 
-      WEB_CONFIG_SRC:  "D:\\Applications\\tukangapi\\web.config"
-      DIST_DIR:        "D:\\Applications\\tukangapi\\dist"
-      PRISMA_STRATEGY: "push"   # ganti ke "migrate" kalau sudah pakai prisma/migrations
-
-    steps:
-      - name: Checkout kode terbaru ke folder aplikasi
-        uses: actions/checkout@v4
-        with:
-          path: checkout-temp   # checkout ke folder sementara, biar tidak bentrok sama $APP_DIR yang sudah ada isinya
-
-      - name: Deteksi perubahan dependencies & prisma
-        id: changes
-        shell: powershell
-        run: |
-          $before = "${{ github.event.before }}"
-          $after  = "${{ github.sha }}"
-
-          Set-Location checkout-temp
-
-          if ($before -eq "0000000000000000000000000000000000000000" -or [string]::IsNullOrEmpty($before)) {
-            # push pertama kali / force push tanpa before, anggap semua berubah
-            $depsChanged   = "true"
-            $prismaChanged = "true"
-          } else {
-            $changed = git diff --name-only $before $after
-            $depsChanged   = if ($changed -match "package-lock\.json" -or $changed -match "^package\.json$") { "true" } else { "false" }
-            $prismaChanged = if ($changed -match "prisma/schema\.prisma" -or $changed -match "^prisma/migrations/") { "true" } else { "false" }
-          }
-
-          Write-Host "Dependencies changed: $depsChanged"
-          Write-Host "Prisma changed: $prismaChanged"
-
-          echo "deps_changed=$depsChanged" >> $env:GITHUB_OUTPUT
-          echo "prisma_changed=$prismaChanged" >> $env:GITHUB_OUTPUT
-
-      - name: Pull kode terbaru ke folder aplikasi
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          git fetch origin main
-          git reset --hard origin/main
-
-      - name: Install dependencies (jika ada perubahan)
-        if: steps.changes.outputs.deps_changed == 'true'
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          npm ci
-
-      - name: Prisma generate & push (jika schema berubah)
-        if: steps.changes.outputs.prisma_changed == 'true'
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          npx prisma generate
-          if ("${{ env.PRISMA_STRATEGY }}" -eq "migrate") {
-            npx prisma migrate deploy
-          } else {
-            npx prisma db push
-          }
-
-      - name: Build
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          npm run build
-
-      - name: Tempatkan web.config ke dist
-        shell: powershell
-        run: |
-          if (Test-Path $env:WEB_CONFIG_SRC) {
-            Copy-Item $env:WEB_CONFIG_SRC -Destination $env:DIST_DIR -Force
-            Write-Host "web.config ditempatkan ke $env:DIST_DIR"
-          } else {
-            Write-Warning "web.config master tidak ditemukan di $env:WEB_CONFIG_SRC"
-          }
-
-      - name: Restart pm2
-        shell: powershell
-        run: |
-          pm2 restart $env:PM_NAME --update-env
-
-      - name: Health check
-        shell: powershell
-        run: |
-          Start-Sleep -Seconds 8
-          $res = Invoke-WebRequest -Uri $env:HEALTH_URL -UseBasicParsing -TimeoutSec 15
-          if ($res.StatusCode -ne 200) {
-            throw "Health check gagal: $($res.StatusCode)"
-          }
-          Write-Host "Deploy BE sukses dan health check OK"
-
-      - name: Bersihkan folder checkout sementara
-        if: always()
-        shell: powershell
-        run: |
-          Remove-Item -Recurse -Force checkout-temp -ErrorAction SilentlyContinue# =========================================================
-# .github/workflows/deploy.yml  (taruh di repo mitra10-tukang-be)
-# Jalan di self-hosted runner yang terpasang di server THESEUS
+# Memanggil scripts/deploy/auto-deploy-be.ps1
 # =========================================================
 
 name: Deploy Backend Production
@@ -145,129 +9,45 @@ name: Deploy Backend Production
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # bisa trigger manual dari tab Actions kalau perlu
+  workflow_dispatch:
 
 concurrency:
   group: deploy-be-prod
-  cancel-in-progress: false   # jangan cancel deploy yang lagi jalan
+  cancel-in-progress: false
 
 jobs:
   test:
-    runs-on: ubuntu-latest   # test jalan di cloud GitHub, bukan di theseus
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
       - run: npm ci
       - run: npx prisma generate
       - run: npm run build
+        env:
+          CI: false
       - run: npm test --if-present
 
   deploy:
     needs: test
-    runs-on: [self-hosted, windows, theseus]
+    runs-on: [self-hosted, windows]   # cek label runner BE yang asli, sesuaikan kalau beda
     env:
-      APP_DIR:         "C:\\apps\\tukangapi"
+      APP_DIR:         "D:\\Applications\\tukangapi"
+      BRANCH:          "main"
       PM_NAME:         "tukangapi"
       HEALTH_URL:      "http://localhost:3000/health"
-      WEB_CONFIG_SRC:  "C:\\apps\\tukangapi\\web.config"
-      DIST_DIR:        "C:\\apps\\tukangapi\\dist"
-      PRISMA_STRATEGY: "push"   # ganti ke "migrate" kalau sudah pakai prisma/migrations
+      WEB_CONFIG_SRC:  "D:\\Applications\\tukangapi\\web.config"
+      DIST_DIR:        "D:\\Applications\\tukangapi\\dist"
+      PRISMA_STRATEGY: "push"
 
     steps:
-      - name: Checkout kode terbaru ke folder aplikasi
+      - name: Checkout repo (ambil scripts/deploy terbaru)
         uses: actions/checkout@v4
-        with:
-          path: checkout-temp   # checkout ke folder sementara, biar tidak bentrok sama $APP_DIR yang sudah ada isinya
 
-      - name: Deteksi perubahan dependencies & prisma
-        id: changes
+      - name: Jalankan auto-deploy-be.ps1
         shell: powershell
         run: |
-          $before = "${{ github.event.before }}"
-          $after  = "${{ github.sha }}"
-
-          Set-Location checkout-temp
-
-          if ($before -eq "0000000000000000000000000000000000000000" -or [string]::IsNullOrEmpty($before)) {
-            # push pertama kali / force push tanpa before, anggap semua berubah
-            $depsChanged   = "true"
-            $prismaChanged = "true"
-          } else {
-            $changed = git diff --name-only $before $after
-            $depsChanged   = if ($changed -match "package-lock\.json" -or $changed -match "^package\.json$") { "true" } else { "false" }
-            $prismaChanged = if ($changed -match "prisma/schema\.prisma" -or $changed -match "^prisma/migrations/") { "true" } else { "false" }
-          }
-
-          Write-Host "Dependencies changed: $depsChanged"
-          Write-Host "Prisma changed: $prismaChanged"
-
-          echo "deps_changed=$depsChanged" >> $env:GITHUB_OUTPUT
-          echo "prisma_changed=$prismaChanged" >> $env:GITHUB_OUTPUT
-
-      - name: Pull kode terbaru ke folder aplikasi
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          git fetch origin main
-          git reset --hard origin/main
-
-      - name: Install dependencies (jika ada perubahan)
-        if: steps.changes.outputs.deps_changed == 'true'
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          npm ci
-
-      - name: Prisma generate & push (jika schema berubah)
-        if: steps.changes.outputs.prisma_changed == 'true'
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          npx prisma generate
-          if ("${{ env.PRISMA_STRATEGY }}" -eq "migrate") {
-            npx prisma migrate deploy
-          } else {
-            npx prisma db push
-          }
-
-      - name: Build
-        shell: powershell
-        run: |
-          Set-Location $env:APP_DIR
-          npm run build
-
-      - name: Tempatkan web.config ke dist
-        shell: powershell
-        run: |
-          if (Test-Path $env:WEB_CONFIG_SRC) {
-            Copy-Item $env:WEB_CONFIG_SRC -Destination $env:DIST_DIR -Force
-            Write-Host "web.config ditempatkan ke $env:DIST_DIR"
-          } else {
-            Write-Warning "web.config master tidak ditemukan di $env:WEB_CONFIG_SRC"
-          }
-
-      - name: Restart pm2
-        shell: powershell
-        run: |
-          pm2 restart $env:PM_NAME --update-env
-
-      - name: Health check
-        shell: powershell
-        run: |
-          Start-Sleep -Seconds 8
-          $res = Invoke-WebRequest -Uri $env:HEALTH_URL -UseBasicParsing -TimeoutSec 15
-          if ($res.StatusCode -ne 200) {
-            throw "Health check gagal: $($res.StatusCode)"
-          }
-          Write-Host "Deploy BE sukses dan health check OK"
-
-      - name: Bersihkan folder checkout sementara
-        if: always()
-        shell: powershell
-        run: |
-          Remove-Item -Recurse -Force checkout-temp -ErrorAction SilentlyContinue
+          powershell -ExecutionPolicy Bypass -File "scripts\deploy\auto-deploy-be.ps1"
