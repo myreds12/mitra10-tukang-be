@@ -6,10 +6,16 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 import { PdfService } from 'src/common/service/pdf.service';
+import { ComissionStoreIncentiveExportService } from './comission_store_incentive_export.service';
 
 @Module({
   controllers: [ComissionSalesIncentiveController],
-  providers: [ComissionSalesIncentiveService, PdfService],
+  providers: [
+    ComissionSalesIncentiveService,
+    ComissionStoreIncentiveExportService,
+    PdfService,
+  ],
+  exports: [ComissionSalesIncentiveService, ComissionStoreIncentiveExportService],
   imports: [
     MulterModule.register({
       storage: diskStorage({

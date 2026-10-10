@@ -8,11 +8,12 @@ import { OrderModule } from 'src/order/order.module';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
+import { RefundExportService } from './refund-export.service';
 
 @Module({
   controllers: [RefundController],
-  providers: [RefundService, NotificationsService, ViolationDetectorService],
-  exports: [RefundService, ViolationDetectorService],
+  providers: [RefundService, RefundExportService, NotificationsService, ViolationDetectorService],
+  exports: [RefundService, RefundExportService, ViolationDetectorService],
   imports: [
     OrderModule,
     MulterModule.register({

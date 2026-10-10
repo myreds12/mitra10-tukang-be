@@ -127,8 +127,8 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
           tls: {
             rejectUnauthorized: false,
           },
-          debug: true,
-          logger: true,
+          debug: configService.get<string>('MAIL_DEBUG') === 'true',
+          logger: configService.get<string>('MAIL_LOGGER') === 'true',
         },
         defaults: {
           from: configService.get<string>('MAIL_DEFAULTS'),

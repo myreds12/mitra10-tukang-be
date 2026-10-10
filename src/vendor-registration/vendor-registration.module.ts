@@ -9,6 +9,11 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
+import { VendorRegistrationValidationService } from './vendor-registration-validation.service';
+import { VendorTermsService } from './vendor-terms.service';
+import { VendorRegistrationQueryService } from './vendor-registration-query.service';
+import { VendorRegistrationApprovalService } from './vendor-registration-approval.service';
+
 @Module({
   imports: [
     PrismaModule,
@@ -35,7 +40,19 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
     }),
   ],
   controllers: [VendorRegistrationController],
-  providers: [VendorRegistrationService],
-  exports: [VendorRegistrationService],
+  providers: [
+    VendorRegistrationService,
+    VendorRegistrationValidationService,
+    VendorTermsService,
+    VendorRegistrationQueryService,
+    VendorRegistrationApprovalService,
+  ],
+  exports: [
+    VendorRegistrationService,
+    VendorRegistrationValidationService,
+    VendorTermsService,
+    VendorRegistrationQueryService,
+    VendorRegistrationApprovalService,
+  ],
 })
 export class VendorRegistrationModule {}

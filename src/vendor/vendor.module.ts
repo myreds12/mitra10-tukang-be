@@ -7,11 +7,21 @@ import { diskStorage } from 'multer';
 import { extname } from 'path/posix';
 import { BullModule } from '@nestjs/bull';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
+import { VendorExportService } from './vendor-export.service';
+import { VendorQueryService } from './vendor-query.service';
 
 @Module({
   controllers: [VendorController],
-  providers: [VendorService],
-  exports: [VendorService],
+  providers: [
+    VendorService,
+    VendorExportService,
+    VendorQueryService,
+  ],
+  exports: [
+    VendorService,
+    VendorExportService,
+    VendorQueryService,
+  ],
   imports: [
     MulterModule.register({
       limits: {

@@ -209,94 +209,66 @@ export class RescheduleService {
       ].filter(Boolean),
       deleted_at: null,
     };
-    const reschedule = await this.dbService.reschedule.findMany({
-      where,
-      skip,
-      take: take <= 0 ? undefined : take,
-      ...(order_by
-        ? {
-          orderBy: {
-            created_at: order_by,
+    const [reschedule, countTotal, rescheduleGrandTotalAgg] = await Promise.all([
+      this.dbService.reschedule.findMany({
+        where,
+        skip,
+        take: take <= 0 ? undefined : take,
+        ...(order_by
+          ? {
+            orderBy: {
+              created_at: order_by,
+            },
+          }
+          : {
+            orderBy: {
+              created_at: 'desc',
+            },
+          }),
+        include: {
+          reschedule_tukang: {
+            where: {
+              deleted_at: null,
+              deleted_by: null,
+            },
+            include: {
+              tukang: true,
+            },
           },
-        }
-        : {
-          orderBy: {
-            created_at: 'desc',
+          status: true,
+          reschedule_status: {
+            include: {
+              status: true,
+            },
           },
-        }),
-      include: {
-        reschedule_tukang: {
-          where: {
-            deleted_at: null,
-            deleted_by: null,
-          },
-          include: {
-            tukang: true,
-          },
-        },
-        status: true,
-        reschedule_status: {
-          include: {
-            status: true,
-          },
-        },
-        reschedule_evidences: true,
-        order: {
-          include: {
-            members: true,
-            store: true,
-            sales: true,
-            vendor: true,
-            work_orders: true,
-            status: true,
-            m_order_details: {
-              where: {
-                deleted_at: null,
-                deleted_by: null,
-              },
-              select: {
-                id: true,
-                order_id: true,
-                item_code: true,
-                item_name: true,
-                item_notes: true,
-                item_id: true,
-                item: {
-                  select: {
-                    id: true,
-                    item_name: true,
-                    category: true,
-                    default_price: true,
-                    service_name: true,
-                  },
-                },
-                sales: true,
-                unit_price: true,
-                quantity: true,
-                total: true,
-                comission: true,
-                created_by: true,
-                updated_by: true,
-                created_at: true,
-                updated_at: true,
-              },
+          order: {
+            include: {
+              members: true,
+              store: true,
+              sales: true,
+              vendor: true,
+              work_orders: true,
+              status: true,
             },
           },
         },
-      },
-    });
-    const countTotal = await this.dbService.reschedule.count();
-
-    const rescheduleGrandTotal = await this.dbService.reschedule
-      .findMany({
-        where,
-        include: {
-          order: true,
+      }),
+      this.dbService.reschedule.count({ where }),
+      this.dbService.orders.aggregate({
+        _sum: {
+          grand_total: true,
         },
-      })
-      .then((data) =>
-        data.reduce((acc, curr) => acc + Number(curr.order.grand_total), 0),
-      );
+        where: {
+          deleted_at: null,
+          reschedule: {
+            some: where,
+          },
+        },
+      }),
+    ]);
+
+    const rescheduleGrandTotal =
+      Number(rescheduleGrandTotalAgg._sum.grand_total) || 0;
 
     return {
       data: reschedule,

@@ -10,11 +10,24 @@ import { BullModule } from '@nestjs/bull';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
+import { WorkOrdersQueryService } from './work-orders-query.service';
+import { WorkOrdersStatusService } from './work-orders-status.service';
 
 @Module({
   controllers: [WorkOrdersController],
-  providers: [WorkOrdersService, ViolationDetectorService, NotificationsService],
-  exports: [WorkOrdersService, ViolationDetectorService],
+  providers: [
+    WorkOrdersService,
+    WorkOrdersQueryService,
+    WorkOrdersStatusService,
+    ViolationDetectorService,
+    NotificationsService,
+  ],
+  exports: [
+    WorkOrdersService,
+    WorkOrdersQueryService,
+    WorkOrdersStatusService,
+    ViolationDetectorService,
+  ],
   imports: [
     OrderModule,
     VendorModule,

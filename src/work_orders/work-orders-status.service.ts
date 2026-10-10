@@ -1,0 +1,759 @@
+/* eslint-disable prettier/prettier */
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { OrderService } from 'src/order/order.service';
+import { VendorService } from 'src/vendor/vendor.service';
+import { StatusDetails } from './dto/work-order-status.dto';
+import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
+import { ReplaceTukangStatus } from './enum/replace-tukang.enum';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { WorkOrderTukang } from './dto/wo-tukang.dto';
+import { WhatsAppService } from 'src/whatsapp/whatsapp.service';
+import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { Prisma, users, work_orders } from '@prisma/client';
+
+@Injectable()
+export class WorkOrdersStatusService {
+  private readonly logger = new Logger(WorkOrdersStatusService.name);
+
+  constructor(
+    private readonly dbService: PrismaService,
+    private orderService: OrderService,
+    private vendorService: VendorService,
+    @InjectQueue('email') private emailQueue: Queue,
+    private readonly whatsAppService: WhatsAppService,
+    private violationDetector: ViolationDetectorService,
+  ) {}
+
+  private async sendTukangAssignedWhatsApp(workOrderId: number) {
+    try {
+      await this.whatsAppService.sendTukangAssignedNotification(workOrderId);
+    } catch (err) {
+      console.error('WA assign notification failed:', err);
+    }
+  }
+
+  private async sendOrderCompletedWhatsApp(orderId: number) {
+    try {
+      await this.whatsAppService.sendOrderCompletedNotification(orderId);
+    } catch (err) {
+      console.error('WA order completed notification failed:', err);
+    }
+  }
+
+  async updateFoto(
+    id: number,
+    user: users,
+    work_order_evidences?: Array<Express.Multer.File>,
+  ) {
+    try {
+      const checkWorkOrder = await this.dbService.work_order_evidences.findFirst({
+        where: {
+          id,
+        },
+      });
+
+      if (!checkWorkOrder)
+        throw new BadRequestException('Work Order Evidencae not exist');
+
+
+
+      const { id: user_id } = user;
+      await Promise.all(
+        work_order_evidences.map(async (evidence) => {
+          await this.dbService.work_order_evidences.updateMany({
+            where: {
+              id: checkWorkOrder.id, // Pastikan `id` tersedia di evidence
+            },
+            data: {
+              evidence_location: evidence.filename,
+              updated_at: new Date(),
+              updated_by: user_id,
+            },
+          });
+        })
+      );
+
+
+
+
+      return checkWorkOrder;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+
+  async addFotoBefore(
+    id: number,
+    user: users,
+    work_order_before?: Array<Express.Multer.File>,
+  ) {
+    try {
+
+      const { id: user_id } = user;
+      const res = await Promise.all(
+        work_order_before.map(async (evidence) => {
+          await this.dbService.work_order_evidences.create({
+            data: {
+              work_order_id: id,
+              evidence_location: evidence.filename,
+              created_by: user_id,
+              created_at: new Date(),
+              type: 2,
+            },
+          });
+        })
+      );
+
+
+
+
+      return res;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+  async addFotoAfter(
+    id: number,
+    user: users,
+    work_order_after?: Array<Express.Multer.File>,
+  ) {
+    try {
+
+      const { id: user_id } = user;
+      const res = await Promise.all(
+        work_order_after.map(async (evidence) => {
+          await this.dbService.work_order_evidences.create({
+            data: {
+              work_order_id: id,
+              evidence_location: evidence.filename,
+              created_by: user_id,
+              created_at: new Date(),
+              type: 3,
+            },
+          });
+        })
+      );
+
+
+
+
+      return res;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async deleteFoto(
+    id: number,
+  ) {
+    try {
+      const checkWorkOrder = await this.dbService.work_order_evidences.delete({
+        where: {
+          id,
+        },
+      });
+      console.log(checkWorkOrder);
+
+      if (!checkWorkOrder)
+        throw new BadRequestException('Work Order Evidencae not exist');
+
+      return checkWorkOrder;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async setStatusWithMaterials(
+    id: number,
+    user: users,
+    updateData: StatusDetails,
+    files: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
+  ): Promise<work_orders> {
+    try {
+      console.log(user);
+
+      console.log('PAYLOAD', updateData);
+
+      const { id: user_id } = user;
+      const workOrder = await this.dbService.work_orders.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          order: {
+            include: {
+              m_order_details: {
+                include: {
+                  item: true,
+                },
+              },
+              store: true,
+              sales: true,
+              members: true,
+              quotation: true,
+            },
+          },
+          vendor: true,
+          work_order_status: {
+            where: {
+              deleted_at: null,
+            },
+            orderBy: { created_at: 'desc' },
+            include: {
+              status: true,
+              work_order_items: {
+                include: {
+                  item: true,
+                },
+                where: {
+                  deleted_at: null,
+                  deleted_by: null,
+                },
+              },
+            },
+          },
+          status: true,
+          work_order_evidences: true,
+        },
+      });
+
+      if (!workOrder) throw new BadRequestException('Work Order not exist');
+
+      const [NEW_STATUS] = await this.dbService.status.findMany({
+        where: { id: updateData.status_id },
+        orderBy: { category: 'desc' },
+      });
+
+      const evidencesBefore: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
+        files.work_order_before?.map((evidences) => ({
+          evidence_location: evidences.filename,
+          created_by: user_id,
+          type: 2,
+        }));
+
+      const evidencesAfter: Array<Prisma.work_order_evidencesCreateManyWork_ordersInput> =
+        files.work_order_after?.map((evidences) => ({
+          evidence_location: evidences.filename,
+          created_by: user_id,
+          type: 3,
+        }));
+
+      const evidences = [].concat(evidencesBefore ?? [], evidencesAfter ?? []);
+
+      const deletedWorkOrderEvidences = updateData.existing_work_order_evidences
+        ? updateData?.existing_work_order_evidences
+          .filter((x) => Boolean(x?.work_order_evidence_id))
+          .map((item) => {
+            return Number(item.work_order_evidence_id);
+          })
+        : undefined;
+
+      console.log(deletedWorkOrderEvidences, "DELETED WORK ORDER EVIDENCES")
+      const recentWorkStatus = workOrder.work_order_status.find(
+        (x) => x.status_id === NEW_STATUS.id,
+      );
+
+      console.log(recentWorkStatus, 'RECENT_STATUS');
+
+      const upsertItems: Prisma.work_order_itemsUpsertWithWhereUniqueWithoutWork_order_statusInput[] =
+        updateData.work_order_items
+          ? updateData.work_order_items.map((x) => ({
+            where: {
+              id: x?.id ?? 0,
+              work_order_status_id: recentWorkStatus?.id ?? 0,
+            },
+            create: {
+              item_id: x?.item_id ?? undefined,
+              name: x?.item_name ?? undefined,
+              tukang_id: x.tukang_id ?? undefined,
+              tukang_name: x.tukang_name ?? undefined,
+              type: x.type,
+              is_customer: Boolean(x.is_customer),
+              quantity: x.quantity ?? undefined,
+              unit: x?.unit ?? undefined,
+            },
+            update: {
+              item_id: x.item_id ?? undefined,
+              name: x.item_name ?? undefined,
+              tukang_id: x.tukang_id ?? undefined,
+              tukang_name: x.tukang_name ?? undefined,
+              type: x.type,
+              quantity: x.quantity ?? undefined,
+              is_customer: Boolean(x.is_customer),
+              unit: x?.unit ?? undefined,
+            },
+          }))
+          : undefined;
+      console.log(upsertItems, 'WORK ORDER ITEMS');
+
+      const workOrderStatusUpsert: Prisma.work_order_statusUpsertWithWhereUniqueWithoutWork_orderInput =
+      {
+        where: {
+          status_id: NEW_STATUS.id,
+          id: recentWorkStatus?.id ?? 0,
+        },
+        create: {
+          status_id: NEW_STATUS.id,
+          description: updateData.description,
+          work_start_date: updateData.work_end_date,
+          work_end_date: updateData.work_end_date,
+          work_date_time: updateData.work_date_time,
+          created_at: new Date(),
+          created_by: user.id,
+          ...(updateData.work_order_items
+            ? {
+              work_order_items: {
+                createMany: { data: upsertItems.map((x) => x.create) },
+              },
+            }
+            : undefined),
+        },
+        update: {
+          description: updateData.description,
+          work_start_date: updateData.work_end_date,
+          work_end_date: updateData.work_end_date,
+          work_date_time: updateData.work_date_time,
+          updated_at: new Date(),
+          updated_by: user.id,
+          work_order_items: { upsert: upsertItems },
+        },
+      };
+
+
+      await this.dbService.$transaction([
+        ...(updateData.work_order_items
+          ? [
+            this.dbService.work_order_items.updateMany({
+              where: {
+                id: {
+                  notIn: updateData.work_order_items
+                    .filter((x) => Boolean(x?.id))
+                    .map((x) => x.id),
+                },
+                work_order_status_id: recentWorkStatus?.id ?? 0,
+                work_order_status: {
+                  status_id: NEW_STATUS?.id ?? 0,
+                  work_order: {
+                    id,
+                  },
+                },
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user.id,
+              },
+            }),
+          ]
+          : []),
+        ...(deletedWorkOrderEvidences
+          ? [
+            this.dbService.work_order_evidences.updateMany({
+              where: {
+                id: {
+                  in: deletedWorkOrderEvidences,
+                },
+                work_order_id: id,
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user_id,
+              },
+            })
+          ] : []),
+        // this.dbService.work_order_status.updateMany({
+        //   where: {
+        //     id: recentWorkStatus?.id ?? 0,
+        //     work_order_id: id,
+        //   },
+        //   data: {
+        //     deleted_at: new Date(),
+        //     deleted_by: user.id,
+        //   },
+        // }),
+        this.dbService.work_orders.update({
+          where: { id },
+          data: {
+            status_id: NEW_STATUS.id,
+            work_order_evidences: { createMany: { data: evidences } },
+            updated_at: new Date(),
+            updated_by: user.id,
+            work_order_status: {
+              upsert: workOrderStatusUpsert,
+            },
+          },
+        }),
+      ]);
+
+      const work_order = await this.dbService.work_orders.findUnique({
+        where: { id },
+        include: {
+          order: true,
+          work_order_evidences: true,
+        },
+      });
+
+      await this.orderService.setStatus(
+        work_order.order_id,
+        updateData.status_id,
+        user,
+      );
+
+      // =========================================
+      // VENDOR VIOLATION TRIGGERS
+      // =========================================
+      if (work_order?.order?.vendor_id) {
+        await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
+        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+      }
+
+      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
+      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
+      if (isWorkEndStatus && !wasWorkEndStatus) {
+        await this.sendOrderCompletedWhatsApp(work_order.order_id);
+      }
+
+      return work_order;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Trigger #12: Check dokumentasi foto (blur/tidak lengkap)
+   */
+  private async checkDocumentationViolation(
+    workOrder: any,
+    updateData: any,
+    newStatus: any,
+    files?: {
+      work_order_before?: Express.Multer.File[];
+      work_order_after?: Express.Multer.File[];
+    },
+  ): Promise<void> {
+    try {
+      const finalStatuses = ['WORKEND', 'SURVEYDONE', 'WORKENDSTEPONE', 'WORKENDSTEPTWO', 'WORKENDSTEPTHREE'];
+      const isFinalStatus = finalStatuses.some(
+        (status) => newStatus?.category?.toUpperCase() === status,
+      );
+
+      if (isFinalStatus) {
+        const existingEvidences = await this.dbService.work_order_evidences.findMany({
+          where: {
+            work_order_id: workOrder.id,
+            deleted_at: null,
+          },
+        });
+
+        const hasBefore =
+          Boolean(files?.work_order_before?.length) ||
+          existingEvidences.some((evidence) => evidence.type === 2);
+        const hasAfter =
+          Boolean(files?.work_order_after?.length) ||
+          existingEvidences.some((evidence) => evidence.type === 3);
+
+        if (!hasBefore || !hasAfter) {
+          await this.violationDetector.recordViolation(
+            'DOC_NOT_UPLOADED',
+            {
+              vendorId: workOrder.order.vendor_id,
+              orderId: workOrder.order_id,
+              workOrderId: workOrder.id,
+              description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto ${!hasBefore ? 'before' : ''}${!hasBefore && !hasAfter ? ' dan ' : ''}${!hasAfter ? 'after' : ''}`,
+              // [POIN 6] SYSTEM_GENERATED — deteksi otomatis via cron/status check,
+              // tidak ada bukti fisik individual per pelanggaran (foto belum diupload
+              // justru yg menjadi trigger-nya).
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  workOrderId: workOrder.id,
+                  orderId: workOrder.order_id,
+                  missingPhotos: [
+                    !hasBefore && 'before',
+                    !hasAfter && 'after',
+                  ].filter(Boolean),
+                  finalStatus: newStatus?.category,
+                  triggeredAt: new Date().toISOString(),
+                },
+              },
+            },
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking documentation violation', error);
+    }
+  }
+
+  /**
+   * Trigger #13: Check delay status update
+   */
+  private async checkStatusUpdateViolation(
+    workOrder: any,
+    newStatus: any,
+  ): Promise<void> {
+    try {
+      // Jika vendor mengupdate status ke progres (WORKSTART, dll)
+      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK'];
+      const isProgress = progressStatuses.some(
+        (s) => newStatus?.category?.toUpperCase().includes(s),
+      );
+
+      if (isProgress) {
+        // Status diupdate - tidak ada pelanggaran delay
+        this.logger.debug(
+          `Status updated for WO ${workOrder.id}. No delay violation.`,
+        );
+        return;
+      }
+
+      // Check delay jika vendor tidak mengupdate status
+      const lastUpdate = await this.dbService.work_order_status.findFirst({
+        where: {
+          work_order_id: workOrder.id,
+          deleted_at: null,
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      if (!lastUpdate) return;
+
+      const now = new Date();
+      const lastUpdateDate = new Date(lastUpdate.created_at);
+      const daysDiff = Math.floor(
+        (now.getTime() - lastUpdateDate.getTime()) / (24 * 60 * 60 * 1000),
+      );
+
+      // Jika sudah lebih dari 1 hari tanpa update status
+      if (daysDiff >= 1) {
+        const violationCode =
+          daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H1';
+
+        await this.violationDetector.recordViolation(
+          violationCode,
+          {
+            vendorId: workOrder.order.vendor_id,
+            orderId: workOrder.order_id,
+            workOrderId: workOrder.id,
+            description: `Work Order #${workOrder.id} tidak diupdate selama ${daysDiff} hari`,
+            // [POIN 6] SYSTEM_GENERATED — deteksi otomatis, snapshot kondisi WO
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                workOrderId: workOrder.id,
+                orderId: workOrder.order_id,
+                daysSinceUpdate: daysDiff,
+                lastStatusUpdate: lastUpdate.created_at,
+                currentStatus: newStatus?.category,
+                triggeredAt: new Date().toISOString(),
+              },
+            },
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error checking status update violation', error);
+    }
+  }
+
+  async tukangUpdateNotes(
+    id: number,
+    user: users,
+    updateData: WorkOrderTukang,
+  ) {
+    try {
+      const workOrder = await this.dbService.work_orders.findFirst({
+        where: {
+          id,
+        },
+        include: {
+          request_tukang: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              work_orders: {
+                include: {
+                  work_order_tukang: {
+                    where: {
+                      deleted_at: null,
+                    },
+                    include: {
+                      tukang: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!workOrder) throw new BadRequestException('Work Order not exist');
+
+      const workOrderTukang = await this.dbService.$transaction([
+        this.dbService.work_order_tukang.updateMany({
+          where: {
+            work_order_id: id,
+            tukang_id: updateData.tukang_id,
+            deleted_at: null,
+          },
+          data: {
+            notes: updateData.notes,
+            updated_by: user.id,
+            updated_at: new Date(),
+          },
+        }),
+      ]);
+
+      return workOrderTukang;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async replaceTukang(
+    id: number,
+    updateDto: UpdateWorkOrderDto,
+    user: users,
+    files: Express.Multer.File[],
+  ) {
+    try {
+      const evidences = files.map((file) => ({
+        evidence_location: file.filename,
+        created_by: user.id,
+      }));
+
+      const upsertResults = await this.dbService.$transaction(
+        async (transaction) => {
+          const results = await Promise.all(
+            updateDto.replace_tukang?.map(async (item) => {
+              const data = {
+                where: { id: item.id ?? 0 },
+                create: {
+                  work_order_id: id,
+                  request_tukang: item.tukang_id,
+                  notes: item.notes
+                    ? `CREATED: ${item.notes.replace(/\n/g, '\nCREATED: ')}`
+                    : '',
+                  created_by: user.id,
+                  created_at: new Date(),
+                  request_tukang_evidence: { createMany: { data: evidences } },
+                },
+                update: {
+                  tukang_replace: item.tukang_id,
+                  status: item.status,
+                  notes: item.notes
+                    ? `${ReplaceTukangStatus[item.status]
+                    }: ${item.notes.replace(
+                      /\n/g,
+                      `\n${ReplaceTukangStatus[item.status]}: `,
+                    )}`
+                    : ReplaceTukangStatus[item.status],
+                  updated_by: user.id,
+                  updated_at: new Date(),
+                  request_tukang_evidence: { createMany: { data: evidences } },
+                },
+              };
+
+              const existingRequestTukang =
+                await transaction.request_tukang.findUnique({
+                  where: { id: item.id },
+                  select: { request_tukang: true },
+                });
+
+              data.create.request_tukang = existingRequestTukang.request_tukang;
+
+              return transaction.request_tukang.upsert(data);
+            }),
+          );
+
+          if (
+            updateDto.replace_tukang?.some(
+              (item) => item.status === ReplaceTukangStatus.APPROVE,
+            )
+          ) {
+            const tukangIds = updateDto.replace_tukang.map(
+              (item) => item.tukang_id,
+            );
+
+            await transaction.work_order_tukang.updateMany({
+              where: {
+                work_order_id: id,
+                tukang_id: {
+                  in: tukangIds,
+                },
+              },
+              data: {
+                deleted_at: new Date(),
+                deleted_by: user.id,
+              },
+            });
+
+            const workOrderTukangData = updateDto.replace_tukang.map(
+              (item) => ({
+                work_order_id: id,
+                tukang_id: item.tukang_id,
+                created_by: user.id,
+                created_at: new Date(),
+              }),
+            );
+
+            await transaction.work_order_tukang.createMany({
+              data: workOrderTukangData,
+            });
+          }
+
+          return results;
+        },
+      );
+
+      if (
+        updateDto.replace_tukang?.some(
+          (item) => item.status === ReplaceTukangStatus.APPROVE,
+        )
+      ) {
+        await this.sendTukangAssignedWhatsApp(id);
+      }
+
+
+      const roles = (
+        await this.dbService.users.findUniqueOrThrow({
+          where: { id: user.id },
+          select: { roles: { select: { name: true } } },
+        })
+      ).roles.name;
+      if (roles.includes('Owner Vendor') || roles.includes('Admin Vendor')) {
+        upsertResults.forEach((result) => {
+          if (result.status === ReplaceTukangStatus.WAITING_FOR_APPROVVE) {
+            this.emailQueue.add('send-replace-tukang-from-vendor', {
+              module_id: result.tukang_replace,
+            });
+          }
+        });
+      } else if (roles.includes('Tukang')) {
+        this.emailQueue.add('send-replace-tukang-from-tukang', {
+          module_id: user.id,
+        });
+      }
+
+      return upsertResults;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+
+}
