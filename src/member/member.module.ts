@@ -6,9 +6,6 @@ import { StatusService } from 'src/status/status.service';
 import { BullModule } from '@nestjs/bull';
 import { MailsModule } from 'src/mails/mails.module';
 
-import { MemberExportService } from './member-export.service';
-import { MemberOrderExportService } from './member-order-export.service';
-
 @Module({
   imports: [
     BullModule.registerQueue({
@@ -19,7 +16,6 @@ import { MemberOrderExportService } from './member-order-export.service';
     }),
   ],
   controllers: [MemberController],
-  providers: [MemberService, MemberExportService, MemberOrderExportService],
-  exports: [MemberService, MemberExportService, MemberOrderExportService],
+  providers: [MemberService],
 })
 export class MemberModule {}

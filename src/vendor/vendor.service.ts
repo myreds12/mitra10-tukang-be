@@ -9,18 +9,15 @@ import { Prisma, users } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { Response } from 'express';
-import { VendorExportService } from './vendor-export.service';
-import { VendorQueryService } from './vendor-query.service';
-
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
 @Injectable()
 export class VendorService {
   constructor(
     private readonly dbService: PrismaService,
     @InjectQueue('email') private emailQueue: Queue,
-    private readonly exportService: VendorExportService,
-    private readonly queryService: VendorQueryService,
-  ) {}
-
+  ) { }
   async create(
     files: VendorFiles,
     createVendorDto: CreateVendorDto,
@@ -175,7 +172,578 @@ export class VendorService {
     }
   }
 
+  async findAll(query: QueryParamsDto) {
+    try {
+      const {
+        take,
+        page,
+        search,
+        date_from,
+        date_to,
+        store_id,
+        vendor_with_max_order,
+        top_best,
+        order_date_from,
+        order_date_to,
+        is_paid,
+        is_promotion,
+        id_vendor,
+        is_active,
+      } = query;
 
+      const formattedDate = new Date().toISOString().split('T')[0];
+      const requestedTake = Number(take ?? 10);
+      const safeTake = requestedTake > 0 ? Math.min(requestedTake, 50) : undefined;
+      const skip = safeTake ? page * safeTake - safeTake : 0;
+      const currentDateRange = {
+        gte: new Date(`${formattedDate}T00:00:00.000Z`),
+        lte: new Date(`${formattedDate}T23:59:59.000Z`),
+      };
+
+      const where: Prisma.vendorWhereInput = {
+        AND: [
+          ...(search
+            ? [{
+              OR: [
+                { id: !isNaN(+search) ? +search : undefined },
+                { phone_number: { contains: search } },
+                { email_address: { contains: search } },
+                { company_name: { contains: search } },
+                { pic_name: { contains: search } },
+              ]
+            }]
+            : []),
+          ...(store_id
+            ? [{ vendor_store: { some: { store_id: { in: store_id }, deleted_at: null } } }]
+            : []),
+               ...(id_vendor && !isNaN(+id_vendor)
+            ? [{ id: +id_vendor }]
+            : []),
+          ...(date_from && date_to
+            ? [{ created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) } }]
+            : []),
+          ...(is_active === 0 || is_active === 1
+            ? [{ is_active: Boolean(is_active) }]
+            : []),
+          ...(order_date_from && order_date_to ? [{
+            orders: {
+              some: {
+                deleted_at: null,
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`)
+                }
+              }
+            }
+          }] : []),
+          ...(is_paid === 1 ? [{
+            orders: {
+              some: {
+                deleted_at: null,
+                quotation: {
+                  some: {
+                    deleted_at: null,
+                    receipt_quotation: { not: null }
+                  }
+                }
+              }
+            }
+          }] : is_paid === 0 ? [{
+            orders: {
+              some: {
+                deleted_at: null,
+                quotation: {
+                  some: {
+                    deleted_at: null,
+                    receipt_quotation: null
+                  }
+                }
+              }
+            }
+          }] : []),
+        ],
+        deleted_at: null
+      };
+
+      console.log(where);
+      
+
+      const vendorList = await this.dbService.vendor.findMany({
+        where,
+        skip,
+        take: safeTake,
+        include: {
+          tukang: {
+            include: {
+              work_order_tukang: {
+                where: {
+                  deleted_at: null,
+                  work_orders: {
+                    deleted_at: null,
+                    OR: [
+                      { created_at: currentDateRange },
+                      { survey_date: currentDateRange },
+                      { work_start_date: currentDateRange },
+                      { work_end_date: currentDateRange },
+                    ],
+                  },
+                },
+                orderBy: { created_at: 'desc' },
+                include: {
+                  work_orders: {
+                    include: { status: true }
+                  }
+                }
+              }
+            }
+          },
+          pic_vendor: {
+            include: {
+              users: {
+                select: {
+                  id: true,
+                  username: true,
+                  roles: { select: { id: true, name: true } }
+                }
+              }
+            }
+          },
+          vendor_area: {
+            where: { deleted_at: null },
+            include: { area: true }
+          },
+          bank: true,
+          vendor_document: true,
+          vendor_service: {
+            where: { deleted_at: null },
+            include: { service_type: true }
+          },
+          vendor_store: {
+            where: {
+              ...(store_id?.length ? { store_id: { in: store_id } } : {}),
+              deleted_at: null,
+            },
+            select: {
+              id: true,
+              vendor_id: true,
+              created_at: true,
+              deleted_at: true,
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                  additional_address: true,
+                  address: true,
+                  bank_account: true,
+                  bank_name: true,
+                  bank_number: true,
+                  email: true,
+                  phone_number_1: true,
+                  phone_number_2: true,
+                  area_id: true,
+                  area: true
+                }
+              }
+            }
+          },
+          work_orders: {
+            where: {
+              deleted_at: null,
+              OR: [
+                {
+                  survey_date: {
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                    lte: new Date(`${formattedDate}T23:59:59.000Z`)
+                  }
+                },
+                {
+                  work_start_date: { gte: new Date(`${formattedDate}T00:00:00.000Z`) },
+                  work_end_date: { lte: new Date(`${formattedDate}T23:59:59.000Z`) }
+                }
+              ]
+            }
+          }
+        }
+      });
+
+      let vendor = vendorList;
+      if (vendor_with_max_order) {
+        vendor = vendorList.filter((v) => {
+          return v.tukang.some((t) => {
+            const dailySlots = t.work_order_tukang.filter((item) => {
+              const {
+                work_start_date,
+                work_end_date,
+                survey_date,
+                status,
+                created_at,
+              } = item?.work_orders || {};
+
+              let startDate: Date;
+              let endDate: Date;
+
+              if (work_start_date && work_end_date) {
+                startDate = new Date(work_start_date);
+                endDate = new Date(work_end_date);
+              } else if (survey_date) {
+                startDate = new Date(survey_date);
+                endDate = startDate;
+              } else {
+                startDate = new Date(created_at);
+                endDate = startDate;
+              }
+
+              const currentDate = new Date().toISOString().split('T')[0];
+
+              const isWithinRange =
+                startDate.toISOString().split('T')[0] <= currentDate &&
+                endDate.toISOString().split('T')[0] >= currentDate;
+              return (
+                status?.category !== 'SURVEYDONE' &&
+                status?.category !== 'WORKEND' &&
+                isWithinRange
+              );
+            });
+
+            return dailySlots.length <= v.max_order;
+          });
+        });
+      }
+
+      vendor = vendorList.map((vendor) => {
+        return {
+          ...vendor,
+          tukang: vendor.tukang.map((tukangItem) => {
+            const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+              const orderDate = new Date(item.work_orders?.created_at ?? 0)
+                .toISOString()
+                .split('T')[0];
+
+              return (
+                item.work_orders?.status?.category !== 'SURVEYDONE' &&
+                item.work_orders?.status?.category !== 'WORKEND' &&
+                orderDate === formattedDate
+              );
+            });
+
+            return {
+              ...tukangItem,
+              slot_order: dailySlots.length,
+            };
+          }),
+        };
+      });
+
+
+      const vendorIds = vendor.map(v => v.id);
+
+      const [ordersAggregate, unpaidAggregate, paidAggregate, surveyAggregate, workAggregate] = await Promise.all([
+        this.dbService.orders.groupBy({
+          by: ["vendor_id"],
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            ...(order_date_from && order_date_to ? {
+              created_at: {
+                gte: new Date(order_date_from),
+                lte: new Date(`${order_date_to}T23:59:59.000Z`)
+              }
+            } : {}),
+            ...(is_promotion === 1 ? { payment_type: "pemasangan_tanpa_survey" } : is_promotion === 2 ? { payment_type: "survey" } :  is_promotion === 3 ? { payment_type: "gratis" } : {} )
+          },
+          _count: { id: true },
+          _sum: { grand_total: true }
+        }),
+        this.dbService.orders.groupBy({
+          by: ["vendor_id"],
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
+            ...(is_promotion === 1
+              ? {
+                receipt_number: null,
+                payment_type: "pemasangan_tanpa_survey",
+              }
+              : is_promotion === 2
+                ? {
+                  payment_type: "survey",
+                  quotation: {
+                    some: {
+                      receipt_quotation: null,
+                      quotation_receipt: { none: {} },
+                    },
+                  },
+                }
+                :  is_promotion === 3 ? {
+                  receipt_number: null,
+                  payment_type: "gratis",
+                } : {}),
+          },
+          _count: { id: true },
+          _sum: { grand_total: true }
+        }),
+        this.dbService.orders.groupBy({
+          by: ["vendor_id"],
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
+            ...(is_promotion === 1
+              ? {
+                receipt_number: null,
+                payment_type: "pemasangan_tanpa_survey",
+              }
+              : is_promotion === 0
+                ? {
+                  payment_type: "survey",
+                  quotation: {
+                    some: {
+                      receipt_quotation: null,
+                      quotation_receipt: { none: {} },
+                    },
+                  },
+                }
+                :  is_promotion === 3 ? {
+                  receipt_number: null,
+                  payment_type: "gratis",
+                } : {}),
+          },
+          _count: { id: true },
+          _sum: { grand_total: true }
+        }),
+        this.dbService.orders.groupBy({
+          by: ["vendor_id"],
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
+            status: {
+              category: { in: ['SURVEYREQ', 'TUKANGSURVEY', 'SURVEYSTART', 'SURVEYDONE', 'RESURVEYREQ', 'RESURVEYSTART', 'RESURVEYDONE', 'RETUKANGSURVEY'] }
+            }
+          },
+          _count: { id: true },
+          _sum: { grand_total: true }
+        }),
+        this.dbService.orders.groupBy({
+          by: ["vendor_id"],
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            ...(order_date_from && order_date_to
+              ? {
+                created_at: {
+                  gte: new Date(order_date_from),
+                  lte: new Date(`${order_date_to}T23:59:59.000Z`),
+                },
+              }
+              : {}),
+            status: {
+              category: { in: ['WORKSTART', 'WORKREQ', 'WORKDONE', 'TUKANGWORK', 'REWORKSTART', 'REWORKEND', 'REWORKREQ', 'REWORKDONE', 'RETUKANGWORKSTART', 'RETUKANGWORKEND', 'RETUKANGWORKREQ', 'RETUKANGWORKDONE'] }
+            }
+          },
+          _count: { id: true },
+          _sum: { grand_total: true }
+        }),
+      ]);
+
+      const aggMap = (data: any[]) => Object.fromEntries(data.map(i => [i.vendor_id, i]));
+
+      const orderMap = aggMap(ordersAggregate);
+      const unpaidMap = aggMap(unpaidAggregate);
+      const paidMap = aggMap(paidAggregate);
+      const surveyMap = aggMap(surveyAggregate);
+      const workMap = aggMap(workAggregate);
+
+      const finalVendor = vendor.map(vendor => {
+        const id = vendor.id;
+        return {
+          ...vendor,
+          total_order: orderMap[id]?._count.id || 0,
+          total_paid_order: paidMap[id]?._sum.grand_total || 0,
+          total_unpaid_order: unpaidMap[id]?._sum.grand_total || 0,
+          total_order_survey: surveyMap[id]?._count.id || 0,
+          total_order_survey_value: surveyMap[id]?._sum.grand_total || 0,
+          total_order_work: workMap[id]?._count.id || 0,
+          total_order_work_value: workMap[id]?._sum.grand_total || 0
+        };
+      });
+
+      if (Boolean(top_best)) {
+        finalVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
+      }
+
+      const total = await this.dbService.vendor.count({ where });
+
+      return {
+        data: finalVendor,
+        meta: {
+          total,
+          takeTotal: finalVendor.length,
+          page,
+          take
+        }
+      };
+
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+
+
+  async findOne(id: number) {
+    try {
+      const vendor = await this.dbService.vendor.findFirst({
+        where: {
+          id,
+          deleted_at: null,
+        },
+        include: {
+          orders: {
+            where: {
+              deleted_at: null,
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+          },
+          pic_vendor: {
+            include: {
+              users: true,
+            },
+          },
+          tukang: {
+            include: {
+              tukang_area: {
+                include: {
+                  area: true,
+                },
+              },
+              work_order_tukang: {
+                where: {
+                  deleted_at: null,
+                },
+                include: {
+                  work_orders: {
+                    include: {
+                      status: true,
+                      work_order_status: {
+                        include: {
+                          status: true,
+                        },
+                        orderBy: {
+                          created_at: 'desc',
+                        },
+                      },
+                      order: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          vendor_area: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              area: true,
+            },
+          },
+          vendor_document: true,
+          vendor_service: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              service_type: true,
+            },
+          },
+          bank: true,
+          work_orders: true,
+          vendor_store: {
+            where: {
+              deleted_at: null,
+            },
+            select: {
+              id: true,
+              vendor_id: true,
+              created_at: true,
+              deleted_at: true,
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                  additional_address: true,
+                  address: true,
+                  bank_account: true,
+                  bank_name: true,
+                  bank_number: true,
+                  email: true,
+                  phone_number_1: true,
+                  phone_number_2: true,
+                  area_id: true,
+                  area: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (vendor && vendor.tukang) {
+        const now = new Date().toISOString().split('T')[0];
+
+        vendor.tukang = vendor.tukang.map((tukangItem) => {
+          const dailySlots = tukangItem.work_order_tukang.filter((item) => {
+            const orderDate = new Date(
+              item.work_orders.work_order_status[0].created_at,
+            )
+              .toISOString()
+              .split('T')[0];
+            return (
+              item.work_orders.status.category !== 'SURVEYDONE' &&
+              item.work_orders.status.category !== 'WORKEND' &&
+              orderDate === now
+            );
+          });
+
+          return {
+            ...tukangItem,
+            slot_order: dailySlots.length,
+          };
+        });
+      }
+
+      return vendor;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 
   async update(
     id: number,
@@ -461,8 +1029,6 @@ export class VendorService {
     }
   }
 
-
-
   async remove(id: number, user: users) {
     try {
       const { id: user_id } = user;
@@ -520,23 +1086,505 @@ export class VendorService {
     }
   }
 
-
-
-  // Delegations to VendorQueryService
-  async findAll(query: QueryParamsDto) {
-    return this.queryService.findAll(query);
-  }
-
-  async findOne(id: number) {
-    return this.queryService.findOne(id);
-  }
-
   async nextCode() {
-    return this.queryService.nextCode();
+    try {
+      const vendor = await this.dbService.vendor.findMany({
+        orderBy: {
+          id: 'desc',
+        },
+        take: 1,
+      });
+
+      return vendor[0] || null;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
-  // Delegations to VendorExportService
   async vendorExportExcel(res: Response, queryParams: QueryParamsDto) {
-    return this.exportService.vendorExportExcel(res, queryParams);
+    try {
+      const {
+        take,
+        page,
+        search,
+        date_from,
+        date_to,
+        store_id,
+        order_date_from,
+        order_date_to,
+        is_paid,
+        is_promotion
+      } = queryParams;
+      // ...(Boolean(top_best)
+      //       ? {
+      //           order_total: 'desc',
+      //         }
+      //       : {
+      //           created_at: order_by,
+      //         }),
+      // now.setHours(0, 0, 0, 0);
+      const formattedDate = new Date().toISOString().split('T')[0];
+
+      const skip = page * take - take;
+
+      const where: Prisma.vendorWhereInput = {
+        AND: [
+          ...(search
+            ? [
+              {
+                OR: [
+                  {
+                    id: !isNaN(+search) ? +search : undefined,
+                  },
+                  { phone_number: { contains: search } },
+                  { email_address: { contains: search } },
+                  { company_name: { contains: search } },
+                  {
+                    pic_name: {
+                      contains: search
+                    }
+                  }
+                ],
+              },
+            ]
+            : []),
+          ...(store_id
+            ? [
+              {
+                vendor_store: { some: { store_id: { in: store_id } } },
+              },
+            ]
+            : []),
+          ...(date_from && date_to
+            ? [
+              {
+                created_at: {
+                  gte: new Date(date_from),
+                  lte: new Date(`${date_to}T23: 59: 59.000Z`),
+                },
+              },
+            ]
+            : []),
+          ...(is_paid === 1
+            ? [
+              {
+                orders: {
+                  some: {
+                    deleted_at: null,
+                    quotation: {
+                      some: {
+                        deleted_at: null,
+                        receipt_quotation: { not: null },
+                      },
+                    },
+                  },
+                },
+              },
+            ]
+            : is_paid === 0 ? [
+              {
+                orders: {
+                  some: {
+                    deleted_at: null,
+                    quotation: {
+                      some: {
+                        deleted_at: null,
+                        receipt_quotation: null,
+                      },
+                    },
+                  },
+                },
+              },
+            ] : []),
+          ...(order_date_from && order_date_to ? [
+            {
+              orders: {
+                some: {
+                  deleted_at: null,
+                  created_at: {
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23: 59: 59.000Z`),
+                  }
+                }
+              }
+            }
+          ] : []),
+
+        ].filter(Boolean),
+        deleted_at: null,
+      };
+
+      const data = await this.dbService.vendor.findMany({
+        where,
+        skip,
+        take: take <= 0 ? undefined : take,
+        include: {
+          ...(take > 0 && {
+            orders: {
+              where: {
+                deleted_at: null,
+                ...(order_date_from && order_date_to ? {
+                  created_at: {
+                    gte: new Date(order_date_from),
+                    lte: new Date(`${order_date_to}T23: 59: 59.000Z`),
+                  }
+                } : {}),
+                ...(is_paid === 1 ? {
+                  quotation: {
+                    some: {
+                      deleted_at: null,
+                      receipt_quotation: { not: null },
+                    },
+                  }
+                } : is_paid === 0 && {
+                  quotation: {
+                    some: {
+                      deleted_at: null,
+                      receipt_quotation: null,
+                    },
+                  }
+                }),
+                ...(is_promotion === 1 ? {
+                  payment_type: {
+                    not: 'survey'
+                  }
+                } : is_promotion === 0 ? {
+                  payment_type: 'survey'
+                } : {}),
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+              include: {
+                status: true,
+                quotation: {
+                  where: {
+                    deleted_at: null,
+                    ...(is_paid === 1
+                      ? {
+                        receipt_quotation: {
+                          not: null
+                        }
+                      }
+                      : is_paid === 0 && {
+                        receipt_quotation: null
+                      }),
+                  },
+                  include: {
+                    quotation_receipt: {
+                      where: {
+                        deleted_at: null
+                      }
+                    }
+                  }
+                },
+              },
+            }
+          }),
+          tukang: {
+            include: {
+              work_order_tukang: {
+                where: {
+                  deleted_at: null,
+                },
+                orderBy: {
+                  created_at: 'desc',
+                },
+                include: {
+                  work_orders: {
+                    include: {
+                      status: true,
+                      work_order_status: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          pic_vendor: {
+            include: {
+              users: {
+                select: {
+                  id: true,
+                  username: true,
+                  roles: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          vendor_area: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              area: true,
+            },
+          },
+          bank: true,
+          vendor_document: true,
+          vendor_service: {
+            where: {
+              deleted_at: null,
+            },
+            include: {
+              service_type: true,
+            },
+          },
+          vendor_store: {
+            where: {
+              deleted_at: null,
+            },
+            select: {
+              id: true,
+              vendor_id: true,
+              created_at: true,
+              deleted_at: true,
+              store: {
+                select: {
+                  id: true,
+                  store_name: true,
+                  additional_address: true,
+                  address: true,
+                  bank_account: true,
+                  bank_name: true,
+                  bank_number: true,
+                  email: true,
+                  phone_number_1: true,
+                  phone_number_2: true,
+                  area_id: true,
+                  area: true,
+                },
+              },
+            },
+          },
+          work_orders: {
+            where: {
+              // survey_date: new Date(),
+              deleted_at: null,
+              OR: [
+                {
+                  survey_date: {
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                    lte: new Date(`${formattedDate}T23: 59: 59.000Z`),
+                  },
+                },
+                {
+                  work_start_date: {
+                    gte: new Date(`${formattedDate}T00:00:00.000Z`),
+                  },
+                  work_end_date: {
+                    lte: new Date(`${formattedDate}T23: 59: 59.000Z`),
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const workbook = new exceljs.Workbook();
+      const worksheet = workbook.addWorksheet('Data Order', {
+        properties: {
+          tabColor: {
+            argb: 'FF00FF00',
+          },
+          outlineLevelCol: 2,
+          outlineLevelRow: 40,
+        },
+        pageSetup: {
+          margins: {
+            left: 90.7,
+            right: 0.7,
+            top: 0.75,
+            bottom: 0.75,
+            header: 0.3,
+            footer: 0.3,
+          },
+        },
+      });
+
+      worksheet.columns = [
+        { header: 'Vendor Id', key: 'id', width: 10 },
+        { header: 'Nama PIC', key: 'pic_name', width: 25 },
+        { header: 'Nama Perusahaan', key: 'company_name', width: 20 },
+        { header: 'Email', key: 'email_address', width: 25 },
+        { header: 'Phone Number', key: 'phone_number', width: 30 },
+        { header: 'Service Type', key: 'vendor_service', width: 50 },
+        { header: 'Serving Store', key: 'vendor_store', width: 50 },
+        { header: 'Serving Area', key: 'vendor_area', width: 50 },
+        { header: 'Username', key: 'username', width: 50 },
+        { header: 'Tanggal Join', key: 'join_date', width: 30 },
+      ];
+
+      worksheet.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4CAF50' },
+        };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      data.forEach((vendor) => {
+        const dateTime = new Date(vendor.join_date ?? vendor.created_at);
+        const formattedDateTime = `${dateTime.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })}, ${dateTime.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+        const serviceType = vendor.vendor_service
+          ? vendor.vendor_service
+            .map((service) => service.service_type.service_type)
+            .join(',')
+          : '';
+        const servingStore = vendor.vendor_store
+          ? vendor.vendor_store
+            .map((service) => service.store.store_name)
+            .join(',')
+          : '';
+        const servingArea = vendor.vendor_area
+          ? vendor.vendor_area.map((service) => service.area.area).join(',')
+          : '';
+        const row = worksheet.addRow({
+          id: vendor.id,
+          pic_name: vendor.pic_name ? vendor.pic_name : '',
+          company_name: vendor.company_name ? vendor.company_name : '',
+          email_address: vendor.email_address ? vendor.email_address : '',
+          phone_number: vendor.phone_number ? vendor.phone_number : '',
+          vendor_service: serviceType,
+          vendor_store: servingStore,
+          vendor_area: servingArea,
+          username: vendor.pic_vendor
+            ? vendor.pic_vendor
+              .map(
+                (item) =>
+                  `${item.users.username || 'N/a'}(${item.users.roles.name || 'Tidak Ada Role'
+                  })`,
+              )
+              .join(', ')
+            : '',
+          join_date: formattedDateTime,
+        });
+
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+        });
+      });
+
+      const grandTotal: number = data
+        .map((vendor) =>
+          vendor.orders.reduce((acc, order) => {
+            return acc + Number(order.grand_total);
+          }, 0),
+        )
+        .reduce((acc, total) => acc + total, 0);
+
+      //
+      const formattedGrandTotal = !isNaN(grandTotal)
+        ? new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+        }).format(grandTotal)
+        : 'Rp. 0';
+      const totalRow = worksheet.addRow({
+        id: 'Orders Grand Total',
+        pic_name: '',
+        company_name: '',
+        email_address: '',
+        phone_number: '',
+        vendor_service: '',
+        vendor_store: '',
+        vendor_area: '',
+        username: '',
+        join_date: formattedGrandTotal,
+      });
+
+      totalRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      totalRow.height = 30;
+
+      worksheet.mergeCells(`A${totalRow.number}:J${totalRow.number}`);
+
+      const getFormattedDate = () => {
+        const now = new Date();
+        const tahun = now.getFullYear();
+        const bulan = String(now.getMonth() + 1).padStart(2, '0');
+        const tanggal = String(now.getDate()).padStart(2, '0');
+        return `${tahun}-${bulan}-${tanggal}`;
+      };
+
+      const createExcelFilePath = (baseName) => {
+        const folderPath = './storage/excel/vendor';
+        if (!fs.existsSync(folderPath)) {
+          fs.mkdirSync(folderPath, { recursive: true });
+        }
+
+        const excelFileName = `${baseName}.xlsx`;
+        return path.join(folderPath, excelFileName);
+      };
+
+      const writeWorkbookAndSendResponse = async (
+        workbook,
+        excelFilePath,
+        res,
+      ) => {
+        await workbook.xlsx.writeFile(excelFilePath);
+
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename=${path.basename(excelFilePath)}`,
+        );
+
+        const fileStream = fs.createReadStream(excelFilePath);
+        fileStream.pipe(res);
+      };
+
+      const generateExcelFile = async (data, res) => {
+        const tanggalDalamFormat = getFormattedDate();
+        const baseName = `DataVendor-${tanggalDalamFormat}`;
+        const excelFilePath = createExcelFilePath(baseName);
+
+        await writeWorkbookAndSendResponse(workbook, excelFilePath, res);
+      };
+
+      return generateExcelFile(data, res);
+    } catch (error) {
+      throw error;
+    }
   }
 }

@@ -1,15 +1,5 @@
 import { Module } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { OrderQueryService } from './order-query.service';
-import { OrderPublicService } from './order-public.service';
-import { OrderCalendarService } from './order-calendar.service';
-import { OrderExportService } from './order-export.service';
-import { OrderExportHoService } from './order-export-ho.service';
-import { OrderPdfService } from './order-pdf.service';
-import { OrderFollowUpService } from './order-followup.service';
-import { OrderFollowUpExportService } from './order-followup-export.service';
-import { OrderStatusService } from './order-status.service';
-import { OrderSchedulerService } from './order-scheduler.service';
 import { OrderController } from './order.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -23,36 +13,8 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
 @Module({
   controllers: [OrderController],
-  providers: [
-    OrderService,
-    OrderQueryService,
-    OrderPublicService,
-    OrderCalendarService,
-    OrderExportService,
-    OrderExportHoService,
-    OrderPdfService,
-    OrderFollowUpService,
-    OrderFollowUpExportService,
-    OrderStatusService,
-    OrderSchedulerService,
-    PdfService,
-    NotificationsService,
-    ViolationDetectorService,
-  ],
-  exports: [
-    OrderService,
-    OrderQueryService,
-    OrderPublicService,
-    OrderCalendarService,
-    OrderExportService,
-    OrderExportHoService,
-    OrderPdfService,
-    OrderFollowUpService,
-    OrderFollowUpExportService,
-    OrderStatusService,
-    OrderSchedulerService,
-    ViolationDetectorService,
-  ],
+  providers: [OrderService, PdfService, NotificationsService, ViolationDetectorService],
+  exports: [OrderService, ViolationDetectorService],
   imports: [
     MulterModule.register({
       storage: diskStorage({
@@ -63,7 +25,8 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
           callback(null, filename);
         },
       }),
-      fileFilter: fileFilter,
+      fileFilter: fileFilter
+
     }),
     BullModule.registerQueue({
       name: 'email',
@@ -74,4 +37,4 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
     }),
   ],
 })
-export class OrderModule {}
+export class OrderModule { }

@@ -5,14 +5,10 @@ import { getQueueToken } from '@nestjs/bull';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { RegistrationStatus } from './enums/registration-status.enum';
 import { NotificationsService } from '../notifications/notifications.service';
-import { VendorRegistrationValidationService } from './vendor-registration-validation.service';
-import { VendorTermsService } from './vendor-terms.service';
-import { VendorRegistrationQueryService } from './vendor-registration-query.service';
-import { VendorRegistrationApprovalService } from './vendor-registration-approval.service';
 
 const mockPrismaService = {
   vendor_registration: {
-    findMany: jest.fn().mockResolvedValue([]),
+    findMany: jest.fn(),
     findFirst: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
@@ -51,15 +47,10 @@ const mockPrismaService = {
   },
   vendor: {
     findFirst: jest.fn(),
-    findMany: jest.fn().mockResolvedValue([]),
     create: jest.fn(),
   },
   pic_vendor: {
     create: jest.fn(),
-    findFirst: jest.fn().mockResolvedValue(null),
-  },
-  tukang: {
-    findFirst: jest.fn().mockResolvedValue(null),
   },
   $transaction: jest.fn(async (callback: any) => await callback(mockPrismaService)),
 };
@@ -97,10 +88,6 @@ describe('VendorRegistrationService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         VendorRegistrationService,
-        VendorRegistrationValidationService,
-        VendorTermsService,
-        VendorRegistrationQueryService,
-        VendorRegistrationApprovalService,
         {
           provide: PrismaService,
           useValue: mockPrismaService,
@@ -141,12 +128,11 @@ describe('VendorRegistrationService', () => {
       company_name: 'Test PT',
       email_address: 'test@pt.com',
       pic_name: 'PIC',
-      pic_phone: '08123456789',
+      pic_phone: '123',
       pic_email: 'pic@pt.com',
-      phone_number: '02112345678',
+      phone_number: '123',
       address: 'Address',
       pdp_consent: true,
-      ktp_number: '1234567890123456',
     };
 
     it('should create registration and registrant account successfully', async () => {

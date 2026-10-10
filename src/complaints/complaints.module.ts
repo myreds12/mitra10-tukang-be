@@ -9,17 +9,11 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { CrmModule } from 'src/crm/crm.module';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
-import { ComplaintsExportService } from './complaints-export.service';
 
 @Module({
   controllers: [ComplaintsController],
-  providers: [
-    ComplaintsService,
-    ComplaintsExportService,
-    NotificationsService,
-    ViolationDetectorService,
-  ],
-  exports: [ComplaintsService, ComplaintsExportService, ViolationDetectorService],
+  providers: [ComplaintsService, NotificationsService, ViolationDetectorService],
+  exports: [ComplaintsService, ViolationDetectorService],
   imports: [
     OrderModule,
     CrmModule,

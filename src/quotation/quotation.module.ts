@@ -10,28 +10,11 @@ import { BullModule } from '@nestjs/bull';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
-import { QuotationQueryService } from './quotation-query.service';
-import { QuotationLifecycleService } from './quotation-lifecycle.service';
-import { QuotationExportService } from './quotation-export.service';
 
 @Module({
   controllers: [QuotationController],
-  providers: [
-    QuotationService,
-    QuotationQueryService,
-    QuotationLifecycleService,
-    QuotationExportService,
-    StatusService,
-    NotificationsService,
-    ViolationDetectorService,
-  ],
-  exports: [
-    QuotationService,
-    QuotationQueryService,
-    QuotationLifecycleService,
-    QuotationExportService,
-    ViolationDetectorService,
-  ],
+  providers: [QuotationService, StatusService, NotificationsService, ViolationDetectorService],
+  exports: [QuotationService, ViolationDetectorService],
   imports: [
     OrderModule,
     MulterModule.register({

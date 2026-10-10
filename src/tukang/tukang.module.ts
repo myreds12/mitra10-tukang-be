@@ -7,12 +7,10 @@ import { extname } from 'path';
 import { BullModule } from '@nestjs/bull';
 import { PdfService } from 'src/common/service/pdf.service';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
-import { TukangExportService } from './tukang-export.service';
 
 @Module({
   controllers: [TukangController],
-  providers: [TukangService, TukangExportService, PdfService],
-  exports: [TukangService, TukangExportService],
+  providers: [TukangService, PdfService],
   imports: [
     MulterModule.register({
       limits: {

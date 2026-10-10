@@ -6,19 +6,11 @@ import { BullModule } from '@nestjs/bull';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { ManagerExportService } from './manager-export.service';
-import { ManagerIncentiveService } from './manager-incentive.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   controllers: [ManagerController],
-  providers: [
-    ManagerService,
-    ManagerExportService,
-    ManagerIncentiveService,
-    NotificationsService,
-  ],
-  exports: [ManagerService, ManagerExportService, ManagerIncentiveService],
+  providers: [ManagerService, NotificationsService],
   imports: [
     MulterModule.register({
       storage: diskStorage({

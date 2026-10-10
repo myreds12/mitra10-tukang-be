@@ -7,22 +7,10 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { SalesExportService } from './sales-export.service';
-import { SalesManagementService } from './sales-management.service';
 
 @Module({
   controllers: [SalesController],
-  providers: [
-    SalesService,
-    SalesExportService,
-    SalesManagementService,
-    NotificationsService,
-  ],
-  exports: [
-    SalesService,
-    SalesExportService,
-    SalesManagementService,
-  ],
+  providers: [SalesService, NotificationsService],
   imports: [
     MulterModule.register({
       storage: diskStorage({

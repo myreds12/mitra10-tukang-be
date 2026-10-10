@@ -7,10 +7,6 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
-import { MailsTriggerService } from './mails-trigger.service';
-import { MailsDiagnosticsService } from './mails-diagnostics.service';
-import { MailsOrderProcessorService } from './mails-order-processor.service';
-import { MailsOperationsProcessorService } from './mails-operations-processor.service';
 
 @Module({
   imports: [
@@ -38,16 +34,7 @@ import { MailsOperationsProcessorService } from './mails-operations-processor.se
   controllers: [MailsController],
   providers: [
     EmailProcessor,
-    MailsOrderProcessorService,
-    MailsOperationsProcessorService,
     MailsService,
-    MailsTriggerService,
-    MailsDiagnosticsService,
-  ],
-  exports: [
-    MailsService,
-    MailsTriggerService,
-    MailsDiagnosticsService,
   ],
 })
 export class MailsModule {}
