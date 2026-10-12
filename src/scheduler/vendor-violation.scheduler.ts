@@ -71,6 +71,9 @@ export class VendorViolationScheduler implements OnModuleInit {
 
     this.logger.log('VendorViolationScheduler initialized');
 
+    // Pastikan master jenis pelanggaran default tersedia di database
+    await this.violationDetector.ensureDefaultViolationTypes();
+
     // Check quarterly reset saat startup
     await this.checkQuarterlyReset();
   }
@@ -265,33 +268,59 @@ export class VendorViolationScheduler implements OnModuleInit {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Status yang mengindikasikan order belum dikonfirmasi vendor:
-    // SURVEYREQ (order survey belum dialokasikan ke tukang)
-    // WORKREQ (order non-survey/pemasangan langsung belum dialokasikan ke tukang)
-    const unconfirmedStatuses = ['SURVEYREQ', 'WORKREQ'];
+    // Status yang mengindikasikan pekerjaan sudah selesai/dibatalkan (tidak relevan untuk unconfirmed)
+    const terminalStatuses = [
+      'WORKEND',
+      'WORKENDSTEPONE',
+      'WORKENDSTEPTWO',
+      'WORKENDSTEPTHREE',
+      'REWORKEND',
+      'CANCEL',
+      'CANCELREFUND',
+      'REFUND',
+      'REFUNDAPPROVED',
+      'REJECTED',
+    ];
+
+    // Status yang mengindikasikan pekerjaan/survey sudah berjalan dengan tukang
+    const inProgressStatuses = [
+      'TUKANGSURVEY',
+      'TUKANGWORK',
+      'TUKANGWORKSTEPONE',
+      'TUKANGWORKSTEPTWO',
+      'TUKANGWORKSTEPTHREE',
+      'SIP',
+      'WIP',
+      'SURVEYDONE',
+      'RESURVEYDONE',
+    ];
 
     // Cari order yang:
-    // 1. Punya vendor
-    // 2. Statusnya belum dikonfirmasi (SURVEYREQ, WORKREQ)
-    // 3. Masuk sebelum hari ini (lt: today)
+    // 1. Punya vendor (vendor_id != null)
+    // 2. Tidak deleted
+    // 3. Statusnya bukan terminal / cancel
     const orders = await this.dbService.orders.findMany({
       where: {
         vendor_id: { not: null },
         deleted_at: null,
         status: {
-          category: { in: unconfirmedStatuses },
-        },
-        created_at: {
-          lt: today,
+          category: { notIn: terminalStatuses },
         },
       },
       include: {
         vendor: true,
-        work_orders: true,
+        status: true,
+        work_orders: {
+          include: {
+            work_order_tukang: {
+              where: { deleted_at: null },
+            },
+          },
+        },
       },
     });
 
-    this.logger.log(`Found ${orders.length} unconfirmed orders to check`);
+    this.logger.log(`Found ${orders.length} active orders assigned to vendors to evaluate`);
 
     const summary: ViolationCheckCategoryResult = {
       checkedCount: orders.length,
@@ -305,17 +334,19 @@ export class VendorViolationScheduler implements OnModuleInit {
       if (!order.vendor_id) continue;
 
       // Cek jika order sudah memiliki work_order_tukang aktif (tukang sudah dialokasikan)
-      if (order.work_orders?.id && this.dbService.work_order_tukang?.count) {
-        const allocatedTukangCount = await this.dbService.work_order_tukang.count({
-          where: {
-            work_order_id: order.work_orders.id,
-            deleted_at: null,
-          },
-        });
-        if (allocatedTukangCount > 0) {
-          summary.skippedCount++;
-          continue;
-        }
+      if (
+        order.work_orders?.work_order_tukang &&
+        order.work_orders.work_order_tukang.length > 0
+      ) {
+        summary.skippedCount++;
+        continue;
+      }
+
+      // Cek jika status order sudah berjalan dengan tukang / survey selesai
+      const currentCategory = order.status?.category?.toUpperCase();
+      if (currentCategory && inProgressStatuses.includes(currentCategory)) {
+        summary.skippedCount++;
+        continue;
       }
 
       // Basis tanggal: work_orders.created_at (tanggal order masuk ke vendor), fallback ke order.created_at
@@ -329,9 +360,14 @@ export class VendorViolationScheduler implements OnModuleInit {
         assignedDate.getDate(),
       );
 
-      const daysDiff = Math.round(
+      const daysDiff = Math.floor(
         (today.getTime() - assignedMidnight.getTime()) / (24 * 60 * 60 * 1000),
       );
+
+      if (daysDiff < 0) {
+        summary.skippedCount++;
+        continue;
+      }
 
       let violationCode: string | null = null;
       let description: string | null = null;
@@ -344,8 +380,8 @@ export class VendorViolationScheduler implements OnModuleInit {
         // H+1
         violationCode = ViolationTypeCode.ORDER_NOT_CONFIRMED_H1;
         description = `Order #${order.project_number || order.id} tidak dikonfirmasi pada H+1`;
-      } else if (daysDiff === 1) {
-        // Hari H (1 hari kalender sejak ditugaskan, hari H baru saja lewat)
+      } else if (daysDiff >= 0) {
+        // Hari H (daysDiff 0 atau 1)
         violationCode = ViolationTypeCode.ORDER_NOT_CONFIRMED_H;
         description = `Order #${order.project_number || order.id} tidak dikonfirmasi pada Hari H`;
       }
@@ -439,7 +475,11 @@ export class VendorViolationScheduler implements OnModuleInit {
 
     // Status SURVEYDONE
     const surveyDoneStatus = await this.dbService.status.findFirst({
-      where: { category: 'SURVEYDONE' },
+      where: {
+        category: {
+          in: ['SURVEYDONE', 'surveydone'],
+        },
+      },
     });
 
     if (!surveyDoneStatus) {

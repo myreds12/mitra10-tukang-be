@@ -63,7 +63,6 @@ import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
 import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
 import { ViolationDetectorService } from './common/services/violation-detector.service';
 
-const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED !== 'false';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
@@ -182,7 +181,8 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
     //manager
     ManagerModule,
     // Vendor SP & Violation System
-    ...(isVendorSpEnabled ? [VendorViolationModule, VendorSpModule] : []),
+    VendorViolationModule,
+    VendorSpModule,
     VendorRegistrationModule,
     HomeContentModule,
     ChatProxyModule,

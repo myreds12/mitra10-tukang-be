@@ -21,6 +21,102 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { moduleTypeNotification } from '../../notifications/dto/notification-module-type.enum';
 import { syncVendorSpDetails } from '../../common/utils/vendor-sp-detail-sync.util';
 
+export const DEFAULT_VIOLATION_TYPES: Record<
+  string,
+  { category: ViolationCategory; name: string; description: string; point: number }
+> = {
+  [ViolationTypeCode.ORDER_NOT_CONFIRMED_H]: {
+    category: ViolationCategory.KONFIRMASI_ORDER,
+    name: 'Orderan tidak terkonfirmasi pada Hari H',
+    description: 'Vendor tidak mengkonfirmasi order pada tanggal yang dijadwalkan (Hari H)',
+    point: 1,
+  },
+  [ViolationTypeCode.ORDER_NOT_CONFIRMED_H1]: {
+    category: ViolationCategory.KONFIRMASI_ORDER,
+    name: 'Orderan tidak terkonfirmasi pada H+1',
+    description: 'Vendor tidak mengkonfirmasi order pada H+1 sejak penjadwalan',
+    point: 1,
+  },
+  [ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS]: {
+    category: ViolationCategory.KONFIRMASI_ORDER,
+    name: 'Orderan tidak terkonfirmasi pada >H+1',
+    description: 'Vendor tidak mengkonfirmasi order lebih dari H+1',
+    point: 1,
+  },
+  [ViolationTypeCode.RESCHEDULE_NOT_UPDATED]: {
+    category: ViolationCategory.RESCHEDULE,
+    name: 'Tidak update status order sejak tanggal reschedule diajukan',
+    description: 'Vendor tidak mengupdate status order di Aplikasi Tukang sejak tanggal reschedule diajukan',
+    point: 1,
+  },
+  [ViolationTypeCode.RESCHEDULE_CHANGE_SCHEDULE]: {
+    category: ViolationCategory.RESCHEDULE,
+    name: 'Mengubah jadwal survey/pengerjaan saat hari pelaksanaan',
+    description: 'Vendor mengubah jadwal survey atau pengerjaan pada hari pelaksanaan',
+    point: 1,
+  },
+  [ViolationTypeCode.REFUND_5_PER_QUARTER]: {
+    category: ViolationCategory.REFUND,
+    name: '5 order refund per quarter',
+    description: 'Vendor memiliki 5 order refund dalam satu quarter',
+    point: 1,
+  },
+  [ViolationTypeCode.REFUND_6_10_PER_QUARTER]: {
+    category: ViolationCategory.REFUND,
+    name: '6-10 order refund per quarter',
+    description: 'Vendor memiliki 6-10 order refund dalam satu quarter',
+    point: 1,
+  },
+  [ViolationTypeCode.CUSTOMER_COMPLAINT]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Komplain customer (jadwal/pengerjaan)',
+    description: 'Customer mengajukan komplain terkait jadwal atau pengerjaan',
+    point: 1,
+  },
+  [ViolationTypeCode.QUOTATION_NOT_FULFILLED]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak memenuhi pelaksanaan pekerjaan atas Quotation',
+    description: 'Vendor tidak memenuhi pelaksanaan pekerjaan sesuai Quotation',
+    point: 1,
+  },
+  [ViolationTypeCode.QUOTATION_LATE_H2]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Quotation terbit > H+2 sejak Survey Selesai',
+    description: 'Quotation tidak terbit lebih dari 2 hari sejak Survey Selesai',
+    point: 1,
+  },
+  [ViolationTypeCode.QUOTATION_LATE_H3]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Quotation terbit > H+3 sejak Survey Selesai',
+    description: 'Quotation tidak terbit lebih dari 3 hari sejak Survey Selesai',
+    point: 1,
+  },
+  [ViolationTypeCode.DOC_NOT_UPLOADED]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak upload dokumentasi foto before/after',
+    description: 'Vendor tidak upload dokumentasi foto before/after atau foto blur/tidak lengkap',
+    point: 1,
+  },
+  [ViolationTypeCode.STATUS_NOT_UPDATED_H]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak update status order pada hari H',
+    description: 'Vendor tidak mengupdate status order pada hari H',
+    point: 1,
+  },
+  [ViolationTypeCode.STATUS_NOT_UPDATED_H1]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak update status order pada H+1',
+    description: 'Vendor tidak mengupdate status order pada H+1',
+    point: 1,
+  },
+  [ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak update status order pada >H+2',
+    description: 'Vendor tidak mengupdate status order lebih dari H+2',
+    point: 1,
+  },
+};
+
 @Injectable()
 export class ViolationDetectorService {
   private readonly logger = new Logger(ViolationDetectorService.name);
@@ -43,15 +139,6 @@ export class ViolationDetectorService {
     context: ViolationContext,
     userId?: number,
   ): Promise<ViolationResult> {
-    if (process.env.VENDOR_SP_ENABLED === 'false') {
-      return {
-        success: false,
-        pointAdded: 0,
-        newTotalPoints: 0,
-        message: 'Vendor SP feature is disabled',
-      };
-    }
-
     // [POIN 6] Lapis 2 guard: validate evidence WAJIB ada dan valid.
     // Kalau kosong → throw BadRequestException (data tidak akan tersimpan).
     const { evidencePath, evidenceProvenance } = this.resolveEvidence(context.evidence);
@@ -207,16 +294,70 @@ export class ViolationDetectorService {
   }
 
   /**
-   * Get violation type dari database berdasarkan kode
+   * Pastikan semua 15 master violation type default ada di database (auto-seed pada boot / demand)
    */
-  private async getViolationType(code: string) {
-    return await this.dbService.vendor_violation_type.findFirst({
+  async ensureDefaultViolationTypes(): Promise<void> {
+    for (const [code, def] of Object.entries(DEFAULT_VIOLATION_TYPES)) {
+      try {
+        const existing = await this.dbService.vendor_violation_type.findFirst({
+          where: { code, deleted_at: null },
+        });
+        if (!existing) {
+          await this.dbService.vendor_violation_type.create({
+            data: {
+              code,
+              category: def.category,
+              name: def.name,
+              description: def.description,
+              point: def.point,
+              is_active: true,
+            },
+          });
+          this.logger.log(`Initialized default violation type in DB: ${code}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not ensure violation type ${code}: ${err.message}`);
+      }
+    }
+  }
+
+  /**
+   * Get violation type dari database berdasarkan kode.
+   * Jika belum ada di database, auto-create dari DEFAULT_VIOLATION_TYPES.
+   */
+  async getViolationType(code: string) {
+    let type = await this.dbService.vendor_violation_type.findFirst({
       where: {
         code,
         is_active: true,
         deleted_at: null,
       },
     });
+
+    if (!type) {
+      const def = DEFAULT_VIOLATION_TYPES[code];
+      if (def) {
+        try {
+          type = await this.dbService.vendor_violation_type.create({
+            data: {
+              code,
+              category: def.category,
+              name: def.name,
+              description: def.description,
+              point: def.point,
+              is_active: true,
+            },
+          });
+          this.logger.log(`Auto-created missing violation type in DB: ${code}`);
+        } catch (e) {
+          type = await this.dbService.vendor_violation_type.findFirst({
+            where: { code, deleted_at: null },
+          });
+        }
+      }
+    }
+
+    return type;
   }
 
   /**
@@ -249,15 +390,6 @@ export class ViolationDetectorService {
     context: ViolationContext,
     userId?: number,
   ): Promise<ViolationResult> {
-    if (process.env.VENDOR_SP_ENABLED !== 'true') {
-      return {
-        success: false,
-        pointAdded: 0,
-        newTotalPoints: 0,
-        message: 'Vendor SP feature is disabled',
-      };
-    }
-
     let existingLog = existingLogOrId;
     if (typeof existingLogOrId === 'number') {
       existingLog = await this.dbService.vendor_violation_log.findUnique({

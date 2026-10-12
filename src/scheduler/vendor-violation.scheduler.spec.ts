@@ -71,16 +71,15 @@ describe('VendorViolationScheduler — checkUnconfirmedOrders & checkLateQuotati
     const callCheckUnconfirmedOrders = (instance: VendorViolationScheduler) =>
       (instance as any).checkUnconfirmedOrders();
 
-    it('queries unconfirmed orders with SURVEYREQ and WORKREQ only (excluding TUKANGSURVEY)', async () => {
+    it('queries active orders assigned to vendors', async () => {
       mockPrisma.orders.findMany.mockResolvedValue([]);
 
       await callCheckUnconfirmedOrders(scheduler);
 
       expect(mockPrisma.orders.findMany).toHaveBeenCalledTimes(1);
       const queryArgs = mockPrisma.orders.findMany.mock.calls[0][0];
-      expect(queryArgs.where.status.category.in).toEqual(['SURVEYREQ', 'WORKREQ']);
-      expect(queryArgs.where.status.category.in).not.toContain('TUKANGSURVEY');
-      expect(queryArgs.include.work_orders).toBe(true);
+      expect(queryArgs.where.status.category.notIn).toBeDefined();
+      expect(queryArgs.include.work_orders).toBeDefined();
     });
 
     it('order masuk kemarin (daysDiff === 1) → trigger ORDER_NOT_CONFIRMED_H', async () => {
@@ -171,7 +170,7 @@ describe('VendorViolationScheduler — checkUnconfirmedOrders & checkLateQuotati
       );
     });
 
-    it('order masuk hari ini (daysDiff === 0) → belum telat, tidak dicatat pelanggaran', async () => {
+    it('order masuk hari ini (daysDiff === 0) → trigger ORDER_NOT_CONFIRMED_H pada Hari H', async () => {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -190,7 +189,14 @@ describe('VendorViolationScheduler — checkUnconfirmedOrders & checkLateQuotati
 
       await callCheckUnconfirmedOrders(scheduler);
 
-      expect(mockDetector.recordViolation).not.toHaveBeenCalled();
+      expect(mockDetector.recordViolation).toHaveBeenCalledWith(
+        ViolationTypeCode.ORDER_NOT_CONFIRMED_H,
+        expect.objectContaining({
+          vendorId: 10,
+          orderId: 504,
+          description: expect.stringContaining('Hari H'),
+        }),
+      );
     });
 
     it('menggunakan work_orders.created_at saat berbeda dengan order.created_at', async () => {
