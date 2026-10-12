@@ -118,6 +118,7 @@ export interface ViolationContext {
   workOrderId?: number;
   refundId?: number;
   complaintId?: number;
+  rescheduleId?: number;
   description?: string;
   /**
    * [POIN 6] Evidence untuk pelanggaran ini — WAJIB diisi (Lapis 2 guard).

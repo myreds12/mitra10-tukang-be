@@ -43,7 +43,7 @@ export class ViolationDetectorService {
     context: ViolationContext,
     userId?: number,
   ): Promise<ViolationResult> {
-    if (process.env.VENDOR_SP_ENABLED !== 'true') {
+    if (process.env.VENDOR_SP_ENABLED === 'false') {
       return {
         success: false,
         pointAdded: 0,

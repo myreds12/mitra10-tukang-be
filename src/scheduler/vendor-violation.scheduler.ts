@@ -6,6 +6,49 @@ import { ViolationDetectorService } from '../common/services/violation-detector.
 import { ViolationTypeCode } from '../common/enum/violation-type.enum';
 import { VendorSpService } from '../vendor-sp/vendor-sp.service';
 
+export interface ViolationCheckItem {
+  category: string;
+  orderId?: number;
+  workOrderId?: number;
+  rescheduleId?: number;
+  quotationId?: number;
+  vendorId: number;
+  violationCode: string;
+  description?: string;
+  status: 'RECORDED' | 'ESCALATED' | 'SKIPPED' | 'ERROR';
+  pointAdded?: number;
+  newTotalPoints?: number;
+  message?: string;
+}
+
+export interface ViolationCheckCategoryResult {
+  checkedCount: number;
+  recordedCount: number;
+  skippedCount: number;
+  errorCount: number;
+}
+
+export interface DailyViolationCheckReport {
+  timestamp: string;
+  durationMs: number;
+  summary: {
+    unconfirmedOrders: ViolationCheckCategoryResult;
+    lateQuotations: ViolationCheckCategoryResult;
+    staleWorkOrderStatuses: ViolationCheckCategoryResult;
+    pendingReschedules: ViolationCheckCategoryResult;
+    totalViolationsRecorded: number;
+  };
+  details: ViolationCheckItem[];
+}
+
+export interface SPStatusCheckReport {
+  timestamp: string;
+  durationMs: number;
+  completedSPs: number;
+  reactivatedVendors: number;
+  quarterlyResetExecuted: boolean;
+}
+
 @Injectable()
 export class VendorViolationScheduler implements OnModuleInit {
   private readonly logger = new Logger(VendorViolationScheduler.name);
@@ -33,45 +76,136 @@ export class VendorViolationScheduler implements OnModuleInit {
   }
 
   /**
-   * JOB 1: Daily Violation Checker
-   * Setiap hari jam 00:01 - Cek order yang tidak dikonfirmasi
-   * Safety net untuk pelanggaran yang terlewat oleh event listener
+   * CRON JOB 1: Daily Violation Checker
+   * Setiap hari jam 00:01 WIB - Cek order tidak dikonfirmasi, quotation telat, status stale, reschedule tertunda.
+   * Parameter force: jika true (via API Postman), bypass pengecekan NODE_APP_INSTANCE.
    */
   @Cron('1 0 * * *') // 00:01 every day
-  async handleDailyViolationCheck() {
-    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+  async handleDailyViolationCheck(force = false): Promise<DailyViolationCheckReport> {
+    if (!force && !this.isPrimaryInstance()) {
+      return {
+        timestamp: new Date().toISOString(),
+        durationMs: 0,
+        summary: {
+          unconfirmedOrders: { checkedCount: 0, recordedCount: 0, skippedCount: 0, errorCount: 0 },
+          lateQuotations: { checkedCount: 0, recordedCount: 0, skippedCount: 0, errorCount: 0 },
+          staleWorkOrderStatuses: { checkedCount: 0, recordedCount: 0, skippedCount: 0, errorCount: 0 },
+          pendingReschedules: { checkedCount: 0, recordedCount: 0, skippedCount: 0, errorCount: 0 },
+          totalViolationsRecorded: 0,
+        },
+        details: [],
+      };
+    }
 
     this.logger.log('=== Starting Daily Violation Check ===');
     const startTime = Date.now();
 
     try {
-      // 1. Check order yang tidak dikonfirmasi
-      await this.checkUnconfirmedOrders();
+      // 1. Check order yang tidak dikonfirmasi / belum dialokasikan ke tukang
+      const unconfirmed = await this.checkUnconfirmedOrders();
 
-      // 2. Check quotation yang terlambat
-      await this.checkLateQuotations();
+      // 2. Check quotation yang terlambat (>H+2, >H+3 sejak Survey Selesai)
+      const lateQuotations = await this.checkLateQuotations();
 
-      // 3. Check status order yang tidak diupdate
-      await this.checkStaleWorkOrderStatuses();
+      // 3. Check status order yang tidak diupdate (H+1, >H+2)
+      const staleStatuses = await this.checkStaleWorkOrderStatuses();
 
       // 4. Check reschedule yang belum ditindaklanjuti vendor
-      await this.checkPendingReschedules();
+      const reschedules = await this.checkPendingReschedules();
 
       const duration = Date.now() - startTime;
-      this.logger.log(`=== Daily Violation Check completed in ${duration}ms ===`);
+      const totalRecorded =
+        unconfirmed.summary.recordedCount +
+        lateQuotations.summary.recordedCount +
+        staleStatuses.summary.recordedCount +
+        reschedules.summary.recordedCount;
+
+      this.logger.log(
+        `=== Daily Violation Check completed in ${duration}ms (Total recorded/escalated: ${totalRecorded}) ===`,
+      );
+
+      return {
+        timestamp: new Date().toISOString(),
+        durationMs: duration,
+        summary: {
+          unconfirmedOrders: unconfirmed.summary,
+          lateQuotations: lateQuotations.summary,
+          staleWorkOrderStatuses: staleStatuses.summary,
+          pendingReschedules: reschedules.summary,
+          totalViolationsRecorded: totalRecorded,
+        },
+        details: [
+          ...unconfirmed.items,
+          ...lateQuotations.items,
+          ...staleStatuses.items,
+          ...reschedules.items,
+        ],
+      };
     } catch (error) {
       this.logger.error('Daily Violation Check failed', error);
+      throw error;
     }
   }
 
   /**
-   * JOB 2: Quarterly Reset
-   * Hari pertama setiap Quartal jam 00:00
-   * 1 Jan, 1 Apr, 1 Jul, 1 Okt
+   * CRON JOB 2: SP Status & Maintenance Checker
+   * Setiap hari jam 01:00 WIB - Selesaikan SP expired (>90 hari), reaktivasi vendor SP3 yang masa suspend-nya selesai.
+   * Parameter force: jika true (via API Postman), bypass pengecekan NODE_APP_INSTANCE.
+   */
+  @Cron('0 1 * * *') // 01:00 every day
+  async handleSPStatusCheck(force = false): Promise<SPStatusCheckReport> {
+    if (!force && !this.isPrimaryInstance()) {
+      return {
+        timestamp: new Date().toISOString(),
+        durationMs: 0,
+        completedSPs: 0,
+        reactivatedVendors: 0,
+        quarterlyResetExecuted: false,
+      };
+    }
+
+    this.logger.log('=== Starting SP Status Check ===');
+    const startTime = Date.now();
+
+    try {
+      // 1. Complete SP yang expired (>90 hari)
+      const completedSPs = await this.violationDetector.completeExpiredSPs();
+
+      // 2. Reaktivasi vendor SP3 yang expired
+      const reactivatedVendors = await this.violationDetector.reactivateExpiredSP3Vendors();
+
+      // 3. Cek quarterly reset jika belum tercatat untuk quarter berjalan
+      const quarterlyResetExecuted = await this.checkQuarterlyReset();
+
+      if (completedSPs > 0 || reactivatedVendors > 0) {
+        this.logger.log(
+          `SP Status Check: ${completedSPs} SPs completed, ${reactivatedVendors} vendors reactivated`,
+        );
+      }
+
+      const duration = Date.now() - startTime;
+      this.logger.log(`=== SP Status Check completed in ${duration}ms ===`);
+
+      return {
+        timestamp: new Date().toISOString(),
+        durationMs: duration,
+        completedSPs,
+        reactivatedVendors,
+        quarterlyResetExecuted: Boolean(quarterlyResetExecuted),
+      };
+    } catch (error) {
+      this.logger.error('SP Status Check failed', error);
+      throw error;
+    }
+  }
+
+  /**
+   * CRON JOB 3: Quarterly Reset
+   * Hari pertama setiap Quartal jam 00:00 (1 Jan, 1 Apr, 1 Jul, 1 Okt)
    */
   @Cron('0 0 1 1,4,7,10 *') // 00:00 on Jan 1, Apr 1, Jul 1, Oct 1
-  async handleQuarterlyReset() {
-    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
+  async handleQuarterlyReset(force = false) {
+    if (!force && !this.isPrimaryInstance()) return;
 
     this.logger.log('=== Starting Quarterly Reset ===');
     const startTime = Date.now();
@@ -96,44 +230,13 @@ export class VendorViolationScheduler implements OnModuleInit {
   }
 
   /**
-   * JOB 3: SP Status Checker
-   * Setiap hari jam 01:00 - Cek status SP dan vendor
-   */
-  @Cron('0 1 * * *') // 01:00 every day
-  async handleSPStatusCheck() {
-    if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
-
-    this.logger.log('=== Starting SP Status Check ===');
-    const startTime = Date.now();
-
-    try {
-      // 1. Complete SP yang expired
-      const completedSPs = await this.violationDetector.completeExpiredSPs();
-
-      // 2. Reaktivasi vendor SP3 yang expired
-      const reactivatedVendors = await this.violationDetector.reactivateExpiredSP3Vendors();
-
-      if (completedSPs > 0 || reactivatedVendors > 0) {
-        this.logger.log(
-          `SP Status Check: ${completedSPs} SPs completed, ${reactivatedVendors} vendors reactivated`,
-        );
-      }
-
-      const duration = Date.now() - startTime;
-      this.logger.log(`=== SP Status Check completed in ${duration}ms ===`);
-    } catch (error) {
-      this.logger.error('SP Status Check failed', error);
-    }
-  }
-
-  /**
-   * JOB 4: Weekly Vendor SP Warning
+   * CRON JOB 4: Weekly Vendor SP Warning
    * Setiap Senin jam 08:00 WIB (01:00 UTC)
    * Kirim notifikasi peringatan ke vendor yang total poin penalty-nya mendekati threshold SP (>= 70%)
    */
   @Cron('0 1 * * 1') // 01:00 UTC every Monday (08:00 WIB)
-  async handleWeeklyWarningCheck() {
-    if (!this.isPrimaryInstance()) return;
+  async handleWeeklyWarningCheck(force = false) {
+    if (!force && !this.isPrimaryInstance()) return;
 
     this.logger.log('=== Starting Weekly Vendor SP Warning Check ===');
     const startTime = Date.now();
@@ -150,12 +253,15 @@ export class VendorViolationScheduler implements OnModuleInit {
   }
 
   /**
-   * Check order yang tidak dikonfirmasi
+   * Check order yang tidak dikonfirmasi / belum dialokasikan ke tukang
    * Pelanggaran #1: Tidak terkonfirmasi pada Hari H (ORDER_NOT_CONFIRMED_H)
    * Pelanggaran #2: Tidak terkonfirmasi pada H+1 (ORDER_NOT_CONFIRMED_H1)
    * Pelanggaran #3: Tidak terkonfirmasi pada >H+1 (ORDER_NOT_CONFIRMED_H_PLUS)
    */
-  private async checkUnconfirmedOrders() {
+  public async checkUnconfirmedOrders(): Promise<{
+    summary: ViolationCheckCategoryResult;
+    items: ViolationCheckItem[];
+  }> {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -166,7 +272,7 @@ export class VendorViolationScheduler implements OnModuleInit {
 
     // Cari order yang:
     // 1. Punya vendor
-    // 2. Statusnya belum dikonfirmasi
+    // 2. Statusnya belum dikonfirmasi (SURVEYREQ, WORKREQ)
     // 3. Masuk sebelum hari ini (lt: today)
     const orders = await this.dbService.orders.findMany({
       where: {
@@ -187,8 +293,30 @@ export class VendorViolationScheduler implements OnModuleInit {
 
     this.logger.log(`Found ${orders.length} unconfirmed orders to check`);
 
+    const summary: ViolationCheckCategoryResult = {
+      checkedCount: orders.length,
+      recordedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+    };
+    const items: ViolationCheckItem[] = [];
+
     for (const order of orders) {
       if (!order.vendor_id) continue;
+
+      // Cek jika order sudah memiliki work_order_tukang aktif (tukang sudah dialokasikan)
+      if (order.work_orders?.id && this.dbService.work_order_tukang?.count) {
+        const allocatedTukangCount = await this.dbService.work_order_tukang.count({
+          where: {
+            work_order_id: order.work_orders.id,
+            deleted_at: null,
+          },
+        });
+        if (allocatedTukangCount > 0) {
+          summary.skippedCount++;
+          continue;
+        }
+      }
 
       // Basis tanggal: work_orders.created_at (tanggal order masuk ke vendor), fallback ke order.created_at
       const assignedDate = order.work_orders?.created_at
@@ -223,27 +351,70 @@ export class VendorViolationScheduler implements OnModuleInit {
       }
 
       if (violationCode) {
-        await this.violationDetector.recordViolation(
-          violationCode,
-          {
-            vendorId: order.vendor_id,
-            orderId: order.id,
-            description,
-            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
-            evidence: {
-              provenance: 'SYSTEM_GENERATED',
-              snapshot: {
-                orderId: order.id,
-                daysSinceAssigned: daysDiff,
-                checkType: 'checkUnconfirmedOrders',
-                tier: violationCode,
-                triggeredAt: new Date().toISOString(),
+        try {
+          const res = await this.violationDetector.recordViolation(
+            violationCode,
+            {
+              vendorId: order.vendor_id,
+              orderId: order.id,
+              description,
+              // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  orderId: order.id,
+                  daysSinceAssigned: daysDiff,
+                  checkType: 'checkUnconfirmedOrders',
+                  tier: violationCode,
+                  triggeredAt: new Date().toISOString(),
+                },
               },
             },
-          },
-        );
+          );
+
+          if (res.success) {
+            summary.recordedCount++;
+            items.push({
+              category: 'checkUnconfirmedOrders',
+              orderId: order.id,
+              vendorId: order.vendor_id,
+              violationCode,
+              description,
+              status: res.message?.includes('eskalasi') ? 'ESCALATED' : 'RECORDED',
+              pointAdded: res.pointAdded,
+              newTotalPoints: res.newTotalPoints,
+              message: res.message,
+            });
+          } else {
+            summary.skippedCount++;
+            items.push({
+              category: 'checkUnconfirmedOrders',
+              orderId: order.id,
+              vendorId: order.vendor_id,
+              violationCode,
+              description,
+              status: 'SKIPPED',
+              pointAdded: 0,
+              newTotalPoints: res.newTotalPoints,
+              message: res.message,
+            });
+          }
+        } catch (err: any) {
+          summary.errorCount++;
+          items.push({
+            category: 'checkUnconfirmedOrders',
+            orderId: order.id,
+            vendorId: order.vendor_id,
+            violationCode,
+            description,
+            status: 'ERROR',
+            message: err.message,
+          });
+        }
       }
     }
+
+    return { summary, items };
   }
 
   /**
@@ -251,9 +422,20 @@ export class VendorViolationScheduler implements OnModuleInit {
    * Pelanggaran #10: Quotation > H+2 sejak Survey Selesai (QUOTATION_LATE_H2)
    * Pelanggaran #11: Quotation > H+3 sejak Survey Selesai (QUOTATION_LATE_H3)
    */
-  private async checkLateQuotations() {
+  public async checkLateQuotations(): Promise<{
+    summary: ViolationCheckCategoryResult;
+    items: ViolationCheckItem[];
+  }> {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const summary: ViolationCheckCategoryResult = {
+      checkedCount: 0,
+      recordedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+    };
+    const items: ViolationCheckItem[] = [];
 
     // Status SURVEYDONE
     const surveyDoneStatus = await this.dbService.status.findFirst({
@@ -262,7 +444,7 @@ export class VendorViolationScheduler implements OnModuleInit {
 
     if (!surveyDoneStatus) {
       this.logger.warn('SURVEYDONE status not found for late quotation check');
-      return;
+      return { summary, items };
     }
 
     // Status quotation yang menandakan quotation sudah terbit/disubmit oleh vendor
@@ -311,6 +493,7 @@ export class VendorViolationScheduler implements OnModuleInit {
       },
     });
 
+    summary.checkedCount = orders.length;
     this.logger.log(`Found ${orders.length} orders to check for late quotation`);
 
     for (const order of orders) {
@@ -341,42 +524,96 @@ export class VendorViolationScheduler implements OnModuleInit {
       }
 
       if (violationCode) {
-        await this.violationDetector.recordViolation(
-          violationCode,
-          {
-            vendorId: order.vendor_id,
-            orderId: order.id,
-            quotationId: order.quotation?.[0]?.id,
-            description: `Quotation belum dibuat/terbit selama ${daysSinceSurvey} hari sejak Survey Selesai (limit: ${daysSinceSurvey >= 3 ? 'H+3' : 'H+2'})`,
-            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
-            evidence: {
-              provenance: 'SYSTEM_GENERATED',
-              snapshot: {
-                orderId: order.id,
-                daysSinceSurveyDone: daysSinceSurvey,
-                checkType: 'checkLateQuotations',
-                tier: violationCode,
-                triggeredAt: new Date().toISOString(),
+        const description = `Quotation belum dibuat/terbit selama ${daysSinceSurvey} hari sejak Survey Selesai (limit: ${daysSinceSurvey >= 3 ? 'H+3' : 'H+2'})`;
+        try {
+          const res = await this.violationDetector.recordViolation(
+            violationCode,
+            {
+              vendorId: order.vendor_id,
+              orderId: order.id,
+              quotationId: order.quotation?.[0]?.id,
+              description,
+              // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  orderId: order.id,
+                  daysSinceSurveyDone: daysSinceSurvey,
+                  checkType: 'checkLateQuotations',
+                  tier: violationCode,
+                  triggeredAt: new Date().toISOString(),
+                },
               },
             },
-          },
-        );
+          );
+
+          if (res.success) {
+            summary.recordedCount++;
+            items.push({
+              category: 'checkLateQuotations',
+              orderId: order.id,
+              quotationId: order.quotation?.[0]?.id,
+              vendorId: order.vendor_id,
+              violationCode,
+              description,
+              status: res.message?.includes('eskalasi') ? 'ESCALATED' : 'RECORDED',
+              pointAdded: res.pointAdded,
+              newTotalPoints: res.newTotalPoints,
+              message: res.message,
+            });
+          } else {
+            summary.skippedCount++;
+            items.push({
+              category: 'checkLateQuotations',
+              orderId: order.id,
+              quotationId: order.quotation?.[0]?.id,
+              vendorId: order.vendor_id,
+              violationCode,
+              description,
+              status: 'SKIPPED',
+              pointAdded: 0,
+              newTotalPoints: res.newTotalPoints,
+              message: res.message,
+            });
+          }
+        } catch (err: any) {
+          summary.errorCount++;
+          items.push({
+            category: 'checkLateQuotations',
+            orderId: order.id,
+            quotationId: order.quotation?.[0]?.id,
+            vendorId: order.vendor_id,
+            violationCode,
+            description,
+            status: 'ERROR',
+            message: err.message,
+          });
+        }
       }
     }
+
+    return { summary, items };
   }
 
   /**
    * Check work order yang statusnya tidak diupdate
    * Pelanggaran #13: Tidak update status order di H, H+1, >H+2
    */
-  private async checkStaleWorkOrderStatuses() {
+  public async checkStaleWorkOrderStatuses(): Promise<{
+    summary: ViolationCheckCategoryResult;
+    items: ViolationCheckItem[];
+  }> {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-    const twoDaysAgo = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
 
     // Status yang perlu diupdate oleh vendor/tukang
-    const activeStatuses = ['WORKSTART', 'TUKANGWORK', 'TUKANGWORKSTEPONE', 'TUKANGWORKSTEPTWO', 'TUKANGWORKSTEPTHREE'];
+    const activeStatuses = [
+      'WORKSTART',
+      'TUKANGWORK',
+      'TUKANGWORKSTEPONE',
+      'TUKANGWORKSTEPTWO',
+      'TUKANGWORKSTEPTHREE',
+    ];
 
     // Cari work orders yang statusnya tidak berubah > 2 hari
     const workOrders = await this.dbService.work_orders.findMany({
@@ -394,6 +631,14 @@ export class VendorViolationScheduler implements OnModuleInit {
         },
       },
     });
+
+    const summary: ViolationCheckCategoryResult = {
+      checkedCount: workOrders.length,
+      recordedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+    };
+    const items: ViolationCheckItem[] = [];
 
     this.logger.log(`Found ${workOrders.length} active work orders to check for stale status`);
 
@@ -420,35 +665,85 @@ export class VendorViolationScheduler implements OnModuleInit {
       }
 
       if (violationCode) {
-        await this.violationDetector.recordViolation(
-          violationCode,
-          {
-            vendorId: wo.order.vendor_id,
-            orderId: wo.order_id,
-            workOrderId: wo.id,
-            description: `Status work order tidak diupdate selama ${daysSinceUpdate} hari`,
-            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
-            evidence: {
-              provenance: 'SYSTEM_GENERATED',
-              snapshot: {
-                workOrderId: wo.id,
-                orderId: wo.order_id,
-                daysSinceUpdate,
-                checkType: 'checkStaleWorkOrderStatuses',
-                triggeredAt: new Date().toISOString(),
+        const description = `Status work order tidak diupdate selama ${daysSinceUpdate} hari`;
+        try {
+          const res = await this.violationDetector.recordViolation(
+            violationCode,
+            {
+              vendorId: wo.order.vendor_id,
+              orderId: wo.order_id,
+              workOrderId: wo.id,
+              description,
+              // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  workOrderId: wo.id,
+                  orderId: wo.order_id,
+                  daysSinceUpdate,
+                  checkType: 'checkStaleWorkOrderStatuses',
+                  triggeredAt: new Date().toISOString(),
+                },
               },
             },
-          },
-        );
+          );
+
+          if (res.success) {
+            summary.recordedCount++;
+            items.push({
+              category: 'checkStaleWorkOrderStatuses',
+              orderId: wo.order_id,
+              workOrderId: wo.id,
+              vendorId: wo.order.vendor_id,
+              violationCode,
+              description,
+              status: res.message?.includes('eskalasi') ? 'ESCALATED' : 'RECORDED',
+              pointAdded: res.pointAdded,
+              newTotalPoints: res.newTotalPoints,
+              message: res.message,
+            });
+          } else {
+            summary.skippedCount++;
+            items.push({
+              category: 'checkStaleWorkOrderStatuses',
+              orderId: wo.order_id,
+              workOrderId: wo.id,
+              vendorId: wo.order.vendor_id,
+              violationCode,
+              description,
+              status: 'SKIPPED',
+              pointAdded: 0,
+              newTotalPoints: res.newTotalPoints,
+              message: res.message,
+            });
+          }
+        } catch (err: any) {
+          summary.errorCount++;
+          items.push({
+            category: 'checkStaleWorkOrderStatuses',
+            orderId: wo.order_id,
+            workOrderId: wo.id,
+            vendorId: wo.order.vendor_id,
+            violationCode,
+            description,
+            status: 'ERROR',
+            message: err.message,
+          });
+        }
       }
     }
+
+    return { summary, items };
   }
 
   /**
    * Check reschedule yang belum ditindaklanjuti vendor sejak diajukan.
    * Pelanggaran #4: Tidak update status order sejak tanggal reschedule diajukan
    */
-  private async checkPendingReschedules() {
+  public async checkPendingReschedules(): Promise<{
+    summary: ViolationCheckCategoryResult;
+    items: ViolationCheckItem[];
+  }> {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -474,6 +769,14 @@ export class VendorViolationScheduler implements OnModuleInit {
       },
     });
 
+    const summary: ViolationCheckCategoryResult = {
+      checkedCount: reschedules.length,
+      recordedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+    };
+    const items: ViolationCheckItem[] = [];
+
     this.logger.log(`Found ${reschedules.length} pending reschedules to check`);
 
     for (const reschedule of reschedules) {
@@ -486,32 +789,80 @@ export class VendorViolationScheduler implements OnModuleInit {
 
       if (daysDiff < 1) continue;
 
-      await this.violationDetector.recordViolation(
-        ViolationTypeCode.RESCHEDULE_NOT_UPDATED,
-        {
-          vendorId: reschedule.order.vendor_id,
-          orderId: reschedule.order_id,
-          description: `Reschedule #${reschedule.id} belum ditindaklanjuti vendor selama ${daysDiff} hari`,
-          // [POIN 6] SYSTEM_GENERATED — cron job scheduler
-          evidence: {
-            provenance: 'SYSTEM_GENERATED',
-            snapshot: {
-              rescheduleId: reschedule.id,
-              orderId: reschedule.order_id,
-              daysSinceCreated: daysDiff,
-              checkType: 'checkPendingReschedules',
-              triggeredAt: new Date().toISOString(),
+      const description = `Reschedule #${reschedule.id} belum ditindaklanjuti vendor selama ${daysDiff} hari`;
+      try {
+        const res = await this.violationDetector.recordViolation(
+          ViolationTypeCode.RESCHEDULE_NOT_UPDATED,
+          {
+            vendorId: reschedule.order.vendor_id,
+            orderId: reschedule.order_id,
+            rescheduleId: reschedule.id,
+            description,
+            // [POIN 6] SYSTEM_GENERATED — cron job scheduler
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                rescheduleId: reschedule.id,
+                orderId: reschedule.order_id,
+                daysSinceCreated: daysDiff,
+                checkType: 'checkPendingReschedules',
+                triggeredAt: new Date().toISOString(),
+              },
             },
           },
-        },
-      );
+        );
+
+        if (res.success) {
+          summary.recordedCount++;
+          items.push({
+            category: 'checkPendingReschedules',
+            orderId: reschedule.order_id,
+            rescheduleId: reschedule.id,
+            vendorId: reschedule.order.vendor_id,
+            violationCode: ViolationTypeCode.RESCHEDULE_NOT_UPDATED,
+            description,
+            status: 'RECORDED',
+            pointAdded: res.pointAdded,
+            newTotalPoints: res.newTotalPoints,
+            message: res.message,
+          });
+        } else {
+          summary.skippedCount++;
+          items.push({
+            category: 'checkPendingReschedules',
+            orderId: reschedule.order_id,
+            rescheduleId: reschedule.id,
+            vendorId: reschedule.order.vendor_id,
+            violationCode: ViolationTypeCode.RESCHEDULE_NOT_UPDATED,
+            description,
+            status: 'SKIPPED',
+            pointAdded: 0,
+            newTotalPoints: res.newTotalPoints,
+            message: res.message,
+          });
+        }
+      } catch (err: any) {
+        summary.errorCount++;
+        items.push({
+          category: 'checkPendingReschedules',
+          orderId: reschedule.order_id,
+          rescheduleId: reschedule.id,
+          vendorId: reschedule.order.vendor_id,
+          violationCode: ViolationTypeCode.RESCHEDULE_NOT_UPDATED,
+          description,
+          status: 'ERROR',
+          message: err.message,
+        });
+      }
     }
+
+    return { summary, items };
   }
 
   /**
-   * Check apakah perlu quarterly reset (saat startup)
+   * Check apakah perlu quarterly reset (saat startup atau dipanggil manual)
    */
-  private async checkQuarterlyReset() {
+  public async checkQuarterlyReset(): Promise<boolean> {
     const now = new Date();
     const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
@@ -526,8 +877,10 @@ export class VendorViolationScheduler implements OnModuleInit {
 
     if (!lastReset) {
       // Quarterly reset belum dilakukan untuk quartal ini
-      await this.handleQuarterlyReset();
+      await this.handleQuarterlyReset(true);
+      return true;
     }
+    return false;
   }
 
   /**

@@ -43,6 +43,8 @@ import { Request, Response } from 'express';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
+import { Public } from 'src/common/decorator/public.decorator';
+import { VendorViolationScheduler } from '../scheduler/vendor-violation.scheduler';
 import * as fs from 'fs';
 
 // 10MB bukan 50MB (chat) karena evidence gambar/PDF tidak butuh preview video.
@@ -90,6 +92,7 @@ export class VendorViolationController {
   constructor(
     private readonly service: VendorViolationService,
     private readonly revisionService: VendorViolationRevisionService,
+    private readonly scheduler: VendorViolationScheduler,
   ) {}
 
   // ================================
@@ -409,5 +412,73 @@ export class VendorViolationController {
     @User() user: any,
   ) {
     return this.revisionService.reject(id, dto, user);
+  }
+
+  // ================================
+  // SCHEDULER MANUAL TRIGGER ENDPOINTS (POSTMAN & ADMIN)
+  // ================================
+
+  @Public()
+  @Post('trigger-daily-check')
+  @Get('trigger-daily-check')
+  @ApiOperation({
+    summary: '[TRIGGER] Jalankan Daily Violation Check (Cron 1)',
+    description:
+      'Mengecek pelanggaran harian vendor: 1) Order belum dikonfirmasi/alokasi tukang (Hari H, H+1, >H+1), ' +
+      '2) Quotation terlambat (>H+2, >H+3 sejak survey selesai), ' +
+      '3) Status work order tidak diupdate (H+1, >H+2), ' +
+      '4) Reschedule belum ditindaklanjuti vendor. Dapat di-hit via Postman tanpa/dengan token JWT.',
+  })
+  @ApiResponse({ status: 200, description: 'Laporan eksekusi daily violation check' })
+  async triggerDailyCheck() {
+    const report = await this.scheduler.handleDailyViolationCheck(true);
+    return {
+      statusCode: 200,
+      message: 'Daily violation check berhasil dijalankan',
+      data: report,
+    };
+  }
+
+  @Public()
+  @Post('trigger-sp-status-check')
+  @Get('trigger-sp-status-check')
+  @ApiOperation({
+    summary: '[TRIGGER] Jalankan SP Status & Maintenance Check (Cron 2)',
+    description:
+      'Mengecek status SP dan vendor: 1) Selesaikan SP yang sudah expired (>90 hari), ' +
+      '2) Reaktivasi vendor SP3 yang masa suspend-nya selesai, ' +
+      '3) Cek quarterly reset. Dapat di-hit via Postman tanpa/dengan token JWT.',
+  })
+  @ApiResponse({ status: 200, description: 'Laporan eksekusi SP status check' })
+  async triggerSpStatusCheck() {
+    const report = await this.scheduler.handleSPStatusCheck(true);
+    return {
+      statusCode: 200,
+      message: 'SP status check berhasil dijalankan',
+      data: report,
+    };
+  }
+
+  @Public()
+  @Post('trigger-all')
+  @Get('trigger-all')
+  @ApiOperation({
+    summary: '[TRIGGER] Jalankan Semua Check Scheduler Sekaligus',
+    description:
+      'Menjalankan Cron 1 (Daily Violation Check) dan Cron 2 (SP Status Check) secara berurutan. ' +
+      'Dapat di-hit via Postman tanpa/dengan token JWT.',
+  })
+  @ApiResponse({ status: 200, description: 'Laporan eksekusi lengkap' })
+  async triggerAllChecks() {
+    const dailyReport = await this.scheduler.handleDailyViolationCheck(true);
+    const spReport = await this.scheduler.handleSPStatusCheck(true);
+    return {
+      statusCode: 200,
+      message: 'Semua check scheduler berhasil dijalankan',
+      data: {
+        dailyViolationCheck: dailyReport,
+        spStatusCheck: spReport,
+      },
+    };
   }
 }

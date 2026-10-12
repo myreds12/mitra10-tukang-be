@@ -63,7 +63,7 @@ import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
 import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
 import { ViolationDetectorService } from './common/services/violation-detector.service';
 
-const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
+const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED !== 'false';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
@@ -193,7 +193,6 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
   providers: [
     AppService,
     ViolationDetectorService,
-    ...(isVendorSpEnabled ? [VendorViolationScheduler] : []),
   ],
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
