@@ -520,6 +520,7 @@ export class WorkOrdersService {
           id,
         },
         include: {
+          status: true,
           work_order_status: true,
           work_order_tukang: { where: { deleted_at: null } },
         },
@@ -688,6 +689,15 @@ export class WorkOrdersService {
       );
       if (shouldSendAssignedWhatsApp) {
         await this.sendTukangAssignedWhatsApp(work_order.id);
+      }
+
+      const [NEW_STATUS] = await this.dbService.status.findMany({
+        where: { id: dataDto.work_order_status },
+      });
+      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
+      const wasWorkEndStatus = checkWorkOrder.status?.category?.startsWith('WORKEND');
+      if (isWorkEndStatus && !wasWorkEndStatus) {
+        await this.sendOrderCompletedWhatsApp(work_order.order_id);
       }
 
       return work_order;
