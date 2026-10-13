@@ -139,7 +139,17 @@ export class WhatsAppService {
       },
     });
 
-    if (!order || !order.status?.category?.startsWith('WORKEND')) {
+    if (!order) {
+      this.logger.warn(
+        `Skipping completion WA for order_id=${orderId}: order not found or deleted`,
+      );
+      return;
+    }
+
+    if (!order.status?.category?.startsWith('WORKEND')) {
+      this.logger.warn(
+        `Skipping completion WA for order_id=${orderId}: status is "${order.status?.category}" (not WORKEND*)`,
+      );
       return;
     }
 
