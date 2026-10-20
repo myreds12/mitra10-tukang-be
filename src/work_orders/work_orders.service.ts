@@ -35,10 +35,10 @@ export class WorkOrdersService {
     }
   }
 
-  private async sendOrderCompletedWhatsApp(orderId: number) {
+  private async sendOrderCompletedWhatsApp(orderId: number, workOrderId: number) {
     try {
       this.logger.log(`Sending completion WA for order_id=${orderId}`);
-      await this.whatsAppService.sendOrderCompletedNotification(orderId);
+      await this.whatsAppService.sendOrderCompletedNotification(orderId, workOrderId);
     } catch (err) {
       this.logger.error(`WA order completed notification failed for order_id=${orderId}:`, err?.message);
     }
@@ -683,15 +683,6 @@ export class WorkOrdersService {
           this.dbService.work_orders.update(work_order_data),
         ]);
 
-      await this.orderService.setStatus(
-        work_order.order_id,
-        dataDto.work_order_status,
-        user,
-      );
-      if (shouldSendAssignedWhatsApp) {
-        await this.sendTukangAssignedWhatsApp(work_order.id);
-      }
-
       const [NEW_STATUS] = await this.dbService.status.findMany({
         where: { id: dataDto.work_order_status },
       });
@@ -701,7 +692,16 @@ export class WorkOrdersService {
         `update: work_order_id=${id} order_id=${work_order.order_id} NEW_STATUS=${NEW_STATUS?.category} OLD_STATUS=${checkWorkOrder.status?.category} isWorkEnd=${isWorkEndStatus} wasWorkEnd=${wasWorkEndStatus}`,
       );
       if (isWorkEndStatus && !wasWorkEndStatus) {
-        await this.sendOrderCompletedWhatsApp(work_order.order_id);
+        await this.sendOrderCompletedWhatsApp(work_order.order_id, work_order.id);
+      }
+
+      await this.orderService.setStatus(
+        work_order.order_id,
+        dataDto.work_order_status,
+        user,
+      );
+      if (shouldSendAssignedWhatsApp) {
+        await this.sendTukangAssignedWhatsApp(work_order.id);
       }
 
       return work_order;
@@ -1071,6 +1071,15 @@ export class WorkOrdersService {
         },
       });
 
+      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
+      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
+      this.logger.log(
+        `setStatusWithMaterials: work_order_id=${id} order_id=${work_order.order_id} NEW_STATUS=${NEW_STATUS?.category} OLD_STATUS=${workOrder.status?.category} isWorkEnd=${isWorkEndStatus} wasWorkEnd=${wasWorkEndStatus}`,
+      );
+      if (isWorkEndStatus && !wasWorkEndStatus) {
+        await this.sendOrderCompletedWhatsApp(work_order.order_id, work_order.id);
+      }
+
       await this.orderService.setStatus(
         work_order.order_id,
         updateData.status_id,
@@ -1083,15 +1092,6 @@ export class WorkOrdersService {
       if (work_order?.order?.vendor_id) {
         await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
         await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
-      }
-
-      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
-      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
-      this.logger.log(
-        `setStatusWithMaterials: work_order_id=${id} order_id=${work_order.order_id} NEW_STATUS=${NEW_STATUS?.category} OLD_STATUS=${workOrder.status?.category} isWorkEnd=${isWorkEndStatus} wasWorkEnd=${wasWorkEndStatus}`,
-      );
-      if (isWorkEndStatus && !wasWorkEndStatus) {
-        await this.sendOrderCompletedWhatsApp(work_order.order_id);
       }
 
       return work_order;

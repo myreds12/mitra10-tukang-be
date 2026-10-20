@@ -51,20 +51,29 @@ export class WhatsAppService {
       `Quotation - ${customerName} - Order ID : ${quotation.order_id}.pdf`,
     );
     const quotationFilename = `Quotation - ${customerName} - Order ID : ${quotation.order_id}.pdf`;
-    const pdfUrl = `${this.getPublicBaseUrl()}/orders/quotation-pdf/${quotation.order_id}/${filename}`;
-    await this.sendTemplate(phoneNumber, 'survei_tukang_instalasi_quotation_v3', {
-      customerName: quotation.order?.members?.full_name ?? '-',
-      bankName: quotation.store?.bank_name ?? '-',
-      accountNumber: quotation.store?.bank_number ?? '-',
-      storeWhatsappNumber:
-        this.normalizePhone(
-          quotation.store?.phone_number_1 ?? quotation.store?.phone_number_2,
-        ) ?? '-',
-      media: {
-        title: quotationFilename,
-        mediaLink: pdfUrl,
+    const pdfUrl = `${this.getPublicBaseUrl()}/orders/quotation-pdf/${
+      quotation.order_id
+    }/${filename}`;
+    this.logger.log(
+      `Quotation WA pdfUrl=${pdfUrl} publicBaseUrl=${this.getPublicBaseUrl()}`,
+    );
+    await this.sendTemplate(
+      phoneNumber,
+      'survei_tukang_instalasi_quotation_v3',
+      {
+        customerName: quotation.order?.members?.full_name ?? '-',
+        bankName: quotation.store?.bank_name ?? '-',
+        accountNumber: quotation.store?.bank_number ?? '-',
+        storeWhatsappNumber:
+          this.normalizePhone(
+            quotation.store?.phone_number_1 ?? quotation.store?.phone_number_2,
+          ) ?? '-',
+        media: {
+          title: quotationFilename,
+          mediaLink: pdfUrl,
+        },
       },
-    });
+    );
   }
 
   async sendTukangAssignedNotification(workOrderId: number) {
@@ -120,17 +129,31 @@ export class WhatsAppService {
         customerName: workOrder.order?.members?.full_name ?? '-',
         storeName: workOrder.order?.store?.store_name ?? '-',
         orderId: String(workOrder.order_id),
-        surveyName: workOrder.order?.m_order_details?.[0]?.item_name ?? workOrder.status?.description ?? '-',
+        surveyName:
+          workOrder.order?.m_order_details?.[0]?.item_name ??
+          workOrder.status?.description ??
+          '-',
         craftsmanName,
         surveyDate: this.formatDateTimeRange(
-          workOrder.survey_date ?? workOrder.work_start_date ?? workOrder.request_work_time ?? workOrder.created_at,
+          workOrder.survey_date ??
+            workOrder.work_start_date ??
+            workOrder.request_work_time ??
+            workOrder.created_at,
           workOrder.work_end_date,
         ),
       }),
     );
   }
 
-  async sendOrderCompletedNotification(orderId: number) {
+  async sendOrderCompletedNotification(orderId: number, workOrderId?: number) {
+    // A completed WO is the event source, even if the parent order changes later.
+    const workOrder =
+      workOrderId == null
+        ? null
+        : await this.dbService.work_orders.findFirst({
+            where: { id: workOrderId, order_id: orderId, deleted_at: null },
+            include: { status: true },
+          });
     const order = await this.dbService.orders.findFirst({
       where: { id: orderId, deleted_at: null },
       include: {
@@ -146,9 +169,11 @@ export class WhatsAppService {
       return;
     }
 
-    if (!order.status?.category?.startsWith('WORKEND')) {
+    const completionStatus =
+      workOrderId == null ? order.status : workOrder?.status;
+    if (!completionStatus?.category?.startsWith('WORKEND')) {
       this.logger.warn(
-        `Skipping completion WA for order_id=${orderId}: status is "${order.status?.category}" (not WORKEND*)`,
+        `Skipping completion WA for order_id=${orderId} work_order_id=${workOrderId}: status is "${completionStatus?.category}" (not WORKEND*)`,
       );
       return;
     }
@@ -183,7 +208,6 @@ export class WhatsAppService {
       orderId: params.orderId,
       surveyName: params.surveyName,
       craftsmanName: params.craftsmanName,
-      cratftsmanName: params.craftsmanName,
       surveyDate: params.surveyDate,
     };
   }
@@ -220,30 +244,51 @@ export class WhatsAppService {
     };
 
     this.logger.log(
-      `Sending WhatsApp template=${templateId} payload=${JSON.stringify(payload)}`,
+      `Sending WhatsApp template=${templateId} payload=${JSON.stringify(
+        payload,
+      )}`,
     );
 
-    try {
-      const response = await lastValueFrom(
-        this.httpService.post(apiUrl, payload, {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-          },
-        }),
-      );
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await lastValueFrom(
+          this.httpService.post(apiUrl, payload, {
+            timeout: 15000,
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+            },
+          }),
+        );
 
-      this.logger.log(
-        `WhatsApp sent template=${templateId} status=${response.status} data=${JSON.stringify(
-          response.data,
-        )}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `WhatsApp send failed template=${templateId} error=${error?.message}`,
-      );
-      if (error?.response?.data) {
-        this.logger.error(JSON.stringify(error.response.data));
+        this.logger.log(
+          `WhatsApp sent template=${templateId} status=${
+            response.status
+          } data=${JSON.stringify(response.data)}`,
+        );
+        return;
+      } catch (error) {
+        const status = error?.response?.status;
+        // Retry explicit temporary failures. Ambiguous timeouts may already have
+        // been accepted by the provider, so do not automatically duplicate them.
+        const retryable =
+          status === 429 ||
+          status >= 500 ||
+          ['ECONNREFUSED', 'EAI_AGAIN', 'ENOTFOUND'].includes(error?.code);
+        this.logger.error(
+          `WhatsApp send failed template=${templateId} attempt=${attempt}/3 status=${
+            status ?? 'network'
+          } error=${error?.message}`,
+        );
+        if (error?.response?.data) {
+          this.logger.error(JSON.stringify(error.response.data));
+        }
+        if (!retryable || attempt === 3) {
+          throw new Error(
+            `WhatsApp template ${templateId} failed: ${error?.message}`,
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
       }
     }
   }
@@ -279,7 +324,8 @@ export class WhatsAppService {
   }
 
   private formatDateTimePart(value: Date | string) {
-    const rawValue = value instanceof Date ? value.toISOString() : String(value);
+    const rawValue =
+      value instanceof Date ? value.toISOString() : String(value);
     const match = rawValue.match(
       /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/,
     );
@@ -296,7 +342,10 @@ export class WhatsAppService {
     return `${day}-${month}-${year} pukul ${hour}:${minute}`;
   }
 
-  private formatDateTimeRange(start: Date | string, end?: Date | string | null) {
+  private formatDateTimeRange(
+    start: Date | string,
+    end?: Date | string | null,
+  ) {
     const startStr = this.formatDateTimePart(start);
     if (!end) return startStr;
 

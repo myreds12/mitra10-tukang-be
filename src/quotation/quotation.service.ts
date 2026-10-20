@@ -1099,7 +1099,17 @@ export class QuotationService {
         }),
       ]);
 
-      let shouldSendQuotationWhatsApp = false;
+      // Dispatch immediately after committing QUOTEOUT, before unrelated side effects.
+      if (
+        quotation.status?.category === 'QUOTEOUT' &&
+        quotationForUpdate.status?.category !== 'QUOTEOUT'
+      ) {
+        try {
+          await this.whatsAppService.sendQuotationNotification(quotation.id);
+        } catch (err) {
+          console.error('WA quotation notification failed:', err);
+        }
+      }
 
       if (quotation) {
         await this.notifService.create(
@@ -1113,10 +1123,6 @@ export class QuotationService {
           quotation.id,
           quotation.quotation_status,
         );
-
-        shouldSendQuotationWhatsApp =
-          quotation.status?.category === 'QUOTEOUT' &&
-          quotationForUpdate.status?.category !== 'QUOTEOUT';
       }
 
       const existingIncentive = await this.dbService.sales_incentive.findFirst({
@@ -1141,14 +1147,6 @@ export class QuotationService {
         quotation.quotation_status,
         user,
       );
-
-      if (shouldSendQuotationWhatsApp) {
-        try {
-          await this.whatsAppService.sendQuotationNotification(quotation.id);
-        } catch (err) {
-          console.error('WA quotation notification failed:', err);
-        }
-      }
 
       return quotation;
     } catch (error) {
