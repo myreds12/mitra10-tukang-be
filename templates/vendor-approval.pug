@@ -16,6 +16,17 @@ html(lang="id")
                 | Selamat! Pendaftaran Anda telah diverifikasi dan "
                 strong #{data.company_name}
                 | " resmi terdaftar sebagai mitra vendor instalasi Mitra10. Anda kini dapat mengakses portal administrasi untuk menerima dan mengelola penugasan instalasi.
+            if data.username && data.password
+              tr
+                td(style="padding-bottom:30px;")
+                  table(role="presentation" cellpadding="0" cellspacing="0" style="background-color:#f7f7f7;border-radius:4px;width:100%;")
+                    tr
+                      td(style="padding:18px 20px;font-size:14px;color:#333333;line-height:26px;")
+                        strong User:
+                        |  #{data.username}
+                        br
+                        strong Password:
+                        |  #{data.password}
             tr
               td(style="padding-bottom:30px;")
                 a(href=data.login_url target="_blank" style="background-color:#00a1e0;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;padding:14px 28px;border-radius:3px;display:inline-block;")

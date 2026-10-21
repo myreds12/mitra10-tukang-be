@@ -229,99 +229,149 @@ export class AuthService {
 
   async login(dto: CreateLoginDto) {
     try {
-      const user = await this.dbService.users.findFirst({
+      const cleanUsername = (dto.username || '').trim();
+      const cleanPassword = (dto.password || '').trim();
+
+      const userInclude = {
+        tukang: true,
+        store: {
+          select: {
+            id: true,
+            store_name: true,
+            address: true,
+            phone_number_1: true,
+            phone_number_2: true,
+            email: true,
+            area: true,
+          },
+        },
+        roles: {
+          select: { id: true, name: true },
+        },
+        employee: {
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true,
+            phone_number: true,
+            nik: true,
+            whatsapp_number: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                area: true,
+              },
+            },
+          },
+        },
+        sales: {
+          select: {
+            id: true,
+            user_id: true,
+            full_name: true,
+            account_name: true,
+            account_number: true,
+            bank_id: true,
+            phone_number: true,
+            sales_brand: true,
+            is_active: true,
+            deleted_at: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+              },
+            },
+          },
+        },
+        manager: {
+          select: {
+            id: true,
+            user_id: true,
+            full_name: true,
+            account_name: true,
+            account_number: true,
+            bank_id: true,
+            phone_number: true,
+            is_active: true,
+            deleted_at: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+              },
+            },
+          },
+        },
+        pic_vendor: {
+          include: {
+            vendor: true,
+          },
+        },
+      };
+
+      // 1. Prioritaskan user aktif (deleted_at: null) dengan ID terbaru
+      let user = await this.dbService.users.findFirst({
         where: {
-          username: {
-            equals: dto.username,
-          },
+          deleted_at: null,
+          OR: [
+            { username: { equals: cleanUsername } },
+            { username: { equals: cleanUsername.toLowerCase() } },
+          ],
         },
-        include: {
-          tukang: true,
-          store: {
-            select: {
-              id: true,
-              store_name: true,
-              address: true,
-              phone_number_1: true,
-              phone_number_2: true,
-              email: true,
-              area: true,
-            },
-          },
-          roles: {
-            select: { id: true, name: true },
-          },
-          employee: {
-            select: {
-              user_id: true,
-              full_name: true,
-              email: true,
-              phone_number: true,
-              nik: true,
-              whatsapp_number: true,
-              store: {
-                select: {
-                  id: true,
-                  store_name: true,
-                  area: true,
-                },
-              },
-            },
-          },
-          sales: {
-            select: {
-              id: true,
-              user_id: true,
-              full_name: true,
-              account_name: true,
-              account_number: true,
-              bank_id: true,
-              phone_number: true,
-              sales_brand: true,
-              is_active: true,
-              deleted_at: true,
-              store: {
-                select: {
-                  id: true,
-                  store_name: true,
-                },
-              },
-            },
-          },
-          manager: {
-            select: {
-              id: true,
-              user_id: true,
-              full_name: true,
-              account_name: true,
-              account_number: true,
-              bank_id: true,
-              phone_number: true,
-              is_active: true,
-              deleted_at: true,
-              store: {
-                select: {
-                  id: true,
-                  store_name: true,
-                },
-              },
-            },
-          },
-          pic_vendor: {
-            include: {
-              vendor: true,
-            },
-          },
-        },
+        include: userInclude,
+        orderBy: { id: 'desc' },
       });
+
+      // 2. Fallback: cari berdasarkan pic_email atau email_address pada pendaftaran vendor
+      if (!user && cleanUsername) {
+        const reg = await this.dbService.vendor_registration.findFirst({
+          where: {
+            user_id: { not: null },
+            OR: [
+              { pic_email: cleanUsername },
+              { pic_email: cleanUsername.toLowerCase() },
+              { email_address: cleanUsername },
+              { email_address: cleanUsername.toLowerCase() },
+            ],
+          },
+          select: { user_id: true },
+          orderBy: { id: 'desc' },
+        });
+
+        if (reg?.user_id) {
+          user = await this.dbService.users.findFirst({
+            where: { id: reg.user_id, deleted_at: null },
+            include: userInclude,
+          });
+        }
+      }
+
+      // 3. Fallback ke user yang sudah di-soft-delete agar tetap bisa menampilkan pesan akun dihapus
+      if (!user) {
+        user = await this.dbService.users.findFirst({
+          where: {
+            OR: [
+              { username: { equals: cleanUsername } },
+              { username: { equals: cleanUsername.toLowerCase() } },
+            ],
+          },
+          include: userInclude,
+          orderBy: { id: 'desc' },
+        });
+      }
+
       console.log(user);
-      
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      const checkPassword = await compare(dto.password, user.password);
+      let checkPassword = await compare(cleanPassword, user.password);
+      if (!checkPassword && dto.password && dto.password !== cleanPassword) {
+        checkPassword = await compare(dto.password, user.password);
+      }
 
       if (!checkPassword) {
         throw new HttpException(

@@ -252,18 +252,39 @@ export class VendorRegistrationService {
 
     return registrations.map((reg) => {
       const recipient = reg.pic_email || reg.email_address;
-      const log = mailLogs.find(
-        (ml) =>
-          ml.moduleId === reg.id ||
-          (recipient && ml.to && ml.to.toLowerCase() === recipient.toLowerCase()),
-      );
+      const regEmails = [reg.pic_email, reg.email_address]
+        .filter((e): e is string => Boolean(e && typeof e === 'string' && e.trim() !== ''))
+        .map((e) => e.trim().toLowerCase());
+
+      // Filter log yang benar-benar terkait dengan pendaftaran vendor ini.
+      // Cegah false-positive dari moduleId yang bertabrakan dengan tabel order/quotation lain.
+      const log = mailLogs.find((ml) => {
+        const mlTo = (ml.to || '').toLowerCase().trim();
+        const matchesEmail = regEmails.some((re) => mlTo.includes(re));
+        if (matchesEmail) {
+          return true;
+        }
+
+        if (ml.moduleId === reg.id && ml.data) {
+          try {
+            const parsed = JSON.parse(ml.data);
+            if (parsed.registration_id === reg.id || parsed.company_name === reg.company_name) {
+              return true;
+            }
+          } catch {
+            // Not valid JSON
+          }
+        }
+
+        return false;
+      });
 
       const emailStatus = log
         ? {
             sent: log.status === 1,
             status: log.status === 1 ? 'TERKIRIM' : 'GAGAL',
             sent_at: log.createdAt,
-            recipient: log.to,
+            recipient: log.to || recipient,
             log_id: log.id,
           }
         : {
@@ -279,6 +300,26 @@ export class VendorRegistrationService {
         email_status: emailStatus,
       };
     });
+  }
+
+  private resolveEmailRecipients(registration: {
+    pic_email?: string | null;
+    email_address?: string | null;
+  }): { to: string; cc?: string } {
+    const pic = (registration.pic_email || '').trim();
+    const comp = (registration.email_address || '').trim();
+
+    if (pic && comp) {
+      if (pic.toLowerCase() !== comp.toLowerCase()) {
+        return { to: pic, cc: comp };
+      }
+      return { to: pic };
+    }
+    return { to: pic || comp };
+  }
+
+  private generateVendorPassword(): string {
+    return `M10${randomBytes(3).toString('hex').toUpperCase()}`;
   }
 
   private async assertAdminHO(userId?: number) {
@@ -1201,7 +1242,7 @@ export class VendorRegistrationService {
         : null;
       // Password sementara acak yang aman; dikirim via email supaya pendaftar bisa
       // login ke dashboard pendaftar dan memantau status (reset password tersedia).
-      const registrantPassword = `M1tr${randomBytes(4).toString('hex').toUpperCase()}@${new Date().getFullYear()}`;
+      const registrantPassword = this.generateVendorPassword();
 
       const registration = await this.dbService.$transaction(async (tx) => {
         const createdRegistration = await tx.vendor_registration.create({
@@ -1281,12 +1322,15 @@ export class VendorRegistrationService {
         return createdRegistration;
       });
 
+      const { to: primaryRecipient, cc: ccRecipient } = this.resolveEmailRecipients(dto);
+
       try {
         await this.emailQueue.add(
           'send-registrant-account-mail',
           {
             registration_id: registration.id,
-            to: dto.pic_email || dto.email_address,
+            to: primaryRecipient,
+            cc: ccRecipient,
             company_name: dto.company_name,
             email_address: dto.email_address,
             pic_email: dto.pic_email,
@@ -1315,8 +1359,7 @@ export class VendorRegistrationService {
       }
 
       return {
-        message:
-          'Pendaftaran berhasil disubmit. Username dan password sementara telah dikirim ke email PIC untuk memantau status pendaftaran.',
+        message: 'Informasi username dan password telah dikirimkan ke email PIC yang terdaftar.',
         registration_id: registration.id,
       };
     } catch (error) {
@@ -1555,20 +1598,46 @@ export class VendorRegistrationService {
       throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
     }
 
-    const recipient = registration.pic_email || registration.email_address;
+    const regEmails = [registration.pic_email, registration.email_address]
+      .filter((e): e is string => Boolean(e && typeof e === 'string' && e.trim() !== ''))
+      .map((e) => e.trim().toLowerCase());
+
     const conditions: any[] = [{ moduleId: id }];
-    if (recipient) {
-      conditions.push({ to: { contains: recipient } });
+    for (const email of regEmails) {
+      conditions.push({ to: { contains: email } });
     }
-    const mailLogs = await this.dbService.mail_logs.findMany({
+
+    const rawMailLogs = await this.dbService.mail_logs.findMany({
       where: {
         OR: conditions,
       },
       orderBy: { createdAt: 'desc' },
-      take: 10,
+      take: 20,
+    });
+
+    const mailLogs = rawMailLogs.filter((ml) => {
+      const mlTo = (ml.to || '').toLowerCase().trim();
+      const matchesEmail = regEmails.some((re) => mlTo.includes(re));
+      if (matchesEmail) {
+        return true;
+      }
+
+      if (ml.moduleId === id && ml.data) {
+        try {
+          const parsed = JSON.parse(ml.data);
+          if (parsed.registration_id === id || parsed.company_name === registration.company_name) {
+            return true;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      return false;
     });
 
     const latestLog = mailLogs[0];
+    const recipient = latestLog?.to || registration.pic_email || registration.email_address;
     return {
       registration_id: id,
       sent: latestLog ? latestLog.status === 1 : false,
@@ -1598,15 +1667,15 @@ export class VendorRegistrationService {
       throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
     }
 
-    const recipient = registration.pic_email || registration.email_address;
+    const { to: recipient, cc: ccRecipient } = this.resolveEmailRecipients(registration);
     if (!recipient) {
       throw new BadRequestException('Data email tidak ditemukan untuk pendaftaran ini.');
     }
+    const fullRecipientStr = ccRecipient ? `${recipient}, ${ccRecipient}` : recipient;
 
     // 1. If registration is approved (status = 3), resend approval credentials
     if (registration.status === RegistrationStatus.DISETUJUI) {
-      const randomStr = randomBytes(4).toString('hex').toUpperCase();
-      const generatedPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
+      const generatedPassword = this.generateVendorPassword();
       const hashedPassword = hashSync(generatedPassword, 12);
 
       let user = registration.user;
@@ -1637,6 +1706,7 @@ export class VendorRegistrationService {
         {
           registration_id: registration.id,
           to: recipient,
+          cc: ccRecipient,
           company_name: registration.company_name,
           token: '',
           expires_hours: 48,
@@ -1651,14 +1721,14 @@ export class VendorRegistrationService {
         from_status: registration.status,
         to_status: registration.status,
         action: 'RESEND_EMAIL',
-        notes: `Admin HO mengirim ulang email persetujuan & kredensial vendor ke ${recipient}.`,
+        notes: `Admin HO mengirim ulang email persetujuan & kredensial vendor ke ${fullRecipientStr}.`,
         actor_id: userId,
       });
 
       return {
         success: true,
-        message: `Email persetujuan vendor berhasil dikirim ulang ke ${recipient}.`,
-        recipient,
+        message: `Email persetujuan vendor berhasil dikirim ulang ke ${fullRecipientStr}.`,
+        recipient: fullRecipientStr,
       };
     }
 
@@ -1669,6 +1739,7 @@ export class VendorRegistrationService {
         {
           registration_id: registration.id,
           to: recipient,
+          cc: ccRecipient,
           company_name: registration.company_name,
           rejection_reason: registration.rejection_reason || 'Tidak ada alasan spesifik diberikan.',
           reapply_date: this.formatCooldownDate(
@@ -1683,14 +1754,14 @@ export class VendorRegistrationService {
         from_status: registration.status,
         to_status: registration.status,
         action: 'RESEND_EMAIL',
-        notes: `Admin HO mengirim ulang email penolakan ke ${recipient}.`,
+        notes: `Admin HO mengirim ulang email penolakan ke ${fullRecipientStr}.`,
         actor_id: userId,
       });
 
       return {
         success: true,
-        message: `Email penolakan berhasil dikirim ulang ke ${recipient}.`,
-        recipient,
+        message: `Email penolakan berhasil dikirim ulang ke ${fullRecipientStr}.`,
+        recipient: fullRecipientStr,
       };
     }
 
@@ -1720,8 +1791,7 @@ export class VendorRegistrationService {
       });
     }
 
-    const randomStr = randomBytes(4).toString('hex').toUpperCase();
-    const registrantPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
+    const registrantPassword = this.generateVendorPassword();
     const hashedPassword = hashSync(registrantPassword, 12);
 
     if (user) {
@@ -1756,6 +1826,7 @@ export class VendorRegistrationService {
       {
         registration_id: registration.id,
         to: recipient,
+        cc: ccRecipient,
         company_name: registration.company_name,
         email_address: registration.email_address,
         pic_email: registration.pic_email,
@@ -1772,14 +1843,14 @@ export class VendorRegistrationService {
       from_status: registration.status,
       to_status: registration.status,
       action: 'RESEND_EMAIL',
-      notes: `Admin HO mengirim ulang email akun pendaftar ke ${recipient}.`,
+      notes: `Admin HO mengirim ulang email akun pendaftar ke ${fullRecipientStr}.`,
       actor_id: userId,
     });
 
     return {
       success: true,
-      message: `Email akun pendaftar berhasil dikirim ulang ke ${recipient}.`,
-      recipient,
+      message: `Email akun pendaftar berhasil dikirim ulang ke ${fullRecipientStr}.`,
+      recipient: fullRecipientStr,
     };
   }
 
@@ -1853,8 +1924,7 @@ export class VendorRegistrationService {
 
         // Generate credentials
         const slug = registration.company_name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-        const randomStr = randomBytes(4).toString('hex').toUpperCase();
-        const generatedPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
+        const generatedPassword = this.generateVendorPassword();
         const hashedPassword = hashSync(generatedPassword, 12);
 
         // Get vendor owner role
@@ -1919,12 +1989,13 @@ export class VendorRegistrationService {
 
         if (existingRegistrant) {
           generatedUsername = registrantEmail || existingRegistrant.username;
-          // Pertahankan password akun pendaftar agar vendor tetap dapat login dengan kredensial dari email pendaftaran,
+          // Sinkronkan password akun dengan generatedPassword yang dikirim di email approval,
           // dan pastikan username memakai email utuh (@ tidak dihilangkan).
           user = await tx.users.update({
             where: { id: existingRegistrant.id },
             data: {
               username: generatedUsername,
+              password: hashedPassword,
               role_id: role.id,
             },
           });
@@ -2058,14 +2129,15 @@ export class VendorRegistrationService {
           });
         }
 
-        const approvalRecipient =
-          registration.pic_email || registration.email_address;
+        const { to: approvalRecipient, cc: approvalCc } =
+          this.resolveEmailRecipients(registration);
 
         await this.emailQueue.add(
           'send-vendor-approval-mail',
           {
             registration_id: id,
             to: approvalRecipient,
+            cc: approvalCc,
             company_name: registration.company_name,
             username: generatedUsername,
             password: generatedPassword,
@@ -2157,8 +2229,8 @@ export class VendorRegistrationService {
         return currentRegistration;
       });
 
-      const rejectionRecipient =
-        registration.pic_email || registration.email_address;
+      const { to: rejectionRecipient, cc: rejectionCc } =
+        this.resolveEmailRecipients(registration);
 
       const rejectionReason =
         dto.rejection_reason?.trim() || 'Belum memenuhi kriteria';
@@ -2168,6 +2240,7 @@ export class VendorRegistrationService {
         {
           registration_id: id,
           to: rejectionRecipient,
+          cc: rejectionCc,
           company_name: registration.company_name,
           rejection_reason: rejectionReason,
           reapply_date: this.formatCooldownDate(this.getRejectedCooldownUntil(new Date())),

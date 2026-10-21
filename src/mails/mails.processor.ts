@@ -555,42 +555,52 @@ export class EmailProcessor {
   async sendVendorApprovalMail(job: Job<{
     registration_id?: number;
     to: string;
+    cc?: string;
     company_name: string;
-    token: string;
-    expires_hours: number;
+    token?: string;
+    expires_hours?: number;
     username: string;
     password: string;
   }>) {
     try {
-      const { registration_id, to, company_name, token, expires_hours, username, password } = job.data;
+      const { registration_id, to, cc, company_name, token, expires_hours, username, password } = job.data;
 
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
       const loginUrl = `${baseUrl}/login`;
 
       const data = {
         company_name,
-        token,
-        expires_hours,
+        token: token || '',
+        expires_hours: expires_hours || 24,
         username,
         password,
         website_url: baseUrl,
         login_url: loginUrl,
+        registration_id,
       };
+
+      const mailFrom =
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
 
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com',
+        cc: cc || undefined,
+        from: mailFrom,
         subject: 'Notifikasi Vendor Resmi Terdaftar sebagai Mitra Mitra10',
         template: 'vendor-approval',
         context: { data },
       });
 
-      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
+      const recipientStr = cc ? `${to}, ${cc}` : to;
+      await this.maillogs(registration_id || null, null, { to: recipientStr, cc: cc || '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
-      if (job.data?.to) {
-        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+      const recipientStr = job.data?.cc ? `${job.data.to}, ${job.data.cc}` : job.data?.to;
+      if (recipientStr) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: recipientStr, cc: job.data?.cc || '', bcc: '' }, 0, {
           error: error?.message || 'Failed to send mail',
+          registration_id: job.data?.registration_id,
         });
       }
     }
@@ -600,6 +610,7 @@ export class EmailProcessor {
   async sendRegistrantAccountMail(job: Job<{
     registration_id?: number;
     to: string;
+    cc?: string;
     company_name: string;
     email_address: string;
     pic_email: string;
@@ -612,6 +623,7 @@ export class EmailProcessor {
       const {
         registration_id,
         to,
+        cc,
         company_name,
         email_address,
         pic_email,
@@ -634,22 +646,31 @@ export class EmailProcessor {
         password,
         website_url: baseUrl,
         login_url: loginUrl,
+        registration_id,
       };
+
+      const mailFrom =
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
 
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com',
+        cc: cc || undefined,
+        from: mailFrom,
         subject: 'Notifikasi Pendaftaran Vendor Instalasi Mitra10',
         template: 'registrant-account',
         context: { data },
       });
 
-      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
+      const recipientStr = cc ? `${to}, ${cc}` : to;
+      await this.maillogs(registration_id || null, null, { to: recipientStr, cc: cc || '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
-      if (job.data?.to) {
-        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+      const recipientStr = job.data?.cc ? `${job.data.to}, ${job.data.cc}` : job.data?.to;
+      if (recipientStr) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: recipientStr, cc: job.data?.cc || '', bcc: '' }, 0, {
           error: error?.message || 'Failed to send mail',
+          registration_id: job.data?.registration_id,
         });
       }
     }
@@ -659,12 +680,13 @@ export class EmailProcessor {
   async sendVendorRejectionMail(job: Job<{
     registration_id?: number;
     to: string;
+    cc?: string;
     company_name: string;
     rejection_reason?: string;
     reapply_date?: string;
   }>) {
     try {
-      const { registration_id, to, company_name, rejection_reason, reapply_date } = job.data;
+      const { registration_id, to, cc, company_name, rejection_reason, reapply_date } = job.data;
       
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
@@ -673,22 +695,31 @@ export class EmailProcessor {
         rejection_reason: rejection_reason || 'Belum memenuhi kriteria yang ditetapkan oleh Mitra10.',
         reapply_date,
         website_url: baseUrl,
+        registration_id,
       };
+
+      const mailFrom =
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
 
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com',
+        cc: cc || undefined,
+        from: mailFrom,
         subject: 'Notifikasi Penolakan Pendaftaran Vendor Mitra10',
         template: 'vendor-rejection',
         context: { data },
       });
 
-      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
+      const recipientStr = cc ? `${to}, ${cc}` : to;
+      await this.maillogs(registration_id || null, null, { to: recipientStr, cc: cc || '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
-      if (job.data?.to) {
-        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+      const recipientStr = job.data?.cc ? `${job.data.to}, ${job.data.cc}` : job.data?.to;
+      if (recipientStr) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: recipientStr, cc: job.data?.cc || '', bcc: '' }, 0, {
           error: error?.message || 'Failed to send mail',
+          registration_id: job.data?.registration_id,
         });
       }
     }
