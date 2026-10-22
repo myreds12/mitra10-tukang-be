@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -225,6 +226,44 @@ export class AuthService {
       console.error(error);
       throw error;
     }
+  }
+
+  async updateUserStatus(id: number, isActive: boolean, currentUserId?: number) {
+    const actor = currentUserId
+      ? await this.dbService.users.findFirst({
+        where: { id: currentUserId, deleted_at: null },
+        include: { roles: true },
+      })
+      : null;
+
+    if (!actor || !['Super User', 'Owner Vendor'].includes(actor.roles?.name)) {
+      throw new ForbiddenException('Anda tidak memiliki akses mengubah status user.');
+    }
+
+    if (currentUserId === id && !isActive) {
+      throw new BadRequestException('Anda tidak dapat menonaktifkan akun sendiri.');
+    }
+
+    const user = await this.dbService.users.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ada.');
+    }
+
+    const updatedUser = await this.dbService.users.update({
+      where: { id },
+      data: { is_active: isActive },
+    });
+
+    return omit(updatedUser, [
+      'password',
+      'forget_password',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ]);
   }
 
   async login(dto: CreateLoginDto) {
@@ -694,6 +733,7 @@ export class AuthService {
         vendor_id,
         store_id,
         role_name,
+        is_active,
       } = query;
       const skip = page * take - take;
 
@@ -747,6 +787,13 @@ export class AuthService {
               },
             ]
             : []),
+          ...(is_active !== undefined
+            ? [
+              {
+                is_active: Boolean(Number(is_active)),
+              },
+            ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -764,6 +811,7 @@ export class AuthService {
         select: {
           id: true,
           username: true,
+          is_active: true,
           created_at: true,
           created_by: true,
           updated_at: true,

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   ParseIntPipe,
   Post,
   Query,
@@ -27,6 +28,7 @@ import { Queue } from 'bull';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -66,6 +68,16 @@ export class AuthController {
     @UploadedFile() files: Express.Multer.File,
   ) {
     return await this.authService.updateUser(id, dto, files);
+  }
+
+  @Patch('/status/:id')
+  @UseGuards(JwtAuthGuard)
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserStatusDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return await this.authService.updateUserStatus(id, dto.is_active, req.user?.id);
   }
 
   @HttpCode(200)
