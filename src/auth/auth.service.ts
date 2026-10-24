@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -350,8 +351,8 @@ export class AuthService {
         },
       };
 
-      // 1. Prioritaskan user aktif (deleted_at: null) dengan ID terbaru
-      let user = await this.dbService.users.findFirst({
+      // Ambil semua kandidat agar password menentukan record yang dipakai.
+      const userCandidates = await this.dbService.users.findMany({
         where: {
           deleted_at: null,
           OR: [
@@ -360,8 +361,23 @@ export class AuthService {
           ],
         },
         include: userInclude,
-        orderBy: { id: 'desc' },
+        orderBy: [{ is_active: 'desc' }, { id: 'desc' }],
       });
+
+      let user = userCandidates[0];
+
+      if (user) {
+        for (const candidate of userCandidates) {
+          let passwordMatches = await compare(cleanPassword, candidate.password);
+          if (!passwordMatches && dto.password !== cleanPassword) {
+            passwordMatches = await compare(dto.password, candidate.password);
+          }
+          if (passwordMatches) {
+            user = candidate;
+            break;
+          }
+        }
+      }
 
       // 2. Fallback: cari berdasarkan pic_email atau email_address pada pendaftaran vendor
       if (!user && cleanUsername) {
@@ -400,8 +416,6 @@ export class AuthService {
           orderBy: { id: 'desc' },
         });
       }
-
-      console.log(user);
 
       if (!user) {
         throw new NotFoundException('User not found');
@@ -569,15 +583,36 @@ export class AuthService {
     });
   }
 
+  private async findUniquePasswordTarget(username: string) {
+    const cleanUsername = (username || '').trim();
+    const users = await this.dbService.users.findMany({
+      where: {
+        deleted_at: null,
+        OR: [
+          { username: { equals: cleanUsername } },
+          { username: { equals: cleanUsername.toLowerCase() } },
+        ],
+      },
+      orderBy: [{ is_active: 'desc' }, { id: 'desc' }],
+      take: 2,
+    });
+
+    if (users.length === 0) {
+      throw new NotFoundException('User Not Found!');
+    }
+
+    if (users.length > 1) {
+      throw new ConflictException(
+        'Username memiliki lebih dari satu akun. Hubungi administrator untuk memperbaiki data akun.',
+      );
+    }
+
+    return users[0];
+  }
+
   async updatePassword(username: string, dto: ResetPasswordDto) {
     try {
-      const user = await this.dbService.users.findFirst({
-        where: {
-          username,
-        },
-      });
-
-      if (!user) throw new NotFoundException('User Not Found!');
+      const user = await this.findUniquePasswordTarget(username);
       if (
         user.forget_password &&
         new Date(user.forget_password) <
@@ -681,13 +716,7 @@ export class AuthService {
 
   async resetPassword(username: string) {
     try {
-      const user = await this.dbService.users.findFirst({
-        where: {
-          username: username,
-        },
-      });
-
-      if (!user) throw new NotFoundException('User Not Found!!');
+      const user = await this.findUniquePasswordTarget(username);
 
       const userUpdate = await this.dbService.users.update({
         where: {
