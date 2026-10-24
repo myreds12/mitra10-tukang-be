@@ -115,3 +115,23 @@ export function getIsoWeekRange(date: Date = new Date()): { start: Date; end: Da
 
   return { start: monday, end: sunday };
 }
+
+/**
+ * Dapatkan tanggal mulai (tanggal 1 bulan pertama quarter) dan tanggal selesai
+ * (hari terakhir bulan ketiga quarter) berdasarkan quarter (1..4) dan year.
+ * - Q1: 1 Jan - 31 Mar
+ * - Q2: 1 Apr - 30 Jun
+ * - Q3: 1 Jul - 30 Sep
+ * - Q4: 1 Okt - 31 Des
+ */
+export function getQuarterDateRange(
+  quarter: number,
+  year: number,
+): { startDate: Date; endDate: Date } {
+  const validQuarter = Math.min(4, Math.max(1, Number(quarter) || 1));
+  const validYear = Number(year) || new Date().getFullYear();
+  const startMonth = (validQuarter - 1) * 3;
+  const startDate = new Date(validYear, startMonth, 1, 0, 0, 0, 0);
+  const endDate = new Date(validYear, validQuarter * 3, 0, 23, 59, 59, 999);
+  return { startDate, endDate };
+}

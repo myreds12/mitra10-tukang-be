@@ -196,7 +196,7 @@ export class VendorViolationController {
     return this.service.createViolationLog(dto, user?.id);
   }
 
-  // Pattern 2-step (upload → submit path) konsisten dengan chat-proxy.controller.ts.
+  // Pattern 2-step (upload -> submit path) konsisten dengan chat-proxy.controller.ts.
   @Post('log/upload')
   @ApiOperation({
     summary: 'Upload violation evidence file',
@@ -250,8 +250,11 @@ export class VendorViolationController {
   @ApiQuery({ name: 'date_to', required: false, description: 'Filter to date (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Successfully retrieved violation logs' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAllViolationLogs(@Query() query: QueryViolationLogDto) {
-    return this.service.findAllViolationLogs(query);
+  async findAllViolationLogs(
+    @Query() query: QueryViolationLogDto,
+    @User() user: any,
+  ) {
+    return this.service.findAllViolationLogs(query, user);
   }
 
   // Pola proteksi endpoint export (konsisten dengan mayoritas controller
@@ -277,7 +280,7 @@ export class VendorViolationController {
   @ApiResponse({ status: 200, description: 'XLSX attachment streamed inline' })
   @ApiResponse({ status: 400, description: 'Invalid filters or row count exceeds limit' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
   async exportViolationLog(
     @Query() query: ExportViolationLogDto,
     @User() user: any,

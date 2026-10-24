@@ -11,7 +11,6 @@ import {
   ViolationCategory,
   SPThreshold,
   SPAllocationReduction,
-  SP_DURATION_DAYS,
   ViolationContext,
   ViolationEvidence,
   ViolationResult,
@@ -610,8 +609,9 @@ export class ViolationDetectorService {
 
   /**
    * Check dan issue SP jika threshold tercapai
-   * Mengikuti rule: jika poin < 12 minggu sebelum quartal berikutnya,
-   * penalti tetap berlaku 90 hari meski quartal berganti
+   * Mengikuti rule: tanggal mulai dimulai dari tanggal 1 awal quarter
+   * dan berakhir di akhir quarter sesuai Q1, Q2, Q3, dan Q4.
+   * Satu vendor hanya memiliki satu SP aktif tertinggi.
    *
    * ATOMICITY: vendor_sp + vendor_sp_detail + vendor.is_active dijalankan
    * dalam satu Prisma transaction.
@@ -649,24 +649,45 @@ export class ViolationDetectorService {
     let outcome: Outcome;
     try {
       outcome = await this.dbService.$transaction(async (tx) => {
+        const startDate = this.getQuarterStartDate(quarter, year);
+        const endDate = this.getQuarterEndDate(quarter, year);
+
         const existingSP = await tx.vendor_sp.findFirst({
           where: {
             vendor_id: vendorId,
-            sp_level: { gte: spLevel! },
-            status: 1,
+            quarter,
+            year,
+            status: { in: [1, 3] },
             deleted_at: null,
           },
+          orderBy: [{ sp_level: 'desc' }, { updated_at: 'desc' }],
         });
 
         if (existingSP) {
+          const nextLevel = Math.max(existingSP.sp_level, spLevel!);
+          const escalatedToSp3 = existingSP.sp_level < 3 && nextLevel === 3;
+
           await tx.vendor_sp.update({
             where: { id: existingSP.id },
             data: {
+              sp_level: nextLevel,
               total_point: totalPoints,
+              start_date: startDate,
+              end_date: endDate,
+              allocation_reduction: this.getAllocationReduction(nextLevel),
               updated_by: userId,
               updated_at: new Date(),
             },
           });
+
+          if (escalatedToSp3) {
+            await tx.vendor.update({
+              where: { id: vendorId },
+              data: { is_active: false },
+            });
+            this.logger.warn(`Vendor ${vendorId} deactivated due to SP3`);
+          }
+
           const detail = await syncVendorSpDetails(tx, {
             vendorSpId: existingSP.id,
             vendorId,
@@ -675,30 +696,13 @@ export class ViolationDetectorService {
             createdBy: userId ?? null,
           });
           this.logger.log(
-            `[detector][SP update] vendor=${vendorId} level=SP${spLevel} spId=${existingSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
+            `[detector][SP update] vendor=${vendorId} level=SP${nextLevel} spId=${existingSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
           );
           return {
-            kind: 'updated',
+            kind: escalatedToSp3 ? 'issued' : 'updated',
             spId: existingSP.id,
-            spLevel: existingSP.sp_level,
+            spLevel: nextLevel,
           } satisfies Outcome;
-        }
-
-        const now = new Date();
-        const twelveWeeksLater = new Date(
-          now.getTime() + 84 * 24 * 60 * 60 * 1000,
-        );
-        const nextQuarterStart = this.getNextQuarterStartDate(quarter, year);
-
-        let endDate: Date;
-        if (twelveWeeksLater < nextQuarterStart) {
-          endDate = new Date(
-            now.getTime() + SP_DURATION_DAYS * 24 * 60 * 60 * 1000,
-          );
-        } else {
-          endDate = new Date(
-            now.getTime() + SP_DURATION_DAYS * 24 * 60 * 60 * 1000,
-          );
         }
 
         const allocationReduction = this.getAllocationReduction(spLevel!);
@@ -710,7 +714,7 @@ export class ViolationDetectorService {
             total_point: totalPoints,
             quarter,
             year,
-            start_date: now,
+            start_date: startDate,
             end_date: endDate,
             status: 1,
             allocation_reduction: allocationReduction,

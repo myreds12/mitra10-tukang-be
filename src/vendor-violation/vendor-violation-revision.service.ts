@@ -14,6 +14,7 @@ import {
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
 import { syncVendorSpDetails } from '../common/utils/vendor-sp-detail-sync.util';
+import { getQuarterDateRange } from '../common/constants/vendor-sp.constant';
 
 @Injectable()
 export class VendorViolationRevisionService {
@@ -249,6 +250,7 @@ export class VendorViolationRevisionService {
     userId: number,
   ) {
     const { quarter, year } = this.getCurrentQuarterYear();
+    const { startDate: quarterStart, endDate: quarterEnd } = getQuarterDateRange(quarter, year);
     const totalPoints = await this.calculateTotalPoints(tx, vendorId, quarter, year);
     const spLevel = this.getSPLevel(totalPoints);
     const activeSp = await tx.vendor_sp.findFirst({
@@ -287,6 +289,8 @@ export class VendorViolationRevisionService {
         data: {
           sp_level: spLevel,
           total_point: totalPoints,
+          start_date: quarterStart,
+          end_date: quarterEnd,
           allocation_reduction: this.getAllocationReduction(spLevel),
           updated_by: userId,
           updated_at: new Date(),
@@ -300,7 +304,6 @@ export class VendorViolationRevisionService {
         createdBy: userId,
       });
     } else {
-      const now = new Date();
       const createdSp = await tx.vendor_sp.create({
         data: {
           vendor_id: vendorId,
@@ -308,8 +311,8 @@ export class VendorViolationRevisionService {
           total_point: totalPoints,
           quarter,
           year,
-          start_date: now,
-          end_date: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+          start_date: quarterStart,
+          end_date: quarterEnd,
           status: 1,
           allocation_reduction: this.getAllocationReduction(spLevel),
           notes: 'SP issued after approved violation point revision/reset.',

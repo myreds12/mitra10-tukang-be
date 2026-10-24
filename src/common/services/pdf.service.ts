@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import PDFDocument = require('pdfkit');
 
 /**
@@ -55,6 +57,8 @@ export interface PdfStyledTableOptions<T = any> extends PdfTableOptions<T> {
 export interface PdfSignatureSigner {
   name: string;
   role: string;
+  /** Label header di atas kotak (mis. "PIHAK VENDOR", "PIHAK MITRA10"). */
+  header?: string;
   /** Teks tambahan di bawah nama, mis. "(......................)" untuk area ttd. */
   placeholder?: string;
 }
@@ -79,6 +83,10 @@ export interface PdfInfoBoxOptions {
   bgColor?: string;
   /** Default '#183383' (biru tua Mitra10). */
   borderColor?: string;
+  /** Jumlah kolom pasangan label-value (1 atau 2). Default 1. */
+  columns?: 1 | 2;
+  /** Margin bawah setelah info box (pt). Default 8. */
+  marginBottom?: number;
 }
 
 @Injectable()
@@ -91,6 +99,18 @@ export class PdfService {
   /** Warna striping baris (konsisten dengan #e4e9f7 / #f5f8fa di frontend). */
   private readonly STRIPE_COLOR = '#f5f8fa';
 
+  private getMitraLogoPath(): string | undefined {
+    const logoPath = path.resolve(
+      process.cwd(),
+      'templates',
+      'public',
+      'img',
+      'logo-mitra.png',
+    );
+
+    return fs.existsSync(logoPath) ? logoPath : undefined;
+  }
+
   /**
    * Buat PDF document baru. Footer TIDAK di-bind di sini (akan di-bind
    * di pipeAndSave setelah semua pages ada, supaya bufferedPageRange akurat).
@@ -98,6 +118,10 @@ export class PdfService {
   createDocument(generatedAt: Date = new Date()): PDFKit.PDFDocument {
     const doc = new PDFDocument({
       size: 'A4',
+      // Keep pages available until the footer is rendered. Without this,
+      // switchToPage/bufferedPageRange can flush pages while the document is
+      // still being assembled and footer rendering may create an extra page.
+      bufferPages: true,
       margins: {
         top: this.PAGE_MARGIN,
         bottom: this.PAGE_MARGIN + 30, // extra untuk footer
@@ -120,19 +144,33 @@ export class PdfService {
   addHeader(doc: PDFKit.PDFDocument, options: PdfHeaderOptions): void {
     const startY = doc.y;
 
+    const logoBoxWidth = 80;
+    const logoBoxHeight = 36;
     doc
-      .fillColor(this.BRAND_COLOR)
-      .font('Helvetica-Bold')
-      .fontSize(16)
-      .text('MITRA10', this.PAGE_MARGIN, startY, { lineBreak: false });
+      .rect(this.PAGE_MARGIN, startY, logoBoxWidth, logoBoxHeight)
+      .fill('#fff')
+      .lineWidth(0.5)
+      .strokeColor('#d1d5db')
+      .stroke();
 
-    doc
-      .fillColor('#666')
-      .font('Helvetica')
-      .fontSize(9)
-      .text('Vendor SP Report System', this.PAGE_MARGIN, startY + 18, {
-        lineBreak: false,
+    const logoPath = this.getMitraLogoPath();
+    if (logoPath) {
+      doc.image(logoPath, this.PAGE_MARGIN + 3, startY + 3, {
+        fit: [logoBoxWidth - 6, logoBoxHeight - 6],
+        align: 'center',
+        valign: 'center',
       });
+    } else {
+      doc
+        .fillColor(this.BRAND_COLOR)
+        .font('Helvetica-Bold')
+        .fontSize(20)
+        .text('M10', this.PAGE_MARGIN, startY + 9, {
+          width: logoBoxWidth,
+          align: 'center',
+          lineBreak: false,
+        });
+    }
 
     doc
       .fillColor('#000')
@@ -165,11 +203,9 @@ export class PdfService {
   }
 
   /**
-   * Header STYLED (Poin 4 aggregate Rekap Vendor Bersih): logo box biru +
+   * Header STYLED (Poin 4 aggregate Rekap Vendor Bersih): logo resmi +
    * judul besar + hr accent line biru. Konsisten dengan brand Mitra10.
    *
-   * NOTE: kalau ada asset logo resmi nanti, override method ini untuk
-   * embed image via sharp() lalu doc.image(). Sementara pakai text logo.
    */
   addStyledHeader(
     doc: PDFKit.PDFDocument,
@@ -178,37 +214,36 @@ export class PdfService {
     const startY = doc.y;
     const usableWidth = this.PAGE_WIDTH - this.PAGE_MARGIN * 2;
 
-    // Logo box (kiri atas) — biru tua dengan teks putih "M10"
+    // Logo resmi. Fallback text menjaga PDF tetap dapat dibuat jika asset
+    // tidak ikut ter-deploy pada environment tertentu.
     const logoBoxWidth = 80;
     const logoBoxHeight = 36;
     doc
       .rect(this.PAGE_MARGIN, startY, logoBoxWidth, logoBoxHeight)
-      .fill(this.BRAND_COLOR);
-    doc
-      .fillColor('#fff')
-      .font('Helvetica-Bold')
-      .fontSize(20)
-      .text('M10', this.PAGE_MARGIN, startY + 9, {
-        width: logoBoxWidth,
-        align: 'center',
-        lineBreak: false,
-      });
+      .fill('#fff')
+      .lineWidth(0.5)
+      .strokeColor('#d1d5db')
+      .stroke();
 
-    // Org name + system name (di samping logo box)
-    doc
-      .fillColor(this.BRAND_COLOR)
-      .font('Helvetica-Bold')
-      .fontSize(14)
-      .text('MITRA10', this.PAGE_MARGIN + logoBoxWidth + 12, startY + 5);
-    doc
-      .font('Helvetica')
-      .fontSize(9)
-      .fillColor('#555')
-      .text(
-        'Vendor SP Management System',
-        this.PAGE_MARGIN + logoBoxWidth + 12,
-        startY + 22,
-      );
+    const logoPath = this.getMitraLogoPath();
+    if (logoPath) {
+      doc.image(logoPath, this.PAGE_MARGIN + 3, startY + 3, {
+        fit: [logoBoxWidth - 6, logoBoxHeight - 6],
+        align: 'center',
+        valign: 'center',
+      });
+    } else {
+      doc
+        .fillColor(this.BRAND_COLOR)
+        .font('Helvetica-Bold')
+        .fontSize(20)
+        .text('M10', this.PAGE_MARGIN, startY + 9, {
+          width: logoBoxWidth,
+          align: 'center',
+          lineBreak: false,
+        });
+    }
+
 
     // Document metadata (kanan atas) — Doc No + Generated date
     const metaX = this.PAGE_WIDTH - this.PAGE_MARGIN - 180;
@@ -270,6 +305,7 @@ export class PdfService {
       .stroke();
 
     doc.moveDown(1);
+    doc.x = this.PAGE_MARGIN;
   }
 
   /**
@@ -310,9 +346,10 @@ export class PdfService {
     const usableWidth = this.PAGE_WIDTH - this.PAGE_MARGIN * 2;
     const bgColor = options?.bgColor ?? this.STRIPE_COLOR;
     const borderColor = options?.borderColor ?? this.BRAND_COLOR;
-    const titleBarHeight = 22;
-    const rowHeight = 20;
-    const labelColWidth = usableWidth * 0.35;
+    const columns = options?.columns ?? 1;
+    const marginBottom = options?.marginBottom ?? 8;
+    const titleBarHeight = 20;
+    const rowHeight = 18;
 
     const startY = doc.y;
 
@@ -323,19 +360,114 @@ export class PdfService {
     doc
       .fillColor('#fff')
       .font('Helvetica-Bold')
-      .fontSize(11)
-      .text(title, this.PAGE_MARGIN + 8, startY + 6);
+      .fontSize(10)
+      .text(title, this.PAGE_MARGIN + 8, startY + 5);
 
-    doc.y = startY + titleBarHeight;
+    const bodyStartY = startY + titleBarHeight;
 
-    // Body bg
-    const bodyHeight = items.length * rowHeight + 8;
+    if (columns === 2) {
+      const colWidth = usableWidth / 2;
+      const labelW = colWidth * 0.38;
+      const valueW = colWidth * 0.62 - 8;
+      const rowCount = Math.ceil(items.length / 2);
+
+      const rowHeights: number[] = [];
+      for (let r = 0; r < rowCount; r++) {
+        const left = items[r * 2];
+        const right = items[r * 2 + 1];
+
+        doc.font('Helvetica-Bold').fontSize(8.5);
+        const h1 = left ? doc.heightOfString(left.label || '-', { width: labelW }) : 0;
+        const h2 = right ? doc.heightOfString(right.label || '-', { width: labelW }) : 0;
+        doc.font('Helvetica').fontSize(9);
+        const h3 = left ? doc.heightOfString(left.value || '-', { width: valueW }) : 0;
+        const h4 = right ? doc.heightOfString(right.value || '-', { width: valueW }) : 0;
+
+        rowHeights.push(Math.max(rowHeight, h1, h2, h3, h4) + 4);
+      }
+
+      const bodyHeight = rowHeights.reduce((total, h) => total + h, 0) + 6;
+      doc
+        .rect(this.PAGE_MARGIN, bodyStartY, usableWidth, bodyHeight)
+        .fill(bgColor);
+
+      let curY = bodyStartY + 4;
+      for (let r = 0; r < rowCount; r++) {
+        const rh = rowHeights[r];
+        const left = items[r * 2];
+        const right = items[r * 2 + 1];
+
+        if (left) {
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(8.5)
+            .fillColor('#555')
+            .text(left.label, this.PAGE_MARGIN + 8, curY, {
+              width: labelW,
+              lineBreak: false,
+            });
+          doc
+            .font('Helvetica')
+            .fontSize(9)
+            .fillColor('#000')
+            .text(left.value || '-', this.PAGE_MARGIN + 8 + labelW, curY, {
+              width: valueW,
+              lineBreak: false,
+            });
+        }
+
+        if (right) {
+          const rightX = this.PAGE_MARGIN + colWidth + 8;
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(8.5)
+            .fillColor('#555')
+            .text(right.label, rightX, curY, {
+              width: labelW,
+              lineBreak: false,
+            });
+          doc
+            .font('Helvetica')
+            .fontSize(9)
+            .fillColor('#000')
+            .text(right.value || '-', rightX + labelW, curY, {
+              width: valueW,
+              lineBreak: false,
+            });
+        }
+
+        curY += rh;
+      }
+
+      doc.x = this.PAGE_MARGIN;
+      doc.y = bodyStartY + bodyHeight + marginBottom;
+      return;
+    }
+
+    const labelColWidth = usableWidth * 0.35;
+    const itemHeights = items.map((item) => {
+      const labelWidth = labelColWidth - 12;
+      const valueWidth = usableWidth - labelColWidth - 16;
+
+      doc.font('Helvetica-Bold').fontSize(9);
+      const labelHeight = doc.heightOfString(item.label || '-', {
+        width: labelWidth,
+      });
+      doc.font('Helvetica').fontSize(10);
+      const valueHeight = doc.heightOfString(item.value || '-', {
+        width: valueWidth,
+      });
+
+      return Math.max(rowHeight, labelHeight, valueHeight) + 4;
+    });
+    const bodyHeight = itemHeights.reduce((total, height) => total + height, 0) + 8;
     doc
-      .rect(this.PAGE_MARGIN, doc.y, usableWidth, bodyHeight)
+      .rect(this.PAGE_MARGIN, bodyStartY, usableWidth, bodyHeight)
       .fill(bgColor);
 
+    let itemY = bodyStartY + 4;
     items.forEach((item, idx) => {
-      const itemY = doc.y + 4 + idx * rowHeight;
+      const currentRowHeight = itemHeights[idx];
       doc
         .font('Helvetica-Bold')
         .fontSize(9)
@@ -350,11 +482,13 @@ export class PdfService {
         .fillColor('#000')
         .text(item.value || '-', this.PAGE_MARGIN + labelColWidth, itemY, {
           width: usableWidth - labelColWidth - 16,
-          lineBreak: false,
         });
+
+      itemY += currentRowHeight;
     });
 
-    doc.y = doc.y + bodyHeight + 10;
+    doc.x = this.PAGE_MARGIN;
+    doc.y = bodyStartY + bodyHeight + marginBottom;
   }
 
   /**
@@ -503,12 +637,35 @@ export class PdfService {
         .stroke();
     };
 
+    // Pastikan cukup ruang untuk header dan minimal baris data agar header tidak terisolasi.
+    const minInitialHeight = headerHeight + 45;
+    if (doc.y + minInitialHeight > this.PAGE_HEIGHT - this.PAGE_MARGIN - 40) {
+      doc.addPage();
+    }
+
     drawHeader();
     drawTableTopBorder();
 
     options.rows.forEach((row, idx) => {
+      const cells = cols.map((col) => {
+        const raw = col.accessor
+          ? col.accessor(row)
+          : (row as any)[col.key as string];
+        return raw == null ? '-' : String(raw);
+      });
+      const rowHeight = Math.max(
+        22,
+        ...cells.map((value, i) => {
+          doc.font('Helvetica').fontSize(9);
+          return doc.heightOfString(value, {
+            width: colWidths[i] - 12,
+            lineBreak: true,
+          }) + 12;
+        }),
+      );
+
       // Page break check
-      if (doc.y > this.PAGE_HEIGHT - this.PAGE_MARGIN - 40) {
+      if (doc.y + rowHeight > this.PAGE_HEIGHT - this.PAGE_MARGIN - 40) {
         doc.addPage();
         if (repeatHeader) {
           drawHeader();
@@ -529,10 +686,7 @@ export class PdfService {
 
       let xCursor = this.PAGE_MARGIN;
       cols.forEach((col, i) => {
-        const raw = col.accessor
-          ? col.accessor(row)
-          : (row as any)[col.key as string];
-        const val = raw == null ? '-' : String(raw);
+        const val = cells[i];
 
         const key = (col.key as string).toLowerCase();
         const isStatusBersih = key === 'status' && val === 'BERSIH';
@@ -543,7 +697,6 @@ export class PdfService {
         doc.text(val, xCursor + 6, rowY + 7, {
           width: colWidths[i] - 12,
           align: col.align ?? 'left',
-          lineBreak: false,
         });
 
         if (isStatusBersih) {
@@ -573,6 +726,7 @@ export class PdfService {
       .stroke();
 
     doc.moveDown(0.8);
+    doc.x = this.PAGE_MARGIN;
   }
 
   /**
@@ -609,7 +763,7 @@ export class PdfService {
         .font('Helvetica')
         .fontSize(10)
         .fillColor('#000')
-        .text(signer.role, x + colWidth / 2, startY, {
+        .text(signer.role, x, startY, {
           width: colWidth,
           align: 'center',
         });
@@ -660,25 +814,82 @@ export class PdfService {
   addSignatureBox(
     doc: PDFKit.PDFDocument,
     signers: PdfSignatureSigner[],
-    options?: { position?: 'left' | 'right' | 'center' },
+    options?: { position?: 'left' | 'right' | 'center'; intro?: string },
   ): void {
-    if (doc.y > this.PAGE_HEIGHT - this.PAGE_MARGIN - 110) {
-      doc.addPage();
-    }
-
     const position = options?.position ?? 'right';
     const usableWidth = this.PAGE_WIDTH - this.PAGE_MARGIN * 2;
     const boxGap = 20;
-    const boxHeight = 80;
+    const boxWidth =
+      signers.length === 1
+        ? usableWidth * 0.4
+        : (usableWidth - boxGap * (signers.length - 1)) / signers.length;
 
-    // Intro kalau ada
-    if (signers.length === 1) {
+    const signerLayouts = signers.map((signer, i) => {
+      const headerText =
+        signer.header ??
+        (signers.length === 2
+          ? i === 0
+            ? 'PIHAK VENDOR'
+            : 'PIHAK MITRA10'
+          : signer.role.toUpperCase());
+
+      doc.font('Helvetica-Bold').fontSize(9);
+      const headerHeight = doc.heightOfString(headerText, {
+        width: boxWidth - 16,
+      });
+
+      const placeholderText = signer.placeholder ?? '(Tanda tangan & stempel)';
+      doc.font('Helvetica-Oblique').fontSize(8);
+      const placeholderHeight = doc.heightOfString(placeholderText, {
+        width: boxWidth - 20,
+      });
+
+      doc.font('Helvetica-Bold').fontSize(9.5);
+      const nameHeight = doc.heightOfString(signer.name, {
+        width: boxWidth - 20,
+      });
+
+      doc.font('Helvetica').fontSize(8.5);
+      const roleHeight = doc.heightOfString(signer.role, {
+        width: boxWidth - 20,
+      });
+
+      return {
+        signer,
+        headerText,
+        headerHeight,
+        placeholderText,
+        placeholderHeight,
+        nameHeight,
+        roleHeight,
+      };
+    });
+
+    const maxHeaderHeight = Math.max(...signerLayouts.map((l) => l.headerHeight));
+    const minSigAreaHeight = 44;
+    const maxBottomHeight = Math.max(
+      ...signerLayouts.map((l) => l.nameHeight + 2 + l.roleHeight),
+    );
+
+    const topPadding = 8;
+    const bottomPadding = 8;
+    const boxHeight = Math.max(
+      100,
+      topPadding + maxHeaderHeight + minSigAreaHeight + 6 + maxBottomHeight + bottomPadding,
+    );
+
+    if (doc.y > this.PAGE_HEIGHT - this.PAGE_MARGIN - boxHeight - 25) {
+      doc.addPage();
+    }
+
+    if (options?.intro || signers.length === 1) {
       doc
         .font('Helvetica-Oblique')
         .fontSize(9)
         .fillColor('#555')
         .text(
-          'Dokumen ini dicetak otomatis oleh sistem sebagai bukti daftar vendor bersih pelanggaran:',
+          options?.intro ??
+            'Dokumen ini dicetak otomatis oleh sistem sebagai bukti daftar vendor bersih pelanggaran:',
           this.PAGE_MARGIN,
           doc.y,
           { width: usableWidth, align: 'left' },
@@ -686,13 +897,10 @@ export class PdfService {
       doc.moveDown(0.5);
     }
 
-    const startY = doc.y + 5;
-    const boxWidth =
-      signers.length === 1
-        ? usableWidth * 0.4
-        : (usableWidth - boxGap * (signers.length - 1)) / signers.length;
+    const startY = doc.y + 4;
+    const sigLineY = startY + topPadding + maxHeaderHeight + minSigAreaHeight;
 
-    signers.forEach((signer, i) => {
+    signerLayouts.forEach((layout, i) => {
       let x: number;
       if (signers.length === 1 && position === 'right') {
         x = this.PAGE_WIDTH - this.PAGE_MARGIN - boxWidth;
@@ -707,62 +915,60 @@ export class PdfService {
       doc
         .rect(x, startY, boxWidth, boxHeight)
         .lineWidth(0.5)
-        .strokeColor('#888')
+        .strokeColor('#9ca3af')
         .stroke();
 
-      // Role (top, bold)
+      // Header text (top, bold)
       doc
         .font('Helvetica-Bold')
         .fontSize(9)
-        .fillColor('#333')
-        .text(signer.role.toUpperCase(), x + 6, startY + 6, {
-          width: boxWidth - 12,
+        .fillColor('#1f2937')
+        .text(layout.headerText, x + 8, startY + topPadding, {
+          width: boxWidth - 16,
           align: 'center',
         });
 
       // Placeholder italic (above signature line)
-      const sigLineY = startY + 48;
       doc
         .font('Helvetica-Oblique')
         .fontSize(8)
-        .fillColor('#999')
-        .text(
-          signer.placeholder ?? '(......................)',
-          x + 10,
-          sigLineY - 14,
-          { width: boxWidth - 20, align: 'center' },
-        );
+        .fillColor('#9ca3af')
+        .text(layout.placeholderText, x + 10, sigLineY - 14, {
+          width: boxWidth - 20,
+          align: 'center',
+        });
 
       // Signature line
       doc
-        .moveTo(x + 10, sigLineY)
-        .lineTo(x + boxWidth - 10, sigLineY)
+        .moveTo(x + 12, sigLineY)
+        .lineTo(x + boxWidth - 12, sigLineY)
         .lineWidth(0.5)
-        .strokeColor('#000')
+        .strokeColor('#374151')
         .stroke();
 
       // Name (below line)
       doc
         .font('Helvetica-Bold')
-        .fontSize(10)
-        .fillColor('#000')
-        .text(signer.name, x + 10, sigLineY + 6, {
+        .fontSize(9.5)
+        .fillColor('#111827')
+        .text(layout.signer.name, x + 10, sigLineY + 6, {
           width: boxWidth - 20,
           align: 'center',
         });
 
-      // Role (bottom, smaller)
+      // Role / Company (bottom, smaller)
       doc
         .font('Helvetica')
-        .fontSize(9)
-        .fillColor('#555')
-        .text(signer.role, x + 10, sigLineY + 20, {
+        .fontSize(8.5)
+        .fillColor('#4b5563')
+        .text(layout.signer.role, x + 10, sigLineY + 6 + layout.nameHeight + 2, {
           width: boxWidth - 20,
           align: 'center',
         });
     });
 
     doc.y = startY + boxHeight + 10;
+    doc.x = this.PAGE_MARGIN;
   }
 
   /**
@@ -776,43 +982,53 @@ export class PdfService {
       generatedAt.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 
     for (let i = range.start; i < range.start + range.count; i++) {
-      doc.switchToPage(i);
+      const page = doc.switchToPage(i);
 
-      const footerY = this.PAGE_HEIGHT - this.PAGE_MARGIN;
+      // The footer is intentionally below the content area. Temporarily
+      // disable the page bottom margin so PDFKit does not treat the footer as
+      // overflow and append a blank page while writing it.
+      const originalBottomMargin = page.margins.bottom;
+      page.margins.bottom = 0;
 
-      // Accent line (biru tua)
-      doc
-        .moveTo(this.PAGE_MARGIN, footerY - 10)
-        .lineTo(this.PAGE_WIDTH - this.PAGE_MARGIN, footerY - 10)
-        .lineWidth(0.5)
-        .strokeColor(this.BRAND_COLOR)
-        .stroke();
+      try {
+        const footerY = this.PAGE_HEIGHT - this.PAGE_MARGIN;
 
-      // Generated timestamp (kiri, abu-abu)
-      doc
-        .font('Helvetica')
-        .fontSize(8)
-        .fillColor('#666')
-        .text(
-          `Generated: ${generatedStr}`,
-          this.PAGE_MARGIN,
-          footerY,
-          { lineBreak: false, width: 250 },
-        );
+        // Accent line (biru tua)
+        doc
+          .moveTo(this.PAGE_MARGIN, footerY - 10)
+          .lineTo(this.PAGE_WIDTH - this.PAGE_MARGIN, footerY - 10)
+          .lineWidth(0.5)
+          .strokeColor(this.BRAND_COLOR)
+          .stroke();
 
-      // Page number (kanan, brand color, bold)
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(9)
-        .fillColor(this.BRAND_COLOR)
-        .text(
-          `Halaman ${i - range.start + 1} dari ${range.count}`,
-          this.PAGE_WIDTH - this.PAGE_MARGIN - 150,
-          footerY,
-          { lineBreak: false, width: 150, align: 'right' },
-        );
+        // Generated timestamp (kiri, abu-abu)
+        doc
+          .font('Helvetica')
+          .fontSize(8)
+          .fillColor('#666')
+          .text(
+            `Generated: ${generatedStr}`,
+            this.PAGE_MARGIN,
+            footerY,
+            { lineBreak: false, width: 250 },
+          );
 
-      doc.fillColor('#000');
+        // Page number (kanan, brand color, bold)
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(9)
+          .fillColor(this.BRAND_COLOR)
+          .text(
+            `Halaman ${i - range.start + 1} dari ${range.count}`,
+            this.PAGE_WIDTH - this.PAGE_MARGIN - 150,
+            footerY,
+            { lineBreak: false, width: 150, align: 'right' },
+          );
+
+        doc.fillColor('#000');
+      } finally {
+        page.margins.bottom = originalBottomMargin;
+      }
     }
   }
 

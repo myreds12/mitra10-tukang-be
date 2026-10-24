@@ -193,8 +193,15 @@ export class VendorService {
 
       const formattedDate = new Date().toISOString().split('T')[0];
       const requestedTake = Number(take ?? 10);
-      const safeTake = requestedTake > 0 ? Math.min(requestedTake, 50) : undefined;
-      const skip = safeTake ? page * safeTake - safeTake : 0;
+      const safePage = Number(page ?? 1) || 1;
+      const safeTake = requestedTake > 0 ? Math.min(requestedTake, 100) : undefined;
+      const skip = safeTake ? safePage * safeTake - safeTake : 0;
+      const parsedIsActive =
+        is_active === 0 || String(is_active) === '0' || String(is_active) === 'false'
+          ? false
+          : is_active === 1 || String(is_active) === '1' || String(is_active) === 'true'
+            ? true
+            : undefined;
       const currentDateRange = {
         gte: new Date(`${formattedDate}T00:00:00.000Z`),
         lte: new Date(`${formattedDate}T23:59:59.000Z`),
@@ -222,8 +229,8 @@ export class VendorService {
           ...(date_from && date_to
             ? [{ created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) } }]
             : []),
-          ...(is_active === 0 || is_active === 1
-            ? [{ is_active: Boolean(is_active) }]
+          ...(parsedIsActive !== undefined
+            ? [{ is_active: parsedIsActive }]
             : []),
           ...(order_date_from && order_date_to ? [{
             orders: {

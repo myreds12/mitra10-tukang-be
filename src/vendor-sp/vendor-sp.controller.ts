@@ -56,8 +56,19 @@ export class VendorSpController {
   @ApiQuery({ name: 'search', required: false, description: 'Search by vendor name' })
   @ApiResponse({ status: 200, description: 'Successfully retrieved SP records' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(@Query() query: QueryVendorSpDto) {
-    return this.service.findAll(query);
+  async findAll(@Query() query: QueryVendorSpDto, @User() user: any) {
+    return this.service.findAll(query, user);
+  }
+
+  @Get('my-status')
+  @ApiOperation({
+    summary: 'Check Current Logged-in Vendor SP Status',
+    description: 'Check active SP status and SP level for the currently logged-in vendor user (Owner Vendor / Admin Vendor).',
+  })
+  @ApiResponse({ status: 200, description: 'Returns SP status and details for current vendor' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async checkMySpStatus(@User() user: any) {
+    return this.service.checkMyVendorSpStatus(user);
   }
 
   @Get('vendor/:vendorId')
@@ -100,6 +111,24 @@ export class VendorSpController {
     return this.service.getVendorsWithSpStatus(ids);
   }
 
+  @Get('reactivation/candidates')
+  @ApiOperation({
+    summary: 'Get SP3 / Inactive Vendors Eligible for Reactivation',
+    description:
+      'Retrieve vendors currently deactivated due to SP3 or holding an active SP3 record.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns list of SP3 reactivation candidate vendors' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getReactivationCandidates(@User() user: any) {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+    return this.service.getReactivationCandidates();
+  }
+
   @Get('reactivation')
   @ApiOperation({
     summary: 'Get Vendor Reactivation Logs',
@@ -111,7 +140,7 @@ export class VendorSpController {
   })
   @ApiResponse({ status: 200, description: 'Returns reactivation log history' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
   async getReactivationLogs(
     @Query() query: QueryReactivationLogDto,
     @User() user: any,
@@ -187,6 +216,40 @@ export class VendorSpController {
     return this.service.completeSp(id, user?.id);
   }
 
+  @Put(':id/notes')
+  @ApiOperation({
+    summary: 'Update SP Notes (Catatan)',
+    description: 'Update freetext notes on a specific Vendor SP record.',
+  })
+  @ApiParam({ name: 'id', description: 'SP Record ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'SP notes updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'SP record not found' })
+  async updateSpNotes(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('notes') notes: string,
+    @User() user: any,
+  ) {
+    return this.service.updateSpNotes(id, notes, user?.id);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Update SP Record',
+    description: 'Update notes on a specific Vendor SP record.',
+  })
+  @ApiParam({ name: 'id', description: 'SP Record ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'SP updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'SP record not found' })
+  async updateSp(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateVendorSpDto,
+    @User() user: any,
+  ) {
+    return this.service.updateSpNotes(id, dto.notes ?? '', user?.id);
+  }
+
   @Post('reactivate')
   @ApiOperation({
     summary: 'Reactivate Vendor after SP3',
@@ -219,7 +282,7 @@ export class VendorSpController {
   @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
   @ApiResponse({ status: 400, description: 'Invalid input (vendor_id/quarter/year)' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
   @ApiResponse({ status: 404, description: 'Vendor not found' })
   async exportPenaltyReceipt(
     @Body() dto: PenaltyReceiptDto,
@@ -280,7 +343,7 @@ export class VendorSpController {
   @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
   @ApiResponse({ status: 400, description: 'Ada pelanggaran aktif ATAU kuartal masih berjalan' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
   @ApiResponse({ status: 404, description: 'Vendor not found' })
   async exportNoViolationCertificate(
     @Body() dto: NoViolationCertificateDto,
@@ -337,7 +400,7 @@ export class VendorSpController {
   @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
   @ApiResponse({ status: 400, description: 'Invalid input (quarter/year/category)' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden — Admin HO / Super User only' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
   async exportCleanVendorRecap(
     @Body() dto: CleanVendorRecapDto,
     @User() user: any,

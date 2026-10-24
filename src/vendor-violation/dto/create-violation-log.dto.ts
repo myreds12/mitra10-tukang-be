@@ -2,9 +2,7 @@ import {
   IsString,
   IsOptional,
   IsInt,
-  IsNumber,
   IsIn,
-  IsNotEmpty,
   Min,
   Max,
   ValidateIf,
@@ -31,16 +29,21 @@ export class CreateViolationLogDto {
   @IsString()
   description?: string;
 
-  // [POIN 6] evidence_path jadi WAJIB (Lapis 3 UI guard — sebelumnya optional).
-  // CreateViolationLog() manual entry via UI → provenance otomatis MANUAL_UPLOAD
-  // (di-set oleh service). Backend tidak terima dari FE lagi untuk kolom ini.
-  @ApiProperty({
-    description: 'Path ke bukti pelanggaran (foto/screenshot/file). WAJIB diisi.',
-    example: '/uploads/evidence/refund-foto-12345.png',
+  @ApiPropertyOptional({
+    description: 'Tanggal kejadian pelanggaran (YYYY-MM-DD)',
+    example: '2026-10-23',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'evidence_path wajib diisi' })
-  evidence_path: string;
+  incident_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Path bukti pelanggaran atau tanggal kejadian',
+    example: '2026-10-23',
+  })
+  @IsOptional()
+  @IsString()
+  evidence_path?: string;
 }
 
 export class QueryViolationLogDto {

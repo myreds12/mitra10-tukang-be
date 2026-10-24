@@ -7,6 +7,22 @@ import { renderFile } from 'pug';
 
 @Injectable()
 export class PdfService {
+  private renderTemplate(templatePath: string, data: any): string {
+    const html = renderFile(this.getTemplatePath(templatePath), {data});
+
+    return `
+      <style>
+        html, body { margin: 0; padding: 0; }
+        table { max-width: 100%; }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
+        th, td { word-wrap: break-word; word-break: break-word; }
+        img { max-width: 100%; height: auto; }
+      </style>
+      ${html}
+    `;
+  }
+
   private getTemplatePath(templatePath: string): string {
     const templateFile = `${templatePath}.pug`;
     const templateFullPath = resolve(process.cwd(), 'templates', templateFile);
@@ -47,9 +63,7 @@ export class PdfService {
 
   async generate(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(this.getTemplatePath(templatePath), {
-        data,
-      });
+      const html = this.renderTemplate(templatePath, data);
 
 
       create(html, { format: 'A4',
@@ -78,9 +92,7 @@ export class PdfService {
 
   async generatePotrait(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(this.getTemplatePath(templatePath), {
-        data,
-      });
+      const html = this.renderTemplate(templatePath, data);
 
       
       create(html, { format: 'A4',
@@ -103,9 +115,7 @@ export class PdfService {
 
   async generateLandscape(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(this.getTemplatePath(templatePath), {
-        data,
-      });
+      const html = this.renderTemplate(templatePath, data);
 
       const options = {
         format: 'A4',

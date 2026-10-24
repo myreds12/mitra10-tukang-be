@@ -37,6 +37,17 @@ export class VendorViolationService {
     return user?.roles?.name ?? null;
   }
 
+  async resolveVendorIdForUser(user?: any): Promise<number | null> {
+    if (!user) return null;
+    if (user.vendor_id) return Number(user.vendor_id);
+    if (!user.id) return null;
+    const pic = await this.dbService.pic_vendor.findFirst({
+      where: { user_id: Number(user.id), deleted_at: null },
+      select: { vendor_id: true },
+    });
+    return pic?.vendor_id ?? null;
+  }
+
   private getSPLevel(totalPoints: number): number | null {
     if (totalPoints > 50) return 3;
     if (totalPoints >= 26) return 2;
@@ -233,10 +244,21 @@ export class VendorViolationService {
 
   async createViolationLog(dto: CreateViolationLogDto, userId?: number) {
     try {
-      // Get current quarter and year
-      const now = new Date();
-      const quarter = Math.ceil((now.getMonth() + 1) / 3);
-      const year = now.getFullYear();
+      const rawIncidentDate = dto.incident_date || dto.evidence_path;
+      const parsedIncidentDate =
+        rawIncidentDate && /^\d{4}-\d{2}-\d{2}/.test(rawIncidentDate)
+          ? new Date(rawIncidentDate)
+          : new Date();
+      const targetDate = !Number.isNaN(parsedIncidentDate.getTime())
+        ? parsedIncidentDate
+        : new Date();
+
+      const quarter = Math.ceil((targetDate.getMonth() + 1) / 3);
+      const year = targetDate.getFullYear();
+      const resolvedEvidenceValue =
+        dto.evidence_path ||
+        dto.incident_date ||
+        targetDate.toISOString().split('T')[0];
 
       // Verify vendor exists
       const vendor = await this.dbService.vendor.findFirst({
@@ -258,9 +280,6 @@ export class VendorViolationService {
         );
       }
 
-      // Create violation log
-      // [POIN 6] Manual entry via UI → provenance MANUAL_UPLOAD otomatis.
-      // evidence_path wajib ada (DTO @IsNotEmpty sudah enforce di Lapis 3 UI guard).
       const violationLog = await this.dbService.vendor_violation_log.create({
         data: {
           vendor_id: dto.vendor_id,
@@ -269,8 +288,9 @@ export class VendorViolationService {
           quarter,
           year,
           description: dto.description,
-          evidence_path: dto.evidence_path,
+          evidence_path: resolvedEvidenceValue,
           evidence_provenance: 'MANUAL_UPLOAD',
+          created_at: targetDate,
           created_by: userId,
         },
         include: {
@@ -279,8 +299,12 @@ export class VendorViolationService {
         },
       });
 
-      // Check and update vendor SP status based on new point total
-      await this.checkAndUpdateVendorSP(dto.vendor_id, userId ?? null);
+      await this.checkAndUpdateVendorSP(
+        dto.vendor_id,
+        userId ?? null,
+        quarter,
+        year,
+      );
 
       return violationLog;
     } catch (error) {
@@ -288,14 +312,23 @@ export class VendorViolationService {
     }
   }
 
-  async findAllViolationLogs(query: QueryViolationLogDto) {
+  async findAllViolationLogs(query: QueryViolationLogDto, user?: any) {
     try {
       const { page = 1, take = 10, vendor_id, quarter, year, category, date_from, date_to, search } = query;
       const skip = page * take - take;
 
+      let effectiveVendorId = vendor_id;
+      const roleName = user?.role || (await this.getRoleName(user?.id));
+      if (roleName === 'Owner Vendor' || roleName === 'Admin Vendor') {
+        const resolvedVendorId = await this.resolveVendorIdForUser(user);
+        if (resolvedVendorId) {
+          effectiveVendorId = resolvedVendorId;
+        }
+      }
+
       const where: Prisma.vendor_violation_logWhereInput = {
         deleted_at: null,
-        ...(vendor_id ? { vendor_id } : {}),
+        ...(effectiveVendorId ? { vendor_id: effectiveVendorId } : {}),
         ...(quarter ? { quarter } : {}),
         ...(year ? { year } : {}),
         ...(category
@@ -558,7 +591,6 @@ export class VendorViolationService {
       const currentQuarter = quarter || Math.ceil((now.getMonth() + 1) / 3);
       const currentYear = year || now.getFullYear();
 
-      // Get all active violations for this vendor in this quarter
       const violations = await this.dbService.vendor_violation_log.findMany({
         where: {
           vendor_id: vendorId,
@@ -571,22 +603,21 @@ export class VendorViolationService {
         },
       });
 
-      // Calculate total points
       const totalPoints = violations.reduce(
         (sum, v) => sum + (v.adjusted_point ?? v.violation_type.point),
         0,
       );
 
-      // Determine SP level
       const spLevel = this.getSPLevel(totalPoints);
       const spStatus = this.getSPStatus(totalPoints);
 
-      // Get active SP if any
       const activeSP = await this.dbService.vendor_sp.findFirst({
         where: {
           vendor_id: vendorId,
-          status: 1, // AKTIF
-          end_date: { gte: now },
+          quarter: currentQuarter,
+          year: currentYear,
+          status: { in: [1, 3] },
+          deleted_at: null,
         },
         orderBy: { sp_level: 'desc' },
       });
@@ -598,7 +629,7 @@ export class VendorViolationService {
         },
       });
 
-      // Check for penalty period (if points were received less than 12 weeks before next quarter)
+      // Extend penalty to end of next quarter when points are added < 12 weeks before next quarter
       const nextQuarterStart = this.getNextQuarterStart(currentQuarter, currentYear);
       const weeksUntilNextQuarter = Math.floor(
         (nextQuarterStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 7),
@@ -606,7 +637,6 @@ export class VendorViolationService {
 
       let penaltyExtendedUntil: Date | null = null;
       if (weeksUntilNextQuarter < 12 && totalPoints > 0) {
-        // Penalty extends to end of next quarter
         penaltyExtendedUntil = this.getQuarterEnd(
           currentQuarter === 4 ? 1 : currentQuarter + 1,
           currentQuarter === 4 ? currentYear + 1 : currentYear,
@@ -641,15 +671,18 @@ export class VendorViolationService {
     }
   }
 
-  // Helper: Check and update vendor SP based on current points
-  async checkAndUpdateVendorSP(vendorId: number, userId: number | null = null) {
+  async checkAndUpdateVendorSP(
+    vendorId: number,
+    userId: number | null = null,
+    targetQuarter?: number,
+    targetYear?: number,
+  ) {
     const now = new Date();
-    const quarter = Math.ceil((now.getMonth() + 1) / 3);
-    const year = now.getFullYear();
+    const quarter = targetQuarter || Math.ceil((now.getMonth() + 1) / 3);
+    const year = targetYear || now.getFullYear();
 
     const pointsInfo = await this.getVendorQuarterPoints(vendorId, quarter, year);
 
-    // If SP level is reached and no active SP of that level
     if (pointsInfo.sp_level && !pointsInfo.active_sp) {
       await this.issueSP(vendorId, pointsInfo.sp_level, pointsInfo.total_points, quarter, year, userId);
       return;
@@ -675,17 +708,21 @@ export class VendorViolationService {
         return;
       }
 
+      const nextSpLevel = Math.max(pointsInfo.active_sp.sp_level, pointsInfo.sp_level);
+
       await this.dbService.vendor_sp.update({
         where: { id: pointsInfo.active_sp.id },
         data: {
-          sp_level: pointsInfo.sp_level,
+          sp_level: nextSpLevel,
           total_point: pointsInfo.total_points,
-          allocation_reduction: this.getAllocationReduction(pointsInfo.sp_level),
+          start_date: this.getQuarterStart(quarter, year),
+          end_date: this.getQuarterEnd(quarter, year),
+          allocation_reduction: this.getAllocationReduction(nextSpLevel),
           updated_at: now,
         },
       });
 
-      if (pointsInfo.sp_level === 3) {
+      if (nextSpLevel === 3) {
         await this.dbService.vendor.update({
           where: { id: vendorId },
           data: { is_active: false },
@@ -704,28 +741,41 @@ export class VendorViolationService {
     userId: number | null = null,
   ) {
     const now = new Date();
-    const startDate = now;
-    const endDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days
+    const startDate = this.getQuarterStart(quarter, year);
+    const endDate = this.getQuarterEnd(quarter, year);
 
     const allocationReduction = this.getAllocationReduction(spLevel);
 
     try {
       return await this.dbService.$transaction(async (tx) => {
-        // Check if SP with this level already exists (prevent duplicate)
+        // Check if active SP already exists for this vendor in this quarter (prevent duplicate SP rows per vendor)
         const existingSP = await tx.vendor_sp.findFirst({
           where: {
             vendor_id: vendorId,
-            sp_level: spLevel,
-            status: 1, // AKTIF
+            quarter,
+            year,
+            status: { in: [1, 3] }, // AKTIF or EXTENDED
             deleted_at: null,
           },
+          orderBy: { sp_level: 'desc' },
         });
 
         if (existingSP) {
+          const updatedLevel = Math.max(existingSP.sp_level, spLevel);
+          if (updatedLevel === 3) {
+            await tx.vendor.update({
+              where: { id: vendorId },
+              data: { is_active: false },
+            });
+          }
           const updated = await tx.vendor_sp.update({
             where: { id: existingSP.id },
             data: {
+              sp_level: updatedLevel,
               total_point: totalPoints,
+              start_date: startDate,
+              end_date: endDate,
+              allocation_reduction: this.getAllocationReduction(updatedLevel),
               updated_at: now,
             },
           });
@@ -739,7 +789,7 @@ export class VendorViolationService {
             createdBy: userId,
           });
           this.logger.log(
-            `[SP update] vendor=${vendorId} level=SP${spLevel} spId=${existingSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
+            `[SP update] vendor=${vendorId} level=SP${updatedLevel} spId=${existingSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
           );
           return updated;
         }

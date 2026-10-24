@@ -97,6 +97,26 @@ export class ReportQueryHelper {
             is_active: true,
           },
         },
+        sp_details: {
+          include: {
+            violation_log: {
+              include: {
+                violation_type: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    category: true,
+                    point: true,
+                  },
+                },
+                orders: {
+                  select: { id: true, project_number: true, status: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -118,6 +138,7 @@ export class ReportQueryHelper {
       email_address: string | null;
       is_active: boolean;
       total_orders: number;
+      order_ids: number[];
     }>
   > {
     const { start, end } = this.getQuarterRange(quarter, year);
@@ -153,23 +174,36 @@ export class ReportQueryHelper {
 
     if (vendors.length === 0) return [];
 
-    const orderCounts = await this.prisma.orders.groupBy({
-      by: ['vendor_id'],
+    const vendorOrders = await this.prisma.orders.findMany({
       where: {
         vendor_id: { in: vendors.map((v) => v.id) },
         created_at: { gte: start, lte: end },
         deleted_at: null,
       },
-      _count: { _all: true },
+      select: {
+        id: true,
+        vendor_id: true,
+      },
+      orderBy: { id: 'asc' },
     });
-    const orderCountMap = new Map(
-      orderCounts.map((o) => [o.vendor_id, o._count._all]),
-    );
 
-    return vendors.map((v) => ({
-      ...v,
-      total_orders: orderCountMap.get(v.id) ?? 0,
-    }));
+    const orderIdsMap = new Map<number, number[]>();
+    for (const o of vendorOrders) {
+      if (o.vendor_id) {
+        const list = orderIdsMap.get(o.vendor_id) || [];
+        list.push(o.id);
+        orderIdsMap.set(o.vendor_id, list);
+      }
+    }
+
+    return vendors.map((v) => {
+      const orderIds = orderIdsMap.get(v.id) || [];
+      return {
+        ...v,
+        total_orders: orderIds.length,
+        order_ids: orderIds,
+      };
+    });
   }
 
   /**
