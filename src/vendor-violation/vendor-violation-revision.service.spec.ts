@@ -359,10 +359,10 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
         user,
       );
 
-      expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledTimes(2);
       expect(prisma.vendor_sp.updateMany).toHaveBeenCalledTimes(1);
-      expect(prisma.vendor_violation_log.update).toHaveBeenCalledWith({
-        where: { id: 10 },
+      expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [10] } },
         data: { adjusted_point: 1 },
       });
       expect(prisma.vendor_sp.create).toHaveBeenCalledTimes(1);

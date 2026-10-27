@@ -264,6 +264,7 @@ export class VendorViolationRevisionService {
     });
 
     const selectedCodeSet = new Set(violationCodes);
+    const selectedLogIdsByPoint = new Map<number, number[]>();
     const grouped = new Map<string, {
       vendorId: number;
       vendorName: string;
@@ -274,6 +275,10 @@ export class VendorViolationRevisionService {
 
     for (const log of logs) {
       if (!selectedCodeSet.has(log.violation_type.code)) continue;
+
+      const logIdsForPoint = selectedLogIdsByPoint.get(log.violation_type.point) ?? [];
+      logIdsForPoint.push(log.id);
+      selectedLogIdsByPoint.set(log.violation_type.point, logIdsForPoint);
 
       const key = `${log.vendor_id}:${log.quarter}`;
       const current = grouped.get(key) ?? {
@@ -354,17 +359,14 @@ export class VendorViolationRevisionService {
         },
       });
 
-      for (const group of grouped.values()) {
-        const selectedLogs = logs.filter(
-          (log) => group.logIds.includes(log.id) && selectedCodeSet.has(log.violation_type.code),
-        );
-        for (const log of selectedLogs) {
-          await tx.vendor_violation_log.update({
-            where: { id: log.id },
-            data: { adjusted_point: log.violation_type.point },
-          });
-        }
+      for (const [point, logIds] of selectedLogIdsByPoint) {
+        await tx.vendor_violation_log.updateMany({
+          where: { id: { in: logIds } },
+          data: { adjusted_point: point },
+        });
+      }
 
+      for (const group of grouped.values()) {
         const spLevel = this.getSPLevel(group.totalPoints);
         if (!spLevel) continue;
 
@@ -393,7 +395,7 @@ export class VendorViolationRevisionService {
           })),
         });
       }
-    });
+    }, { maxWait: 10000, timeout: 60000 });
 
     return {
       ...summary,
