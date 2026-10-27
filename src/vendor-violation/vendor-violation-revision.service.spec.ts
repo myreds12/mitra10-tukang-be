@@ -11,6 +11,7 @@ const mockPrismaService = {
     create: jest.fn(),
     update: jest.fn(),
     updateMany: jest.fn(),
+    deleteMany: jest.fn(),
     count: jest.fn(),
   },
   vendor_violation_log: {
@@ -31,6 +32,7 @@ const mockPrismaService = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     createMany: jest.fn(),
+    deleteMany: jest.fn(),
   },
   vendor_violation_type: {
     findMany: jest.fn(),
@@ -342,8 +344,8 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
 
     it('requires explicit confirmation before applying the rebuild', async () => {
       await expect(
-        service.rebuildYear({ ...dto, dry_run: false } as any, user),
-      ).rejects.toThrow('REBUILD_VENDOR_SP_2026');
+        service.rebuildYear({ ...dto, dry_run: false, delete_existing: true } as any, user),
+      ).rejects.toThrow('DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY');
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
@@ -354,13 +356,34 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
         {
           ...dto,
           dry_run: false,
-          confirmation: 'REBUILD_VENDOR_SP_2026',
+          from_month: 7,
+          delete_existing: true,
+          confirmation: 'DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY',
         } as any,
         user,
       );
 
       expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledTimes(2);
-      expect(prisma.vendor_sp.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.vendor_sp_detail.deleteMany).toHaveBeenCalledWith({
+        where: {
+          vendor_sp: {
+            year: 2026,
+            start_date: {
+              gte: new Date(2026, 6, 1),
+              lt: new Date(2027, 0, 1),
+            },
+          },
+        },
+      });
+      expect(prisma.vendor_sp.deleteMany).toHaveBeenCalledWith({
+        where: {
+          year: 2026,
+          start_date: {
+            gte: new Date(2026, 6, 1),
+            lt: new Date(2027, 0, 1),
+          },
+        },
+      });
       expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledWith({
         where: { id: { in: [10] } },
         data: { adjusted_point: 1 },

@@ -19,6 +19,14 @@ export class RebuildVendorSpDto {
   @Transform(({ value }) => Number(value))
   year = 2026;
 
+  @ApiPropertyOptional({ example: 7, default: 7, description: 'Start month, inclusive. July 2026 = 7.' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @Transform(({ value }) => Number(value ?? 7))
+  from_month = 7;
+
   @ApiProperty({
     type: [String],
     example: ['ORDER_NOT_CONFIRMED_H1', 'RESCHEDULE_NOT_UPDATED'],
@@ -34,7 +42,13 @@ export class RebuildVendorSpDto {
   @Transform(({ value }) => value !== false && value !== 'false')
   dry_run = true;
 
-  @ApiPropertyOptional({ example: 'REBUILD_VENDOR_SP_2026' })
+  @ApiPropertyOptional({ default: false, description: 'Hard-delete existing SP rows for the target year before rebuilding.' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === true || value === 'true')
+  delete_existing = false;
+
+  @ApiPropertyOptional({ example: 'DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY' })
   @IsOptional()
   @IsString()
   confirmation?: string;
