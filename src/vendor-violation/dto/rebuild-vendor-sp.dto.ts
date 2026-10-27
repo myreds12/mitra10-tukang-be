@@ -1,0 +1,41 @@
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class RebuildVendorSpDto {
+  @ApiProperty({ example: 2026, default: 2026 })
+  @IsInt()
+  @Min(2026)
+  @Max(2026)
+  @Transform(({ value }) => Number(value))
+  year = 2026;
+
+  @ApiProperty({
+    type: [String],
+    example: ['ORDER_NOT_CONFIRMED_H1', 'RESCHEDULE_NOT_UPDATED'],
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  violation_codes: string[];
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value !== false && value !== 'false')
+  dry_run = true;
+
+  @ApiPropertyOptional({ example: 'REBUILD_VENDOR_SP_2026' })
+  @IsOptional()
+  @IsString()
+  confirmation?: string;
+}

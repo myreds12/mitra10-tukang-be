@@ -37,13 +37,13 @@ import {
   QueryViolationRevisionRequestDto,
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
+import { RebuildVendorSpDto } from './dto/rebuild-vendor-sp.dto';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
-import { Public } from 'src/common/decorator/public.decorator';
 import { VendorViolationScheduler } from '../scheduler/vendor-violation.scheduler';
 import * as fs from 'fs';
 
@@ -417,11 +417,23 @@ export class VendorViolationController {
     return this.revisionService.reject(id, dto, user);
   }
 
+  @Post('rebuild-sp-year')
+  @ApiOperation({
+    summary: 'Preview or rebuild vendor SP for 2026',
+    description:
+      'Defaults to dry-run. Applying requires Super User and confirmation REBUILD_VENDOR_SP_2026. Existing logs and SP rows are retained for audit.',
+  })
+  async rebuildVendorSpYear(
+    @Body() dto: RebuildVendorSpDto,
+    @User() user: any,
+  ) {
+    return this.revisionService.rebuildYear(dto, user);
+  }
+
   // ================================
   // SCHEDULER MANUAL TRIGGER ENDPOINTS (POSTMAN & ADMIN)
   // ================================
 
-  @Public()
   @Post('trigger-daily-check')
   @Get('trigger-daily-check')
   @ApiOperation({
@@ -430,10 +442,11 @@ export class VendorViolationController {
       'Mengecek pelanggaran harian vendor: 1) Order belum dikonfirmasi/alokasi tukang (Hari H, H+1, >H+1), ' +
       '2) Quotation terlambat (>H+2, >H+3 sejak survey selesai), ' +
       '3) Status work order tidak diupdate (H+1, >H+2), ' +
-      '4) Reschedule belum ditindaklanjuti vendor. Dapat di-hit via Postman tanpa/dengan token JWT.',
+      '4) Reschedule belum ditindaklanjuti vendor. Membutuhkan JWT dan role Admin HO atau Super User.',
   })
   @ApiResponse({ status: 200, description: 'Laporan eksekusi daily violation check' })
-  async triggerDailyCheck() {
+  async triggerDailyCheck(@User() user: any) {
+    await this.assertSchedulerRole(user);
     const report = await this.scheduler.handleDailyViolationCheck(true);
     return {
       statusCode: 200,
@@ -442,7 +455,6 @@ export class VendorViolationController {
     };
   }
 
-  @Public()
   @Post('trigger-sp-status-check')
   @Get('trigger-sp-status-check')
   @ApiOperation({
@@ -450,10 +462,11 @@ export class VendorViolationController {
     description:
       'Mengecek status SP dan vendor: 1) Selesaikan SP yang sudah expired (>90 hari), ' +
       '2) Reaktivasi vendor SP3 yang masa suspend-nya selesai, ' +
-      '3) Cek quarterly reset. Dapat di-hit via Postman tanpa/dengan token JWT.',
+      '3) Cek quarterly reset. Membutuhkan JWT dan role Admin HO atau Super User.',
   })
   @ApiResponse({ status: 200, description: 'Laporan eksekusi SP status check' })
-  async triggerSpStatusCheck() {
+  async triggerSpStatusCheck(@User() user: any) {
+    await this.assertSchedulerRole(user);
     const report = await this.scheduler.handleSPStatusCheck(true);
     return {
       statusCode: 200,
@@ -462,17 +475,17 @@ export class VendorViolationController {
     };
   }
 
-  @Public()
   @Post('trigger-all')
   @Get('trigger-all')
   @ApiOperation({
     summary: '[TRIGGER] Jalankan Semua Check Scheduler Sekaligus',
     description:
       'Menjalankan Cron 1 (Daily Violation Check) dan Cron 2 (SP Status Check) secara berurutan. ' +
-      'Dapat di-hit via Postman tanpa/dengan token JWT.',
+      'Membutuhkan JWT dan role Admin HO atau Super User.',
   })
   @ApiResponse({ status: 200, description: 'Laporan eksekusi lengkap' })
-  async triggerAllChecks() {
+  async triggerAllChecks(@User() user: any) {
+    await this.assertSchedulerRole(user);
     const dailyReport = await this.scheduler.handleDailyViolationCheck(true);
     const spReport = await this.scheduler.handleSPStatusCheck(true);
     return {
@@ -483,5 +496,14 @@ export class VendorViolationController {
         spStatusCheck: spReport,
       },
     };
+  }
+
+  private async assertSchedulerRole(user: any): Promise<void> {
+    const roleName = await this.service.getRoleName(user?.id);
+    if (roleName !== 'Admin HO' && roleName !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${roleName ?? 'tidak diketahui'}.`,
+      );
+    }
   }
 }

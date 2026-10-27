@@ -10,6 +10,7 @@ const mockPrismaService = {
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     count: jest.fn(),
   },
   vendor_violation_log: {
@@ -17,6 +18,7 @@ const mockPrismaService = {
     findMany: jest.fn(),
     update: jest.fn(),
     create: jest.fn(),
+    updateMany: jest.fn(),
   },
   vendor_violation_revision_request: {
     findFirst: jest.fn(),
@@ -29,6 +31,12 @@ const mockPrismaService = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     createMany: jest.fn(),
+  },
+  vendor_violation_type: {
+    findMany: jest.fn(),
+  },
+  users: {
+    findFirst: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -283,6 +291,89 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
         where: { id: 42 },
         data: { is_active: true },
       });
+    });
+  });
+
+  describe('rebuildYear', () => {
+    const user = { id: 99 } as any;
+    const dto = {
+      year: 2026,
+      violation_codes: ['ORDER_NOT_CONFIRMED_H1'],
+      dry_run: true,
+    };
+
+    beforeEach(() => {
+      prisma.users.findFirst.mockResolvedValue({ roles: { name: 'Super User' } });
+      prisma.vendor_violation_type.findMany.mockResolvedValue([
+        { id: 1, code: 'ORDER_NOT_CONFIRMED_H1', point: 1 },
+      ]);
+      prisma.vendor_violation_log.findMany.mockResolvedValue([
+        {
+          id: 10,
+          vendor_id: 42,
+          quarter: 4,
+          adjusted_point: 1,
+          violation_type: { code: 'ORDER_NOT_CONFIRMED_H1', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+        },
+        {
+          id: 11,
+          vendor_id: 42,
+          quarter: 4,
+          adjusted_point: 1,
+          violation_type: { code: 'DOC_NOT_UPLOADED', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+        },
+      ]);
+    });
+
+    it('returns a preview without writing data by default', async () => {
+      const result = await service.rebuildYear(dto as any, user);
+
+      expect(result).toEqual(expect.objectContaining({
+        dryRun: true,
+        violationLogCount: 2,
+        selectedViolationLogCount: 1,
+        rebuiltPointTotal: 1,
+      }));
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.vendor_sp.create).not.toHaveBeenCalled();
+    });
+
+    it('requires explicit confirmation before applying the rebuild', async () => {
+      await expect(
+        service.rebuildYear({ ...dto, dry_run: false } as any, user),
+      ).rejects.toThrow('REBUILD_VENDOR_SP_2026');
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('resets 2026 rows and creates SP from selected violation types', async () => {
+      prisma.vendor_sp.create.mockResolvedValue({ id: 700, sp_level: 1 });
+
+      const result = await service.rebuildYear(
+        {
+          ...dto,
+          dry_run: false,
+          confirmation: 'REBUILD_VENDOR_SP_2026',
+        } as any,
+        user,
+      );
+
+      expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.vendor_sp.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.vendor_violation_log.update).toHaveBeenCalledWith({
+        where: { id: 10 },
+        data: { adjusted_point: 1 },
+      });
+      expect(prisma.vendor_sp.create).toHaveBeenCalledTimes(1);
+      expect(prisma.vendor_sp_detail.createMany).toHaveBeenCalledWith({
+        data: [{ vendor_sp_id: 700, violation_log_id: 10, created_by: 99 }],
+      });
+      expect(result).toEqual(expect.objectContaining({
+        dryRun: false,
+        notificationsSent: 0,
+        vendorStatusChanged: false,
+      }));
     });
   });
 });

@@ -117,6 +117,26 @@ describe('ViolationDetectorService — checkAndIssueSP', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  it('calculates points only from active, non-deleted violation logs', async () => {
+    prisma.vendor_violation_log.findMany.mockResolvedValueOnce([
+      { adjusted_point: null, violation_type: { point: 3 } },
+    ]);
+
+    await expect(service.calculateTotalPoints(42, 4, 2026)).resolves.toBe(3);
+    expect(prisma.vendor_violation_log.findMany).toHaveBeenCalledWith({
+      where: {
+        vendor_id: 42,
+        quarter: 4,
+        year: 2026,
+        is_active: true,
+        deleted_at: null,
+      },
+      include: {
+        violation_type: { select: { point: true } },
+      },
+    });
+  });
+
   describe('transaction rollback', () => {
     it('does NOT call sendSPNotification when transaction throws', async () => {
       mockPrismaService.$transaction.mockImplementationOnce(async () => {

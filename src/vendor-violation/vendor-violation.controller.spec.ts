@@ -16,7 +16,9 @@ describe('VendorViolationController — Manual Trigger Endpoints', () => {
       handleDailyViolationCheck: jest.fn(),
       handleSPStatusCheck: jest.fn(),
     };
-    mockService = {};
+    mockService = {
+      getRoleName: jest.fn().mockResolvedValue('Super User'),
+    };
     mockRevisionService = {};
 
     const module: TestingModule = await Test.createTestingModule({
@@ -47,7 +49,7 @@ describe('VendorViolationController — Manual Trigger Endpoints', () => {
       };
       mockScheduler.handleDailyViolationCheck.mockResolvedValue(mockReport);
 
-      const result = await controller.triggerDailyCheck();
+      const result = await controller.triggerDailyCheck({ id: 99 });
 
       expect(mockScheduler.handleDailyViolationCheck).toHaveBeenCalledWith(true);
       expect(result).toEqual({
@@ -69,7 +71,7 @@ describe('VendorViolationController — Manual Trigger Endpoints', () => {
       };
       mockScheduler.handleSPStatusCheck.mockResolvedValue(mockReport);
 
-      const result = await controller.triggerSpStatusCheck();
+      const result = await controller.triggerSpStatusCheck({ id: 99 });
 
       expect(mockScheduler.handleSPStatusCheck).toHaveBeenCalledWith(true);
       expect(result).toEqual({
@@ -97,7 +99,7 @@ describe('VendorViolationController — Manual Trigger Endpoints', () => {
       mockScheduler.handleDailyViolationCheck.mockResolvedValue(mockDailyReport);
       mockScheduler.handleSPStatusCheck.mockResolvedValue(mockSpReport);
 
-      const result = await controller.triggerAllChecks();
+      const result = await controller.triggerAllChecks({ id: 99 });
 
       expect(mockScheduler.handleDailyViolationCheck).toHaveBeenCalledWith(true);
       expect(mockScheduler.handleSPStatusCheck).toHaveBeenCalledWith(true);

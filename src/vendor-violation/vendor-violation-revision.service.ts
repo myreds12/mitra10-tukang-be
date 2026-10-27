@@ -13,6 +13,7 @@ import {
   QueryViolationRevisionRequestDto,
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
+import { RebuildVendorSpDto } from './dto/rebuild-vendor-sp.dto';
 import { syncVendorSpDetails } from '../common/utils/vendor-sp-detail-sync.util';
 import { getQuarterDateRange } from '../common/constants/vendor-sp.constant';
 
@@ -228,6 +229,180 @@ export class VendorViolationRevisionService {
     });
   }
 
+  async rebuildYear(dto: RebuildVendorSpDto, user: users) {
+    await this.assertRole(user, ['Super User']);
+
+    const year = Number(dto.year);
+    const violationCodes = [...new Set(dto.violation_codes.map((code) => code.trim()))];
+    const violationTypes = await this.dbService.vendor_violation_type.findMany({
+      where: {
+        code: { in: violationCodes },
+        is_active: true,
+        deleted_at: null,
+      },
+      select: { id: true, code: true, point: true },
+    });
+
+    const foundCodes = new Set(violationTypes.map((type) => type.code));
+    const unknownCodes = violationCodes.filter((code) => !foundCodes.has(code));
+    if (unknownCodes.length > 0) {
+      throw new BadRequestException(
+        `Jenis pelanggaran tidak ditemukan atau tidak aktif: ${unknownCodes.join(', ')}`,
+      );
+    }
+
+    const logs = await this.dbService.vendor_violation_log.findMany({
+      where: { year, deleted_at: null, is_active: true },
+      select: {
+        id: true,
+        vendor_id: true,
+        quarter: true,
+        adjusted_point: true,
+        violation_type: { select: { code: true, point: true } },
+        vendor: { select: { id: true, company_name: true } },
+      },
+    });
+
+    const selectedCodeSet = new Set(violationCodes);
+    const grouped = new Map<string, {
+      vendorId: number;
+      vendorName: string;
+      quarter: number;
+      logIds: number[];
+      totalPoints: number;
+    }>();
+
+    for (const log of logs) {
+      if (!selectedCodeSet.has(log.violation_type.code)) continue;
+
+      const key = `${log.vendor_id}:${log.quarter}`;
+      const current = grouped.get(key) ?? {
+        vendorId: log.vendor_id,
+        vendorName: log.vendor.company_name,
+        quarter: log.quarter,
+        logIds: [],
+        totalPoints: 0,
+      };
+      current.logIds.push(log.id);
+      current.totalPoints += log.violation_type.point;
+      grouped.set(key, current);
+    }
+
+    const currentPointTotal = logs.reduce(
+      (sum, log) => sum + (log.adjusted_point ?? log.violation_type.point),
+      0,
+    );
+    const rebuiltPointTotal = [...grouped.values()].reduce(
+      (sum, group) => sum + group.totalPoints,
+      0,
+    );
+    const summary = {
+      year,
+      violationCodes,
+      dryRun: dto.dry_run !== false,
+      violationLogCount: logs.length,
+      selectedViolationLogCount: [...grouped.values()].reduce(
+        (sum, group) => sum + group.logIds.length,
+        0,
+      ),
+      currentPointTotal,
+      rebuiltPointTotal,
+      vendorQuarterCount: grouped.size,
+      vendors: [...grouped.values()].map((group) => ({
+        vendorId: group.vendorId,
+        vendorName: group.vendorName,
+        quarter: group.quarter,
+        pointTotal: group.totalPoints,
+        spLevel: this.getSPLevel(group.totalPoints),
+        violationLogCount: group.logIds.length,
+      })),
+    };
+
+    if (dto.dry_run !== false) return summary;
+
+    if (dto.confirmation !== 'REBUILD_VENDOR_SP_2026') {
+      throw new BadRequestException(
+        'Konfirmasi wajib bernilai REBUILD_VENDOR_SP_2026 untuk menjalankan rebuild.',
+      );
+    }
+
+    await this.dbService.$transaction(async (tx) => {
+      const now = new Date();
+      const auditNote = `Vendor SP ${year} rebuilt by Super User using selected violation types: ${violationCodes.join(', ')}`;
+
+      await tx.vendor_violation_log.updateMany({
+        where: { year, deleted_at: null, is_active: true },
+        data: {
+          adjusted_point: 0,
+          revision_note: auditNote,
+          revised_at: now,
+          revised_by: user.id,
+          updated_at: now,
+          updated_by: user.id,
+        },
+      });
+
+      await tx.vendor_sp.updateMany({
+        where: { year, deleted_at: null, status: { in: [1, 3] } },
+        data: {
+          status: 2,
+          total_point: 0,
+          allocation_reduction: 0,
+          notes: auditNote,
+          updated_at: now,
+          updated_by: user.id,
+        },
+      });
+
+      for (const group of grouped.values()) {
+        const selectedLogs = logs.filter(
+          (log) => group.logIds.includes(log.id) && selectedCodeSet.has(log.violation_type.code),
+        );
+        for (const log of selectedLogs) {
+          await tx.vendor_violation_log.update({
+            where: { id: log.id },
+            data: { adjusted_point: log.violation_type.point },
+          });
+        }
+
+        const spLevel = this.getSPLevel(group.totalPoints);
+        if (!spLevel) continue;
+
+        const { startDate, endDate } = getQuarterDateRange(group.quarter, year);
+        const sp = await tx.vendor_sp.create({
+          data: {
+            vendor_id: group.vendorId,
+            sp_level: spLevel,
+            total_point: group.totalPoints,
+            quarter: group.quarter,
+            year,
+            start_date: startDate,
+            end_date: endDate,
+            status: 1,
+            allocation_reduction: this.getAllocationReduction(spLevel),
+            notes: `SP rebuilt for ${year} from selected violation types.`,
+            created_by: user.id,
+          },
+        });
+
+        await tx.vendor_sp_detail.createMany({
+          data: group.logIds.map((violationLogId) => ({
+            vendor_sp_id: sp.id,
+            violation_log_id: violationLogId,
+            created_by: user.id,
+          })),
+        });
+      }
+    });
+
+    return {
+      ...summary,
+      dryRun: false,
+      notificationsSent: 0,
+      vendorStatusChanged: false,
+    };
+  }
+
   private async assertRole(user: users, allowedRoles: string[]) {
     if (!user?.id) {
       throw new ForbiddenException('User tidak valid.');
@@ -345,6 +520,7 @@ export class VendorViolationRevisionService {
         vendor_id: vendorId,
         quarter,
         year,
+        is_active: true,
         deleted_at: null,
       },
       include: { violation_type: true },

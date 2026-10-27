@@ -592,6 +592,7 @@ export class ViolationDetectorService {
         vendor_id: vendorId,
         quarter,
         year,
+        is_active: true,
         deleted_at: null,
       },
       include: {

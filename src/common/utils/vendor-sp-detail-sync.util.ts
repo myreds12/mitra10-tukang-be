@@ -78,6 +78,7 @@ export async function syncVendorSpDetails(
       year,
       deleted_at: null,
       is_active: true,
+      OR: [{ adjusted_point: null }, { adjusted_point: { gt: 0 } }],
     },
     select: { id: true },
   });
