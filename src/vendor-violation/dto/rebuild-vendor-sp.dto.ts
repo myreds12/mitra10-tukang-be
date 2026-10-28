@@ -48,7 +48,13 @@ export class RebuildVendorSpDto {
   @Transform(({ value }) => value === true || value === 'true')
   delete_existing = false;
 
-  @ApiPropertyOptional({ example: 'DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY' })
+  @ApiPropertyOptional({ default: false, description: 'Delete all SP and violation log rows before rebuilding.' })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === true || value === 'true')
+  delete_all = false;
+
+  @ApiPropertyOptional({ example: 'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026' })
   @IsOptional()
   @IsString()
   confirmation?: string;

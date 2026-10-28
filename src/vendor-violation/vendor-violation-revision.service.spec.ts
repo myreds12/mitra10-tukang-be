@@ -20,12 +20,14 @@ const mockPrismaService = {
     update: jest.fn(),
     create: jest.fn(),
     updateMany: jest.fn(),
+    deleteMany: jest.fn(),
   },
   vendor_violation_revision_request: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     count: jest.fn(),
   },
   vendor_sp_detail: {
@@ -313,7 +315,14 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
         {
           id: 10,
           vendor_id: 42,
+          violation_type_id: 1,
+          order_id: null,
           quarter: 4,
+          created_at: new Date('2026-10-01T00:00:00.000Z'),
+          description: 'test violation',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
           adjusted_point: 1,
           violation_type: { code: 'ORDER_NOT_CONFIRMED_H1', point: 1 },
           vendor: { id: 42, company_name: 'Vendor 42' },
@@ -321,7 +330,14 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
         {
           id: 11,
           vendor_id: 42,
+          violation_type_id: 2,
+          order_id: null,
           quarter: 4,
+          created_at: new Date('2026-10-02T00:00:00.000Z'),
+          description: 'test violation 2',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
           adjusted_point: 1,
           violation_type: { code: 'DOC_NOT_UPLOADED', point: 1 },
           vendor: { id: 42, company_name: 'Vendor 42' },
@@ -345,12 +361,13 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
     it('requires explicit confirmation before applying the rebuild', async () => {
       await expect(
         service.rebuildYear({ ...dto, dry_run: false, delete_existing: true } as any, user),
-      ).rejects.toThrow('DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY');
+      ).rejects.toThrow('DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026');
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('resets 2026 rows and creates SP from selected violation types', async () => {
       prisma.vendor_sp.create.mockResolvedValue({ id: 700, sp_level: 1 });
+      prisma.vendor_violation_log.create.mockResolvedValue({ id: 1001 });
 
       const result = await service.rebuildYear(
         {
@@ -358,39 +375,34 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
           dry_run: false,
           from_month: 7,
           delete_existing: true,
-          confirmation: 'DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY',
+          delete_all: true,
+          confirmation: 'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026',
         } as any,
         user,
       );
 
-      expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledTimes(2);
-      expect(prisma.vendor_sp_detail.deleteMany).toHaveBeenCalledWith({
-        where: {
-          vendor_sp: {
-            year: 2026,
-            start_date: {
-              gte: new Date(2026, 6, 1),
-              lt: new Date(2027, 0, 1),
-            },
-          },
-        },
+      expect(prisma.vendor_violation_revision_request.updateMany).toHaveBeenCalledWith({
+        where: { target_log_id: { not: null } },
+        data: { target_log_id: null, updated_at: expect.any(Date) },
       });
-      expect(prisma.vendor_sp.deleteMany).toHaveBeenCalledWith({
-        where: {
+      expect(prisma.vendor_sp_detail.deleteMany).toHaveBeenCalledWith({ where: {} });
+      expect(prisma.vendor_sp.deleteMany).toHaveBeenCalledWith({ where: {} });
+      expect(prisma.vendor_violation_log.deleteMany).toHaveBeenCalledWith({ where: {} });
+      expect(prisma.vendor_violation_log.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          vendor_id: 42,
+          violation_type_id: 1,
+          order_id: null,
+          quarter: 4,
           year: 2026,
-          start_date: {
-            gte: new Date(2026, 6, 1),
-            lt: new Date(2027, 0, 1),
-          },
-        },
-      });
-      expect(prisma.vendor_violation_log.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: [10] } },
-        data: { adjusted_point: 1 },
-      });
+          adjusted_point: null,
+          is_active: true,
+        }),
+        select: { id: true },
+      }));
       expect(prisma.vendor_sp.create).toHaveBeenCalledTimes(1);
       expect(prisma.vendor_sp_detail.createMany).toHaveBeenCalledWith({
-        data: [{ vendor_sp_id: 700, violation_log_id: 10, created_by: 99 }],
+        data: [{ vendor_sp_id: 700, violation_log_id: 1001, created_by: 99 }],
       });
       expect(result).toEqual(expect.objectContaining({
         dryRun: false,

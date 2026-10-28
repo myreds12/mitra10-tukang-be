@@ -264,10 +264,15 @@ export class VendorViolationRevisionService {
       select: {
         id: true,
         vendor_id: true,
+        violation_type_id: true,
+        order_id: true,
         quarter: true,
         created_at: true,
-        adjusted_point: true,
+        description: true,
         evidence_path: true,
+        evidence_provenance: true,
+        created_by: true,
+        adjusted_point: true,
         violation_type: { select: { code: true, point: true } },
         vendor: { select: { id: true, company_name: true } },
         orders: {
@@ -328,7 +333,6 @@ export class VendorViolationRevisionService {
     });
 
     const selectedCodeSet = new Set(violationCodes);
-    const selectedLogIdsByPoint = new Map<number, number[]>();
     const excludedLogs: Array<{ id: number; code: string; reason: string }> = [];
     const grouped = new Map<string, {
       vendorId: number;
@@ -350,10 +354,6 @@ export class VendorViolationRevisionService {
         });
         continue;
       }
-
-      const logIdsForPoint = selectedLogIdsByPoint.get(log.violation_type.point) ?? [];
-      logIdsForPoint.push(log.id);
-      selectedLogIdsByPoint.set(log.violation_type.point, logIdsForPoint);
 
       const key = `${log.vendor_id}:${log.quarter}`;
       const current = grouped.get(key) ?? {
@@ -404,55 +404,49 @@ export class VendorViolationRevisionService {
 
     if (
       !dto.delete_existing ||
-      dto.confirmation !== 'DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY'
+      !dto.delete_all ||
+      dto.confirmation !== 'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026'
     ) {
       throw new BadRequestException(
-        'Untuk scope mulai Juli 2026, delete_existing harus true dan confirmation harus DELETE_AND_REBUILD_VENDOR_SP_2026_FROM_JULY.',
+        'Untuk hard-delete, delete_existing dan delete_all harus true serta confirmation harus DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026.',
       );
     }
 
     await this.dbService.$transaction(async (tx) => {
       const now = new Date();
-      const auditNote = `Vendor SP ${year} from month ${fromMonth} rebuilt by Super User using selected violation types: ${violationCodes.join(', ')}`;
 
-      await tx.vendor_violation_log.updateMany({
-        where: {
-          year,
-          created_at: { gte: rangeStart, lt: rangeEnd },
-          deleted_at: null,
-          is_active: true,
-        },
-        data: {
-          adjusted_point: 0,
-          revision_note: auditNote,
-          revised_at: now,
-          revised_by: user.id,
-          updated_at: now,
-          updated_by: user.id,
-        },
+      await tx.vendor_violation_revision_request.updateMany({
+        where: { target_log_id: { not: null } },
+        data: { target_log_id: null, updated_at: now },
       });
 
-      await tx.vendor_sp_detail.deleteMany({
-        where: {
-          vendor_sp: {
+      await tx.vendor_sp_detail.deleteMany({ where: {} });
+      await tx.vendor_sp.deleteMany({ where: {} });
+      await tx.vendor_violation_log.deleteMany({ where: {} });
+
+      const recreatedLogIds = new Map<number, number>();
+      for (const log of logs) {
+        const eligibility = this.getRebuildLogEligibility(log);
+        if (!selectedCodeSet.has(log.violation_type.code) || !eligibility.valid) continue;
+
+        const recreatedLog = await tx.vendor_violation_log.create({
+          data: {
+            vendor_id: log.vendor_id,
+            violation_type_id: log.violation_type_id,
+            order_id: log.order_id,
+            quarter: log.quarter,
             year,
-            start_date: { gte: rangeStart, lt: rangeEnd },
+            description: log.description,
+            evidence_path: log.evidence_path,
+            evidence_provenance: log.evidence_provenance,
+            adjusted_point: null,
+            is_active: true,
+            created_at: log.created_at,
+            created_by: log.created_by,
           },
-        },
-      });
-
-      await tx.vendor_sp.deleteMany({
-        where: {
-          year,
-          start_date: { gte: rangeStart, lt: rangeEnd },
-        },
-      });
-
-      for (const [point, logIds] of selectedLogIdsByPoint) {
-        await tx.vendor_violation_log.updateMany({
-          where: { id: { in: logIds } },
-          data: { adjusted_point: point },
+          select: { id: true },
         });
+        recreatedLogIds.set(log.id, recreatedLog.id);
       }
 
       for (const group of grouped.values()) {
@@ -477,11 +471,14 @@ export class VendorViolationRevisionService {
         });
 
         await tx.vendor_sp_detail.createMany({
-          data: group.logIds.map((violationLogId) => ({
-            vendor_sp_id: sp.id,
-            violation_log_id: violationLogId,
-            created_by: user.id,
-          })),
+          data: group.logIds
+            .map((oldLogId) => recreatedLogIds.get(oldLogId))
+            .filter((violationLogId): violationLogId is number => violationLogId !== undefined)
+            .map((violationLogId) => ({
+              vendor_sp_id: sp.id,
+              violation_log_id: violationLogId,
+              created_by: user.id,
+            })),
         });
       }
     }, { maxWait: 10000, timeout: 60000 });
@@ -491,6 +488,7 @@ export class VendorViolationRevisionService {
       dryRun: false,
       fromMonth,
       deleteExisting: true,
+      deleteAll: true,
       notificationsSent: 0,
       vendorStatusChanged: false,
     };
