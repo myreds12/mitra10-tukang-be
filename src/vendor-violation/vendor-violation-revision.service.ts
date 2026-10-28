@@ -278,6 +278,8 @@ export class VendorViolationRevisionService {
         orders: {
           select: {
             created_at: true,
+            request_survey: true,
+            request_work: true,
             order_history: {
               where: { deleted_at: null },
               orderBy: { created_at: 'asc' },
@@ -289,6 +291,8 @@ export class VendorViolationRevisionService {
             work_orders: {
               select: {
                 created_at: true,
+                survey_date: true,
+                work_start_date: true,
                 work_order_status: {
                   where: { deleted_at: null },
                   orderBy: { created_at: 'desc' },
@@ -298,7 +302,6 @@ export class VendorViolationRevisionService {
                   },
                 },
                 work_order_evidences: {
-                  where: { deleted_at: null },
                   select: { type: true },
                 },
               },
@@ -629,6 +632,43 @@ export class VendorViolationRevisionService {
           valid: false,
           reason: 'Work order memiliki update status setelah violation log dibuat.',
         };
+      }
+
+      const candidateScheduleDates = [
+        order.work_orders?.work_start_date,
+        order.work_orders?.survey_date,
+        order.request_work,
+        order.request_survey,
+      ]
+        .filter((date): date is Date => Boolean(date))
+        .map((date) => {
+          const parsed = new Date(date);
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        });
+
+      if (candidateScheduleDates.length > 0) {
+        const scheduledDay = new Date(
+          Math.max(...candidateScheduleDates.map((date) => date.getTime())),
+        );
+        const logDate = new Date(log.created_at);
+        const logDay = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+        const daysSinceSchedule = Math.floor(
+          (logDay.getTime() - scheduledDay.getTime()) / (24 * 60 * 60 * 1000),
+        );
+        const requiredDays =
+          code === 'STATUS_NOT_UPDATED_H_PLUS'
+            ? 2
+            : code === 'STATUS_NOT_UPDATED_H1'
+              ? 1
+              : 0;
+
+        if (daysSinceSchedule < requiredDays) {
+          return {
+            valid: false,
+            reason:
+              'Violation tercatat sebelum jadwal pengerjaan/survei melewati batas waktu update status.',
+          };
+        }
       }
     }
 

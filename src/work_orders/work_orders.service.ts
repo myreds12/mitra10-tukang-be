@@ -1063,12 +1063,9 @@ export class WorkOrdersService {
         user,
       );
 
-      // =========================================
-      // VENDOR VIOLATION TRIGGERS
-      // =========================================
       if (work_order?.order?.vendor_id) {
         await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
-        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+        await this.checkStatusUpdateViolation(workOrder, NEW_STATUS);
       }
 
       const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
@@ -1084,9 +1081,6 @@ export class WorkOrdersService {
     }
   }
 
-  /**
-   * Trigger #12: Check dokumentasi foto (blur/tidak lengkap)
-   */
   private async checkDocumentationViolation(
     workOrder: any,
     updateData: any,
@@ -1103,10 +1097,13 @@ export class WorkOrdersService {
       );
 
       if (isFinalStatus) {
+        // Include soft-deleted rows so previously uploaded photos still count when status updates mark old rows deleted_at.
         const existingEvidences = await this.dbService.work_order_evidences.findMany({
           where: {
             work_order_id: workOrder.id,
-            deleted_at: null,
+          },
+          select: {
+            type: true,
           },
         });
 
@@ -1125,9 +1122,6 @@ export class WorkOrdersService {
               orderId: workOrder.order_id,
               workOrderId: workOrder.id,
               description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto ${!hasBefore ? 'before' : ''}${!hasBefore && !hasAfter ? ' dan ' : ''}${!hasAfter ? 'after' : ''}`,
-              // [POIN 6] SYSTEM_GENERATED — deteksi otomatis via cron/status check,
-              // tidak ada bukti fisik individual per pelanggaran (foto belum diupload
-              // justru yg menjadi trigger-nya).
               evidence: {
                 provenance: 'SYSTEM_GENERATED',
                 snapshot: {
@@ -1150,46 +1144,74 @@ export class WorkOrdersService {
     }
   }
 
-  /**
-   * Trigger #13: Check delay status update
-   */
   private async checkStatusUpdateViolation(
     workOrder: any,
     newStatus: any,
   ): Promise<void> {
     try {
-      // Jika vendor mengupdate status ke progres (WORKSTART, dll)
-      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK'];
+      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK', 'SURVEYREQ', 'TUKANGSURVEY'];
       const isProgress = progressStatuses.some(
-        (s) => newStatus?.category?.toUpperCase().includes(s),
+        (status) => newStatus?.category?.toUpperCase().includes(status),
       );
 
       if (isProgress) {
-        // Status diupdate - tidak ada pelanggaran delay
         this.logger.debug(
-          `Status updated for WO ${workOrder.id}. No delay violation.`,
+          'Status updated for WO ' + workOrder.id + '. No delay violation.',
         );
         return;
       }
 
-      // Check delay jika vendor tidak mengupdate status
-      const lastUpdate = await this.dbService.work_order_status.findFirst({
-        where: {
-          work_order_id: workOrder.id,
-          deleted_at: null,
-        },
-        orderBy: { created_at: 'desc' },
-      });
+      const lastUpdate =
+        workOrder.work_order_status?.[0] ??
+        (await this.dbService.work_order_status.findFirst({
+          where: {
+            work_order_id: workOrder.id,
+            deleted_at: null,
+            ...(newStatus?.id ? { status_id: { not: newStatus.id } } : {}),
+          },
+          orderBy: { created_at: 'desc' },
+        }));
 
       if (!lastUpdate) return;
 
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const lastUpdateDate = new Date(lastUpdate.created_at);
-      const daysDiff = Math.floor(
-        (now.getTime() - lastUpdateDate.getTime()) / (24 * 60 * 60 * 1000),
+      const lastUpdateDay = new Date(
+        lastUpdateDate.getFullYear(),
+        lastUpdateDate.getMonth(),
+        lastUpdateDate.getDate(),
       );
 
-      // Jika sudah lebih dari 1 hari tanpa update status
+      const candidateScheduleDates = [
+        workOrder.work_start_date,
+        workOrder.survey_date,
+        workOrder.order?.request_work,
+        workOrder.order?.request_survey,
+      ]
+        .filter((date): date is Date => Boolean(date))
+        .map((date) => {
+          const parsed = new Date(date);
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        });
+
+      const scheduledDay =
+        candidateScheduleDates.length > 0
+          ? new Date(Math.max(...candidateScheduleDates.map((date) => date.getTime())))
+          : null;
+
+      if (scheduledDay && today.getTime() <= scheduledDay.getTime()) {
+        return;
+      }
+
+      const baselineTime = scheduledDay
+        ? Math.max(lastUpdateDay.getTime(), scheduledDay.getTime())
+        : lastUpdateDay.getTime();
+
+      const daysDiff = Math.floor(
+        (today.getTime() - baselineTime) / (24 * 60 * 60 * 1000),
+      );
+
       if (daysDiff >= 1) {
         const violationCode =
           daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H1';
@@ -1200,8 +1222,7 @@ export class WorkOrdersService {
             vendorId: workOrder.order.vendor_id,
             orderId: workOrder.order_id,
             workOrderId: workOrder.id,
-            description: `Work Order #${workOrder.id} tidak diupdate selama ${daysDiff} hari`,
-            // [POIN 6] SYSTEM_GENERATED — deteksi otomatis, snapshot kondisi WO
+            description: 'Work Order #' + workOrder.id + ' tidak diupdate selama ' + daysDiff + ' hari',
             evidence: {
               provenance: 'SYSTEM_GENERATED',
               snapshot: {
@@ -1209,6 +1230,7 @@ export class WorkOrdersService {
                 orderId: workOrder.order_id,
                 daysSinceUpdate: daysDiff,
                 lastStatusUpdate: lastUpdate.created_at,
+                scheduledDate: scheduledDay ? scheduledDay.toISOString() : null,
                 currentStatus: newStatus?.category,
                 triggeredAt: new Date().toISOString(),
               },

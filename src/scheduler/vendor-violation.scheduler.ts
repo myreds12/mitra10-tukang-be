@@ -690,17 +690,46 @@ export class VendorViolationScheduler implements OnModuleInit {
       if (!lastStatusUpdate) continue;
 
       const lastUpdate = new Date(lastStatusUpdate);
+      const lastUpdateDay = new Date(
+        lastUpdate.getFullYear(),
+        lastUpdate.getMonth(),
+        lastUpdate.getDate(),
+      );
+
+      const candidateScheduleDates = [
+        wo.work_start_date,
+        wo.survey_date,
+        wo.order?.request_work,
+        wo.order?.request_survey,
+      ]
+        .filter((date): date is Date => Boolean(date))
+        .map((date) => {
+          const parsed = new Date(date);
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        });
+
+      const scheduledDay =
+        candidateScheduleDates.length > 0
+          ? new Date(Math.max(...candidateScheduleDates.map((date) => date.getTime())))
+          : null;
+
+      if (scheduledDay && today.getTime() <= scheduledDay.getTime()) {
+        continue;
+      }
+
+      const baselineTime = scheduledDay
+        ? Math.max(lastUpdateDay.getTime(), scheduledDay.getTime())
+        : lastUpdateDay.getTime();
+
       const daysSinceUpdate = Math.floor(
-        (today.getTime() - lastUpdate.getTime()) / (24 * 60 * 60 * 1000),
+        (today.getTime() - baselineTime) / (24 * 60 * 60 * 1000),
       );
 
       let violationCode: string | null = null;
 
       if (daysSinceUpdate >= 2) {
-        // >H+2
         violationCode = ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS;
       } else if (daysSinceUpdate === 1) {
-        // H+1
         violationCode = ViolationTypeCode.STATUS_NOT_UPDATED_H1;
       }
 
@@ -714,13 +743,13 @@ export class VendorViolationScheduler implements OnModuleInit {
               orderId: wo.order_id,
               workOrderId: wo.id,
               description,
-              // [POIN 6] SYSTEM_GENERATED — cron job scheduler
               evidence: {
                 provenance: 'SYSTEM_GENERATED',
                 snapshot: {
                   workOrderId: wo.id,
                   orderId: wo.order_id,
                   daysSinceUpdate,
+                  scheduledDate: scheduledDay ? scheduledDay.toISOString() : null,
                   checkType: 'checkStaleWorkOrderStatuses',
                   triggeredAt: new Date().toISOString(),
                 },

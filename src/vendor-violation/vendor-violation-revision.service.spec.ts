@@ -358,6 +358,120 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
       expect(prisma.vendor_sp.create).not.toHaveBeenCalled();
     });
 
+    it('excludes DOC_NOT_UPLOADED when before and after evidences exist including soft-deleted rows', async () => {
+      prisma.vendor_violation_type.findMany.mockResolvedValue([
+        { id: 2, code: 'DOC_NOT_UPLOADED', point: 1 },
+      ]);
+      prisma.vendor_violation_log.findMany.mockResolvedValue([
+        {
+          id: 11,
+          vendor_id: 42,
+          violation_type_id: 2,
+          order_id: 5000,
+          quarter: 4,
+          created_at: new Date('2026-10-28T03:18:15.000Z'),
+          description: 'missing docs',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 1,
+          violation_type: { code: 'DOC_NOT_UPLOADED', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+          orders: {
+            created_at: new Date('2026-02-05T05:45:41.533Z'),
+            work_orders: {
+              created_at: new Date('2026-02-05T10:01:06.686Z'),
+              work_order_status: [],
+              work_order_evidences: [
+                { type: 2, deleted_at: new Date('2026-10-28T05:35:02.993Z') },
+                { type: 3, deleted_at: new Date('2026-10-28T05:35:02.993Z') },
+              ],
+            },
+          },
+        },
+      ]);
+
+      const result = await service.rebuildYear(
+        {
+          year: 2026,
+          violation_codes: ['DOC_NOT_UPLOADED'],
+          dry_run: true,
+        } as any,
+        user,
+      );
+
+      expect(result).toEqual(expect.objectContaining({
+        selectedViolationLogCount: 0,
+        rebuiltPointTotal: 0,
+        excludedLogs: [
+          expect.objectContaining({
+            id: 11,
+            code: 'DOC_NOT_UPLOADED',
+          }),
+        ],
+      }));
+    });
+
+    it('excludes STATUS_NOT_UPDATED when recorded before scheduled work or survey date', async () => {
+      prisma.vendor_violation_type.findMany.mockResolvedValue([
+        { id: 13, code: 'STATUS_NOT_UPDATED_H1', point: 1 },
+      ]);
+      prisma.vendor_violation_log.findMany.mockResolvedValue([
+        {
+          id: 12,
+          vendor_id: 42,
+          violation_type_id: 13,
+          order_id: 6763,
+          quarter: 4,
+          created_at: new Date('2026-10-27T01:00:00.000Z'),
+          description: 'Status work order tidak diupdate selama 1 hari',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 1,
+          violation_type: { code: 'STATUS_NOT_UPDATED_H1', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+          orders: {
+            created_at: new Date('2026-10-25T04:22:20.506Z'),
+            request_survey: new Date('2026-10-30T00:00:00.000Z'),
+            request_work: null,
+            work_orders: {
+              created_at: new Date('2026-10-26T01:44:36.560Z'),
+              survey_date: null,
+              work_start_date: null,
+              work_order_status: [
+                {
+                  created_at: new Date('2026-10-26T01:44:36.560Z'),
+                  status: { category: 'TUKANGWORK' },
+                },
+              ],
+              work_order_evidences: [],
+            },
+          },
+        },
+      ]);
+
+      const result = await service.rebuildYear(
+        {
+          year: 2026,
+          violation_codes: ['STATUS_NOT_UPDATED_H1'],
+          dry_run: true,
+        } as any,
+        user,
+      );
+
+      expect(result).toEqual(expect.objectContaining({
+        selectedViolationLogCount: 0,
+        rebuiltPointTotal: 0,
+        excludedLogs: [
+          expect.objectContaining({
+            id: 12,
+            code: 'STATUS_NOT_UPDATED_H1',
+          }),
+        ],
+      }));
+    });
+
     it('requires explicit confirmation before applying the rebuild', async () => {
       await expect(
         service.rebuildYear({ ...dto, dry_run: false, delete_existing: true } as any, user),
