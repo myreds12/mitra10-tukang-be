@@ -19,13 +19,13 @@ export class RebuildVendorSpDto {
   @Transform(({ value }) => Number(value))
   year = 2026;
 
-  @ApiPropertyOptional({ example: 7, default: 7, description: 'Start month, inclusive. July 2026 = 7.' })
+  @ApiProperty({ example: 4, default: 4, description: 'Target quarter (1-4).' })
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(12)
-  @Transform(({ value }) => Number(value ?? 7))
-  from_month = 7;
+  @Max(4)
+  @Transform(({ value }) => Number(value ?? 4))
+  quarter = 4;
 
   @ApiProperty({
     type: [String],

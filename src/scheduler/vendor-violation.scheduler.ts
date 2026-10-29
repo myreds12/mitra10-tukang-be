@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ViolationDetectorService } from '../common/services/violation-detector.service';
 import { ViolationTypeCode } from '../common/enum/violation-type.enum';
 import { VendorSpService } from '../vendor-sp/vendor-sp.service';
+import { getQuarterDateRange } from '../common/constants/vendor-sp.constant';
 
 export interface ViolationCheckItem {
   category: string;
@@ -295,14 +296,14 @@ export class VendorViolationScheduler implements OnModuleInit {
       'RESURVEYDONE',
     ];
 
-    // Cari order yang:
-    // 1. Punya vendor (vendor_id != null)
-    // 2. Tidak deleted
-    // 3. Statusnya bukan terminal / cancel
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const { startDate: quarterStart } = getQuarterDateRange(currentQuarter, now.getFullYear());
+
     const orders = await this.dbService.orders.findMany({
       where: {
         vendor_id: { not: null },
         deleted_at: null,
+        created_at: { gte: quarterStart },
         status: {
           category: { notIn: terminalStatuses },
         },
@@ -498,15 +499,14 @@ export class VendorViolationScheduler implements OnModuleInit {
     });
     const submittedStatusIds = submittedStatuses.map((s) => s.id);
 
-    // Cari order yang:
-    // 1. Punya vendor
-    // 2. Tidak deleted
-    // 3. Sudah SURVEYDONE di order_history
-    // 4. Belum ada quotation yang disubmit (tidak ada quotation sama sekali, atau hanya DRAFT)
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const { startDate: quarterStart } = getQuarterDateRange(currentQuarter, now.getFullYear());
+
     const orders = await this.dbService.orders.findMany({
       where: {
         vendor_id: { not: null },
         deleted_at: null,
+        created_at: { gte: quarterStart },
         order_history: {
           some: {
             status_id: surveyDoneStatus.id,
@@ -655,10 +655,15 @@ export class VendorViolationScheduler implements OnModuleInit {
       'TUKANGWORKSTEPTHREE',
     ];
 
-    // Cari work orders yang statusnya tidak berubah > 2 hari
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const { startDate: quarterStart } = getQuarterDateRange(currentQuarter, now.getFullYear());
+
     const workOrders = await this.dbService.work_orders.findMany({
       where: {
         deleted_at: null,
+        order: {
+          created_at: { gte: quarterStart },
+        },
         status: {
           category: { in: activeStatuses },
         },
@@ -817,11 +822,17 @@ export class VendorViolationScheduler implements OnModuleInit {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const { startDate: quarterStart } = getQuarterDateRange(currentQuarter, now.getFullYear());
+
     const reschedules = await this.dbService.reschedule.findMany({
       where: {
         deleted_at: null,
         confirm_date: null,
-        created_at: { lte: yesterday },
+        created_at: { gte: quarterStart, lte: yesterday },
+        order: {
+          created_at: { gte: quarterStart },
+        },
         status: {
           category: {
             notIn: [

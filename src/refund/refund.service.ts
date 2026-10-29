@@ -49,6 +49,14 @@ export class RefundService {
               work_order_tukang: true,
             },
           },
+          complaints: {
+            where: {
+              deleted_at: null,
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+          },
         },
       });
       if (!order) throw new BadRequestException('Order not found');
@@ -110,7 +118,7 @@ export class RefundService {
         // =========================================
         if (order?.vendor_id) {
           await this.checkRefundViolation(order, refund);
-          await this.checkQuotationNotFulfilledViolation(order, refund);
+          await this.checkCustomerComplaintRefundViolation(order, refund);
         }
       }
 
@@ -205,50 +213,35 @@ export class RefundService {
     }
   }
 
-  private async checkQuotationNotFulfilledViolation(
+  private async checkCustomerComplaintRefundViolation(
     order: any,
     refund: any,
   ): Promise<void> {
     try {
-      if (!order?.vendor_id || !order?.quotation?.length) return;
+      if (!order?.vendor_id || !order?.complaints?.length) return;
 
-      const fulfilledQuotationStatuses = [
-        'QUOTEOUT',
-        'QUOTATIONPAID',
-        'QUOTATIONPAIDSTEPONE',
-        'QUOTATIONPAIDSTEPTWO',
-        'QUOTATIONPAIDSTEPTHREE',
-      ];
+      const latestComplaint = order.complaints[0];
+      const complaintTypeText = latestComplaint.type === 1 ? 'jadwal' : 'pengerjaan';
 
-      const fulfilledQuotation = order.quotation.find((quotation: any) =>
-        fulfilledQuotationStatuses.includes(quotation.status?.category),
-      );
-
-      if (!fulfilledQuotation) return;
-
-      await this.violationDetector.recordViolation(
-        'QUOTATION_NOT_FULFILLED',
-        {
-          vendorId: order.vendor_id,
-          orderId: order.id,
-          quotationId: fulfilledQuotation.id,
-          refundId: refund.id,
-          description: `Order #${order.project_number || order.id} refund setelah quotation ${fulfilledQuotation.quotation_number || fulfilledQuotation.id} terbit/disetujui`,
-          // [POIN 6] SYSTEM_GENERATED snapshot
-          evidence: {
-            provenance: 'SYSTEM_GENERATED',
-            snapshot: {
-              refundId: refund.id,
-              quotationId: fulfilledQuotation.id,
-              fulfilledQuotationStatus: fulfilledQuotation.status?.category,
-              orderId: order.id,
-              triggeredAt: new Date().toISOString(),
-            },
+      await this.violationDetector.recordViolation('CUSTOMER_COMPLAINT', {
+        vendorId: order.vendor_id,
+        orderId: order.id,
+        complaintId: latestComplaint.id,
+        refundId: refund.id,
+        description: `Komplain customer terkait ${complaintTypeText} yang berujung refund untuk order #${order.project_number || order.id}`,
+        evidence: {
+          provenance: 'SYSTEM_GENERATED',
+          snapshot: {
+            complaintId: latestComplaint.id,
+            complaintType: latestComplaint.type,
+            refundId: refund.id,
+            orderId: order.id,
+            triggeredAt: new Date().toISOString(),
           },
         },
-      );
+      });
     } catch (error) {
-      this.logger.error('Error checking quotation not fulfilled violation', error);
+      this.logger.error('Error checking customer complaint refund violation', error);
     }
   }
 

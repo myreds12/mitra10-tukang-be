@@ -72,12 +72,6 @@ export const DEFAULT_VIOLATION_TYPES: Record<
     description: 'Customer mengajukan komplain terkait jadwal atau pengerjaan',
     point: 1,
   },
-  [ViolationTypeCode.QUOTATION_NOT_FULFILLED]: {
-    category: ViolationCategory.LAINNYA,
-    name: 'Tidak memenuhi pelaksanaan pekerjaan atas Quotation',
-    description: 'Vendor tidak memenuhi pelaksanaan pekerjaan sesuai Quotation',
-    point: 1,
-  },
   [ViolationTypeCode.QUOTATION_LATE_H2]: {
     category: ViolationCategory.LAINNYA,
     name: 'Quotation terbit > H+2 sejak Survey Selesai',
@@ -88,12 +82,6 @@ export const DEFAULT_VIOLATION_TYPES: Record<
     category: ViolationCategory.LAINNYA,
     name: 'Quotation terbit > H+3 sejak Survey Selesai',
     description: 'Quotation tidak terbit lebih dari 3 hari sejak Survey Selesai',
-    point: 1,
-  },
-  [ViolationTypeCode.DOC_NOT_UPLOADED]: {
-    category: ViolationCategory.LAINNYA,
-    name: 'Tidak upload dokumentasi foto before/after',
-    description: 'Vendor tidak upload dokumentasi foto before/after atau foto blur/tidak lengkap',
     point: 1,
   },
   [ViolationTypeCode.STATUS_NOT_UPDATED_H]: {
@@ -140,6 +128,15 @@ export class ViolationDetectorService {
   ): Promise<ViolationResult> {
     // [POIN 6] Lapis 2 guard: validate evidence WAJIB ada dan valid.
     // Kalau kosong → throw BadRequestException (data tidak akan tersimpan).
+    if (violationCode === 'QUOTATION_NOT_FULFILLED' || violationCode === 'DOC_NOT_UPLOADED') {
+      return {
+        success: false,
+        pointAdded: 0,
+        newTotalPoints: 0,
+        message: `Jenis pelanggaran ${violationCode} sudah dinonaktifkan`,
+      };
+    }
+
     const { evidencePath, evidenceProvenance } = this.resolveEvidence(context.evidence);
 
     try {
@@ -296,6 +293,17 @@ export class ViolationDetectorService {
    * Pastikan semua 15 master violation type default ada di database (auto-seed pada boot / demand)
    */
   async ensureDefaultViolationTypes(): Promise<void> {
+    try {
+      await this.dbService.vendor_violation_type.updateMany({
+        where: {
+          code: { in: ['QUOTATION_NOT_FULFILLED', 'DOC_NOT_UPLOADED'] },
+          is_active: true,
+        },
+        data: { is_active: false, updated_at: new Date() },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Could not deactivate removed violation types: ${err.message}`);
+    }
     for (const [code, def] of Object.entries(DEFAULT_VIOLATION_TYPES)) {
       try {
         const existing = await this.dbService.vendor_violation_type.findFirst({

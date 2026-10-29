@@ -235,7 +235,14 @@ export class WorkOrdersService {
               ],
             }
             : undefined,
-          status ? { status: { id: { in: status } } } : undefined,
+          status
+            ? {
+              OR: [
+                { status: { id: { in: status } } },
+                { order: { project_status_id: { in: status } } },
+              ],
+            }
+            : undefined,
           vendor_id
             ? {
               vendor_id: vendor_id,
@@ -273,9 +280,10 @@ export class WorkOrdersService {
         skip,
         take: take <= 0 ? undefined : take,
         where,
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: [
+          { updated_at: 'desc' },
+          { created_at: 'desc' },
+        ],
         include: {
           order: {
             include: {
@@ -292,6 +300,9 @@ export class WorkOrdersService {
               sales: true,
               members: true,
               quotation: {
+                where: {
+                  deleted_at: null,
+                },
                 include: {
                   quotation_details: true,
                 },
@@ -520,7 +531,10 @@ export class WorkOrdersService {
           id,
         },
         include: {
-          work_order_status: true,
+          work_order_status: {
+            where: { deleted_at: null },
+            orderBy: { created_at: 'desc' },
+          },
           work_order_tukang: { where: { deleted_at: null } },
         },
       });
@@ -528,15 +542,12 @@ export class WorkOrdersService {
       if (!checkWorkOrder)
         throw new BadRequestException('Work Order not exist');
 
-      let updateStatus: number | undefined = undefined;
-      let parentId: number | undefined = undefined;
-      if (
-        dataDto.work_order_status === 7 &&
-        checkWorkOrder.work_order_status[0].status_id === 6
-      ) {
-        updateStatus = dataDto.work_order_status;
-        parentId = checkWorkOrder.work_order_status[0].status_id;
-      }
+      const latestWorkOrderStatusId = checkWorkOrder.work_order_status[0]?.status_id;
+      const updateStatus: number | undefined = dataDto.work_order_status;
+      const parentId: number | undefined =
+        dataDto.work_order_status === 7 && latestWorkOrderStatusId === 6
+          ? latestWorkOrderStatusId
+          : undefined;
 
       const { id: user_id } = user;
       const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
@@ -1064,7 +1075,6 @@ export class WorkOrdersService {
       );
 
       if (work_order?.order?.vendor_id) {
-        await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
         await this.checkStatusUpdateViolation(workOrder, NEW_STATUS);
       }
 

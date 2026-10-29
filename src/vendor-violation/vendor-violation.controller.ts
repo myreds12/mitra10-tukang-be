@@ -419,9 +419,9 @@ export class VendorViolationController {
 
   @Post('rebuild-sp-year')
   @ApiOperation({
-    summary: 'Preview or rebuild vendor SP for 2026',
+    summary: 'Preview or rebuild vendor SP per quarter',
     description:
-      'Defaults to dry-run. Applying requires Super User, delete_existing=true, delete_all=true, and confirmation DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026. This permanently deletes all vendor_violation_log, vendor_sp_detail, and vendor_sp rows before rebuilding the configured range.',
+      'Defaults to dry-run. Evaluates and rebuilds vendor SP strictly for the target year and quarter (both violation log and order creation date must belong to the target quarter).',
   })
   async rebuildVendorSpYear(
     @Body() dto: RebuildVendorSpDto,

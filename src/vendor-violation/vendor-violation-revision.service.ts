@@ -233,18 +233,22 @@ export class VendorViolationRevisionService {
     await this.assertRole(user, ['Super User']);
 
     const year = Number(dto.year);
-    const fromMonth = Number(dto.from_month ?? 7);
-    const rangeStart = new Date(year, fromMonth - 1, 1);
-    const rangeEnd = new Date(year + 1, 0, 1);
-    const violationCodes = [...new Set(dto.violation_codes.map((code) => code.trim()))];
-    const violationTypes = await this.dbService.vendor_violation_type.findMany({
-      where: {
-        code: { in: violationCodes },
-        is_active: true,
-        deleted_at: null,
-      },
-      select: { id: true, code: true, point: true },
-    });
+    const quarter = Number(dto.quarter ?? 4);
+    const { startDate: rangeStart, endDate: rangeEnd } = getQuarterDateRange(quarter, year);
+    const removedCodes = new Set(['QUOTATION_NOT_FULFILLED', 'DOC_NOT_UPLOADED']);
+    const requestedCodes = [...new Set(dto.violation_codes.map((code) => code.trim()))];
+    const violationCodes = requestedCodes.filter((code) => !removedCodes.has(code));
+    const violationTypes =
+      violationCodes.length > 0
+        ? await this.dbService.vendor_violation_type.findMany({
+            where: {
+              code: { in: violationCodes },
+              is_active: true,
+              deleted_at: null,
+            },
+            select: { id: true, code: true, point: true },
+          })
+        : [];
 
     const foundCodes = new Set(violationTypes.map((type) => type.code));
     const unknownCodes = violationCodes.filter((code) => !foundCodes.has(code));
@@ -257,7 +261,8 @@ export class VendorViolationRevisionService {
     const logs = await this.dbService.vendor_violation_log.findMany({
       where: {
         year,
-        created_at: { gte: rangeStart, lt: rangeEnd },
+        quarter,
+        created_at: { gte: rangeStart, lte: rangeEnd },
         deleted_at: null,
         is_active: true,
       },
@@ -345,10 +350,11 @@ export class VendorViolationRevisionService {
       totalPoints: number;
     }>();
 
+    const requestedCodeSet = new Set(requestedCodes);
     for (const log of logs) {
-      if (!selectedCodeSet.has(log.violation_type.code)) continue;
+      if (!requestedCodeSet.has(log.violation_type.code)) continue;
 
-      const eligibility = this.getRebuildLogEligibility(log);
+      const eligibility = this.getRebuildLogEligibility(log, rangeStart, rangeEnd);
       if (!eligibility.valid) {
         excludedLogs.push({
           id: log.id,
@@ -381,7 +387,9 @@ export class VendorViolationRevisionService {
     );
     const summary = {
       year,
-      fromMonth,
+      quarter,
+      periodStart: rangeStart.toISOString(),
+      periodEnd: rangeEnd.toISOString(),
       violationCodes,
       dryRun: dto.dry_run !== false,
       violationLogCount: logs.length,
@@ -405,13 +413,19 @@ export class VendorViolationRevisionService {
 
     if (dto.dry_run !== false) return summary;
 
+    const allowedConfirmations = new Set([
+      'DELETE_ALL_AND_REBUILD_VENDOR_SP_BY_QUARTER',
+      'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026',
+    ]);
+
     if (
       !dto.delete_existing ||
       !dto.delete_all ||
-      dto.confirmation !== 'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026'
+      !dto.confirmation ||
+      !allowedConfirmations.has(dto.confirmation)
     ) {
       throw new BadRequestException(
-        'Untuk hard-delete, delete_existing dan delete_all harus true serta confirmation harus DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026.',
+        'Untuk hard-delete, delete_existing dan delete_all harus true serta confirmation harus DELETE_ALL_AND_REBUILD_VENDOR_SP_BY_QUARTER (atau DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026).',
       );
     }
 
@@ -429,7 +443,7 @@ export class VendorViolationRevisionService {
 
       const recreatedLogIds = new Map<number, number>();
       for (const log of logs) {
-        const eligibility = this.getRebuildLogEligibility(log);
+        const eligibility = this.getRebuildLogEligibility(log, rangeStart, rangeEnd);
         if (!selectedCodeSet.has(log.violation_type.code) || !eligibility.valid) continue;
 
         const recreatedLog = await tx.vendor_violation_log.create({
@@ -468,7 +482,7 @@ export class VendorViolationRevisionService {
             end_date: endDate,
             status: 1,
             allocation_reduction: this.getAllocationReduction(spLevel),
-            notes: `SP rebuilt for ${year} from selected violation types.`,
+            notes: `SP rebuilt for Q${group.quarter} ${year} from selected violation types.`,
             created_by: user.id,
           },
         });
@@ -489,7 +503,7 @@ export class VendorViolationRevisionService {
     return {
       ...summary,
       dryRun: false,
-      fromMonth,
+      quarter,
       deleteExisting: true,
       deleteAll: true,
       notificationsSent: 0,
@@ -497,12 +511,33 @@ export class VendorViolationRevisionService {
     };
   }
 
-  private getRebuildLogEligibility(log: any): { valid: boolean; reason: string } {
+  private getRebuildLogEligibility(
+    log: any,
+    rangeStart: Date,
+    rangeEnd: Date,
+  ): { valid: boolean; reason: string } {
     const code = log.violation_type?.code;
+    if (code === 'QUOTATION_NOT_FULFILLED' || code === 'DOC_NOT_UPLOADED') {
+      return {
+        valid: false,
+        reason: `Jenis pelanggaran ${code} sudah dihapus/dinonaktifkan.`,
+      };
+    }
+
     const order = log.orders;
 
     if (!order) {
       return { valid: true, reason: 'Tidak ada relasi order untuk divalidasi ulang.' };
+    }
+
+    if (order.created_at) {
+      const orderCreatedAt = new Date(order.created_at);
+      if (orderCreatedAt < rangeStart || orderCreatedAt > rangeEnd) {
+        return {
+          valid: false,
+          reason: 'Order dibuat di luar periode kuartal evaluasi.',
+        };
+      }
     }
 
     const snapshot = this.parseViolationSnapshot(log.evidence_path);
@@ -529,12 +564,17 @@ export class VendorViolationRevisionService {
       }
     }
 
-    if (code === 'CUSTOMER_COMPLAINT' && relatedId('complaintId')) {
-      const complaintExists = order.complaints?.some(
-        (item: any) => item.id === relatedId('complaintId'),
-      );
+    if (code === 'CUSTOMER_COMPLAINT') {
+      const targetComplaintId = relatedId('complaintId');
+      const complaintExists = targetComplaintId
+        ? order.complaints?.some((item: any) => item.id === targetComplaintId)
+        : (order.complaints?.length ?? 0) > 0;
       if (!complaintExists) {
         return { valid: false, reason: 'Complaint sumber tidak ditemukan atau sudah dihapus.' };
+      }
+      const hasActiveRefund = (order.refund?.length ?? 0) > 0;
+      if (!hasActiveRefund) {
+        return { valid: false, reason: 'Komplain customer tidak berujung refund.' };
       }
     }
 

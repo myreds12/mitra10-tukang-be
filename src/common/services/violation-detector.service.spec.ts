@@ -106,10 +106,10 @@ describe('ViolationDetectorService — checkAndIssueSP', () => {
       args.userId,
     );
 
-  it('returns undefined when totalPoints is below SP1 threshold (no SP needed)', async () => {
+  it('returns undefined when totalPoints is 1-30 (below SP1 threshold of 31)', async () => {
     const result = await callCheckAndIssueSP(service, {
       vendorId: 1,
-      totalPoints: 0,
+      totalPoints: 30,
       quarter: 1,
       year: 2026,
     });
@@ -241,7 +241,7 @@ describe('ViolationDetectorService — checkAndIssueSP', () => {
 
       const result = await callCheckAndIssueSP(service, {
         vendorId: 42,
-        totalPoints: 30,
+        totalPoints: 45,
         quarter: 1,
         year: 2026,
       });

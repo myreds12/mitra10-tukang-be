@@ -56,10 +56,13 @@ export function evaluateSPWarning(
 
   if (currentSpLevel === 2 || totalPoints >= SPThreshold.SP2) {
     targetSpLevel = 3;
-    threshold = SPThreshold.SP3; // 51
-  } else {
+    threshold = SPThreshold.SP3;
+  } else if (currentSpLevel === 1 || totalPoints >= SPThreshold.SP1) {
     targetSpLevel = 2;
-    threshold = SPThreshold.SP2; // 26
+    threshold = SPThreshold.SP2;
+  } else {
+    targetSpLevel = 1;
+    threshold = SPThreshold.SP1;
   }
 
   const warningThreshold = Math.ceil(threshold * WARNING_THRESHOLD_PERCENTAGE);

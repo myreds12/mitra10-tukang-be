@@ -85,6 +85,19 @@ export class VendorService {
         margin_nominal: createVendorDto.margin_nominal,
         margin_type: createVendorDto.margin_type,
         max_order: createVendorDto.max_order,
+        ...(() => {
+          const currentQ = Math.ceil((new Date().getMonth() + 1) / 3);
+          const autoVal =
+            createVendorDto.quarter_order !== undefined
+              ? Number(createVendorDto.quarter_order)
+              : undefined;
+          return {
+            q1: createVendorDto.q1 ?? (currentQ === 1 && autoVal !== undefined ? autoVal : 0),
+            q2: createVendorDto.q2 ?? (currentQ === 2 && autoVal !== undefined ? autoVal : 0),
+            q3: createVendorDto.q3 ?? (currentQ === 3 && autoVal !== undefined ? autoVal : 0),
+            q4: createVendorDto.q4 ?? (currentQ === 4 && autoVal !== undefined ? autoVal : 0),
+          };
+        })(),
         address: createVendorDto.address,
         pic_name: createVendorDto.pic_name,
         company_name: createVendorDto.company_name,
@@ -373,54 +386,10 @@ export class VendorService {
         }
       });
 
-      let vendor = vendorList;
-      if (vendor_with_max_order) {
-        vendor = vendorList.filter((v) => {
-          return v.tukang.some((t) => {
-            const dailySlots = t.work_order_tukang.filter((item) => {
-              const {
-                work_start_date,
-                work_end_date,
-                survey_date,
-                status,
-                created_at,
-              } = item?.work_orders || {};
-
-              let startDate: Date;
-              let endDate: Date;
-
-              if (work_start_date && work_end_date) {
-                startDate = new Date(work_start_date);
-                endDate = new Date(work_end_date);
-              } else if (survey_date) {
-                startDate = new Date(survey_date);
-                endDate = startDate;
-              } else {
-                startDate = new Date(created_at);
-                endDate = startDate;
-              }
-
-              const currentDate = new Date().toISOString().split('T')[0];
-
-              const isWithinRange =
-                startDate.toISOString().split('T')[0] <= currentDate &&
-                endDate.toISOString().split('T')[0] >= currentDate;
-              return (
-                status?.category !== 'SURVEYDONE' &&
-                status?.category !== 'WORKEND' &&
-                isWithinRange
-              );
-            });
-
-            return dailySlots.length <= v.max_order;
-          });
-        });
-      }
-
-      vendor = vendorList.map((vendor) => {
+      let vendor = vendorList.map((vendorItem) => {
         return {
-          ...vendor,
-          tukang: vendor.tukang.map((tukangItem) => {
+          ...vendorItem,
+          tukang: vendorItem.tukang.map((tukangItem) => {
             const dailySlots = tukangItem.work_order_tukang.filter((item) => {
               const orderDate = new Date(item.work_orders?.created_at ?? 0)
                 .toISOString()
@@ -441,10 +410,30 @@ export class VendorService {
         };
       });
 
+      const vendorIds = vendor.map((v) => v.id);
+      const nowDate = new Date();
+      const targetYear = order_date_from
+        ? new Date(order_date_from).getFullYear()
+        : nowDate.getFullYear();
+      const currentQuarter = Math.ceil((nowDate.getMonth() + 1) / 3);
+      const quarterRanges = [1, 2, 3, 4].map((q) => ({
+        start: new Date(targetYear, (q - 1) * 3, 1, 0, 0, 0, 0),
+        end: new Date(targetYear, q * 3, 0, 23, 59, 59, 999),
+      }));
 
-      const vendorIds = vendor.map(v => v.id);
-
-      const [ordersAggregate, unpaidAggregate, paidAggregate, surveyAggregate, workAggregate] = await Promise.all([
+      const [
+        ordersAggregate,
+        unpaidAggregate,
+        paidAggregate,
+        surveyAggregate,
+        workAggregate,
+        q1OrdersAgg,
+        q2OrdersAgg,
+        q3OrdersAgg,
+        q4OrdersAgg,
+        activeSpList,
+        quarterViolationLogs,
+      ] = await Promise.all([
         this.dbService.orders.groupBy({
           by: ["vendor_id"],
           where: {
@@ -573,6 +562,41 @@ export class VendorService {
           _count: { id: true },
           _sum: { grand_total: true }
         }),
+        ...quarterRanges.map((range) =>
+          this.dbService.orders.groupBy({
+            by: ['vendor_id'],
+            where: {
+              vendor_id: { in: vendorIds },
+              deleted_at: null,
+              created_at: { gte: range.start, lte: range.end },
+            },
+            _count: { id: true },
+          }),
+        ),
+        this.dbService.vendor_sp.findMany({
+          where: {
+            vendor_id: { in: vendorIds },
+            deleted_at: null,
+            status: { in: [1, 3] },
+            OR: [
+              { quarter: currentQuarter, year: targetYear },
+              { status: 3, end_date: { gte: nowDate } },
+            ],
+          },
+          orderBy: [{ sp_level: 'desc' }, { updated_at: 'desc' }],
+        }),
+        this.dbService.vendor_violation_log.findMany({
+          where: {
+            vendor_id: { in: vendorIds },
+            quarter: currentQuarter,
+            year: targetYear,
+            is_active: true,
+            deleted_at: null,
+          },
+          include: {
+            violation_type: { select: { point: true } },
+          },
+        }),
       ]);
 
       const aggMap = (data: any[]) => Object.fromEntries(data.map(i => [i.vendor_id, i]));
@@ -582,20 +606,154 @@ export class VendorService {
       const paidMap = aggMap(paidAggregate);
       const surveyMap = aggMap(surveyAggregate);
       const workMap = aggMap(workAggregate);
+      const q1Map = aggMap(q1OrdersAgg);
+      const q2Map = aggMap(q2OrdersAgg);
+      const q3Map = aggMap(q3OrdersAgg);
+      const q4Map = aggMap(q4OrdersAgg);
 
-      const finalVendor = vendor.map(vendor => {
-        const id = vendor.id;
+      const spByVendor = new Map<number, any>();
+      for (const sp of activeSpList as any[]) {
+        if (!spByVendor.has(sp.vendor_id)) {
+          spByVendor.set(sp.vendor_id, sp);
+        }
+      }
+
+      const pointsByVendor = new Map<number, number>();
+      for (const log of quarterViolationLogs as any[]) {
+        const pts = log.adjusted_point ?? log.violation_type?.point ?? 0;
+        pointsByVendor.set(log.vendor_id, (pointsByVendor.get(log.vendor_id) ?? 0) + pts);
+      }
+
+      const quarterKeys = ['q1', 'q2', 'q3', 'q4'] as const;
+      const currentQuarterKey = quarterKeys[currentQuarter - 1];
+      const prevQuarterKey = quarterKeys[(currentQuarter + 2) % 4];
+
+      let finalVendor = vendor.map((vendorItem) => {
+        const id = vendorItem.id;
+        const totalOrderPerQuarter = {
+          q1: vendorItem.q1 > 0 ? vendorItem.q1 : (q1Map[id]?._count?.id || 0),
+          q2: vendorItem.q2 > 0 ? vendorItem.q2 : (q2Map[id]?._count?.id || 0),
+          q3: vendorItem.q3 > 0 ? vendorItem.q3 : (q3Map[id]?._count?.id || 0),
+          q4: vendorItem.q4 > 0 ? vendorItem.q4 : (q4Map[id]?._count?.id || 0),
+        };
+        const actualOrdersInQuarter = {
+          q1: q1Map[id]?._count?.id || 0,
+          q2: q2Map[id]?._count?.id || 0,
+          q3: q3Map[id]?._count?.id || 0,
+          q4: q4Map[id]?._count?.id || 0,
+        };
+        const activeSp = spByVendor.get(id) ?? null;
+        const spLevel = activeSp?.sp_level ?? null;
+        const allocationReduction =
+          spLevel === 3
+            ? 100
+            : activeSp?.allocation_reduction ??
+              (spLevel === 2 ? 75 : spLevel === 1 ? 50 : 0);
+        const totalPoint = pointsByVendor.get(id) ?? 0;
+        const currentQuarterAcuan =
+          totalOrderPerQuarter[currentQuarterKey] > 0
+            ? totalOrderPerQuarter[currentQuarterKey]
+            : totalOrderPerQuarter[prevQuarterKey];
+        const reduceOrderCount = (count: number) =>
+          spLevel === 3
+            ? 0
+            : allocationReduction > 0
+              ? Math.floor(count * (1 - allocationReduction / 100))
+              : count;
+        const allocationQuotaPerQuarter = {
+          q1: reduceOrderCount(totalOrderPerQuarter.q1),
+          q2: reduceOrderCount(totalOrderPerQuarter.q2),
+          q3: reduceOrderCount(totalOrderPerQuarter.q3),
+          q4: reduceOrderCount(totalOrderPerQuarter.q4),
+        };
+        const maxOrderQuarterAfterReduction =
+          spLevel === 3
+            ? 0
+            : allocationReduction > 0 && currentQuarterAcuan > 0
+              ? Math.max(1, Math.floor(currentQuarterAcuan * (1 - allocationReduction / 100)))
+              : currentQuarterAcuan;
+
         return {
-          ...vendor,
+          ...vendorItem,
           total_order: orderMap[id]?._count.id || 0,
           total_paid_order: paidMap[id]?._sum.grand_total || 0,
           total_unpaid_order: unpaidMap[id]?._sum.grand_total || 0,
           total_order_survey: surveyMap[id]?._count.id || 0,
           total_order_survey_value: surveyMap[id]?._sum.grand_total || 0,
           total_order_work: workMap[id]?._count.id || 0,
-          total_order_work_value: workMap[id]?._sum.grand_total || 0
+          total_order_work_value: workMap[id]?._sum.grand_total || 0,
+          total_order_per_quarter: totalOrderPerQuarter,
+          actual_orders_per_quarter: actualOrdersInQuarter,
+          q1: totalOrderPerQuarter.q1,
+          q2: totalOrderPerQuarter.q2,
+          q3: totalOrderPerQuarter.q3,
+          q4: totalOrderPerQuarter.q4,
+          active_quarter: currentQuarter,
+          active_quarter_key: currentQuarterKey,
+          active_quarter_label: `Q${currentQuarter}`,
+          quarter_order: totalOrderPerQuarter[currentQuarterKey],
+          sp_level: spLevel,
+          sp_status: spLevel ? `SP${spLevel}` : 'NORMAL',
+          total_point: totalPoint,
+          allocation_reduction: allocationReduction,
+          acuan_order_quarter: currentQuarterAcuan,
+          max_order_quarter_after_reduction: maxOrderQuarterAfterReduction,
+          allocation_quota_per_quarter: allocationQuotaPerQuarter,
         };
       });
+
+      if (vendor_with_max_order) {
+        finalVendor = finalVendor.filter((v) => {
+          if (v.sp_level === 3 || v.allocation_reduction >= 100) {
+            return false;
+          }
+          if (
+            v.allocation_reduction > 0 &&
+            v.acuan_order_quarter > 0 &&
+            v.actual_orders_per_quarter[currentQuarterKey] >= v.max_order_quarter_after_reduction
+          ) {
+            return false;
+          }
+          return v.tukang.some((t) => {
+            const dailySlots = t.work_order_tukang.filter((item) => {
+              const {
+                work_start_date,
+                work_end_date,
+                survey_date,
+                status,
+                created_at,
+              } = item?.work_orders || {};
+
+              let startDate: Date;
+              let endDate: Date;
+
+              if (work_start_date && work_end_date) {
+                startDate = new Date(work_start_date);
+                endDate = new Date(work_end_date);
+              } else if (survey_date) {
+                startDate = new Date(survey_date);
+                endDate = startDate;
+              } else {
+                startDate = new Date(created_at);
+                endDate = startDate;
+              }
+
+              const currentDate = new Date().toISOString().split('T')[0];
+
+              const isWithinRange =
+                startDate.toISOString().split('T')[0] <= currentDate &&
+                endDate.toISOString().split('T')[0] >= currentDate;
+              return (
+                status?.category !== 'SURVEYDONE' &&
+                status?.category !== 'WORKEND' &&
+                isWithinRange
+              );
+            });
+
+            return dailySlots.length <= v.max_order;
+          });
+        });
+      }
 
       if (Boolean(top_best)) {
         finalVendor.sort((a, b) => b.total_paid_order - a.total_paid_order);
@@ -745,6 +903,112 @@ export class VendorService {
         });
       }
 
+      if (vendor) {
+        const nowDate = new Date();
+        const currentYear = nowDate.getFullYear();
+        const currentQuarter = Math.ceil((nowDate.getMonth() + 1) / 3);
+        const countedPerQuarter = { q1: 0, q2: 0, q3: 0, q4: 0 };
+
+        for (const ord of vendor.orders ?? []) {
+          if (!ord.created_at) continue;
+          const ordDate = new Date(ord.created_at);
+          if (ordDate.getFullYear() !== currentYear) continue;
+          const q = Math.ceil((ordDate.getMonth() + 1) / 3);
+          if (q === 1) countedPerQuarter.q1++;
+          else if (q === 2) countedPerQuarter.q2++;
+          else if (q === 3) countedPerQuarter.q3++;
+          else if (q === 4) countedPerQuarter.q4++;
+        }
+
+        const totalOrderPerQuarter = {
+          q1: vendor.q1 > 0 ? vendor.q1 : countedPerQuarter.q1,
+          q2: vendor.q2 > 0 ? vendor.q2 : countedPerQuarter.q2,
+          q3: vendor.q3 > 0 ? vendor.q3 : countedPerQuarter.q3,
+          q4: vendor.q4 > 0 ? vendor.q4 : countedPerQuarter.q4,
+        };
+
+        const [activeSp, quarterViolationLogs] = await Promise.all([
+          this.dbService.vendor_sp.findFirst({
+            where: {
+              vendor_id: vendor.id,
+              deleted_at: null,
+              status: { in: [1, 3] },
+              OR: [
+                { quarter: currentQuarter, year: currentYear },
+                { status: 3, end_date: { gte: nowDate } },
+              ],
+            },
+            orderBy: [{ sp_level: 'desc' }, { updated_at: 'desc' }],
+          }),
+          this.dbService.vendor_violation_log.findMany({
+            where: {
+              vendor_id: vendor.id,
+              quarter: currentQuarter,
+              year: currentYear,
+              is_active: true,
+              deleted_at: null,
+            },
+            include: {
+              violation_type: { select: { point: true } },
+            },
+          }),
+        ]);
+
+        const spLevel = activeSp?.sp_level ?? null;
+        const allocationReduction =
+          spLevel === 3
+            ? 100
+            : activeSp?.allocation_reduction ??
+              (spLevel === 2 ? 75 : spLevel === 1 ? 50 : 0);
+        const totalPoint = quarterViolationLogs.reduce(
+          (sum, log) => sum + (log.adjusted_point ?? log.violation_type?.point ?? 0),
+          0,
+        );
+        const quarterKeys = ['q1', 'q2', 'q3', 'q4'] as const;
+        const currentQuarterKey = quarterKeys[currentQuarter - 1];
+        const prevQuarterKey = quarterKeys[(currentQuarter + 2) % 4];
+        const acuanOrderQuarter =
+          totalOrderPerQuarter[currentQuarterKey] > 0
+            ? totalOrderPerQuarter[currentQuarterKey]
+            : totalOrderPerQuarter[prevQuarterKey];
+        const reduceOrderCount = (count: number) =>
+          spLevel === 3
+            ? 0
+            : allocationReduction > 0
+              ? Math.floor(count * (1 - allocationReduction / 100))
+              : count;
+
+        return {
+          ...vendor,
+          total_order_per_quarter: totalOrderPerQuarter,
+          q1: totalOrderPerQuarter.q1,
+          q2: totalOrderPerQuarter.q2,
+          q3: totalOrderPerQuarter.q3,
+          q4: totalOrderPerQuarter.q4,
+          active_quarter: currentQuarter,
+          active_quarter_key: currentQuarterKey,
+          active_quarter_label: `Q${currentQuarter}`,
+          quarter_order: totalOrderPerQuarter[currentQuarterKey],
+          sp_level: spLevel,
+          sp_status: spLevel ? `SP${spLevel}` : 'NORMAL',
+          total_point: totalPoint,
+          allocation_reduction: allocationReduction,
+          acuan_order_quarter: acuanOrderQuarter,
+          max_order_quarter_after_reduction:
+            spLevel === 3
+              ? 0
+              : allocationReduction > 0 && acuanOrderQuarter > 0
+                ? Math.max(1, Math.floor(acuanOrderQuarter * (1 - allocationReduction / 100)))
+                : acuanOrderQuarter,
+          allocation_quota_per_quarter: {
+            q1: reduceOrderCount(totalOrderPerQuarter.q1),
+            q2: reduceOrderCount(totalOrderPerQuarter.q2),
+            q3: reduceOrderCount(totalOrderPerQuarter.q3),
+            q4: reduceOrderCount(totalOrderPerQuarter.q4),
+          },
+        };
+      }
+
       return vendor;
     } catch (error) {
       console.error(error);
@@ -869,6 +1133,19 @@ export class VendorService {
         margin_type: updateVendorDto.margin_type,
         address: updateVendorDto.address,
         max_order: updateVendorDto.max_order,
+        ...(() => {
+          const currentQ = Math.ceil((new Date().getMonth() + 1) / 3);
+          const autoVal =
+            updateVendorDto.quarter_order !== undefined
+              ? Number(updateVendorDto.quarter_order)
+              : undefined;
+          return {
+            q1: updateVendorDto.q1 ?? (currentQ === 1 ? autoVal : undefined),
+            q2: updateVendorDto.q2 ?? (currentQ === 2 ? autoVal : undefined),
+            q3: updateVendorDto.q3 ?? (currentQ === 3 ? autoVal : undefined),
+            q4: updateVendorDto.q4 ?? (currentQ === 4 ? autoVal : undefined),
+          };
+        })(),
         pic_name: updateVendorDto.pic_name,
         company_name: updateVendorDto.company_name,
         account_name: updateVendorDto.account_name,

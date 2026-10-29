@@ -106,7 +106,7 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
           },
           'calculateTotalPoints',
         )
-        .mockResolvedValue(10);
+        .mockResolvedValue(35);
       jest
         .spyOn(
           service as unknown as {
@@ -118,7 +118,7 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
       (prisma.vendor_sp.findFirst as jest.Mock).mockResolvedValueOnce(existingSp);
       (prisma.vendor_sp.update as jest.Mock).mockResolvedValueOnce({
         ...existingSp,
-        total_point: 10,
+        total_point: 35,
       });
       (prisma.vendor_sp_detail.findMany as jest.Mock).mockResolvedValueOnce([]);
       (prisma.vendor_violation_log.findMany as jest.Mock).mockResolvedValueOnce([
@@ -172,7 +172,7 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
           },
           'calculateTotalPoints',
         )
-        .mockResolvedValue(10);
+        .mockResolvedValue(35);
       jest
         .spyOn(
           service as unknown as {
@@ -184,7 +184,7 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
       (prisma.vendor_sp.findFirst as jest.Mock).mockResolvedValueOnce(existingSp);
       (prisma.vendor_sp.update as jest.Mock).mockResolvedValueOnce({
         ...existingSp,
-        total_point: 10,
+        total_point: 35,
       });
       (prisma.vendor_sp_detail.findMany as jest.Mock).mockResolvedValueOnce([
         { violation_log_id: 101 },
@@ -215,7 +215,7 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
           },
           'calculateTotalPoints',
         )
-        .mockResolvedValue(35);
+        .mockResolvedValue(45);
       jest
         .spyOn(
           service as unknown as {
@@ -230,7 +230,7 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
         vendor_id: 42,
         sp_level: 2,
         status: 1,
-        total_point: 35,
+        total_point: 45,
         quarter: 1,
         year: 2026,
       };
@@ -358,9 +358,9 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
       expect(prisma.vendor_sp.create).not.toHaveBeenCalled();
     });
 
-    it('excludes DOC_NOT_UPLOADED when before and after evidences exist including soft-deleted rows', async () => {
+    it('always excludes removed violation types DOC_NOT_UPLOADED and QUOTATION_NOT_FULFILLED and only includes CUSTOMER_COMPLAINT that ended in refund', async () => {
       prisma.vendor_violation_type.findMany.mockResolvedValue([
-        { id: 2, code: 'DOC_NOT_UPLOADED', point: 1 },
+        { id: 8, code: 'CUSTOMER_COMPLAINT', point: 1 },
       ]);
       prisma.vendor_violation_log.findMany.mockResolvedValue([
         {
@@ -378,15 +378,65 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
           violation_type: { code: 'DOC_NOT_UPLOADED', point: 1 },
           vendor: { id: 42, company_name: 'Vendor 42' },
           orders: {
-            created_at: new Date('2026-02-05T05:45:41.533Z'),
-            work_orders: {
-              created_at: new Date('2026-02-05T10:01:06.686Z'),
-              work_order_status: [],
-              work_order_evidences: [
-                { type: 2, deleted_at: new Date('2026-10-28T05:35:02.993Z') },
-                { type: 3, deleted_at: new Date('2026-10-28T05:35:02.993Z') },
-              ],
-            },
+            created_at: new Date('2026-10-05T05:45:41.533Z'),
+          },
+        },
+        {
+          id: 12,
+          vendor_id: 42,
+          violation_type_id: 9,
+          order_id: 5001,
+          quarter: 4,
+          created_at: new Date('2026-10-28T03:18:15.000Z'),
+          description: 'quotation not fulfilled',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 1,
+          violation_type: { code: 'QUOTATION_NOT_FULFILLED', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+          orders: {
+            created_at: new Date('2026-10-05T05:45:41.533Z'),
+          },
+        },
+        {
+          id: 13,
+          vendor_id: 42,
+          violation_type_id: 8,
+          order_id: 5002,
+          quarter: 4,
+          created_at: new Date('2026-10-28T03:18:15.000Z'),
+          description: 'complaint without refund',
+          evidence_path: JSON.stringify({ complaintId: 100 }),
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 1,
+          violation_type: { code: 'CUSTOMER_COMPLAINT', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+          orders: {
+            created_at: new Date('2026-10-05T05:45:41.533Z'),
+            complaints: [{ id: 100 }],
+            refund: [],
+          },
+        },
+        {
+          id: 14,
+          vendor_id: 42,
+          violation_type_id: 8,
+          order_id: 5003,
+          quarter: 4,
+          created_at: new Date('2026-10-28T03:18:15.000Z'),
+          description: 'complaint with refund',
+          evidence_path: JSON.stringify({ complaintId: 101, refundId: 201 }),
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 1,
+          violation_type: { code: 'CUSTOMER_COMPLAINT', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+          orders: {
+            created_at: new Date('2026-10-05T05:45:41.533Z'),
+            complaints: [{ id: 101 }],
+            refund: [{ id: 201 }],
           },
         },
       ]);
@@ -394,20 +444,20 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
       const result = await service.rebuildYear(
         {
           year: 2026,
-          violation_codes: ['DOC_NOT_UPLOADED'],
+          quarter: 4,
+          violation_codes: ['DOC_NOT_UPLOADED', 'QUOTATION_NOT_FULFILLED', 'CUSTOMER_COMPLAINT'],
           dry_run: true,
         } as any,
         user,
       );
 
       expect(result).toEqual(expect.objectContaining({
-        selectedViolationLogCount: 0,
-        rebuiltPointTotal: 0,
+        selectedViolationLogCount: 1,
+        rebuiltPointTotal: 1,
         excludedLogs: [
-          expect.objectContaining({
-            id: 11,
-            code: 'DOC_NOT_UPLOADED',
-          }),
+          expect.objectContaining({ id: 11, code: 'DOC_NOT_UPLOADED' }),
+          expect.objectContaining({ id: 12, code: 'QUOTATION_NOT_FULFILLED' }),
+          expect.objectContaining({ id: 13, code: 'CUSTOMER_COMPLAINT' }),
         ],
       }));
     });
@@ -472,25 +522,88 @@ describe('VendorViolationRevisionService — syncVendorSpAfterPointChange', () =
       }));
     });
 
+    it('excludes logs when order was created outside the target quarter (e.g. May order in Q4)', async () => {
+      prisma.vendor_violation_log.findMany.mockResolvedValue([
+        {
+          id: 15,
+          vendor_id: 42,
+          violation_type_id: 1,
+          order_id: 4444,
+          quarter: 4,
+          created_at: new Date('2026-10-15T00:00:00.000Z'),
+          description: 'May order evaluated in October',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 1,
+          violation_type: { code: 'ORDER_NOT_CONFIRMED_H1', point: 1 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+          orders: {
+            created_at: new Date('2026-05-12T04:00:00.000Z'),
+          },
+        },
+      ]);
+
+      const result = await service.rebuildYear(
+        {
+          year: 2026,
+          quarter: 4,
+          violation_codes: ['ORDER_NOT_CONFIRMED_H1'],
+          dry_run: true,
+        } as any,
+        user,
+      );
+
+      expect(result).toEqual(expect.objectContaining({
+        quarter: 4,
+        selectedViolationLogCount: 0,
+        rebuiltPointTotal: 0,
+        excludedLogs: [
+          expect.objectContaining({
+            id: 15,
+            code: 'ORDER_NOT_CONFIRMED_H1',
+            reason: 'Order dibuat di luar periode kuartal evaluasi.',
+          }),
+        ],
+      }));
+    });
+
     it('requires explicit confirmation before applying the rebuild', async () => {
       await expect(
         service.rebuildYear({ ...dto, dry_run: false, delete_existing: true } as any, user),
-      ).rejects.toThrow('DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026');
+      ).rejects.toThrow('DELETE_ALL_AND_REBUILD_VENDOR_SP_BY_QUARTER');
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it('resets 2026 rows and creates SP from selected violation types', async () => {
+    it('resets 2026 rows and creates SP from selected violation types when points >= SP1 (31)', async () => {
       prisma.vendor_sp.create.mockResolvedValue({ id: 700, sp_level: 1 });
       prisma.vendor_violation_log.create.mockResolvedValue({ id: 1001 });
+      prisma.vendor_violation_log.findMany.mockResolvedValueOnce([
+        {
+          id: 10,
+          vendor_id: 42,
+          violation_type_id: 1,
+          order_id: null,
+          quarter: 4,
+          created_at: new Date('2026-10-01T00:00:00.000Z'),
+          description: 'test violation',
+          evidence_path: null,
+          evidence_provenance: 'SYSTEM_GENERATED',
+          created_by: null,
+          adjusted_point: 35,
+          violation_type: { code: 'ORDER_NOT_CONFIRMED_H1', point: 35 },
+          vendor: { id: 42, company_name: 'Vendor 42' },
+        },
+      ]);
 
       const result = await service.rebuildYear(
         {
           ...dto,
           dry_run: false,
-          from_month: 7,
+          quarter: 4,
           delete_existing: true,
           delete_all: true,
-          confirmation: 'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026',
+          confirmation: 'DELETE_ALL_AND_REBUILD_VENDOR_SP_BY_QUARTER',
         } as any,
         user,
       );

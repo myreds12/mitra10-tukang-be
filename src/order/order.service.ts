@@ -26,6 +26,8 @@ import { moduleTypeNotification } from 'src/notifications/dto/notification-modul
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { SPThreshold } from 'src/common/enum/violation-type.enum';
+import { SpStatus } from 'src/vendor-sp/enums/sp-status.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 
@@ -65,6 +67,105 @@ export class OrderService {
     }
   }
 
+  private async assertVendorCanReceiveOrder(vendorId?: number) {
+    if (!vendorId) return;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const [vendorRecord, activeSp] = await Promise.all([
+      this.dbService.vendor.findFirst({
+        where: { id: Number(vendorId), deleted_at: null },
+        select: { id: true, q1: true, q2: true, q3: true, q4: true },
+      }),
+      this.dbService.vendor_sp.findFirst({
+        where: {
+          vendor_id: Number(vendorId),
+          OR: [
+            {
+              status: SpStatus.ACTIVE,
+              quarter: currentQuarter,
+              year: currentYear,
+              OR: [{ end_date: null }, { end_date: { gte: now } }],
+            },
+            {
+              status: SpStatus.EXTENDED,
+              end_date: { gte: now },
+            },
+          ],
+        },
+        orderBy: { sp_level: 'desc' },
+      }),
+    ]);
+    if (!activeSp) return;
+    const reduction =
+      activeSp.sp_level >= 3
+        ? 100
+        : Number(
+            activeSp.allocation_reduction ??
+              (activeSp.sp_level === 2 ? 75 : activeSp.sp_level === 1 ? 50 : 0),
+          );
+    if (
+      activeSp.sp_level >= 3 ||
+      reduction >= 100 ||
+      Number(activeSp.total_point ?? 0) >= SPThreshold.SP3
+    ) {
+      throw new BadRequestException(
+        'Vendor sedang terkena SP3 (pengurangan alokasi order 100%) pada kuartal ini dan tidak dapat menerima order baru.',
+      );
+    }
+    if (reduction > 0 && vendorRecord) {
+      const quarterKeys = ['q1', 'q2', 'q3', 'q4'] as const;
+      const currentQKey = quarterKeys[currentQuarter - 1];
+      const prevQKey = quarterKeys[(currentQuarter + 2) % 4];
+      const acuanOrder =
+        Number(vendorRecord[prevQKey] ?? 0) > 0
+          ? Number(vendorRecord[prevQKey])
+          : Number(vendorRecord[currentQKey] ?? 0);
+      if (acuanOrder > 0) {
+        const maxAllowedAfterReduction = Math.max(
+          1,
+          Math.floor(acuanOrder * (1 - reduction / 100)),
+        );
+        const startMonth = (currentQuarter - 1) * 3;
+        const quarterStart = new Date(currentYear, startMonth, 1, 0, 0, 0, 0);
+        const quarterEnd = new Date(currentYear, startMonth + 3, 0, 23, 59, 59, 999);
+        const currentQuarterOrderCount = await this.dbService.orders.count({
+          where: {
+            vendor_id: Number(vendorId),
+            deleted_at: null,
+            created_at: { gte: quarterStart, lte: quarterEnd },
+          },
+        });
+        if (currentQuarterOrderCount >= maxAllowedAfterReduction) {
+          throw new BadRequestException(
+            `Alokasi order vendor pada kuartal ini telah mencapai batas maksimal pasca pengurangan SP${activeSp.sp_level} (${reduction}% dari acuan ${acuanOrder} order = maksimal ${maxAllowedAfterReduction} order).`,
+          );
+        }
+      }
+    }
+  }
+
+  private async syncVendorQuarterOrderCount(vendorId?: number, refDate: Date = new Date()) {
+    if (!vendorId) return;
+    const year = refDate.getFullYear();
+    const quarter = Math.ceil((refDate.getMonth() + 1) / 3);
+    const startMonth = (quarter - 1) * 3;
+    const quarterStart = new Date(year, startMonth, 1, 0, 0, 0, 0);
+    const quarterEnd = new Date(year, startMonth + 3, 0, 23, 59, 59, 999);
+    const count = await this.dbService.orders.count({
+      where: {
+        vendor_id: Number(vendorId),
+        deleted_at: null,
+        created_at: { gte: quarterStart, lte: quarterEnd },
+      },
+    });
+    const qKey = (`q${quarter}`) as 'q1' | 'q2' | 'q3' | 'q4';
+    await this.dbService.vendor.update({
+      where: { id: Number(vendorId) },
+      data: { [qKey]: count },
+    });
+  }
+
   // Lalu di method update(), wrap bagian items.findMany:
 
 
@@ -77,6 +178,9 @@ export class OrderService {
       // console.log(createOrderDto);
 
       const { id: user_id, role_id } = user;
+      if (createOrderDto.vendor_id) {
+        await this.assertVendorCanReceiveOrder(Number(createOrderDto.vendor_id));
+      }
       const ROLES = await this.dbService.roles.findMany();
 
       const SALES_ROLES = ROLES.find(({ name }) =>
@@ -305,6 +409,9 @@ export class OrderService {
       ]);
 
       if (order) {
+        if (order.vendor_id) {
+          await this.syncVendorQuarterOrderCount(order.vendor_id, order.created_at ?? new Date());
+        }
         await this.notifService.create(
           { orders: order },
           'CREATE',
@@ -1215,6 +1322,12 @@ export class OrderService {
       const { data: order } = await this.findOne(id);
 
       if (!order) throw new NotFoundException('Order not found');
+      if (
+        updateOrderDto.vendor_id &&
+        Number(updateOrderDto.vendor_id) !== Number(order.vendor_id)
+      ) {
+        await this.assertVendorCanReceiveOrder(Number(updateOrderDto.vendor_id));
+      }
 
       const orderdetailsIds = updateOrderDto.order_details
         ? updateOrderDto.order_details
@@ -1535,6 +1648,9 @@ export class OrderService {
         ]);
 
       if (orderQuery) {
+        if (orderQuery.vendor_id) {
+          await this.syncVendorQuarterOrderCount(orderQuery.vendor_id, orderQuery.created_at ?? new Date());
+        }
         await this.notifService.create(
           { orders: orderQuery },
           'UPDATE',

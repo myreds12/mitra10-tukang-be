@@ -16,6 +16,7 @@ import {
 import { QueryReactivationLogDto } from './dto/query-reactivation-log.dto';
 import { Prisma } from '@prisma/client';
 import { SpStatus, SpLevel } from './enums/sp-status.enum';
+import { SPThreshold } from '../common/enum/violation-type.enum';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PdfService } from '../common/services/pdf.service';
@@ -394,7 +395,7 @@ export class VendorSpService {
     const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
     const currentYear = now.getFullYear();
 
-    const activeSP = await this.dbService.vendor_sp.findFirst({
+    const candidateActiveSP = await this.dbService.vendor_sp.findFirst({
       where: {
         vendor_id: vendorId,
         deleted_at: null,
@@ -417,11 +418,22 @@ export class VendorSpService {
       },
     });
 
-    const targetQuarter = activeSP?.quarter ?? currentQuarter;
-    const targetYear = activeSP?.year ?? currentYear;
+    const isSpValidForCurrentQuarter =
+      candidateActiveSP &&
+      ((candidateActiveSP.quarter == null && candidateActiveSP.year == null) ||
+        (candidateActiveSP.quarter === currentQuarter &&
+          candidateActiveSP.year === currentYear) ||
+        (candidateActiveSP.status === SpStatus.EXTENDED &&
+          candidateActiveSP.end_date &&
+          new Date(candidateActiveSP.end_date) >= now));
+
+    const activeSP = isSpValidForCurrentQuarter ? candidateActiveSP : null;
+
+    const targetQuarter = currentQuarter;
+    const targetYear = currentYear;
 
     const [quarterViolations, allActiveViolations] = await Promise.all([
-      this.dbService.vendor_violation_log.findMany({
+      (this.dbService.vendor_violation_log?.findMany({
         where: {
           vendor_id: vendorId,
           quarter: targetQuarter,
@@ -432,8 +444,8 @@ export class VendorSpService {
         include: {
           violation_type: { select: { point: true } },
         },
-      }),
-      this.dbService.vendor_violation_log.findMany({
+      }) ?? Promise.resolve([])),
+      (this.dbService.vendor_violation_log?.findMany({
         where: {
           vendor_id: vendorId,
           deleted_at: null,
@@ -442,7 +454,7 @@ export class VendorSpService {
         include: {
           violation_type: { select: { point: true } },
         },
-      }),
+      }) ?? Promise.resolve([])),
     ]);
 
     const quarterPoints = quarterViolations.reduce(
@@ -462,7 +474,6 @@ export class VendorSpService {
         },
       });
       const { startDate, endDate } = getQuarterDateRange(currentQuarter, currentYear);
-      const effectivePoints = quarterPoints > 0 ? quarterPoints : allTimePoints;
 
       const result = {
         has_active_sp: false,
@@ -471,7 +482,7 @@ export class VendorSpService {
         sp_level: null,
         sp_status: 'NORMAL',
         vendor_status: 'AKTIF',
-        total_point: effectivePoints,
+        total_point: quarterPoints,
         quarter_point: quarterPoints,
         all_time_point: allTimePoints,
         violation_count: quarterViolations.length,
@@ -732,7 +743,8 @@ export class VendorSpService {
           ],
         });
 
-        const hasActiveSp3 = activeSpRecords.some((sp) => sp.sp_level === SpLevel.SP3);
+        const safeActiveSpRecords = activeSpRecords ?? [];
+        const hasActiveSp3 = safeActiveSpRecords.some((sp) => sp.sp_level === SpLevel.SP3);
 
         if (vendor.is_active && !hasActiveSp3) {
           throw new BadRequestException(
@@ -741,7 +753,7 @@ export class VendorSpService {
         }
 
         const latestSp3 =
-          activeSpRecords.find((sp) => sp.sp_level === SpLevel.SP3) ??
+          safeActiveSpRecords.find((sp) => sp.sp_level === SpLevel.SP3) ??
           (await tx.vendor_sp.findFirst({
             where: {
               vendor_id: dto.vendor_id,
@@ -998,11 +1010,11 @@ export class VendorSpService {
     const doc = this.pdfService.createDocument(generatedAt);
     const effectiveSpLevel =
       sp?.sp_level ??
-      (totalPenaltyPoints >= 7
+      (totalPenaltyPoints >= SPThreshold.SP3
         ? 3
-        : totalPenaltyPoints >= 4
+        : totalPenaltyPoints >= SPThreshold.SP2
         ? 2
-        : totalPenaltyPoints >= 2
+        : totalPenaltyPoints >= SPThreshold.SP1
         ? 1
         : null);
     const spStatusText = effectiveSpLevel ? `SP${effectiveSpLevel}` : 'NORMAL';

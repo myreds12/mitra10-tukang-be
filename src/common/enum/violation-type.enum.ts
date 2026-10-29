@@ -41,8 +41,8 @@ export enum ViolationCategory {
  * Threshold poin untuk SP
  */
 export enum SPThreshold {
-  SP1 = 1,
-  SP2 = 26,
+  SP1 = 31,
+  SP2 = 41,
   SP3 = 51,
 }
 

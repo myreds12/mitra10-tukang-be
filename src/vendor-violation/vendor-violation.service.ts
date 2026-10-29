@@ -13,7 +13,7 @@ import {
   QueryViolationLogDto,
 } from './dto/create-violation-log.dto';
 import { Prisma } from '@prisma/client';
-import { SPAllocationReduction } from '../common/enum/violation-type.enum';
+import { SPAllocationReduction, SPThreshold } from '../common/enum/violation-type.enum';
 import { syncVendorSpDetails } from '../common/utils/vendor-sp-detail-sync.util';
 import * as exceljs from 'exceljs';
 import * as fs from 'fs';
@@ -49,16 +49,16 @@ export class VendorViolationService {
   }
 
   private getSPLevel(totalPoints: number): number | null {
-    if (totalPoints > 50) return 3;
-    if (totalPoints >= 26) return 2;
-    if (totalPoints >= 1) return 1;
+    if (totalPoints >= SPThreshold.SP3) return 3;
+    if (totalPoints >= SPThreshold.SP2) return 2;
+    if (totalPoints >= SPThreshold.SP1) return 1;
     return null;
   }
 
   private getSPStatus(totalPoints: number): string {
-    if (totalPoints > 50) return 'SP3';
-    if (totalPoints >= 26) return 'SP2';
-    if (totalPoints >= 1) return 'SP1';
+    if (totalPoints >= SPThreshold.SP3) return 'SP3';
+    if (totalPoints >= SPThreshold.SP2) return 'SP2';
+    if (totalPoints >= SPThreshold.SP1) return 'SP1';
     return 'active';
   }
 

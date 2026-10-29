@@ -56,6 +56,9 @@ export class ComplaintsService {
         }),
         this.dbService.orders.findFirst({
           where: { id: createComplaintDto.order_id },
+          include: {
+            refund: { where: { deleted_at: null }, select: { id: true } },
+          },
         }),
       ]);
 
@@ -127,7 +130,7 @@ export class ComplaintsService {
       // VENDOR VIOLATION TRIGGER
       // Trigger #8: Customer complaint (jadwal/pengerjaan)
       // =========================================
-      if (findOrder?.vendor_id) {
+      if (findOrder?.vendor_id && (findOrder as any)?.refund?.length > 0) {
         await this.checkCustomerComplaintViolation(complaint, findOrder);
       }
 

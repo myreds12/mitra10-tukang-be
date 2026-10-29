@@ -621,6 +621,10 @@ model vendor {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
   max_order  Int       @default(3) @db.SmallInt()
+  q1         Int       @default(0)
+  q2         Int       @default(0)
+  q3         Int       @default(0)
+  q4         Int       @default(0)
 
   created_by Int?
   updated_by Int?

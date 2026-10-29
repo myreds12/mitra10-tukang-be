@@ -16,20 +16,29 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
       expect(WARNING_THRESHOLD_PERCENTAGE).toBe(0.7);
     });
 
-    it('should WARN vendor with exactly 19 points (>= 70% threshold of SP2 = 26)', () => {
-      const result = evaluateSPWarning(19, null, true);
+    it('should WARN vendor with exactly 22 points (>= 70% threshold of SP1 = 31)', () => {
+      const result = evaluateSPWarning(22, null, true);
       expect(result.shouldWarn).toBe(true);
-      expect(result.targetSpLevel).toBe(2);
-      expect(result.threshold).toBe(26);
-      expect(result.warningThreshold).toBe(19);
-      expect(result.toleranceRemaining).toBe(7);
+      expect(result.targetSpLevel).toBe(1);
+      expect(result.threshold).toBe(31);
+      expect(result.warningThreshold).toBe(22);
+      expect(result.toleranceRemaining).toBe(9);
     });
 
-    it('should NOT warn vendor with 18 points (< 19 points approaching SP2)', () => {
-      const result = evaluateSPWarning(18, null, true);
+    it('should NOT warn vendor with 21 points (< 22 points approaching SP1)', () => {
+      const result = evaluateSPWarning(21, null, true);
       expect(result.shouldWarn).toBe(false);
+      expect(result.targetSpLevel).toBe(1);
+      expect(result.warningThreshold).toBe(22);
+    });
+
+    it('should WARN vendor with exactly 29 points at SP1 (>= 70% threshold of SP2 = 41)', () => {
+      const result = evaluateSPWarning(29, 1, true);
+      expect(result.shouldWarn).toBe(true);
       expect(result.targetSpLevel).toBe(2);
-      expect(result.warningThreshold).toBe(19);
+      expect(result.threshold).toBe(41);
+      expect(result.warningThreshold).toBe(29);
+      expect(result.toleranceRemaining).toBe(12);
     });
 
     it('should WARN vendor with exactly 36 points (>= 70% threshold of SP3 = 51)', () => {
@@ -126,16 +135,8 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
       jest.clearAllMocks();
     });
 
-    it('should include boundary vendors (19 & 36 pts), exclude below-boundary (18 & 35 pts), exclude SP3, exclude 0 pts, and exclude already-warned vendors', async () => {
+    it('should include boundary vendors (22 & 36 pts), exclude below-boundary (21 & 35 pts), exclude SP3, exclude 0 pts, and exclude already-warned vendors', async () => {
       const fixedDate = new Date('2026-10-05T08:00:00Z'); // Monday of week 41
-
-      // Vendor 1: exactly 19 points -> MASUK (mendekati SP2)
-      // Vendor 2: 18 points -> TIDAK MASUK (di bawah batas 19)
-      // Vendor 3: exactly 36 points (SP2) -> MASUK (mendekati SP3)
-      // Vendor 4: 35 points (SP2) -> TIDAK MASUK (di bawah batas 36)
-      // Vendor 5: exactly 19 points, tapi SUDAH dapat warning minggu ini -> TIDAK MASUK (idempotency guard)
-      // Vendor 6: SP3 aktif -> TIDAK MASUK (SP3 dikecualikan)
-      // Vendor 7: 0 poin -> TIDAK MASUK (bersih)
 
       mockPrismaService.logs.findMany.mockResolvedValue([
         { module_id: 5 }, // Vendor 5 already warned this ISO week
@@ -144,7 +145,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
       mockPrismaService.vendor.findMany.mockResolvedValue([
         {
           id: 1,
-          company_name: 'Vendor Satu (19 pts)',
+          company_name: 'Vendor Satu (22 pts)',
           is_active: true,
           sp_records: [],
           pic_vendor: [
@@ -155,7 +156,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
         },
         {
           id: 2,
-          company_name: 'Vendor Dua (18 pts)',
+          company_name: 'Vendor Dua (21 pts)',
           is_active: true,
           sp_records: [],
           pic_vendor: [
@@ -188,7 +189,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
         },
         {
           id: 5,
-          company_name: 'Vendor Lima (19 pts - Already Warned)',
+          company_name: 'Vendor Lima (22 pts - Already Warned)',
           is_active: true,
           sp_records: [],
           pic_vendor: [
@@ -220,7 +221,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
               {
                 id: 1,
                 adjusted_point: null,
-                violation_type: { id: 1, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 19 },
+                violation_type: { id: 1, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 22 },
               },
             ];
           }
@@ -229,7 +230,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
               {
                 id: 2,
                 adjusted_point: null,
-                violation_type: { id: 2, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 18 },
+                violation_type: { id: 2, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 21 },
               },
             ];
           }
@@ -256,7 +257,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
               {
                 id: 5,
                 adjusted_point: null,
-                violation_type: { id: 1, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 19 },
+                violation_type: { id: 1, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 22 },
               },
             ];
           }
@@ -269,27 +270,23 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
 
       const result = await service.getVendorsApproachingThreshold(4, 2026, fixedDate);
 
-      // Verifikasi:
-      // Hanya Vendor 1 (19 pts) dan Vendor 3 (36 pts) yang masuk!
       expect(result).toHaveLength(2);
 
       const vendorIds = result.map((r) => r.vendorId);
       expect(vendorIds).toContain(1);
       expect(vendorIds).toContain(3);
 
-      // Verifikasi yang TIDAK masuk:
-      expect(vendorIds).not.toContain(2); // 18 pts: tidak masuk
-      expect(vendorIds).not.toContain(4); // 35 pts: tidak masuk
-      expect(vendorIds).not.toContain(5); // Idempotency guard: tidak dikirim ulang dalam minggu yang sama
-      expect(vendorIds).not.toContain(6); // SP3: dikecualikan
-      expect(vendorIds).not.toContain(7); // 0 poin: tidak masuk
+      expect(vendorIds).not.toContain(2);
+      expect(vendorIds).not.toContain(4);
+      expect(vendorIds).not.toContain(5);
+      expect(vendorIds).not.toContain(6);
+      expect(vendorIds).not.toContain(7);
 
-      // Verifikasi payload perhitungan
       const v1 = result.find((r) => r.vendorId === 1)!;
-      expect(v1.currentPoints).toBe(19);
-      expect(v1.targetSpLevel).toBe(2);
-      expect(v1.threshold).toBe(26);
-      expect(v1.toleranceRemaining).toBe(7);
+      expect(v1.currentPoints).toBe(22);
+      expect(v1.targetSpLevel).toBe(1);
+      expect(v1.threshold).toBe(31);
+      expect(v1.toleranceRemaining).toBe(9);
       expect(v1.picUsers).toHaveLength(1);
 
       const v3 = result.find((r) => r.vendorId === 3)!;
@@ -379,7 +376,7 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
         {
           id: 101,
           adjusted_point: null,
-          violation_type: { id: 1, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 19 },
+          violation_type: { id: 1, code: 'LATE', name: 'Late', category: 'KONFIRMASI_ORDER', point: 22 },
         },
       ]);
 
@@ -389,7 +386,6 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
       expect(result.totalApproaching).toBe(1);
       expect(result.notifiedVendors).toHaveLength(1);
 
-      // Verifikasi notifikasi tersimpan untuk 2 PIC user
       expect(mockPrismaService.notifications.createMany).toHaveBeenCalledTimes(1);
       expect(mockPrismaService.notifications.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
@@ -410,7 +406,6 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
         ]),
       });
 
-      // Verifikasi audit log tercatat di tabel logs
       expect(mockPrismaService.logs.create).toHaveBeenCalledTimes(1);
       expect(mockPrismaService.logs.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -424,10 +419,10 @@ describe('Vendor SP Warning Logic (Poin 7)', () => {
       const logCall = mockPrismaService.logs.create.mock.calls[0][0];
       const parsedProps = JSON.parse(logCall.data.properties);
       expect(parsedProps.vendor_id).toBe(10);
-      expect(parsedProps.current_points).toBe(19);
-      expect(parsedProps.target_sp).toBe(2);
-      expect(parsedProps.threshold).toBe(26);
-      expect(parsedProps.tolerance_remaining).toBe(7);
+      expect(parsedProps.current_points).toBe(22);
+      expect(parsedProps.target_sp).toBe(1);
+      expect(parsedProps.threshold).toBe(31);
+      expect(parsedProps.tolerance_remaining).toBe(9);
       expect(parsedProps.notified_user_ids).toEqual([201, 202]);
     });
   });
