@@ -80,12 +80,13 @@ export class OrderService {
       this.dbService.vendor_sp.findFirst({
         where: {
           vendor_id: Number(vendorId),
+          deleted_at: null,
           OR: [
             {
               status: SpStatus.ACTIVE,
               quarter: currentQuarter,
               year: currentYear,
-              OR: [{ end_date: null }, { end_date: { gte: now } }],
+              end_date: { gte: now },
             },
             {
               status: SpStatus.EXTENDED,
@@ -160,10 +161,14 @@ export class OrderService {
       },
     });
     const qKey = (`q${quarter}`) as 'q1' | 'q2' | 'q3' | 'q4';
-    await this.dbService.vendor.update({
-      where: { id: Number(vendorId) },
-      data: { [qKey]: count },
-    });
+    try {
+      await this.dbService.vendor.update({
+        where: { id: Number(vendorId) },
+        data: { [qKey]: count },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Could not sync vendor quarter order count: ${err.message}`);
+    }
   }
 
   // Lalu di method update(), wrap bagian items.findMany:
