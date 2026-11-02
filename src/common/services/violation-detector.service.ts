@@ -974,6 +974,235 @@ export class ViolationDetectorService {
   }
 
   /**
+   * Batalkan pelanggaran konfirmasi order jika order dikonfirmasi atau survei selesai lebih cepat.
+   */
+  async cancelUnconfirmedViolation(
+    orderId: number,
+    vendorId: number,
+    reason?: string,
+  ): Promise<boolean> {
+    const existingLogs = await this.dbService.vendor_violation_log.findMany({
+      where: {
+        order_id: orderId,
+        vendor_id: vendorId,
+        is_active: true,
+        deleted_at: null,
+        violation_type: {
+          code: {
+            in: [
+              ViolationTypeCode.ORDER_NOT_CONFIRMED_H,
+              ViolationTypeCode.ORDER_NOT_CONFIRMED_H1,
+              ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS,
+            ],
+          },
+        },
+      },
+      include: {
+        violation_type: true,
+      },
+    });
+
+    if (existingLogs.length === 0) return false;
+
+    const { quarter, year } = this.getCurrentQuarterYear();
+
+    await this.dbService.$transaction(async (tx) => {
+      await tx.vendor_violation_log.updateMany({
+        where: {
+          id: { in: existingLogs.map((l) => l.id) },
+        },
+        data: {
+          is_active: false,
+          adjusted_point: 0,
+          description: reason
+            ? `Dibatalkan: ${reason}`
+            : 'Dibatalkan otomatis: order terkonfirmasi atau survei diselesaikan lebih cepat.',
+          updated_at: new Date(),
+        },
+      });
+
+      const totalPoints = await this.calculateTotalPoints(vendorId, quarter, year);
+      let spLevel: number | null = null;
+      if (totalPoints >= SPThreshold.SP3) {
+        spLevel = 3;
+      } else if (totalPoints >= SPThreshold.SP2) {
+        spLevel = 2;
+      } else if (totalPoints >= SPThreshold.SP1) {
+        spLevel = 1;
+      }
+
+      const activeSp = await tx.vendor_sp.findFirst({
+        where: {
+          vendor_id: vendorId,
+          quarter,
+          year,
+          status: { in: [1, 3] },
+          deleted_at: null,
+        },
+        orderBy: { sp_level: 'desc' },
+      });
+
+      if (!spLevel) {
+        if (activeSp) {
+          await tx.vendor_sp.update({
+            where: { id: activeSp.id },
+            data: {
+              status: 2,
+              total_point: totalPoints,
+              updated_at: new Date(),
+            },
+          });
+        }
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: true },
+        });
+      } else if (activeSp) {
+        await tx.vendor_sp.update({
+          where: { id: activeSp.id },
+          data: {
+            sp_level: spLevel,
+            total_point: totalPoints,
+            allocation_reduction: this.getAllocationReduction(spLevel),
+            updated_at: new Date(),
+          },
+        });
+        await syncVendorSpDetails(tx, {
+          vendorSpId: activeSp.id,
+          vendorId,
+          quarter,
+          year,
+          createdBy: null,
+        });
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: spLevel !== 3 },
+        });
+      }
+    });
+
+    this.logger.log(
+      `Cancelled unconfirmed violation for order #${orderId} (vendor #${vendorId}). Active violations deactivated.`,
+    );
+    return true;
+  }
+
+  /**
+   * Batalkan pelanggaran update status jika pengerjaan dimulai lebih awal atau status diperbarui.
+   */
+  async cancelStatusUpdateViolation(
+    workOrderId: number,
+    orderId: number,
+    vendorId: number,
+    reason?: string,
+  ): Promise<boolean> {
+    const existingLogs = await this.dbService.vendor_violation_log.findMany({
+      where: {
+        order_id: orderId,
+        vendor_id: vendorId,
+        is_active: true,
+        deleted_at: null,
+        violation_type: {
+          code: {
+            in: [
+              ViolationTypeCode.STATUS_NOT_UPDATED_H,
+              ViolationTypeCode.STATUS_NOT_UPDATED_H1,
+              ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS,
+            ],
+          },
+        },
+      },
+      include: {
+        violation_type: true,
+      },
+    });
+
+    if (existingLogs.length === 0) return false;
+
+    const { quarter, year } = this.getCurrentQuarterYear();
+
+    await this.dbService.$transaction(async (tx) => {
+      await tx.vendor_violation_log.updateMany({
+        where: {
+          id: { in: existingLogs.map((l) => l.id) },
+        },
+        data: {
+          is_active: false,
+          adjusted_point: 0,
+          description: reason
+            ? `Dibatalkan: ${reason}`
+            : 'Dibatalkan otomatis: pengerjaan dimulai lebih awal atau status diperbarui.',
+          updated_at: new Date(),
+        },
+      });
+
+      const totalPoints = await this.calculateTotalPoints(vendorId, quarter, year);
+      let spLevel: number | null = null;
+      if (totalPoints >= SPThreshold.SP3) {
+        spLevel = 3;
+      } else if (totalPoints >= SPThreshold.SP2) {
+        spLevel = 2;
+      } else if (totalPoints >= SPThreshold.SP1) {
+        spLevel = 1;
+      }
+
+      const activeSp = await tx.vendor_sp.findFirst({
+        where: {
+          vendor_id: vendorId,
+          quarter,
+          year,
+          status: { in: [1, 3] },
+          deleted_at: null,
+        },
+        orderBy: { sp_level: 'desc' },
+      });
+
+      if (!spLevel) {
+        if (activeSp) {
+          await tx.vendor_sp.update({
+            where: { id: activeSp.id },
+            data: {
+              status: 2,
+              total_point: totalPoints,
+              updated_at: new Date(),
+            },
+          });
+        }
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: true },
+        });
+      } else if (activeSp) {
+        await tx.vendor_sp.update({
+          where: { id: activeSp.id },
+          data: {
+            sp_level: spLevel,
+            total_point: totalPoints,
+            allocation_reduction: this.getAllocationReduction(spLevel),
+            updated_at: new Date(),
+          },
+        });
+        await syncVendorSpDetails(tx, {
+          vendorSpId: activeSp.id,
+          vendorId,
+          quarter,
+          year,
+          createdBy: null,
+        });
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: spLevel !== 3 },
+        });
+      }
+    });
+
+    this.logger.log(
+      `Cancelled status update violation for work order #${workOrderId} (order #${orderId}, vendor #${vendorId}). Active violations deactivated.`,
+    );
+    return true;
+  }
+
+  /**
    * Reset poin vendor (untuk quarterly reset)
    * Catatan: Histori pelanggaran TIDAK dihapus, hanya tidak dihitung lagi
    */

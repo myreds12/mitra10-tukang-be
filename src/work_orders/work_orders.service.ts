@@ -156,6 +156,14 @@ export class WorkOrdersService {
         this.dbService.work_orders.create(work_order_data),
       ]);
 
+      if (order.vendor_id && dataDto.work_order_tukang?.length) {
+        await this.violationDetector.cancelUnconfirmedViolation(
+          order.id,
+          order.vendor_id,
+          'Tukang telah dialokasikan ke work order.',
+        );
+      }
+
       await this.sendTukangAssignedWhatsApp(work_order.id);
 
       return work_order;
@@ -701,6 +709,14 @@ export class WorkOrdersService {
         await this.sendTukangAssignedWhatsApp(work_order.id);
       }
 
+      if (work_order?.vendor_id && dataDto.work_order_tukang?.length) {
+        await this.violationDetector.cancelUnconfirmedViolation(
+          work_order.order_id,
+          work_order.vendor_id,
+          'Tukang telah dialokasikan ke work order.',
+        );
+      }
+
       return work_order;
     } catch (error) {
       console.error(error);
@@ -1159,15 +1175,35 @@ export class WorkOrdersService {
     newStatus: any,
   ): Promise<void> {
     try {
-      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK', 'SURVEYREQ', 'TUKANGSURVEY'];
+      const progressStatuses = [
+        'WORKSTART',
+        'WORKREQ',
+        'TUKANGWORK',
+        'SURVEYREQ',
+        'TUKANGSURVEY',
+        'WIP',
+        'SIP',
+        'SURVEYDONE',
+        'RESURVEYDONE',
+        'WORKEND',
+        'REWORKSTART',
+        'REWORKEND',
+        'RETUKANGWORK',
+        'RETUKANGSURVEY',
+      ];
       const isProgress = progressStatuses.some(
         (status) => newStatus?.category?.toUpperCase().includes(status),
       );
 
       if (isProgress) {
-        this.logger.debug(
-          'Status updated for WO ' + workOrder.id + '. No delay violation.',
-        );
+        if (workOrder?.order?.vendor_id) {
+          await this.violationDetector.cancelStatusUpdateViolation(
+            workOrder.id,
+            workOrder.order_id,
+            workOrder.order.vendor_id,
+            `Pekerjaan dimulai lebih awal atau status diperbarui (${newStatus.category})`,
+          );
+        }
         return;
       }
 

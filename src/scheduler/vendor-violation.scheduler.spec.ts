@@ -226,6 +226,61 @@ describe('VendorViolationScheduler — checkUnconfirmedOrders & checkLateQuotati
         expect.anything(),
       );
     });
+
+    it('order dengan jadwal survey di masa depan (request_survey besok) diabaikan', async () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+      mockDetector.recordViolation.mockClear();
+      mockPrisma.orders.findMany.mockResolvedValue([
+        {
+          id: 506,
+          vendor_id: 10,
+          created_at: yesterday,
+          request_survey: tomorrow,
+          work_orders: {
+            id: 806,
+            created_at: yesterday,
+          },
+        },
+      ]);
+
+      const res = await callCheckUnconfirmedOrders(scheduler);
+
+      expect(mockDetector.recordViolation).not.toHaveBeenCalled();
+      expect(res.summary.skippedCount).toBe(1);
+    });
+
+    it('order dengan survey selesai lebih cepat (SURVEYDONE) diabaikan', async () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+      mockDetector.recordViolation.mockClear();
+      mockPrisma.orders.findMany.mockResolvedValue([
+        {
+          id: 507,
+          vendor_id: 10,
+          created_at: yesterday,
+          request_survey: tomorrow,
+          status: {
+            category: 'SURVEYDONE',
+          },
+          work_orders: {
+            id: 807,
+            created_at: yesterday,
+          },
+        },
+      ]);
+
+      const res = await callCheckUnconfirmedOrders(scheduler);
+
+      expect(mockDetector.recordViolation).not.toHaveBeenCalled();
+      expect(res.summary.skippedCount).toBe(1);
+    });
   });
 
   describe('checkLateQuotations', () => {

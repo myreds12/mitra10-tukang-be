@@ -283,17 +283,37 @@ export class VendorViolationScheduler implements OnModuleInit {
       'REJECTED',
     ];
 
-    // Status yang mengindikasikan pekerjaan/survey sudah berjalan dengan tukang
+    // Status yang mengindikasikan pekerjaan/survey sudah berjalan atau terkonfirmasi
     const inProgressStatuses = [
       'TUKANGSURVEY',
       'TUKANGWORK',
       'TUKANGWORKSTEPONE',
       'TUKANGWORKSTEPTWO',
       'TUKANGWORKSTEPTHREE',
+      'RETUKANGWORK',
+      'RETUKANGSURVEY',
       'SIP',
       'WIP',
+      'SURVEYSTART',
+      'RESURVEYSTART',
       'SURVEYDONE',
       'RESURVEYDONE',
+      'WORKSTART',
+      'WORKSTARTSTEPONE',
+      'WORKSTARTSTEPTWO',
+      'WORKSTARTSTEPTHREE',
+      'WORKREQ',
+      'WORKREQSTEPONE',
+      'WORKREQSTEPTWO',
+      'WORKREQSTEPTHREE',
+      'QUOTEIN',
+      'QUOTEOUT',
+      'QUOTATIONDRAFT',
+      'QUOTATIONPAID',
+      'QUOTATIONPAIDSTEPONE',
+      'QUOTATIONPAIDSTEPTWO',
+      'QUOTATIONPAIDSTEPTHREE',
+      'QUOTATIONAPPROVED',
     ];
 
     const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
@@ -311,6 +331,10 @@ export class VendorViolationScheduler implements OnModuleInit {
       include: {
         vendor: true,
         status: true,
+        order_history: {
+          where: { deleted_at: null },
+          select: { status: { select: { category: true } } },
+        },
         work_orders: {
           include: {
             work_order_tukang: {
@@ -343,28 +367,47 @@ export class VendorViolationScheduler implements OnModuleInit {
         continue;
       }
 
-      // Cek jika status order sudah berjalan dengan tukang / survey selesai
+      // Cek jika status order saat ini sudah berjalan atau survei selesai
       const currentCategory = order.status?.category?.toUpperCase();
       if (currentCategory && inProgressStatuses.includes(currentCategory)) {
         summary.skippedCount++;
         continue;
       }
 
-      // Basis tanggal: work_orders.created_at (tanggal order masuk ke vendor), fallback ke order.created_at
-      const assignedDate = order.work_orders?.created_at
-        ? new Date(order.work_orders.created_at)
-        : new Date(order.created_at);
+      // Cek jika order pernah memiliki riwayat survei selesai atau sedang berjalan
+      const hasConfirmedHistory = (order as any).order_history?.some((h: any) => {
+        const cat = h.status?.category?.toUpperCase();
+        return cat && inProgressStatuses.includes(cat);
+      });
+      if (hasConfirmedHistory) {
+        summary.skippedCount++;
+        continue;
+      }
 
-      const assignedMidnight = new Date(
-        assignedDate.getFullYear(),
-        assignedDate.getMonth(),
-        assignedDate.getDate(),
+      // Prioritas tanggal jadwal survei/pekerjaan (Hari H), fallback ke tanggal penugasan
+      const scheduledDate =
+        order.request_survey ||
+        order.request_work ||
+        order.work_orders?.survey_date ||
+        order.work_orders?.work_start_date;
+
+      const targetDate = scheduledDate
+        ? new Date(scheduledDate)
+        : order.work_orders?.created_at
+          ? new Date(order.work_orders.created_at)
+          : new Date(order.created_at);
+
+      const targetMidnight = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth(),
+        targetDate.getDate(),
       );
 
       const daysDiff = Math.floor(
-        (today.getTime() - assignedMidnight.getTime()) / (24 * 60 * 60 * 1000),
+        (today.getTime() - targetMidnight.getTime()) / (24 * 60 * 60 * 1000),
       );
 
+      // Jika jadwal survei/pekerjaan masih di masa depan (belum tiba Hari H), lewati pengecekan
       if (daysDiff < 0) {
         summary.skippedCount++;
         continue;

@@ -283,6 +283,7 @@ export class VendorViolationRevisionService {
         orders: {
           select: {
             created_at: true,
+            status: { select: { category: true } },
             request_survey: true,
             request_work: true,
             order_history: {
@@ -629,13 +630,44 @@ export class VendorViolationRevisionService {
       const confirmedStatuses = new Set([
         'QUOTEIN',
         'QUOTEOUT',
+        'QUOTATIONDRAFT',
+        'QUOTATIONPAID',
+        'QUOTATIONPAIDSTEPONE',
+        'QUOTATIONPAIDSTEPTWO',
+        'QUOTATIONPAIDSTEPTHREE',
+        'QUOTATIONAPPROVED',
         'WORKREQ',
+        'WORKREQSTEPONE',
+        'WORKREQSTEPTWO',
+        'WORKREQSTEPTHREE',
         'SURVEYREQ',
         'TUKANGSURVEY',
+        'RETUKANGSURVEY',
+        'SURVEYSTART',
+        'RESURVEYSTART',
         'SURVEYDONE',
+        'RESURVEYDONE',
         'WORKSTART',
+        'WORKSTARTSTEPONE',
+        'WORKSTARTSTEPTWO',
+        'WORKSTARTSTEPTHREE',
+        'WIP',
+        'SIP',
         'WORKEND',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'WORKENDSTEPTHREE',
+        'REWORKEND',
       ]);
+
+      const currentStatus = order.status?.category?.toUpperCase();
+      if (currentStatus && confirmedStatuses.has(currentStatus)) {
+        return {
+          valid: false,
+          reason: `Status order saat ini ${currentStatus} (sudah terkonfirmasi/survei selesai).`,
+        };
+      }
+
       const hasConfirmedHistory = order.order_history?.some((history: any) => {
         const category = history.status?.category?.toUpperCase();
         return (
@@ -650,6 +682,28 @@ export class VendorViolationRevisionService {
           valid: false,
           reason: 'Order memiliki history status confirmed setelah assignment/order dibuat.',
         };
+      }
+
+      const scheduledDate =
+        order.request_survey ||
+        order.request_work ||
+        order.work_orders?.survey_date ||
+        order.work_orders?.work_start_date;
+
+      if (scheduledDate) {
+        const scheduledDay = new Date(
+          new Date(scheduledDate).getFullYear(),
+          new Date(scheduledDate).getMonth(),
+          new Date(scheduledDate).getDate(),
+        );
+        const logDate = new Date(log.created_at);
+        const logDay = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+        if (logDay.getTime() < scheduledDay.getTime()) {
+          return {
+            valid: false,
+            reason: 'Pelanggaran dicatat sebelum tanggal jadwal survei/pekerjaan (Hari H).',
+          };
+        }
       }
     }
 
@@ -672,6 +726,46 @@ export class VendorViolationRevisionService {
           valid: false,
           reason: 'Work order memiliki update status setelah violation log dibuat.',
         };
+      }
+
+      const activeWorkStatuses = new Set([
+        'WORKSTART',
+        'WORKSTARTSTEPONE',
+        'WORKSTARTSTEPTWO',
+        'WORKSTARTSTEPTHREE',
+        'TUKANGWORK',
+        'TUKANGWORKSTEPONE',
+        'TUKANGWORKSTEPTWO',
+        'TUKANGWORKSTEPTHREE',
+        'RETUKANGWORK',
+        'REWORKSTART',
+        'REWORKEND',
+        'WORKEND',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'WORKENDSTEPTHREE',
+        'WIP',
+        'SIP',
+        'SURVEYDONE',
+        'RESURVEYDONE',
+      ]);
+
+      const currentStatus = order.status?.category?.toUpperCase();
+      if (currentStatus && activeWorkStatuses.has(currentStatus)) {
+        const candidateDates = [
+          order.work_orders?.work_start_date,
+          order.request_work,
+        ].filter(Boolean);
+        if (candidateDates.length > 0) {
+          const scheduledWork = new Date(Math.max(...candidateDates.map((d: any) => new Date(d).getTime())));
+          const logDate = new Date(log.created_at);
+          if (logDate.getTime() <= scheduledWork.getTime()) {
+            return {
+              valid: false,
+              reason: 'Pekerjaan dimulai lebih awal atau tepat pada jadwal pengerjaan.',
+            };
+          }
+        }
       }
 
       const candidateScheduleDates = [

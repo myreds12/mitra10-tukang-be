@@ -1937,8 +1937,7 @@ export class OrderService {
   }
 
   /**
-   * Check pelanggaran konfirmasi order
-   * Jika status berubah dari unconfirmed ke confirmed, pelanggaran batal dicatat
+   * Batalkan pelanggaran konfirmasi order jika status terkonfirmasi atau survei selesai lebih cepat.
    */
   private async checkOrderConfirmationViolation(
     previousOrder: any,
@@ -1946,48 +1945,46 @@ export class OrderService {
     updatedOrder: any,
   ): Promise<void> {
     try {
-      // Status yang mengindikasikan vendor sudah mengkonfirmasi
-      const confirmedStatuses = ['QUOTEIN', 'QUOTEOUT', 'WORKREQ', 'SURVEYREQ', 'TUKANGSURVEY', 'SURVEYDONE', 'WORKSTART', 'WORKEND'];
+      const confirmedStatuses = [
+        'QUOTEIN',
+        'QUOTEOUT',
+        'QUOTATION',
+        'WORKREQ',
+        'SURVEYREQ',
+        'TUKANGSURVEY',
+        'SURVEYSTART',
+        'SURVEYDONE',
+        'RESURVEYSTART',
+        'RESURVEYDONE',
+        'WORKSTART',
+        'TUKANGWORK',
+        'RETUKANGWORK',
+        'REWORKSTART',
+        'REWORKEND',
+        'WORKEND',
+        'WIP',
+        'SIP',
+      ];
 
       const isNowConfirmed = confirmedStatuses.some((s) =>
         newStatus.category?.toUpperCase().includes(s),
       );
 
-      // Jika vendor mengkonfirmasi order, tidak ada pelanggaran
-      if (isNowConfirmed && previousOrder?.vendor_id) {
-        this.logger.debug(
-          `Order ${updatedOrder.id} confirmed by vendor ${previousOrder.vendor_id}. No violation recorded.`,
-        );
-        return;
-      }
+      const vendorId = updatedOrder?.vendor_id || previousOrder?.vendor_id;
 
-      // Jika order punya vendor dan belum dikonfirmasi
-      if (updatedOrder.vendor_id && !isNowConfirmed) {
-        const createdAt = new Date(updatedOrder.created_at);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const daysDiff = Math.floor(
-          (today.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000),
+      if (isNowConfirmed && vendorId) {
+        await this.violationDetector.cancelUnconfirmedViolation(
+          updatedOrder.id,
+          vendorId,
+          `Order terkonfirmasi/survei/pekerjaan berjalan (status: ${newStatus.category})`,
         );
 
-        // Catat pelanggaran jika sudah > 0 hari (Hari H)
-        if (daysDiff >= 0 && previousOrder?.vendor_id) {
-          await this.violationDetector.recordViolation(
-            'ORDER_NOT_CONFIRMED_H',
-            {
-              vendorId: updatedOrder.vendor_id,
-              orderId: updatedOrder.id,
-              description: `Order #${updatedOrder.project_number || updatedOrder.id} tidak dikonfirmasi pada Hari H`,
-              // [POIN 6] SYSTEM_GENERATED — deteksi otomatis status order
-              evidence: {
-                provenance: 'SYSTEM_GENERATED',
-                snapshot: {
-                  orderId: updatedOrder.id,
-                  daysSinceCreated: daysDiff,
-                  triggeredAt: new Date().toISOString(),
-                },
-              },
-            },
+        if (['WORKSTART', 'TUKANGWORK', 'WIP', 'WORKEND', 'REWORKSTART', 'REWORKEND'].some((w) => newStatus.category?.toUpperCase().includes(w))) {
+          await this.violationDetector.cancelStatusUpdateViolation(
+            updatedOrder.work_orders?.id || 0,
+            updatedOrder.id,
+            vendorId,
+            `Pekerjaan dimulai lebih awal atau status diperbarui (${newStatus.category})`,
           );
         }
       }
