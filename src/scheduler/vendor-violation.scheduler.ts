@@ -531,11 +531,11 @@ export class VendorViolationScheduler implements OnModuleInit {
       return { summary, items };
     }
 
-    // Status quotation yang menandakan quotation sudah terbit/disubmit oleh vendor
+    // Status quotation yang menandakan quotation sudah terbit/disubmit atau dibuat oleh vendor
     const submittedStatuses = await this.dbService.status.findMany({
       where: {
         category: {
-          in: ['QUOTEIN', 'QUOTEOUT', 'QUOTATIONPAID', 'QUOTATIONAPPROVED'],
+          in: ['QUOTEIN', 'QUOTEOUT', 'QUOTATIONDRAFT', 'QUOTATIONPAID', 'QUOTATIONAPPROVED'],
         },
       },
       select: { id: true },
