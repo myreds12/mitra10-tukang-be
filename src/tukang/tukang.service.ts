@@ -14,6 +14,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PdfService } from 'src/common/service/pdf.service';
 
+const SAFE_USER_SELECT = {
+  id: true,
+  role_id: true,
+  username: true,
+  profile_picture: true,
+  is_active: true,
+  created_at: true,
+  updated_at: true,
+  deleted_at: true,
+  created_by: true,
+  updated_by: true,
+  deleted_by: true,
+} as const;
+
 @Injectable()
 export class TukangService {
   constructor(
@@ -86,6 +100,7 @@ export class TukangService {
           password: saltedPassword,
           role_id: roles.id,
         },
+        select: SAFE_USER_SELECT,
       });
 
       const tukangData: Prisma.tukangCreateInput = {
@@ -141,7 +156,9 @@ export class TukangService {
         this.dbService.tukang.create({
           data: tukangData,
           include: {
-            users: true,
+            users: {
+              select: SAFE_USER_SELECT,
+            },
           },
         }),
       ]);
@@ -278,7 +295,9 @@ export class TukangService {
         skip,
         take: take <= 0 ? undefined : take,
         include: {
-          users: true,
+          users: {
+            select: SAFE_USER_SELECT,
+          },
           vendor: true,
           work_order_tukang: {
             where: {
@@ -363,7 +382,9 @@ export class TukangService {
           id,
         },
         include: {
-          users: true,
+          users: {
+            select: SAFE_USER_SELECT,
+          },
           vendor: true,
           work_order_tukang: {
             where: {

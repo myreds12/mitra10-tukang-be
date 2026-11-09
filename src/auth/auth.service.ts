@@ -886,7 +886,7 @@ export class AuthService {
 
       if (!user) throw new NotFoundException('User Not Found!!');
 
-      return user;
+      return omit(user, ['password']);
     } catch (error) {
       console.error(error);
       throw error;
@@ -898,6 +898,17 @@ export class AuthService {
       const user = await this.dbService.users.findFirst({
         where: {
           username: username,
+        },
+        select: {
+          id: true,
+          role_id: true,
+          username: true,
+          forget_password: true,
+          profile_picture: true,
+          is_active: true,
+          created_at: true,
+          updated_at: true,
+          deleted_at: true,
         },
       });
 

@@ -138,3 +138,93 @@ export function getQuarterDateRange(
   const endDate = new Date(validYear, validQuarter * 3, 0, 23, 59, 59, 999);
   return { startDate, endDate };
 }
+
+export interface ViolationTypeRuleItem {
+  code: string;
+  name: string;
+  point: number;
+  category: string;
+  description?: string | null;
+}
+
+export const VENDOR_SP_POLICY_RULES = {
+  statusNote: 'MENUNGGU KONFIRMASI BISNIS',
+  evaluationPeriod: 'Kuartalan (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Okt-Des)',
+  spLevels: {
+    SP1: {
+      minPoint: SPThreshold.SP1,
+      maxPoint: SPThreshold.SP2 - 1,
+      allocationReductionPercent: 50,
+      sanction: 'Surat Peringatan 1 & pemotongan alokasi order 50%',
+    },
+    SP2: {
+      minPoint: SPThreshold.SP2,
+      maxPoint: SPThreshold.SP3 - 1,
+      allocationReductionPercent: 75,
+      sanction: 'Surat Peringatan 2 & pemotongan alokasi order 75%',
+    },
+    SP3: {
+      minPoint: SPThreshold.SP3,
+      maxPoint: null as number | null,
+      allocationReductionPercent: 100,
+      sanction: 'Surat Peringatan 3 & suspend/nonaktif sementara (alokasi dipotong 100%)',
+    },
+  },
+  warningThresholdPercentage: Math.round(WARNING_THRESHOLD_PERCENTAGE * 100),
+  warningThresholds: {
+    towardsSp2: Math.ceil(SPThreshold.SP2 * WARNING_THRESHOLD_PERCENTAGE),
+    towardsSp3: Math.ceil(SPThreshold.SP3 * WARNING_THRESHOLD_PERCENTAGE),
+  },
+  quotationSla: {
+    lateH2Days: 2,
+    lateH3Days: 3,
+    validityDays: 8,
+    draftStopsTimer: false,
+    description:
+      'Batas pengiriman Quotation pasca SURVEYDONE: keterlambatan H+2 (QUOTATION_LATE_H2) dan H+3 (QUOTATION_LATE_H3) dikenai poin pelanggaran. Status Draft/Revisi tidak menghentikan timer.',
+  },
+  warrantyDays: 7,
+} as const;
+
+export const DEFAULT_VENDOR_VIOLATION_TYPES: ViolationTypeRuleItem[] = [
+  { code: 'ORDER_NOT_RESPONDED', name: 'Tidak Merespon Order', point: 3, category: 'ORDER' },
+  { code: 'ORDER_REJECTED', name: 'Menolak Order', point: 5, category: 'ORDER' },
+  { code: 'SURVEY_LATE', name: 'Terlambat Survey', point: 3, category: 'SURVEY' },
+  { code: 'QUOTATION_LATE_H2', name: 'Terlambat Kirim Quotation H+2', point: 2, category: 'QUOTATION' },
+  { code: 'QUOTATION_LATE_H3', name: 'Terlambat Kirim Quotation H+3', point: 5, category: 'QUOTATION' },
+  { code: 'RESCHEDULE_BY_VENDOR', name: 'Reschedule oleh Vendor', point: 2, category: 'WORK_ORDER' },
+  { code: 'WORK_LATE', name: 'Terlambat Pengerjaan (Work Order)', point: 5, category: 'WORK_ORDER' },
+  { code: 'BAST_NO_EVIDENCE', name: 'BAST Tanpa Foto Bukti (Evidence)', point: 3, category: 'BAST' },
+  { code: 'COMPLAINT_VALID', name: 'Komplain Terbukti Valid', point: 5, category: 'COMPLAINT' },
+  { code: 'REMEDIAL_REPEAT', name: 'Remedial Berulang', point: 5, category: 'COMPLAINT' },
+  { code: 'WARRANTY_REJECTED', name: 'Menolak Klaim Garansi Valid', point: 10, category: 'WARRANTY' },
+  { code: 'SOP_VIOLATION', name: 'Pelanggaran SOP Lapangan / K3', point: 5, category: 'SOP' },
+  { code: 'OFF_PLATFORM_TRANSACTION', name: 'Transaksi di Luar Platform (Bypass)', point: 25, category: 'FRAUD' },
+  { code: 'FAKE_DOCUMENT', name: 'Pemalsuan Dokumen / Bukti Pekerjaan', point: 25, category: 'FRAUD' },
+  { code: 'CUSTOMER_ABUSE', name: 'Perilaku Buruk terhadap Pelanggan', point: 15, category: 'ETIKA' },
+];
+
+export function buildSpAndSlaPolicyText(
+  rules = VENDOR_SP_POLICY_RULES,
+  violationTypes: ViolationTypeRuleItem[] = DEFAULT_VENDOR_VIOLATION_TYPES,
+): string {
+  const { spLevels, warningThresholdPercentage, warningThresholds, quotationSla, warrantyDays, statusNote } = rules;
+  const violationLines = violationTypes
+    .map((v, idx) => `${idx + 1}. ${v.code} (${v.name}): +${v.point} poin [${v.category}]`)
+    .join('\n');
+
+  return [
+    `ATURAN RESMI SP VENDOR & SLA QUOTATION [${statusNote}]:`,
+    `- Evaluasi dilakukan per kuartal (${rules.evaluationPeriod}).`,
+    `- SP 1: ${spLevels.SP1.minPoint} s/d ${spLevels.SP1.maxPoint} poin (${spLevels.SP1.sanction}).`,
+    `- SP 2: ${spLevels.SP2.minPoint} s/d ${spLevels.SP2.maxPoint} poin (${spLevels.SP2.sanction}).`,
+    `- SP 3: >= ${spLevels.SP3.minPoint} poin (${spLevels.SP3.sanction}).`,
+    `- Peringatan Dini (Early Warning ${warningThresholdPercentage}%): menuju SP2 pada ${warningThresholds.towardsSp2} poin, menuju SP3 pada ${warningThresholds.towardsSp3} poin.`,
+    `- SLA Quotation: keterlambatan H+${quotationSla.lateH2Days} (QUOTATION_LATE_H2) dan H+${quotationSla.lateH3Days} (QUOTATION_LATE_H3) pasca SURVEYDONE dikenai poin pelanggaran; masa berlaku penawaran ${quotationSla.validityDays} hari; status Draft/Revisi tidak menghentikan timer.`,
+    `- Masa Garansi Pekerjaan pasca BAST (COMPLETED): ${warrantyDays} hari kalender.`,
+    '',
+    `DAFTAR ${violationTypes.length} JENIS PELANGGARAN VENDOR (vendor_violation_type):`,
+    violationLines,
+  ].join('\n');
+}
+

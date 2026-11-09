@@ -9,6 +9,7 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 @Module({
   controllers: [RemedialsController],
   providers: [RemedialsService],
+  exports: [RemedialsService],
   imports: [
     MulterModule.register({
       storage: diskStorage({

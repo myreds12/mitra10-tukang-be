@@ -12,6 +12,7 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 @Module({
   controllers: [RescheduleController],
   providers: [RescheduleService, NotificationsService, ViolationDetectorService],
+  exports: [RescheduleService],
   imports: [
     OrderModule,
     MulterModule.register({

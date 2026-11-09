@@ -17,6 +17,20 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const SAFE_USER_SELECT = {
+  id: true,
+  role_id: true,
+  username: true,
+  profile_picture: true,
+  is_active: true,
+  created_at: true,
+  updated_at: true,
+  deleted_at: true,
+  created_by: true,
+  updated_by: true,
+  deleted_by: true,
+} as const;
+
 @Injectable()
 export class StoreService {
   constructor(
@@ -120,7 +134,9 @@ export class StoreService {
       take: take > 0 ? take : undefined,
       include: {
         area: true,
-        users: true,
+        users: {
+          select: SAFE_USER_SELECT,
+        },
         vendor_store: true,
         orders: {
           where: {
@@ -287,7 +303,9 @@ export class StoreService {
         },
         include: {
           area: true,
-          users: true,
+          users: {
+            select: SAFE_USER_SELECT,
+          },
         },
       });
 
@@ -322,6 +340,7 @@ export class StoreService {
               ? await hash(dto?.default_password ?? 'password', 10)
               : store.users.password,
           },
+          select: SAFE_USER_SELECT,
         })
         : undefined;
       const storeUpdate = await this.dbService.store.update({

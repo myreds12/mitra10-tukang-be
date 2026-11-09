@@ -2,14 +2,21 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
+  Req,
   UseGuards,
   Query,
   Res,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
+import { AiReportDataService } from './ai-report-data.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { QueryParamsDto } from 'src/common/dto/query-params.dto';
 import { OrderService } from 'src/order/order.service';
+import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import {
   Response as IExpressResponse,
 } from 'express';
@@ -21,6 +28,7 @@ export class ReportsController {
   constructor(
     private readonly reportsService: ReportsService,
     private readonly orderService: OrderService,
+    private readonly aiReportDataService: AiReportDataService,
   ) {}
 
   @Get('/general-report')
@@ -131,5 +139,19 @@ export class ReportsController {
     }
     const result = await this.reportsService.orderDetailReport(params);
     return res.status(200).json(result);
+  }
+
+  @Get('/ai-catalog')
+  @UseGuards(JwtAuthGuard)
+  async getAiCatalog(@Req() req: RequestWithUser) {
+    await this.reportsService.assertAdminHoOrSuperUser(req.user);
+    return await this.aiReportDataService.getCatalogAndRulesPayload();
+  }
+
+  @Post('/ai-chat')
+  @UseGuards(JwtAuthGuard)
+  async relayAiChat(@Body() body: any, @Req() req: RequestWithUser) {
+    await this.reportsService.assertAdminHoOrSuperUser(req.user);
+    return await this.aiReportDataService.handleAiChat(body, req.user);
   }
 }

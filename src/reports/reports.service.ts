@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,12 +14,90 @@ import * as exceljs from 'exceljs';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const SAFE_USER_SELECT = {
+  id: true,
+  role_id: true,
+  username: true,
+  profile_picture: true,
+  is_active: true,
+  created_at: true,
+  updated_at: true,
+  deleted_at: true,
+  created_by: true,
+  updated_by: true,
+  deleted_by: true,
+} as const;
+
 @Injectable()
 export class ReportsService {
   constructor(
     private readonly dbService: PrismaService,
     private readonly httpService: HttpService,
   ) {}
+
+  async assertAdminHoOrSuperUser(user?: {
+    id?: number;
+    role_id?: number;
+  }): Promise<{ userId: number; roleId: number; roleName: string }> {
+    const userId = Number(user?.id);
+    const tokenRoleId = Number(user?.role_id);
+
+    if (!userId && !tokenRoleId) {
+      throw new ForbiddenException(
+        'Akses AI Report Assistant ditolak: identitas pengguna tidak ditemukan.',
+      );
+    }
+
+    const allowedRoles = await this.dbService.roles.findMany({
+      where: {
+        name: { in: ['Admin HO', 'Super User'] },
+        deleted_at: null,
+        is_active: true,
+      },
+      select: { id: true, name: true },
+    });
+
+    const allowedRoleIds = new Set(allowedRoles.map((r) => r.id));
+
+    let effectiveRoleId = tokenRoleId;
+    let roleName: string | null =
+      allowedRoles.find((r) => r.id === tokenRoleId)?.name ?? null;
+
+    if (userId) {
+      const dbUser = await this.dbService.users.findFirst({
+        where: { id: userId, deleted_at: null, is_active: true },
+        select: {
+          role_id: true,
+          roles: { select: { id: true, name: true } },
+        },
+      });
+
+      if (!dbUser) {
+        throw new ForbiddenException(
+          'Akses AI Report Assistant ditolak: akun pengguna tidak aktif.',
+        );
+      }
+
+      effectiveRoleId = dbUser.role_id;
+      roleName = dbUser.roles?.name ?? roleName;
+    }
+
+    const isAllowedById = allowedRoleIds.has(effectiveRoleId);
+    const isAllowedByName =
+      roleName === 'Admin HO' || roleName === 'Super User';
+
+    if (!isAllowedById && !isAllowedByName) {
+      throw new ForbiddenException(
+        `Akses AI Report Assistant hanya untuk Admin HO dan Super User. Role Anda: ${roleName ?? 'tidak diizinkan'}.`,
+      );
+    }
+
+    return {
+      userId,
+      roleId: effectiveRoleId,
+      roleName: roleName ?? 'Admin HO',
+    };
+  }
 
   async salesComissionReport(query: QueryParamsDto) {
     try {
@@ -194,6 +273,41 @@ export class ReportsService {
         // },
       };
 
+      const isValidDate = (d: any) => Boolean(d && !isNaN(new Date(d).getTime()));
+      const hasDateFrom = isValidDate(date_from);
+      const hasDateTo = isValidDate(date_to);
+
+      const orderCreatedAtFilter: Prisma.DateTimeFilter | undefined =
+        hasDateFrom && hasDateTo
+          ? {
+              gte: new Date(date_from),
+              lte: new Date(
+                typeof date_to === 'string' && date_to.includes('T')
+                  ? date_to
+                  : `${date_to}T23:59:59.000Z`,
+              ),
+            }
+          : hasDateFrom
+          ? { gte: new Date(date_from) }
+          : hasDateTo
+          ? {
+              lte: new Date(
+                typeof date_to === 'string' && date_to.includes('T')
+                  ? date_to
+                  : `${date_to}T23:59:59.000Z`,
+              ),
+            }
+          : undefined;
+
+      const quotationWhere: Prisma.quotationWhereInput = {
+        order: {
+          ...(orderCreatedAtFilter ? { created_at: orderCreatedAtFilter } : {}),
+          status: {
+            category: 'WORKEND',
+          },
+        },
+      };
+
       const salesIncetive = await this.dbService.incentive_store.findMany({
         where,
         skip,
@@ -203,17 +317,7 @@ export class ReportsService {
           store: {
             include: {
               quotation: {
-                where: {
-                  order: {
-                    created_at: {
-                      gte: new Date(date_from),
-                      lte: new Date(`${date_to}T23:59:59.000Z`),
-                    },
-                    status: {
-                      category: 'WORKEND',
-                    },
-                  },
-                },
+                where: quotationWhere,
               },
               // orders:{
 
@@ -243,17 +347,7 @@ export class ReportsService {
           store: {
             include: {
               quotation: {
-                where: {
-                  order: {
-                    created_at: {
-                      gte: new Date(date_from),
-                      lte: new Date(`${date_to}T23:59:59.000Z`),
-                    },
-                    status: {
-                      category: 'WORKEND',
-                    },
-                  },
-                },
+                where: quotationWhere,
               },
               // orders:{
 
@@ -465,10 +559,16 @@ export class ReportsService {
       };
 
       // Determine if it's the same day report, same month report, or monthly report
-      const isSameDay = date_from === date_to;
-      const isSameMonth =
-        new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
-        new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
+      const isValidDate = (d: any) => Boolean(d && !isNaN(new Date(d).getTime()));
+      const hasDateFrom = isValidDate(date_from);
+      const hasDateTo = isValidDate(date_to);
+      const isSameDay = Boolean(hasDateFrom && hasDateTo && date_from === date_to);
+      const isSameMonth = Boolean(
+        hasDateFrom &&
+          hasDateTo &&
+          new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
+          new Date(date_from).getFullYear() === new Date(date_to).getFullYear(),
+      );
       const allHours = Array.from({ length: 24 }, (_, i) =>
         i.toString().padStart(2, '0'),
       );
@@ -486,16 +586,18 @@ export class ReportsService {
         'November',
         'Desember',
       ];
-      const allDaysInMonth = Array.from(
-        {
-          length: new Date(
-            new Date(date_from).getFullYear(),
-            new Date(date_from).getMonth() + 1,
-            0,
-          ).getDate(),
-        },
-        (_, i) => (i + 1).toString().padStart(2, '0'),
-      );
+      const allDaysInMonth = hasDateFrom
+        ? Array.from(
+            {
+              length: new Date(
+                new Date(date_from).getFullYear(),
+                new Date(date_from).getMonth() + 1,
+                0,
+              ).getDate(),
+            },
+            (_, i) => (i + 1).toString().padStart(2, '0'),
+          )
+        : [];
       const periods = isSameDay
         ? allHours
         : isSameMonth
@@ -549,12 +651,36 @@ export class ReportsService {
       // Build where clause for Prisma query
       const where = {
         AND: [
-          ...(date_from && date_to
+          ...(hasDateFrom && hasDateTo
             ? [
                 {
                   created_at: {
                     gte: new Date(date_from),
-                    lte: new Date(`${date_to}T23:59:59.000Z`),
+                    lte: new Date(
+                      typeof date_to === 'string' && date_to.includes('T')
+                        ? date_to
+                        : `${date_to}T23:59:59.000Z`,
+                    ),
+                  },
+                },
+              ]
+            : hasDateFrom
+            ? [
+                {
+                  created_at: {
+                    gte: new Date(date_from),
+                  },
+                },
+              ]
+            : hasDateTo
+            ? [
+                {
+                  created_at: {
+                    lte: new Date(
+                      typeof date_to === 'string' && date_to.includes('T')
+                        ? date_to
+                        : `${date_to}T23:59:59.000Z`,
+                    ),
                   },
                 },
               ]
@@ -564,7 +690,9 @@ export class ReportsService {
                 {
                   OR: [
                     { receipt_number: { contains: search } },
-                    { request_survey: { equals: new Date(search) } },
+                    ...(isValidDate(search)
+                      ? [{ request_survey: { equals: new Date(search) } }]
+                      : []),
                     { members: { full_name: { contains: search } } },
                   ],
                 },
@@ -816,20 +944,28 @@ export class ReportsService {
         totalUnsolved: 0,
       };
 
-      const isSameDay = date_from === date_to;
-      const isSameMonth =
-        new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
-        new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
-      const allDaysInMonth = Array.from(
-        {
-          length: new Date(
-            new Date(date_from).getFullYear(),
-            new Date(date_from).getMonth() + 1,
-            0,
-          ).getDate(),
-        },
-        (_, i) => (i + 1).toString().padStart(2, '0'),
+      const isValidDate = (d: any) => Boolean(d && !isNaN(new Date(d).getTime()));
+      const hasDateFrom = isValidDate(date_from);
+      const hasDateTo = isValidDate(date_to);
+      const isSameDay = Boolean(hasDateFrom && hasDateTo && date_from === date_to);
+      const isSameMonth = Boolean(
+        hasDateFrom &&
+          hasDateTo &&
+          new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
+          new Date(date_from).getFullYear() === new Date(date_to).getFullYear(),
       );
+      const allDaysInMonth = hasDateFrom
+        ? Array.from(
+            {
+              length: new Date(
+                new Date(date_from).getFullYear(),
+                new Date(date_from).getMonth() + 1,
+                0,
+              ).getDate(),
+            },
+            (_, i) => (i + 1).toString().padStart(2, '0'),
+          )
+        : [];
       const periods = isSameDay
         ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
         : isSameMonth
@@ -943,11 +1079,31 @@ export class ReportsService {
                 },
               }
             : undefined,
-          date_from && date_to
+          hasDateFrom && hasDateTo
             ? {
                 created_at: {
                   gte: new Date(date_from),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                  lte: new Date(
+                    typeof date_to === 'string' && date_to.includes('T')
+                      ? date_to
+                      : `${date_to}T23:59:59.000Z`,
+                  ),
+                },
+              }
+            : hasDateFrom
+            ? {
+                created_at: {
+                  gte: new Date(date_from),
+                },
+              }
+            : hasDateTo
+            ? {
+                created_at: {
+                  lte: new Date(
+                    typeof date_to === 'string' && date_to.includes('T')
+                      ? date_to
+                      : `${date_to}T23:59:59.000Z`,
+                  ),
                 },
               }
             : undefined,
@@ -1116,10 +1272,16 @@ export class ReportsService {
       };
 
       // Determine if it's the same day report, same month report, or monthly report
-      const isSameDay = date_from === date_to;
-      const isSameMonth =
-        new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
-        new Date(date_from).getFullYear() === new Date(date_to).getFullYear();
+      const isValidDate = (d: any) => Boolean(d && !isNaN(new Date(d).getTime()));
+      const hasDateFrom = isValidDate(date_from);
+      const hasDateTo = isValidDate(date_to);
+      const isSameDay = Boolean(hasDateFrom && hasDateTo && date_from === date_to);
+      const isSameMonth = Boolean(
+        hasDateFrom &&
+          hasDateTo &&
+          new Date(date_from).getMonth() === new Date(date_to).getMonth() &&
+          new Date(date_from).getFullYear() === new Date(date_to).getFullYear(),
+      );
       const allHours = Array.from({ length: 24 }, (_, i) =>
         i.toString().padStart(2, '0'),
       );
@@ -1137,16 +1299,18 @@ export class ReportsService {
         'November',
         'Desember',
       ];
-      const allDaysInMonth = Array.from(
-        {
-          length: new Date(
-            new Date(date_from).getFullYear(),
-            new Date(date_from).getMonth() + 1,
-            0,
-          ).getDate(),
-        },
-        (_, i) => (i + 1).toString().padStart(2, '0'),
-      );
+      const allDaysInMonth = hasDateFrom
+        ? Array.from(
+            {
+              length: new Date(
+                new Date(date_from).getFullYear(),
+                new Date(date_from).getMonth() + 1,
+                0,
+              ).getDate(),
+            },
+            (_, i) => (i + 1).toString().padStart(2, '0'),
+          )
+        : [];
       const periods = isSameDay
         ? allHours
         : isSameMonth
@@ -1244,11 +1408,39 @@ export class ReportsService {
                 },
               }
             : undefined,
-          date_from && date_to
+          hasDateFrom && hasDateTo
             ? {
                 created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                  gte: new Date(
+                    typeof date_from === 'string' && date_from.includes('T')
+                      ? date_from
+                      : `${date_from}T00:00:00.000Z`,
+                  ),
+                  lte: new Date(
+                    typeof date_to === 'string' && date_to.includes('T')
+                      ? date_to
+                      : `${date_to}T23:59:59.000Z`,
+                  ),
+                },
+              }
+            : hasDateFrom
+            ? {
+                created_at: {
+                  gte: new Date(
+                    typeof date_from === 'string' && date_from.includes('T')
+                      ? date_from
+                      : `${date_from}T00:00:00.000Z`,
+                  ),
+                },
+              }
+            : hasDateTo
+            ? {
+                created_at: {
+                  lte: new Date(
+                    typeof date_to === 'string' && date_to.includes('T')
+                      ? date_to
+                      : `${date_to}T23:59:59.000Z`,
+                  ),
                 },
               }
             : undefined,
@@ -1424,6 +1616,8 @@ export class ReportsService {
         area_id,
       } = query;
       const skip = page * take - take;
+      const hasDateFrom = Boolean(date_from);
+      const hasDateTo = Boolean(date_to);
 
       const where: Prisma.tukangWhereInput = {
         AND: [
@@ -1502,11 +1696,39 @@ export class ReportsService {
                 },
               }
             : undefined,
-          date_from && date_to
+          hasDateFrom && hasDateTo
             ? {
                 created_at: {
-                  gte: new Date(`${date_from}T00:00:00.000Z`),
-                  lte: new Date(`${date_to}T23:59:59.000Z`),
+                  gte: new Date(
+                    typeof date_from === 'string' && date_from.includes('T')
+                      ? date_from
+                      : `${date_from}T00:00:00.000Z`,
+                  ),
+                  lte: new Date(
+                    typeof date_to === 'string' && date_to.includes('T')
+                      ? date_to
+                      : `${date_to}T23:59:59.000Z`,
+                  ),
+                },
+              }
+            : hasDateFrom
+            ? {
+                created_at: {
+                  gte: new Date(
+                    typeof date_from === 'string' && date_from.includes('T')
+                      ? date_from
+                      : `${date_from}T00:00:00.000Z`,
+                  ),
+                },
+              }
+            : hasDateTo
+            ? {
+                created_at: {
+                  lte: new Date(
+                    typeof date_to === 'string' && date_to.includes('T')
+                      ? date_to
+                      : `${date_to}T23:59:59.000Z`,
+                  ),
                 },
               }
             : undefined,
@@ -1517,7 +1739,23 @@ export class ReportsService {
         where,
         skip,
         take: take <= 0 ? undefined : take,
-        include: {
+        select: {
+          id: true,
+          vendor_id: true,
+          user_id: true,
+          full_name: true,
+          address: true,
+          phone_number: true,
+          email: true,
+          bod: true,
+          join_date: true,
+          is_active: true,
+          created_at: true,
+          updated_at: true,
+          deleted_at: true,
+          users: {
+            select: SAFE_USER_SELECT,
+          },
           work_order_tukang: {
             where: { deleted_at: null },
             include: {
@@ -2123,7 +2361,10 @@ export class ReportsService {
       ).length;
       console.log('ORDER DONE 2', orderDone2);
 
-      const currentDate = new Date(date_from);
+      const currentDate =
+        date_from && !isNaN(new Date(date_from).getTime())
+          ? new Date(date_from)
+          : new Date();
 
       const startOfMonth = new Date(
         currentDate.getFullYear(),
@@ -2340,8 +2581,14 @@ export class ReportsService {
           x.status.category === 'REFUND',
       ).length;
 
-      const dateFrom = new Date(date_from);
-      const dateTo = new Date(date_to);
+      const dateFrom =
+        date_from && !isNaN(new Date(date_from).getTime())
+          ? new Date(date_from)
+          : new Date();
+      const dateTo =
+        date_to && !isNaN(new Date(date_to).getTime())
+          ? new Date(date_to)
+          : new Date();
 
       const formattedDateFrom = dateFrom.toLocaleDateString('id-ID', {
         day: 'numeric',
