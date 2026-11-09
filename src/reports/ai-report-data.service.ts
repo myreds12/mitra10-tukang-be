@@ -22,6 +22,7 @@ import {
   ReportCatalogItem,
   detectSkillAndReports,
   extractPeriodWib,
+  normalizeUserInputForSearch,
 } from './ai-report-catalog';
 import { AiSessionState, AiSessionStateService } from './ai-session-state.service';
 import { AiSqlExecutorService } from './ai-sql-executor.service';
@@ -48,7 +49,7 @@ const COMPARISON_KEYWORD_REGEX =
   /\b(bandingkan|banding|dibandingkan|dibanding|vs|versus|perbandingan)\b/i;
 
 const FORMAT_SWITCH_REGEX =
-  /^(jadikan|ubah\s+ke|ganti\s+ke|export\s+ke|cetak|buatkan\s+format|simpan\s+ke|format)\s+(pdf|word|excel|docx|xlsx|spreadsheet|dokumen)/i;
+  /^(jadikan|ubah\s+ke|ganti\s+ke|export\s+ke|cetak|buatkan\s+format|simpan\s+ke|format)\s+(pdf|pfd|word|wrod|wod|docx|excel|excl|exel|xcel|xlsx|spreadsheet|dokumen)/i;
 
 const EXACT_GREETING_REGEX =
   /^(halo+|hai+|hi+|hello+|tes|test|testing|ping|p|pagi|siang|sore|malam|selamat\s+(pagi|siang|sore|malam)|terima\s*kasih|makasih|thanks|thank\s*you|ok|oke|siap|mantap|cek|assalamualaikum)[\s!.,?]*$/i;
@@ -68,8 +69,8 @@ export function isFormatSwitchPrompt(userPrompt: string): boolean {
   const clean = userPrompt.trim().toLowerCase();
   return (
     FORMAT_SWITCH_REGEX.test(clean) ||
-    /^(jadikan|buatkan)\s+(pdf|word|excel|docx|xlsx|spreadsheet)[\s!.,?]*$/i.test(clean) ||
-    /^(pdf|word|excel|docx|xlsx|spreadsheet)[\s!.,?]*$/i.test(clean)
+    /^(jadikan|buatkan)\s+(pdf|pfd|word|wrod|wod|excel|excl|exel|xcel|docx|xlsx|spreadsheet)[\s!.,?]*$/i.test(clean) ||
+    /^(pdf|pfd|word|wrod|wod|excel|excl|exel|xcel|docx|xlsx|spreadsheet)[\s!.,?]*$/i.test(clean)
   );
 }
 
@@ -776,20 +777,30 @@ export class AiReportDataService {
 
   classifyIntent(userPrompt: string, hasSessionState = false): BackendAiIntent {
     const clean = String(userPrompt || '').trim().toLowerCase();
-    if (EXACT_GREETING_REGEX.test(clean)) return 'greeting';
+    const normalized = normalizeUserInputForSearch(clean);
+    if (EXACT_GREETING_REGEX.test(clean) || EXACT_GREETING_REGEX.test(normalized)) return 'greeting';
 
-    if (isFormatSwitchPrompt(clean)) return 'format_switch';
-    if (isComparisonPrompt(clean)) return 'comparison';
+    if (isFormatSwitchPrompt(clean) || isFormatSwitchPrompt(normalized)) return 'format_switch';
+    if (isComparisonPrompt(clean) || isComparisonPrompt(normalized)) return 'comparison';
 
-    if (/^(tolong\s+)?(cek|lihat|tampilkan|buka)\s+(data(\s+yang\s+ada)?|sistem|aplikasi)[\s!.,?]*$/i.test(clean)) {
+    if (
+      /^(tolong\s+)?(cek|lihat|tampilkan|buka)\s+(data(\s+yang\s+ada)?|sistem|aplikasi)[\s!.,?]*$/i.test(clean) ||
+      /^(tolong\s+)?(cek|lihat|tampilkan|buka)\s+(data(\s+yang\s+ada)?|sistem|aplikasi)[\s!.,?]*$/i.test(normalized)
+    ) {
       return 'clarification';
     }
 
     const reportKeywords = [
       'pdf',
+      'pfd',
       'word',
+      'wrod',
+      'wod',
       'docx',
       'excel',
+      'excl',
+      'exel',
+      'xcel',
       'xlsx',
       'spreadsheet',
       'cetak',
@@ -802,8 +813,9 @@ export class AiReportDataService {
       'rekap',
       'rekapitulasi',
       'surat peringatan',
+      'report',
     ];
-    const hasReportKw = reportKeywords.some((kw) => clean.includes(kw));
+    const hasReportKw = reportKeywords.some((kw) => clean.includes(kw) || normalized.includes(kw));
 
     if (hasReportKw) {
       return 'new_report';
@@ -818,9 +830,10 @@ export class AiReportDataService {
 
   detectRequestedFormat(userPrompt: string): 'pdf' | 'word' | 'excel' | null {
     const lower = String(userPrompt || '').toLowerCase();
-    if (/\b(pdf|cetak|print)\b/.test(lower)) return 'pdf';
-    if (/\b(word|docx)\b/.test(lower)) return 'word';
-    if (/\b(excel|xlsx|spreadsheet)\b/.test(lower)) return 'excel';
+    const normalized = normalizeUserInputForSearch(lower);
+    if (/\b(pdf|pfd|cetak|print)\b/.test(lower) || /\b(pdf|cetak|print)\b/.test(normalized)) return 'pdf';
+    if (/\b(word|docx|wrod|wod)\b/.test(lower) || /\b(word|docx)\b/.test(normalized)) return 'word';
+    if (/\b(excel|xlsx|spreadsheet|excl|exel|xcel)\b/.test(lower) || /\b(excel|xlsx|spreadsheet)\b/.test(normalized)) return 'excel';
     return null;
   }
 
@@ -916,6 +929,12 @@ export class AiReportDataService {
       '6. DILARANG menulis tag HTML seperti <br> di dalam tabel markdown.',
       formatInstruction,
       spPolicySection,
+      '',
+      '# KEMAMPUAN BAHASA UNIVERSAL & KETAHANAN TERHADAP TYPO (MULTI-LANGUAGE & SLANG RESILIENT)',
+      '- Anda memahami segala gaya bahasa pengguna: Bahasa Indonesia formal, percakapan sehari-hari/slang gaul (misal: "brp", "blm", "udh", "bnyk", "gw", "lu", "rekapin", "liatkan"), bahasa daerah populer, English penuh ("which store has most complaints"), maupun Indoglish campuran.',
+      '- Anda SANGAT TOLERAN terhadap kesalahan ketik (typo) dan singkatan operasional: "omset/omzt" = omzet, "komplen" = komplain, "reskedul/reschedul" = reschedule, "pfd" = pdf, "excl/exel" = excel, "wrod" = word, "qtn/kwotasi" = quotation, "wo/spk" = work order, "inv/invois" = invoice, "rfund" = refund, "pinalti" = penalti, "cust" = pelanggan/member, "tko" = toko, "tkng" = tukang.',
+      '- DILARANG menolak perintah atau merasa bingung hanya karena typo atau kata gaul; pahami maksud inti pengguna berdasarkan domain bisnis Mitra10 Tukang.',
+      '- Jawab pengguna secara profesional dan terstruktur dalam Bahasa Indonesia (atau sesuai bahasa yang diminta secara spesifik oleh pengguna).',
       '',
       '# KEMAMPUAN AKSES DATABASE LANGSUNG (TEXT-TO-SQL)',
       'Kamu memiliki kapabilitas query langsung ke database Microsoft SQL Server melalui query T-SQL read-only.',

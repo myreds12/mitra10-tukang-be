@@ -51,32 +51,44 @@ export interface AiSkillCatalogDefinition {
 const INDONESIAN_MONTHS: Record<string, number> = {
   januari: 1,
   jan: 1,
+  january: 1,
   februari: 2,
   feb: 2,
+  february: 2,
   pebruari: 2,
   maret: 3,
   mar: 3,
+  march: 3,
   april: 4,
   apr: 4,
   mei: 5,
+  may: 5,
   juni: 6,
   jun: 6,
+  june: 6,
   juli: 7,
   jul: 7,
+  july: 7,
   agustus: 8,
   agu: 8,
   ags: 8,
   agt: 8,
+  august: 8,
+  aug: 8,
   september: 9,
   sep: 9,
   sept: 9,
   oktober: 10,
   okt: 10,
+  october: 10,
+  oct: 10,
   november: 11,
   nov: 11,
   nopember: 11,
   desember: 12,
   des: 12,
+  december: 12,
+  dec: 12,
 };
 
 const MONTH_NAMES_ID = [
@@ -128,6 +140,172 @@ export function getWibDateParts(now: Date = new Date()): {
   return { year, month, day, quarter };
 }
 
+export function normalizeUserInputForSearch(raw: string): string {
+  let text = String(raw || '').toLowerCase().trim();
+
+  // 1. Normalisasi tanda baca
+  text = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, ' ').replace(/\s+/g, ' ');
+
+  // 2. Normalisasi singkatan percakapan sehari-hari & slang
+  const slangMap: Record<string, string> = {
+    brp: 'berapa',
+    brapa: 'berapa',
+    blm: 'belum',
+    sdh: 'sudah',
+    udh: 'sudah',
+    udah: 'sudah',
+    jg: 'juga',
+    jga: 'juga',
+    yg: 'yang',
+    tlg: 'tolong',
+    tlng: 'tolong',
+    bwt: 'buat',
+    buatin: 'buatkan',
+    bikinin: 'buatkan',
+    bikin: 'buat',
+    rekapin: 'rekap',
+    liatin: 'lihat',
+    liatkan: 'lihat',
+    cekkan: 'cek',
+    cekin: 'cek',
+    dr: 'dari',
+    gw: 'saya',
+    gua: 'saya',
+    gue: 'saya',
+    lu: 'kamu',
+    lo: 'kamu',
+    elu: 'kamu',
+    sy: 'saya',
+    bkn: 'bukan',
+    tp: 'tapi',
+    tpi: 'tapi',
+    krn: 'karena',
+    karna: 'karena',
+    dgn: 'dengan',
+    slesai: 'selesai',
+    selese: 'selesai',
+    jln: 'jalan',
+    bnyk: 'banyak',
+    byk: 'banyak',
+    dikit: 'sedikit',
+    sdkt: 'sedikit',
+    aja: 'saja',
+    aj: 'saja',
+    doang: 'saja',
+    wat: 'buat',
+    gmn: 'bagaimana',
+    gmna: 'bagaimana',
+    dmn: 'dimana',
+    dmna: 'dimana',
+    kpn: 'kapan',
+    gpp: 'tidak apa apa',
+    pls: 'tolong',
+    thx: 'terima kasih',
+    ty: 'terima kasih',
+    asap: 'segera',
+    attn: 'perhatian',
+  };
+
+  // 3. Normalisasi typo istilah domain Mitra10 & ejaan tidak baku
+  const typoDomainMap: Record<string, string> = {
+    omset: 'omzet',
+    omzt: 'omzet',
+    omst: 'omzet',
+    omzetnya: 'omzet',
+    omsetnya: 'omzet',
+    revnu: 'omzet',
+    revenue: 'omzet',
+    turnover: 'omzet',
+    ordr: 'order',
+    orderan: 'order',
+    pesann: 'order',
+    pesanan: 'order',
+    pesenen: 'order',
+    ord: 'order',
+    kwotasi: 'quotation',
+    kotasi: 'quotation',
+    quotasion: 'quotation',
+    quotatn: 'quotation',
+    qotasion: 'quotation',
+    qtn: 'quotation',
+    quote: 'quotation',
+    rab: 'quotation',
+    komplen: 'komplain',
+    komplaint: 'komplain',
+    complaint: 'komplain',
+    complaints: 'komplain',
+    complen: 'komplain',
+    keluhan: 'komplain',
+    reskedul: 'reschedule',
+    rescedule: 'reschedule',
+    reschedul: 'reschedule',
+    rskedul: 'reschedule',
+    pnjadwalan: 'reschedule',
+    invois: 'invoice',
+    invoc: 'invoice',
+    invoce: 'invoice',
+    inv: 'invoice',
+    tagihn: 'tagihan',
+    tagihann: 'tagihan',
+    billing: 'tagihan',
+    tagian: 'tagihan',
+    tkang: 'tukang',
+    tukng: 'tukang',
+    tkng: 'tukang',
+    vendr: 'vendor',
+    vndor: 'vendor',
+    dokumn: 'dokumen',
+    dokmen: 'dokumen',
+    pfd: 'pdf',
+    excl: 'excel',
+    exel: 'excel',
+    xcel: 'excel',
+    wrod: 'word',
+    wod: 'word',
+    pinalti: 'penalti',
+    penalty: 'penalti',
+    penalti: 'penalti',
+    refun: 'refund',
+    rfund: 'refund',
+    refnd: 'refund',
+    cancle: 'cancel',
+    canceld: 'cancel',
+    pembatalan: 'cancel',
+    batal: 'cancel',
+    insentip: 'insentif',
+    incentive: 'insentif',
+    incntive: 'insentif',
+    komisi: 'komisi',
+    comission: 'komisi',
+    commission: 'komisi',
+    garansi: 'garansi',
+    warranty: 'garansi',
+    waranty: 'garansi',
+    warenty: 'garansi',
+    klaim: 'claim',
+    tko: 'toko',
+    store: 'toko',
+    cust: 'pelanggan',
+    customer: 'pelanggan',
+    member: 'pelanggan',
+    spk: 'work order',
+    wo: 'work order',
+    workorder: 'work order',
+    csi: 'csi',
+    produktivitas: 'produktivitas',
+    produtivitas: 'produktivitas',
+  };
+
+  const words = text.split(' ');
+  const normalizedWords = words.map((w) => {
+    if (slangMap[w]) return slangMap[w];
+    if (typoDomainMap[w]) return typoDomainMap[w];
+    return w;
+  });
+
+  return normalizedWords.join(' ');
+}
+
 export function extractPeriodWib(userPrompt: string, now: Date = new Date()): ExtractedWibPeriod {
   const raw = String(userPrompt || '').trim();
   const lower = raw.toLowerCase();
@@ -156,8 +334,8 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
   }
 
   const quarterExplicit =
-    lower.match(/\b(?:q|kuartal|quartal|triwulan)\s*([1-4])(?:\s*(?:tahun)?\s*(202\d))?\b/) ||
-    lower.match(/\b(202\d)\s*(?:q|kuartal|quartal)\s*([1-4])\b/);
+    lower.match(/\b(?:q|kuartal|quartal|triwulan|quarter)\s*([1-4])(?:\s*(?:tahun|year)?\s*(202\d))?\b/) ||
+    lower.match(/\b(202\d)\s*(?:q|kuartal|quartal|quarter)\s*([1-4])\b/);
 
   if (quarterExplicit) {
     const isYearFirst = quarterExplicit[1].length === 4;
@@ -179,7 +357,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\b(kuartal|quartal|triwulan)\s+lalu\b/.test(lower)) {
+  if (/\b(?:(?:kuartal|quartal|triwulan)\s+lalu|last\s+quarter)\b/.test(lower)) {
     const prevQ = wibNow.quarter === 1 ? 4 : wibNow.quarter - 1;
     const y = wibNow.quarter === 1 ? wibNow.year - 1 : wibNow.year;
     const startMonth = (prevQ - 1) * 3 + 1;
@@ -198,7 +376,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\b(kuartal|quartal|triwulan)\s+(ini|berjalan|sekarang)\b/.test(lower)) {
+  if (/\b(?:(?:kuartal|quartal|triwulan)\s+(?:ini|berjalan|sekarang)|(?:this|current)\s+quarter)\b/.test(lower)) {
     const q = wibNow.quarter;
     const y = wibNow.year;
     const startMonth = (q - 1) * 3 + 1;
@@ -219,7 +397,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
 
   const monthKeys = Object.keys(INDONESIAN_MONTHS).join('|');
   const monthRangeRegex = new RegExp(
-    `\\b(${monthKeys})(?:\\s+(202\\d))?\\s*(?:(?:sampai|sampe)(?:\\s+dengan)?|s\\/d|sd|hingga|-|ke)\\s*(${monthKeys})(?:\\s+(202\\d))?\\b`,
+    `\\b(${monthKeys})(?:\\s+(202\\d))?\\s*(?:(?:sampai|sampe)(?:\\s+dengan)?|s\\/d|sd|hingga|-|ke|to|until|through)\\s*(${monthKeys})(?:\\s+(202\\d))?\\b`,
     'i',
   );
   const monthRangeMatch = lower.match(monthRangeRegex);
@@ -243,7 +421,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  const singleMonthRegex = new RegExp(`\\b(?:bulan\\s+)?(${monthKeys})(?:\\s+(202\\d))?\\b`, 'i');
+  const singleMonthRegex = new RegExp(`\\b(?:bulan\\s+|month\\s+)?(${monthKeys})(?:\\s+(202\\d))?\\b`, 'i');
   const singleMonthMatch = lower.match(singleMonthRegex);
   if (singleMonthMatch) {
     const m = INDONESIAN_MONTHS[singleMonthMatch[1].toLowerCase()];
@@ -263,7 +441,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\bhari\s+ini\b/.test(lower)) {
+  if (/\b(?:hari\s+ini|today)\b/.test(lower)) {
     const iso = formatIsoDate(wibNow.year, wibNow.month, wibNow.day);
     const label = `Hari ini (${formatReadableDateId(iso)})`;
     return {
@@ -277,7 +455,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\bkemarin\b/.test(lower)) {
+  if (/\b(?:kemarin|yesterday)\b/.test(lower)) {
     const yesterday = new Date(Date.UTC(wibNow.year, wibNow.month - 1, wibNow.day - 1));
     const y = yesterday.getUTCFullYear();
     const m = yesterday.getUTCMonth() + 1;
@@ -295,7 +473,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\bbulan\s+lalu\b/.test(lower)) {
+  if (/\b(?:bulan\s+lalu|last\s+month)\b/.test(lower)) {
     const m = wibNow.month === 1 ? 12 : wibNow.month - 1;
     const y = wibNow.month === 1 ? wibNow.year - 1 : wibNow.year;
     const date_from = formatIsoDate(y, m, 1);
@@ -312,7 +490,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\bbulan\s+(ini|berjalan|sekarang)\b/.test(lower)) {
+  if (/\b(?:bulan\s+(?:ini|berjalan|sekarang)|(?:this|current)\s+month)\b/.test(lower)) {
     const date_from = formatIsoDate(wibNow.year, wibNow.month, 1);
     const date_to = formatIsoDate(wibNow.year, wibNow.month, lastDayOfMonth(wibNow.year, wibNow.month));
     const label = `Bulan berjalan - ${MONTH_NAMES_ID[wibNow.month]} ${wibNow.year} (${formatReadableDateId(date_from)} s/d ${formatReadableDateId(date_to)})`;
@@ -327,7 +505,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\btahun\s+lalu\b/.test(lower)) {
+  if (/\b(?:tahun\s+lalu|last\s+year)\b/.test(lower)) {
     const y = wibNow.year - 1;
     const date_from = `${y}-01-01`;
     const date_to = `${y}-12-31`;
@@ -343,7 +521,7 @@ export function extractPeriodWib(userPrompt: string, now: Date = new Date()): Ex
     };
   }
 
-  if (/\btahun\s+(ini|berjalan|sekarang)\b/.test(lower) || /\b(?:tahun\s+)?(202\d)\b/.test(lower)) {
+  if (/\b(?:tahun\s+(?:ini|berjalan|sekarang)|(?:this|current)\s+year)\b/.test(lower) || /\b(?:(?:tahun|year)\s+)?(202\d)\b/.test(lower)) {
     const y = explicitYearMatch ? Number(explicitYearMatch[1]) : wibNow.year;
     const date_from = `${y}-01-01`;
     const date_to = `${y}-12-31`;
@@ -466,10 +644,13 @@ export const AI_SKILL_DEFINITIONS: AiSkillCatalogDefinition[] = [
       'refund',
       'pengembalian dana',
       'penalti',
+      'penalty',
       'garansi',
       'warranty',
       'csi',
       'kepuasan pelanggan',
+      'claim voucher',
+      'klaim voucher',
     ],
     defaultReportKeys: ['complaints_report', 'refund_penalty_voucher', 'csi_report'],
   },
@@ -483,11 +664,15 @@ export const AI_SKILL_DEFINITIONS: AiSkillCatalogDefinition[] = [
       'comission',
       'insentif',
       'incentive',
+      'insentive',
       'sales comission',
+      'sales commission',
       'komisi sales',
       'komisi toko',
       'store comission',
+      'store commission',
       'rekon komisi',
+      'sales',
     ],
     defaultReportKeys: ['sales_comission'],
   },
@@ -527,7 +712,30 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'totalCancel',
     ],
     maxRows: 35,
-    keywords: ['rekap order', 'laporan order', 'reports/orders', 'omzet order', 'order bulanan', 'order'],
+    keywords: [
+      'rekap order',
+      'laporan order',
+      'reports/orders',
+      'omzet order',
+      'omset order',
+      'order bulanan',
+      'order',
+      'general report',
+      'laporan general report',
+      'transaksi all',
+      'laporan transaksi all',
+      'order paid',
+      'order lunas',
+      'survey report',
+      'laporan survey',
+      'waiting survey',
+      'on progress',
+      'laporan on progress',
+      'complete order',
+      'laporan complete order',
+      'claim garansi',
+      'expense promosi',
+    ],
     summarize: (rawResult, rows) => ({
       totalOrdersInPeriod: Number(rawResult?.meta?.total ?? sumNumericField(rows, 'totalOrder')),
       orderGrandTotalServer: Number(rawResult?.meta?.orderGrandTotal ?? sumNumericField(rows, 'totalOrderGrandTotal')),
@@ -621,7 +829,21 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'created_at',
     ],
     maxRows: 30,
-    keywords: ['sales comission', 'komisi sales', 'insentif sales', 'laporan sales'],
+    keywords: [
+      'sales comission',
+      'komisi sales',
+      'insentif sales',
+      'laporan sales',
+      'insentive paid',
+      'insentive unpaid',
+      'insentif paid',
+      'insentif unpaid',
+      'insentif lunas',
+      'insentif belum lunas',
+      'komisi sales paid',
+      'komisi sales unpaid',
+      'sales commission',
+    ],
     summarize: (rawResult, rows) => ({
       totalRecords: Number(rawResult?.meta?.total ?? rows.length),
       totalCommissionSample: sumNumericField(rows, 'commission_amount'),
@@ -648,7 +870,7 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'created_at',
     ],
     maxRows: 30,
-    keywords: ['work order', 'wo', 'spk', 'pengerjaan', 'jadwal tukang'],
+    keywords: ['work order', 'wo', 'spk', 'pengerjaan', 'jadwal tukang', 'laporan work order', 'daftar wo', 'spk tukang', 'work order report'],
     summarize: (rawResult, rows) => ({
       totalWorkOrders: Number(rawResult?.meta?.total ?? rows.length),
       statusBreakdownSample: countByField(rows, 'status_code'),
@@ -672,7 +894,7 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'created_at',
     ],
     maxRows: 25,
-    keywords: ['reschedule', 'jadwal ulang', 'perubahan jadwal', 'ubah jadwal'],
+    keywords: ['reschedule', 'jadwal ulang', 'perubahan jadwal', 'ubah jadwal', 'laporan reschedule', 'reschedule report', 'alasan reschedule', 'reschedule tukang'],
     summarize: (rawResult, rows) => ({
       totalReschedules: Number(rawResult?.meta?.total ?? rows.length),
       statusBreakdownSample: countByField(rows, 'status_code'),
@@ -696,7 +918,7 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'created_at',
     ],
     maxRows: 25,
-    keywords: ['remedial', 'pengerjaan ulang', 'perbaikan ulang'],
+    keywords: ['remedial', 'pengerjaan ulang', 'perbaikan ulang', 'laporan remedial', 'remedial report', 'tindakan remedial'],
     summarize: (rawResult, rows) => ({
       totalRemedials: Number(rawResult?.meta?.total ?? rows.length),
       statusBreakdownSample: countByField(rows, 'status_code'),
@@ -847,7 +1069,27 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
     allowedParams: ['date_from', 'date_to', 'status', 'store_id', 'vendor_id'],
     fieldWhitelist: ['id', 'invoice_number', 'vendor_name', 'total_amount', 'status', 'created_at'],
     maxRows: 30,
-    keywords: ['invoice', 'invoice paid', 'invoice unpaid', 'pending payment', 'tagihan', 'lunas', 'belum lunas'],
+    keywords: [
+      'invoice',
+      'invoice paid',
+      'invoice unpaid',
+      'pending payment',
+      'tagihan',
+      'lunas',
+      'belum lunas',
+      'tagihan bulanan',
+      'laporan tagihan bulanan',
+      'monthly billing',
+      'laporan pending payment',
+      'invoice check',
+      'unpaid invoice',
+      'paid invoice',
+      'tagihan belum bayar',
+      'tagihan lunas',
+      'invoice lunas',
+      'invoice given to finance',
+      'invoice report',
+    ],
     summarize: (rawResult, rows) => {
       const totalAmount = rows.reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
       return {
@@ -875,7 +1117,24 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'created_at',
     ],
     maxRows: 30,
-    keywords: ['quotation', 'rekap quotation', 'penawaran harga', 'daily follow up', 'follow-up quotation', 'rab'],
+    keywords: [
+      'quotation',
+      'rekap quotation',
+      'penawaran harga',
+      'daily follow up',
+      'follow-up quotation',
+      'rab',
+      'omzet quotation',
+      'omset quotation',
+      'laporan quotation',
+      'quotation report',
+      'quotation omzet',
+      'quotation draft',
+      'draft quotation',
+      'quote in',
+      'quote out',
+      'quotation paid',
+    ],
     summarize: (rawResult, rows) => {
       const totalNominal = rows.reduce((acc, r) => acc + Number(r.quotation_grand_total || 0), 0);
       return {
@@ -903,7 +1162,18 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'created_at',
     ],
     maxRows: 30,
-    keywords: ['komplain', 'complaint', 'keluhan pelanggan', 'tiket komplain', 'laporan komplain'],
+    keywords: [
+      'komplain',
+      'complaint',
+      'keluhan pelanggan',
+      'tiket komplain',
+      'laporan komplain',
+      'complaint report',
+      'laporan complaint',
+      'keluhan customer',
+      'komplain mitra10',
+      'komplain toko',
+    ],
     summarize: (rawResult, rows) => ({
       totalComplaints: Number(rawResult?.meta?.total ?? rows.length),
       sampleCount: rows.length,
@@ -918,7 +1188,24 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
     allowedParams: ['date_from', 'date_to', 'status', 'store_id', 'vendor_id'],
     fieldWhitelist: ['id', 'order_code', 'reason', 'penalty_nominal', 'refund_status', 'created_at'],
     maxRows: 30,
-    keywords: ['refund', 'pengembalian dana', 'penalti vendor', 'potongan vendor', 'voucher', 'klaim garansi'],
+    keywords: [
+      'refund',
+      'pengembalian dana',
+      'penalti vendor',
+      'potongan vendor',
+      'voucher',
+      'klaim garansi',
+      'laporan refund',
+      'refund report',
+      'total penalty',
+      'laporan total penalty',
+      'penalty vendor',
+      'denda vendor',
+      'claim voucher',
+      'klaim voucher',
+      'laporan claim voucher',
+      'voucher refund',
+    ],
     summarize: (rawResult, rows) => {
       const totalPenalti = rows.reduce((acc, r) => acc + Number(r.penalty_nominal || 0), 0);
       return {
@@ -936,7 +1223,23 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
     allowedParams: ['date_from', 'date_to', 'store_id', 'vendor_id'],
     fieldWhitelist: ['id', 'order_code', 'csi_survey', 'csi_work', 'is_done', 'created_at'],
     maxRows: 30,
-    keywords: ['csi', 'customer satisfaction', 'kepuasan pelanggan', 'survei kepuasan', 'ulasan pelanggan'],
+    keywords: [
+      'csi',
+      'customer satisfaction',
+      'kepuasan pelanggan',
+      'survei kepuasan',
+      'ulasan pelanggan',
+      'csi report',
+      'laporan csi',
+      'sent csi',
+      'unsent csi',
+      'csi terkirim',
+      'csi belum terkirim',
+      'csi responded',
+      'csi unrespon',
+      'csi direspon',
+      'csi belum respon',
+    ],
     summarize: (rawResult, rows) => ({
       totalFollowUp: Number(rawResult?.meta?.total ?? rows.length),
       doneSurveySample: rows.filter((r) => r.csi_survey).length,
@@ -959,6 +1262,7 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
       'rekon komisi',
       'pencairan komisi',
       'insentif toko',
+      'laporan komisi toko',
     ],
     summarize: (rawResult, rows) => {
       const totalOrdersCount = rows.reduce((acc, r) => acc + Number(r.order_total || 0), 0);
@@ -977,13 +1281,21 @@ export const AI_REPORT_CATALOG: ReportCatalogItem[] = [
     allowedParams: ['date_from', 'date_to', 'vendor_id'],
     fieldWhitelist: ['id', 'tukang_name', 'vendor_name', 'phone_number', 'is_active', 'total_work_orders'],
     maxRows: 30,
-    keywords: ['laporan tukang', 'produktivitas tukang', 'kinerja tukang', 'rekap tukang'],
+    keywords: ['laporan tukang', 'produktivitas tukang', 'kinerja tukang', 'rekap tukang', 'tukang report', 'produktivitas'],
     summarize: (rawResult, rows) => ({
       totalTukang: Number(rawResult?.meta?.total ?? rows.length),
       activeSample: rows.filter((r) => r.is_active).length,
     }),
   },
 ];
+
+function matchesKeywordSafe(text: string, kw: string): boolean {
+  if (kw.length <= 3) {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+  }
+  return text.includes(kw);
+}
 
 export function detectSkillAndReports(
   userPrompt: string,
@@ -994,15 +1306,27 @@ export function detectSkillAndReports(
   matchedUnavailableReports: ReportCatalogItem[];
 } {
   const lower = String(userPrompt || '').toLowerCase();
+  const normalized = normalizeUserInputForSearch(lower);
 
   let effectiveSkill = AI_SKILL_DEFINITIONS.find((s) => s.id === requestedSkillId);
   if (!effectiveSkill) {
     let bestScore = -1;
     for (const skill of AI_SKILL_DEFINITIONS) {
       let score = 0;
+      // 1. Match against skill keywords
       for (const kw of skill.keywords) {
-        if (lower.includes(kw)) {
-          score += kw.includes(' ') ? 3 : 1;
+        if (matchesKeywordSafe(lower, kw) || matchesKeywordSafe(normalized, kw)) {
+          score += kw.includes(' ') ? 10 : (kw.length > 5 ? 4 : 2);
+        }
+      }
+      // 2. Direct boost from report catalog keywords belonging to this skill
+      for (const rep of AI_REPORT_CATALOG) {
+        if (rep.skill === skill.id) {
+          for (const repKw of rep.keywords) {
+            if (matchesKeywordSafe(lower, repKw) || matchesKeywordSafe(normalized, repKw)) {
+              score += repKw.includes(' ') ? 8 : 2;
+            }
+          }
         }
       }
       if (score > bestScore) {
@@ -1016,7 +1340,7 @@ export function detectSkillAndReports(
   }
 
   const matchedUnavailableReports = AI_REPORT_CATALOG.filter(
-    (item) => item.status === 'unavailable' && item.keywords.some((kw) => lower.includes(kw)),
+    (item) => item.status === 'unavailable' && item.keywords.some((kw) => matchesKeywordSafe(lower, kw) || matchesKeywordSafe(normalized, kw)),
   );
 
   const skillReadyCatalog = AI_REPORT_CATALOG.filter(
@@ -1024,7 +1348,7 @@ export function detectSkillAndReports(
   );
 
   let matchedReadyReports = skillReadyCatalog.filter((item) =>
-    item.keywords.some((kw) => lower.includes(kw)),
+    item.keywords.some((kw) => matchesKeywordSafe(lower, kw) || matchesKeywordSafe(normalized, kw)),
   );
 
   if (matchedReadyReports.length === 0 && matchedUnavailableReports.length === 0) {

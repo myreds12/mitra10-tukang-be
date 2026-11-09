@@ -61,6 +61,7 @@ export class AiSqlExecutorService {
       '   - orders.store_id  = store.id   (Toko Mitra10; nama toko: store.store_name)',
       '   - orders.vendor_id = vendor.id  (Vendor pelaksana; nama vendor: vendor.company_name)',
       '   - orders.sales_id  = sales.id   (Sales toko; nama sales: sales.full_name)',
+      '   - orders.project_status_id = status.id (Status order; kode status: status.category)',
       '',
       '2. Relasi "quotation":',
       '   - quotation.order_id = orders.id',
@@ -90,7 +91,7 @@ export class AiSqlExecutorService {
       '   - invoice_details.invoiceId = invoices.id',
       '   - invoice_details.orderId = orders.id',
       '   * Total tagihan vendor adalah kolom: invoices.total_amount',
-      '   * Status invoice: 2 = APPROVE, 6 = INVOICE PAID (lunas)',
+      '   * Status invoice: 1 = PENDING PAYMENT (INVOICE CHECK), 2 = APPROVE, 3 = REJECTED, 4 = WAITING FOR DOCUMENT, 5 = INVOICE GIVEN TO FINANCE (UNPAID), 6 = INVOICE PAID (LUNAS)',
       '',
       '6. Relasi Penjadwalan Ulang ("reschedule" & "reschedule_status"):',
       '   - reschedule.order_id = orders.id',
@@ -99,16 +100,46 @@ export class AiSqlExecutorService {
       '   - reschedule_tukang.tukang_id = tukang.id',
       '',
       '7. Relasi Pengembalian Dana ("refund"):',
-      '   - refund.order_id = orders.id (Alasan refund: refund.reason; status bayar: refund.paid_status)',
+      '   - refund.order_id = orders.id (Alasan refund: refund.reason; status bayar: refund.paid_status: 0=unpaid, 1=paid; penalti vendor: refund.penalty_nominal > 0; claim voucher: refund.voucher = 1)',
       '',
       '8. Relasi Pelanggaran & SP Vendor ("vendor_violation_log", "vendor_sp", "vendor_violation_type"):',
       '   - vendor_violation_log.vendor_id = vendor.id',
       '   - vendor_violation_log.violation_type_id = vendor_violation_type.id',
       '   - vendor_violation_log.order_id = orders.id',
-      '   - vendor_sp.vendor_id = vendor.id',
+      '   - vendor_sp.vendor_id = vendor.id (sp_level: 1=SP1, 2=SP2, 3=SP3; status: 1=AKTIF, 2=SELESAI, 3=EXTENDED)',
       '   - vendor_sp_detail.vendor_sp_id = vendor_sp.id',
       '   - vendor_sp_detail.violation_log_id = vendor_violation_log.id',
       '   * Akumulasi poin pelanggaran: SUM(COALESCE(vvl.adjusted_point, vvt.point, 0))',
+      '',
+      '=== GLOSARIUM STATUS & SIKLUS HIDUP BISNIS MITRA10 TUKANG ===',
+      '1. FASE SURVEY: SURVEYREQ (Permintaan survey) -> TUKANGSURVEY (Tukang ditugaskan) -> SURVEYSTART (Survey dimulai) -> SURVEYDONE (Survey selesai).',
+      '2. FASE QUOTATION: QUOTATIONDRAFT (Draft penawaran/RAB) -> QUOTEIN (Menunggu verifikasi internal) -> QUOTEOUT (Dikirim ke customer) -> QUOTATIONPAID (Disetujui & dibayar customer).',
+      '3. FASE PENGERJAAN / SPK: WORKREQ (SPK dibuat) -> TUKANGWORK (Tukang ditugaskan) -> WORKSTART (Pekerjaan on-progress / step 1-3) -> WORKEND (Pekerjaan selesai oleh tukang) -> WORKDONE (Pekerjaan diverifikasi selesai) -> DONE (Transaksi selesai sempurna).',
+      '4. FASE RESCHEDULE: RESCHEDULE (Diajukan) -> RESCHEDULEAPPROVEDBYVENDOR (Disetujui Vendor) -> RESCHEDULEAPPROVEDBYHO (Disetujui HO).',
+      '5. FASE KOMPLAIN & REMEDIAL: COMPLAINTOPEN (Tiket komplain dibuka) -> COMPLAINTREQ (Tindak lanjut komplain) -> COMPLAINTDONE (Komplain selesai).',
+      '6. FASE REFUND & PEMBATALAN: REFUNDPENDING (Pengajuan refund) -> REFUNDREQ (Refund diproses) -> REFUNDAPPROVED (Disetujui) / REFUNDREJECTED (Ditolak) / CANCELREFUND (Batal refund) -> CANCEL (Order dibatalkan penuh).',
+      '',
+      '=== PANDUAN QUERY SESUAI LAPORAN VIEW REPORT HO (/reports/view-report) ===',
+      '- "General Report" / "Omzet Order": orders filter pembayaran lunas (grand_total omzet order lunas; JOIN status st ON orders.project_status_id = st.id WHERE st.category NOT IN (\'CANCEL\', \'SURVEYREQ\')).',
+      '- "Transaksi All": seluruh data orders (tanpa memfilter status).',
+      '- "Survey Report": orders dengan st.category LIKE \'%SURVEY%\' atau payment_type = \'survey\'.',
+      '- "Quotation Report": tabel quotation (sum quotation_grand_total).',
+      '- "On Progress": orders dengan status st.category = \'WORKSTART\'.',
+      '- "Complete Order": orders dengan status st.category IN (\'WORKEND\', \'WORKDONE\', \'DONE\').',
+      '- "Reschedule Report": tabel reschedule JOIN reschedule_status (alasan di rs.description).',
+      '- "Complaint Report": tabel complaints.',
+      '- "Claim Garansi": orders berstatus WORKEND/DONE yang memiliki klaim garansi.',
+      '- "Expense Promosi": orders dengan quotation yang memiliki diskon/promosi (quotation_promotion > 0).',
+      '- "Refund Report": tabel refund.',
+      '- "Total Penalty Vendor": tabel refund WHERE refund.penalty_nominal > 0.',
+      '- "Claim Voucher": tabel refund WHERE refund.voucher = 1.',
+      '- "Tagihan Bulanan": tabel invoices (semua tagihan vendor).',
+      '- "Pending Payment": tabel invoices WHERE invoices.status = 1.',
+      '- "Unpaid Invoices": tabel invoices WHERE invoices.status = 5.',
+      '- "Paid Invoices": tabel invoices WHERE invoices.status = 6.',
+      '- "CSI / Unsent CSI": orders WHERE sent_csi = 1 (Terkirim) vs sent_csi = 0 (Belum Terkirim).',
+      '- "CSI Responded": order_follow_up WHERE csi_survey IS NOT NULL OR csi_work IS NOT NULL.',
+      '- "Insentif Paid / Unpaid": sales comission WHERE status = \'PAID\' vs status = \'UNPAID\'.',
       '',
       'ATURAN PEMBUATAN QUERY T-SQL:',
       '1. Gunakan HANYA sintaks SELECT (T-SQL / Microsoft SQL Server).',
@@ -194,15 +225,19 @@ export class AiSqlExecutorService {
     sql = sql.replace(/\binvoices\.amount\b/gi, 'invoices.total_amount');
 
     // 5. Normalisasi nama entitas untuk alias tabel umum
-    // vendor -> company_name
+    // vendor -> company_name & id
     sql = sql.replace(/\bv\.vendor_name\b/gi, 'v.company_name');
     sql = sql.replace(/\bv\.name\b/gi, 'v.company_name');
+    sql = sql.replace(/\bv\.vendor_id\b/gi, 'v.id');
     sql = sql.replace(/\bvendor\.name\b/gi, 'vendor.company_name');
     sql = sql.replace(/\bvendor\.vendor_name\b/gi, 'vendor.company_name');
+    sql = sql.replace(/\bvendor\.vendor_id\b/gi, 'vendor.id');
 
-    // store -> store_name
+    // store -> store_name & id
     sql = sql.replace(/\bs\.name\b/gi, 's.store_name');
+    sql = sql.replace(/\bs\.store_id\b/gi, 's.id');
     sql = sql.replace(/\bstore\.name\b/gi, 'store.store_name');
+    sql = sql.replace(/\bstore\.store_id\b/gi, 'store.id');
 
     // members -> full_name
     sql = sql.replace(/\bm\.name\b/gi, 'm.full_name');
@@ -218,9 +253,17 @@ export class AiSqlExecutorService {
     // reschedule_status -> description
     sql = sql.replace(/\brs\.name\b/gi, 'rs.description');
 
-    // 6. Normalisasi komparasi string kosong pada kolom bertipe TEXT (SQL Server text vs varchar)
-    sql = sql.replace(/\b([a-zA-Z0-9_]+\.description)\s*(!=|<>\s*)''/gi, 'LEN(CAST($1 AS VARCHAR(MAX))) > 0');
-    sql = sql.replace(/\b([a-zA-Z0-9_]+\.description)\s*=\s*''/gi, 'LEN(CAST($1 AS VARCHAR(MAX))) = 0');
+    // status -> category
+    sql = sql.replace(/\bstatus\.name\b/gi, 'status.category');
+    sql = sql.replace(/\bst\.name\b/gi, 'st.category');
+
+    // orders -> project_number & project_status_id
+    sql = sql.replace(/\b(orders?\.|o\.)order_code\b/gi, '$1project_number');
+    sql = sql.replace(/\b(orders?\.|o\.)code\b/gi, '$1project_number');
+
+    // 6. Normalisasi komparasi string kosong pada kolom bertipe TEXT/NTEXT (SQL Server text vs varchar)
+    sql = sql.replace(/\b([a-zA-Z0-9_]+\.(?:description|notes|reason))\s*(!=|<>\s*)''/gi, 'LEN(CAST($1 AS VARCHAR(MAX))) > 0');
+    sql = sql.replace(/\b([a-zA-Z0-9_]+\.(?:description|notes|reason))\s*=\s*''/gi, 'LEN(CAST($1 AS VARCHAR(MAX))) = 0');
 
     // Enforce TOP limit if not present
     if (/^\s*SELECT\b/i.test(sql) && !/^\s*SELECT\s+(DISTINCT\s+)?TOP\b/i.test(sql) && !/\bOFFSET\s+\d+\s+ROWS\b/i.test(sql)) {
