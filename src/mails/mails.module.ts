@@ -33,7 +33,7 @@ import { resolveUploadPath } from 'src/common/utils/upload-path.util';
   ],
   controllers: [MailsController],
   providers: [
-    EmailProcessor,
+    ...(process.env.MAIL_PROCESSOR_DISABLED === 'true' ? [] : [EmailProcessor]),
     MailsService,
   ],
 })

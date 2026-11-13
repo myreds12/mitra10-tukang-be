@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup Ekosistem Mitra10 Tukang — 8 Modul Pengembangan</title>
+<style>
+  :root{
+    --orange:#F37021; --orange-dark:#D95B10; --navy:#1E2A3A; --navy-2:#2C3E52;
+    --bg:#F4F6F8; --card:#fff; --line:#E3E8EE; --text:#253041; --muted:#7A8797;
+    --green:#2BA84A; --red:#E05252; --blue:#3B7DDD; --yellow:#E8A013; --purple:#8A5CF6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+  body{background:var(--bg);color:var(--text);font-size:14px}
+  .app{display:flex;min-height:100vh}
+
+  /* ===== SIDEBAR ===== */
+  .sidebar{width:250px;background:var(--navy);color:#fff;position:fixed;top:0;bottom:0;left:0;overflow-y:scroll;z-index:50}
+  .logo{padding:20px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+  .logo b{color:var(--orange);font-size:18px}
+  .logo small{display:block;color:#9AA7B5;font-size:11px;margin-top:2px}
+  .nav{padding:12px 8px}
+  .nav-group{font-size:10px;letter-spacing:1px;color:#8A97A5;margin:14px 8px 6px;text-transform:uppercase}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#C4CDD7;cursor:pointer;margin-bottom:2px;transition:.15s}
+  .nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+  .nav-item.active{background:var(--orange);color:#fff;font-weight:600}
+  .nav-item .ico{width:20px;text-align:center;font-size:15px}
+  .nav-item .badge{margin-left:auto;background:var(--orange);color:#fff;font-size:9px;padding:2px 6px;border-radius:10px}
+  .nav-item.active .badge{background:#fff;color:var(--orange)}
+
+  /* ===== MAIN ===== */
+  .main{margin-left:250px;flex:1;padding:24px 28px;max-width:1200px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .topbar h1{font-size:20px}
+  .topbar .crumb{color:var(--muted);font-size:12px;margin-top:2px}
+  .user{display:flex;align-items:center;gap:10px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--navy-2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .screen{display:none}
+  .screen.active{display:block}
+
+  /* ===== COMPONENTS ===== */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h3{font-size:14px;margin-bottom:4px}
+  .card .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:1100px){.g3,.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .kpi .val{font-size:24px;font-weight:700;margin:6px 0 2px}
+  .kpi .delta{font-size:11px}
+  .up{color:var(--green)}.down{color:var(--red)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+  .pill.g{background:#E4F5E9;color:var(--green)}.pill.r{background:#FDE9E9;color:var(--red)}
+  .pill.b{background:#E7F0FC;color:var(--blue)}.pill.y{background:#FCF3DC;color:var(--yellow)}
+  .pill.o{background:#FDEBDD;color:var(--orange)}.pill.p{background:#EFE7FD;color:var(--purple)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+  td{padding:10px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .btn{display:inline-block;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600}
+  .btn-p{background:var(--orange);color:#fff}.btn-p:hover{background:var(--orange-dark)}
+  .btn-o{background:#fff;border:1px solid var(--line);color:var(--text)}
+  .btn-s{padding:5px 12px;font-size:12px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{padding:7px 14px;border-radius:8px;background:#fff;border:1px solid var(--line);cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)}
+  .tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .subview{display:none}.subview.active{display:block}
+  .progress{height:6px;background:#EDF0F3;border-radius:4px;overflow:hidden;margin-top:6px}
+  .progress i{display:block;height:100%;background:var(--orange)}
+  .note{background:#FFF8F2;border-left:3px solid var(--orange);padding:10px 14px;border-radius:6px;font-size:12px;color:#8A5A2B;margin-bottom:14px}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .fstep{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:130px}
+  .fstep b{display:block;font-size:12px}
+  .fstep small{color:var(--muted);font-size:10.5px}
+  .farrow{color:var(--orange);font-size:18px;font-weight:700}
+  .search{width:100%;padding:9px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-bottom:12px}
+  .stars{color:var(--yellow);letter-spacing:1px}
+
+  /* chat */
+  .chat-box{height:380px;overflow-y:scroll;border:1px solid var(--line);border-radius:10px;padding:16px;background:#FAFBFC;display:flex;flex-direction:column;gap:12px}
+  .msg{max-width:75%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5}
+  .msg.u{align-self:flex-end;background:var(--orange);color:#fff;border-bottom-right-radius:2px}
+  .msg.a{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:2px}
+  .msg .tool{margin-top:8px;font-size:10.5px;color:var(--muted);background:#F1F4F7;padding:4px 8px;border-radius:6px;display:inline-block}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .chip{background:#fff;border:1px solid var(--orange);color:var(--orange);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer}
+  .input-row{display:flex;gap:8px;margin-top:10px}
+  .input-row input{flex:1;padding:10px 14px;border:1px solid var(--line);border-radius:8px}
+
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin:8px 0}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+  .bar-chart{display:flex;align-items:flex-end;gap:10px;height:140px;padding:8px 4px}
+  .bar{flex:1;background:linear-gradient(180deg,var(--orange),#F5965B);border-radius:6px 6px 0 0;position:relative;min-width:24px}
+  .bar span{position:absolute;top:-20px;width:100%;text-align:center;font-size:10px;color:var(--muted)}
+  .bar small{position:absolute;bottom:-20px;width:100%;text-align:center;font-size:10px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ============ SIDEBAR ============ -->
+<div class="sidebar">
+  <div class="logo"><b>Mitra10</b> Tukang<small>Mockup Ekosistem — v0.1</small></div>
+  <div class="nav">
+    <div class="nav-group">Ringkasan</div>
+    <div class="nav-item active" onclick="go('dash')"><span class="ico">▦</span> Dashboard</div>
+
+    <div class="nav-group">Prioritas 1–3</div>
+    <div class="nav-item" onclick="go('m1')"><span class="ico">🤖</span> AI Agent Data</div>
+    <div class="nav-item" onclick="go('m2')"><span class="ico">⏱</span> Estimasi Durasi</div>
+    <div class="nav-item" onclick="go('m3')"><span class="ico">🧰</span> Tools & Charge</div>
+
+    <div class="nav-group">Prioritas 4–6</div>
+    <div class="nav-item" onclick="go('m4')"><span class="ico">🏍</span> Tukang Mandiri</div>
+    <div class="nav-item" onclick="go('m5')"><span class="ico">⚡</span> Instalasi Instan</div>
+    <div class="nav-item" onclick="go('m6')"><span class="ico">💸</span> Disbursement</div>
+
+    <div class="nav-group">Prioritas 7–8</div>
+    <div class="nav-item" onclick="go('m7')"><span class="ico">🏦</span> Deposit & Penalti</div>
+    <div class="nav-item" onclick="go('m8')"><span class="ico">🏆</span> Reward & Vendor SP</div>
+  </div>
+</div>
+
+<!-- ============ MAIN ============ -->
+<div class="main">
+
+<!-- ================= DASHBOARD ================= -->
+<div class="screen active" id="dash">
+  <div class="topbar"><div><h1>Dashboard Ekosistem</h1><div class="crumb">MoM 6 November 2026 — Rencana Pengembangan 8 Modul</div></div>
+  <div class="user"><div class="avatar">DS</div><div><b style="font-size:13px">Dony Setyawan</b><br><small style="color:var(--muted)">Admin HO</small></div></div></div>
+
+  <div class="note"><b>Tujuan Ekosistem:</b> layanan jasa berbasis data, standar operasional terukur, dan fleksibilitas bagi customer &amp; mitra tukang. Mockup ini mencakup 8 inisiatif sesuai prioritas MoM.</div>
+
+  <div class="grid g4">
+    <div class="kpi"><div class="lbl">Total Order (30d)</div><div class="val">1.284</div><div class="delta up">▲ 12,4% vs bln lalu</div></div>
+    <div class="kpi"><div class="lbl">GMV (30d)</div><div class="val">Rp 2,1 M</div><div class="delta up">▲ 9,8%</div></div>
+    <div class="kpi"><div class="lbl">On-Time Rate</div><div class="val">87,3%</div><div class="delta up">▲ 1,9 poin</div></div>
+    <div class="kpi"><div class="lbl">CSI Score</div><div class="val">4,5<span style="font-size:14px;color:var(--muted)">/5</span></div><div class="delta down">▼ 0,1</div></div>
+  </div>
+
+  <div style="height:16px"></div>
+  <div class="card">
+    <h3>Peta 8 Modul &amp; Status Pengembangan</h3>
+    <div class="sub">Sesuai prioritas MoM — klik modul untuk melihat mockup detail</div>
+    <table>
+      <tr><th>Prio</th><th>Modul</th><th>Fondasi Data</th><th>Kesiapan</th><th>Status</th></tr>
+      <tr style="cursor:pointer" onclick="go('m1')"><td><b>1</b></td><td>🤖 AI Agent pengambilan &amp; pengolahan data</td><td>orders, work_orders, CSI, complaints</td><td><div class="progress"><i style="width:20%"></i></div></td><td><span class="pill o">Desain</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m2')"><td><b>2</b></td><td>⏱ Estimasi durasi berbasis data historis</td><td>work_orders start/end date</td><td><div class="progress"><i style="width:15%"></i></div></td><td><span class="pill o">Desain</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m3')"><td><b>3</b></td><td>🧰 Identifikasi tools &amp; additional charge</td><td>service_type, items</td><td><div class="progress"><i style="width:15%"></i></div></td><td><span class="pill o">Desain</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m4')"><td><b>4</b></td><td>🏍 Tukang mandiri (model Gojek)</td><td>tukang (vendor_id nullable)</td><td><div class="progress"><i style="width:10%"></i></div></td><td><span class="pill y">Konsep</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m5')"><td><b>5</b></td><td>⚡ Layanan instalasi instan</td><td>reschedule, vendor.max_order</td><td><div class="progress"><i style="width:10%"></i></div></td><td><span class="pill y">Konsep</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m6')"><td><b>6</b></td><td>💸 Real-time disbursement</td><td>invoices (status 1–6)</td><td><div class="progress"><i style="width:10%"></i></div></td><td><span class="pill y">Konsep</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m7')"><td><b>7</b></td><td>🏦 Deposit &amp; penalti vendor</td><td>vendor_violation_log, vendor_sp</td><td><div class="progress"><i style="width:35%"></i></div></td><td><span class="pill b">Fondasi Ada</span></td></tr>
+      <tr style="cursor:pointer" onclick="go('m8')"><td><b>8</b></td><td>🏆 Reward &amp; Vendor Service Performance</td><td>CSI, violation, SP records</td><td><div class="progress"><i style="width:35%"></i></div></td><td><span class="pill b">Fondasi Ada</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Volume Pekerjaan per Bulan (data historis — sumber estimasi modul 2)</h3>
+    <div class="bar-chart">
+      <div class="bar" style="height:45%"><span>980</span><small>Jun</small></div>
+      <div class="bar" style="height:55%"><span>1.120</span><small>Jul</small></div>
+      <div class="bar" style="height:62%"><span>1.240</span><small>Agu</small></div>
+      <div class="bar" style="height:58%"><span>1.180</span><small>Sep</small></div>
+      <div class="bar" style="height:70%"><span>1.320</span><small>Okt</small></div>
+      <div class="bar" style="height:78%"><span>1.420</span><small>Nov</small></div>
+    </div>
+    <div style="height:24px"></div>
+  </div>
+</div>
+
+<!-- ================= MODUL 1: AI AGENT ================= -->
+<div class="screen" id="m1">
+  <div class="topbar"><div><h1>🤖 AI Agent — Pengambilan &amp; Pengolahan Data</h1><div class="crumb">Prioritas 1 · Integrasi Claude (Anthropic) · Read-only Phase 1</div></div>
+  <button class="btn btn-o btn-s">⚙ Konfigurasi</button></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m1',this,'m1a')">Tanya AI</div>
+    <div class="tab" onclick="sub('m1',this,'m1b')">Insight Otomatis</div>
+    <div class="tab" onclick="sub('m1',this,'m1c')">Riwayat &amp; Audit</div>
+  </div>
+
+  <div class="subview active" id="m1a">
+    <div class="card">
+      <h3>Bertanya dalam Bahasa Natural</h3>
+      <div class="sub">Agent menjawab hanya berdasarkan data riil via Claude Tool Use — setiap tool call tercatat untuk audit</div>
+      <div class="chat-box">
+        <div class="msg a">Halo 👋 Saya AI Agent Mitra10 Tukang. Saya bisa menjawab pertanyaan tentang transaksi, durasi pekerjaan, komplain, CSI, dan performa vendor. Ada yang bisa saya bantu?<div class="chips">
+          <span class="chip">Berapa rata-rata durasi pemasangan gipsum 3 bulan terakhir?</span>
+          <span class="chip">Vendor mana dengan komplain terbanyak bulan ini?</span>
+          <span class="chip">Tren order per service type kuartal ini</span></div></div>
+        <div class="msg u">Berapa rata-rata durasi pemasangan gipsum 3 bulan terakhir?</div>
+        <div class="msg a">Rata-rata durasi <b>pemasangan gipsum</b> periode 11 Agu – 11 Nov 2026 adalah <b>6,4 jam</b> dari 214 pekerjaan selesai.<br>• Median (p50): 5,8 jam<br>• p90: 9,1 jam — 90% pekerjaan selesai di bawah nilai ini<br>• Ketepatan waktu: 87%<br><span class="tool">🔧 get_work_order_summary(from:2026-08-11, to:2026-11-11) · 340ms</span></div>
+        <div class="msg u">Vendor mana dengan komplain terbanyak bulan ini?</div>
+        <div class="msg a">Berdasarkan data November 2026, vendor dengan komplain terbanyak:<br>1. <b>CV Bangun Jaya</b> — 7 komplain (3 belum terselesaikan)<br>2. <b>PT Sinar Teknik</b> — 5 komplain (semua selesai)<br>3. <b>CV Mitra Perkasa</b> — 4 komplain<br><span class="tool">🔧 get_complaint_summary(from:2026-11-01, to:2026-11-11) · 210ms</span></div>
+      </div>
+      <div class="input-row"><input placeholder="Tulis pertanyaan Anda… (contoh: berapa GMV Denah area bulan ini?)"><button class="btn btn-p">Kirim</button></div>
+    </div>
+  </div>
+
+  <div class="subview" id="m1b">
+    <div class="grid g3">
+      <div class="kpi"><div class="lbl">Order Bulan Ini</div><div class="val">1.420</div><div class="delta up">▲ 7,6%</div></div>
+      <div class="kpi"><div class="lbl">Data Terproses</div><div class="val">128K<span style="font-size:13px;color:var(--muted)"> baris</span></div><div class="delta">orders · WO · CSI · komplain</div></div>
+      <div class="kpi"><div class="lbl">Token Claude (30d)</div><div class="val">1,9 jt</div><div class="delta">38% dari kuota</div></div>
+    </div>
+    <div style="height:16px"></div>
+    <div class="card">
+      <h3>Insight yang Terdeteksi Agent</h3>
+      <table>
+        <tr><th>Insight</th><th>Sumber Data</th><th>Rekomendasi</th></tr>
+        <tr><td>Durasi pemasangan <b>water heater</b> naik 18% (7,2 → 8,5 jam)</td><td>work_orders</td><td>Cek ketersediaan tools tukang (modul 3)</td></tr>
+        <tr><td>Komplain kategori <b>keterlambatan</b> dominan di area Jakarta Timur</td><td>complaints</td><td>Tambah alokasi vendor area tsb.</td></tr>
+        <tr><td>CSI vendor <b>CV Bangun Jaya</b> turun 0,8 poin Q4</td><td>csi_answers</td><td>Perlu evaluasi → terkait modul 8</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="subview" id="m1c">
+    <div class="card">
+      <h3>Audit Log Tool Call</h3>
+      <div class="sub">Semua akses data oleh AI tercatat — parameter &amp; ringkasan hasil (tanpa PII)</div>
+      <table>
+        <tr><th>Waktu</th><th>User</th><th>Tool</th><th>Parameter</th><th>Durasi</th></tr>
+        <tr><td>11 Nov 14:32</td><td>Dony S.</td><td>get_work_order_summary</td><td>from:2026-08-11 to:2026-11-11</td><td>340ms</td></tr>
+        <tr><td>11 Nov 14:31</td><td>Dony S.</td><td>get_complaint_summary</td><td>from:2026-11-01 to:2026-11-11</td><td>210ms</td></tr>
+        <tr><td>11 Nov 11:05</td><td>Ricky A.</td><td>get_transaction_summary</td><td>from:2026-10-01 to:2026-10-31</td><td>180ms</td></tr>
+        <tr><td>11 Nov 09:44</td><td>Admin HO</td><td>get_csi_summary</td><td>quarter:Q4</td><td>410ms</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 2: ESTIMASI DURASI ================= -->
+<div class="screen" id="m2">
+  <div class="topbar"><div><h1>⏱ Estimasi Durasi Pengerjaan</h1><div class="crumb">Prioritas 2 · Berbasis data historis work_orders</div></div>
+  <button class="btn btn-o btn-s">Export Standar (Excel)</button></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m2',this,'m2a')">Standar Estimasi</div>
+    <div class="tab" onclick="sub('m2',this,'m2b')">Simulasi di Order</div>
+    <div class="tab" onclick="sub('m2',this,'m2c')">Perencanaan Kapasitas</div>
+  </div>
+
+  <div class="subview active" id="m2a">
+    <div class="card">
+      <h3>Standar Durasi per Jenis Pekerjaan</h3>
+      <div class="sub">Dihitung dari rata-rata &amp; percentile historis — diperbarui otomatis tiap akhir pekan oleh AI Agent</div>
+      <table>
+        <tr><th>Jenis Pekerjaan</th><th>Sample</th><th>Rata-rata</th><th>Median (p50)</th><th>p90</th><th>Ketepatan Waktu</th><th>Status</th></tr>
+        <tr><td>Pemasangan Gipsum</td><td>214</td><td>6,4 jam</td><td>5,8 jam</td><td>9,1 jam</td><td>87%</td><td><span class="pill g">Valid</span></td></tr>
+        <tr><td>Pemasangan Water Heater</td><td>156</td><td>8,5 jam</td><td>7,9 jam</td><td>11,2 jam</td><td>81%</td><td><span class="pill y">Perlu Review</span></td></tr>
+        <tr><td>Pemasangan AC Split</td><td>342</td><td>3,2 jam</td><td>3,0 jam</td><td>4,5 jam</td><td>93%</td><td><span class="pill g">Valid</span></td></tr>
+        <tr><td>Instalasi Kabel Listrik</td><td>98</td><td>5,1 jam</td><td>4,6 jam</td><td>7,4 jam</td><td>84%</td><td><span class="pill g">Valid</span></td></tr>
+        <tr><td>Pemasangan Keramik</td><td>47</td><td>11,8 jam</td><td>10,5 jam</td><td>16,0 jam</td><td>72%</td><td><span class="pill y">Sample Rendah</span></td></tr>
+      </table>
+      <div class="note" style="margin-top:12px"><b>Aturan validitas:</b> jenis pekerjaan dengan sample &lt; 50 menggunakan estimasi manual HO + confidence rendah hingga data cukup.</div>
+    </div>
+  </div>
+
+  <div class="subview" id="m2b">
+    <div class="grid g2">
+      <div class="card">
+        <h3>Input Estimasi</h3>
+        <div class="sub">Yang dilihat sales/HO saat membuat order</div>
+        <table>
+          <tr><td style="color:var(--muted)">Jenis pekerjaan</td><td><b>Pemasangan Gipsum</b> — 12 m²</td></tr>
+          <tr><td style="color:var(--muted)">Lokasi</td><td>Jakarta Selatan (area normal)</td></tr>
+          <tr><td style="color:var(--muted)">Estimasi sistem</td><td><b style="color:var(--green)">6,4 jam</b> <span class="pill g">p50 basis</span></td></tr>
+          <tr><td style="color:var(--muted)">Rentang</td><td>5,8 – 9,1 jam (conf. 90%)</td></tr>
+          <tr><td style="color:var(--muted)">Tukang disarankan</td><td>2 orang</td></tr>
+          <tr><td style="color:var(--muted)">Estimasi selesai</td><td>H + 1, sebelum 16:00 WIB</td></tr>
+        </table>
+        <div style="margin-top:12px"><button class="btn btn-p">Terapkan ke Order</button> <button class="btn btn-o">Sesuaikan Manual</button></div>
+      </div>
+      <div class="card">
+        <h3>Yang Dilihat Customer</h3>
+        <div class="sub">Transparansi waktu penyelesaian</div>
+        <div style="padding:16px;background:#F8FAFB;border:1px dashed var(--line);border-radius:10px">
+          <b style="font-size:15px">Pekerjaan Anda</b><p style="color:var(--muted);margin:4px 0 10px">Pemasangan Gipsum — 12 m²</p>
+          <div style="display:flex;gap:10px;margin-bottom:12px">
+            <div class="kpi" style="flex:1;padding:12px"><div class="lbl">Mulai</div><div style="font-weight:700;margin-top:4px">Senin, 09:00</div></div>
+            <div class="kpi" style="flex:1;padding:12px"><div class="lbl">Estimasi Selesai</div><div style="font-weight:700;margin-top:4px;color:var(--green)">Senin, 15:30</div></div>
+          </div>
+          <div class="progress"><i style="width:65%"></i></div>
+          <small style="color:var(--muted)">Berdasarkan 214 pekerjaan serupa · akurasi 90%</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subview" id="m2c">
+    <div class="card">
+      <h3>Perencanaan Kapasitas &amp; Penjadwalan Tukang</h3>
+      <div class="sub">Beban kerja vs kapasitas per area — input penugasan vendor/tukang</div>
+      <table>
+        <tr><th>Area</th><th>Permintaan (mingguan)</th><th>Kapasitas Tukang</th><th>Utilisasi</th><th>Status</th></tr>
+        <tr><td>Jakarta Selatan</td><td>112 order</td><td>120 slot</td><td><div class="progress"><i style="width:93%;background:var(--red)"></i></div>93%</td><td><span class="pill r">Perlu Tambahan</span></td></tr>
+        <tr><td>Jakarta Timur</td><td>98 order</td><td>130 slot</td><td><div class="progress"><i style="width:75%;background:var(--yellow)"></i></div>75%</td><td><span class="pill y">Waspada</span></td></tr>
+        <tr><td>Tangerang</td><td>64 order</td><td>110 slot</td><td><div class="progress"><i style="width:58%"></i></div>58%</td><td><span class="pill g">Aman</span></td></tr>
+        <tr><td>Bekasi</td><td>71 order</td><td>95 slot</td><td><div class="progress"><i style="width:74%;background:var(--yellow)"></i></div>74%</td><td><span class="pill y">Waspada</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 3: TOOLS & CHARGE ================= -->
+<div class="screen" id="m3">
+  <div class="topbar"><div><h1>🧰 Sistem Informasi Kebutuhan Tools &amp; Biaya</h1><div class="crumb">Prioritas 3 · Transparansi alat &amp; additional charge</div></div>
+  <button class="btn btn-p btn-s">+ Tambah Tool</button></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m3',this,'m3a')">Master Tools</div>
+    <div class="tab" onclick="sub('m3',this,'m3b')">Mapping Jenis Pekerjaan</div>
+    <div class="tab" onclick="sub('m3',this,'m3c')">Tampilan Customer</div>
+  </div>
+
+  <div class="subview active" id="m3a">
+    <div class="card">
+      <h3>Daftar Peralatan</h3>
+      <input class="search" placeholder="Cari tools…">
+      <table>
+        <tr><th>Tool</th><th>Kategori</th><th>Wajib / Opsi</th><th>Biaya Tambahan</th><th>Status</th></tr>
+        <tr><td>Tangga Lipat 3m</td><td><span class="pill p">Peralatan Besar</span></td><td>Wajib (pekerjaan ≥ 2,5m)</td><td><b>Rp 75.000</b>/pekerjaan</td><td><span class="pill g">Aktif</span></td></tr>
+        <tr><td>Bor Dinding + Mata Bor</td><td><span class="pill b">Standar</span></td><td>Wajib (dipunyai tukang)</td><td>—</td><td><span class="pill g">Aktif</span></td></tr>
+        <tr><td>Scaffolding Portable</td><td><span class="pill p">Peralatan Khusus</span></td><td>Wajib (plafon ≥ 4m)</td><td><b>Rp 150.000</b>/hari</td><td><span class="pill g">Aktif</span></td></tr>
+        <tr><td>Vacuum Cleaner Industri</td><td><span class="pill b">Tambahan</span></td><td>Opsi (pembersihan debu)</td><td><b>Rp 50.000</b>/pekerjaan</td><td><span class="pill y">Perlu Review</span></td></tr>
+        <tr><td>Alat Tekan AC (Vacuum Pump)</td><td><span class="pill p">Peralatan Khusus</span></td><td>Wajib (pemasangan AC)</td><td>—</td><td><span class="pill g">Aktif</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="subview" id="m3b">
+    <div class="card">
+      <h3>Mapping: Jenis Pekerjaan → Tools</h3>
+      <div class="sub">Checklist yang harus dibawa/digunakan tukang, dibuat otomatis saat order dibuat</div>
+      <table>
+        <tr><th>Jenis Pekerjaan</th><th>Tools Wajib</th><th>Additional Charge Potensial</th></tr>
+        <tr><td>Pemasangan Gipsum (plafon)</td><td>Bor dinding, Tangga 3m, Scaffolding (plafon ≥ 4m)</td><td>Tangga <b>Rp 75rb</b> · Scaffolding <b>Rp 150rb/hari</b></td></tr>
+        <tr><td>Pemasangan AC Split</td><td>Alat tekan AC, Bor dinding, Tangga 3m</td><td>Tangga <b>Rp 75rb</b></td></tr>
+        <tr><td>Pemasangan Water Heater</td><td>Bor dinding, Tangga 3m, Pipa fitting set</td><td>Tangga <b>Rp 75rb</b></td></tr>
+        <tr><td>Instalasi Keramik</td><td>Cutter keramik, Palu karet, Level laser</td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="subview" id="m3c">
+    <div class="card" style="max-width:560px">
+      <h3>Tampilan Customer — Rincian Sebelum Pengerjaan</h3>
+      <div class="sub">Transparansi kebutuhan alat &amp; biaya sebelum pekerjaan dilakukan</div>
+      <table>
+        <tr><th colspan="2" style="font-size:13px;color:var(--text)">🧰 Kebutuhan Alat — Pemasangan Gipsum</tr>
+        <tr><td>Bor dinding + mata bor</td><td style="color:var(--muted)">Dibawa tukang</td></tr>
+        <tr><td>Tangga lipat 3m <span class="pill p">Besar</span></td><td><b style="color:var(--orange)">+ Rp 75.000</b></td></tr>
+        <tr><td>Scaffolding (plafon &gt; 4m)</td><td style="color:var(--muted)">Tidak diperlukan</td></tr>
+      </table>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:15px">
+        <span>Biaya jasa</span><b>Rp 1.500.000</b>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--orange)"><span>Additional charge (tangga)</span><b>+ Rp 75.000</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;margin-top:8px"><b>Total</b><b>Rp 1.575.000</b></div>
+      <div style="margin-top:14px"><button class="btn btn-p">Setuju &amp; Lanjutkan</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 4: TUKANG MANDIRI ================= -->
+<div class="screen" id="m4">
+  <div class="topbar"><div><h1>🏍 Tukang Mandiri (Independent Technician)</h1><div class="crumb">Prioritas 4 · Model Gojek — tukang bergabung tanpa vendor</div></div>
+  <span class="pill b">Konsep — perlu kajian arsitektur</span></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m4',this,'m4a')">Cari &amp; Pesan (Customer)</div>
+    <div class="tab" onclick="sub('m4',this,'m4b')">Onboarding &amp; Verifikasi</div>
+    <div class="tab" onclick="sub('m4',this,'m4c')">Monitoring</div>
+  </div>
+
+  <div class="subview active" id="m4a">
+    <div class="card">
+      <h3>Cari Tukang Mandiri</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input class="search" style="margin:0" placeholder="Layanan: mis. pemasangan AC, listrik…">
+        <input class="search" style="margin:0;width:180px" placeholder="Area">
+        <button class="btn btn-p">Cari</button>
+      </div>
+      <div class="grid g3">
+        <div class="kpi"><div class="lbl"><b style="color:var(--text)">Ahmad Fauzi</b> · Jakarta Selatan</div><div class="val" style="font-size:16px">Pemasangan AC &amp; Water Heater</div><div class="delta"><span class="stars">★★★★★</span> 4,9 (127 ulasan) · 214 pekerjaan · <span class="pill g">Terverifikasi</span></div></div>
+        <div class="kpi"><div class="lbl"><b style="color:var(--text)">Budi Santoso</b> · Jakarta Timur</div><div class="val" style="font-size:16px">Listrik &amp; Gipsum</div><div class="delta"><span class="stars">★★★★☆</span> 4,6 (89 ulasan) · 156 pekerjaan · <span class="pill g">Terverifikasi</span></div></div>
+        <div class="kpi"><div class="lbl"><b style="color:var(--text)">Candra Wijaya</b> · Tangerang</div><div class="val" style="font-size:16px">Keramik &amp; Plafon</div><div class="delta"><span class="stars">★★★★☆</span> 4,4 (52 ulasan) · 71 pekerjaan · <span class="pill g">Terverifikasi</span></div></div>
+      </div>
+      <div style="height:14px"></div>
+      <div class="card" style="background:#F8FAFB">
+        <h3>Alur Pemesanan Langsung</h3>
+        <div class="flow">
+          <div class="fstep"><b>1. Pilih Tukang</b><small>Filter layanan, area, rating</small></div><span class="farrow">→</span>
+          <div class="fstep"><b>2. Pilih Jadwal</b><small>Slot tersedia tukang</small></div><span class="farrow">→</span>
+          <div class="fstep"><b>3. Konfirmasi</b><small>Harga + tools + estimasi</small></div><span class="farrow">→</span>
+          <div class="fstep"><b>4. Pengerjaan</b><small>Tracking status real-time</small></div><span class="farrow">→</span>
+          <div class="fstep"><b>5. Selesai</b><small>Verifikasi + rating</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subview" id="m4b">
+    <div class="grid g2">
+      <div class="card">
+        <h3>Pendaftaran Tukang Mandiri</h3>
+        <table>
+          <tr><th>Nama</th><th>Dokumen</th><th>Verifikasi</th><th>Status</th></tr>
+          <tr><td>Dedi Kurniawan</td><td>KTP ✓ · Sertifikat ✓ · Foto ✓</td><td>Wawancara terjadwal 13 Nov</td><td><span class="pill y">Proses</span></td></tr>
+          <tr><td>Eko Prasetyo</td><td>KTP ✓ · Sertifikat ✗</td><td>Menunggu sertifikat kompetensi</td><td><span class="pill r">Tidak Lengkap</span></td></tr>
+          <tr><td>Fajar Nugroho</td><td>Lengkap ✓</td><td>Wawancara + tes praktik lulus</td><td><span class="pill g">Disetujui</span></td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Skema Verifikasi &amp; Pengawasan</h3>
+        <table>
+          <tr><td>📋 <b>Verifikasi dokumen</b></td><td style="color:var(--muted)">KTP, sertifikat kompetensi, foto diri</td></tr>
+          <tr><td>🗣 <b>Wawancara + tes praktik</b></td><td style="color:var(--muted)">Dinilai admin HO</td></tr>
+          <tr><td>🔒 <b>Deposit jaminan</b></td><td style="color:var(--muted)">Terhubung modul 7</td></tr>
+          <tr><td>⭐ <b>Penilaian berkelanjutan</b></td><td style="color:var(--muted)">Rating &lt; 4,0 → pembinaan/suspensi</td></tr>
+          <tr><td>👁 <b>Pemantauan pekerjaan</b></td><td style="color:var(--muted)">Bukti before/after wajib per pekerjaan</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="subview" id="m4c">
+    <div class="card">
+      <h3>Monitoring Pekerjaan Tukang Mandiri Aktif</h3>
+      <table>
+        <tr><th>Tukang</th><th>Order</th><th>Status</th><th>Progress</th><th>Bukti</th></tr>
+        <tr><td>Ahmad Fauzi</td><td>ORD-2841 · AC Split</td><td><span class="pill b">Dikerjakan</span></td><td><div class="progress"><i style="width:60%"></i></div></td><td>Before ✓</td></tr>
+        <tr><td>Budi Santoso</td><td>ORD-2837 · Gipsum</td><td><span class="pill g">Selesai — Menunggu Verifikasi</span></td><td><div class="progress"><i style="width:100%"></i></div></td><td>Before ✓ After ✓</td></tr>
+        <tr><td>Candra Wijaya</td><td>ORD-2833 · Keramik</td><td><span class="pill o">Menuju Lokasi</span></td><td><div class="progress"><i style="width:10%"></i></div></td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 5: INSTALASI INSTAN ================= -->
+<div class="screen" id="m5">
+  <div class="topbar"><div><h1>⚡ Layanan Instalasi Instan</h1><div class="crumb">Prioritas 5 · Prioritas jadwal tanpa antrean reguler</div></div>
+  <span class="pill y">Konsep</span></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m5',this,'m5a')">Booking Customer</div>
+    <div class="tab" onclick="sub('m5',this,'m5b')">Manajemen Slot &amp; Harga</div>
+  </div>
+
+  <div class="subview active" id="m5a">
+    <div class="card" style="max-width:640px">
+      <h3>Pilih Jadwal Instalasi</h3>
+      <div class="sub">Reguler mengikuti antrean; Instan mendapatkan slot prioritas sesuai ketersediaan tukang</div>
+      <div class="grid g2">
+        <div class="kpi" style="cursor:pointer"><div class="lbl">Reguler</div><div class="val" style="font-size:16px">Rabu, 18 Nov</div><div class="delta">Antrean: 6 order sebelum Anda</div><div style="margin-top:8px;font-size:16px"><b>Rp 1.500.000</b></div></div>
+        <div class="kpi" style="cursor:pointer;border:2px solid var(--orange)"><div class="lbl" style="color:var(--orange)">⚡ Instan — Hari Ini</div><div class="val" style="font-size:16px">Senin 11 Nov, 13:00</div><div class="delta"><span class="pill g">Tukang tersedia</span> 2 slot tersisa</div><div style="margin-top:8px;font-size:16px"><b>Rp 1.725.000</b> <small style="color:var(--orange)">(biaya prioritas +15%)</small></div></div>
+      </div>
+      <div style="height:14px"></div>
+      <div class="card" style="margin:0;background:#F8FAFB">
+        <b style="font-size:13px">Slot Tersedia Hari Ini</b>
+        <div class="chips" style="margin-top:10px">
+          <span class="chip" style="border-color:var(--green);color:var(--green)">09:00 ✓</span>
+          <span class="chip" style="border-color:var(--green);color:var(--green)">13:00 ✓ (sisa 2)</span>
+          <span class="chip" style="border-color:#C6CDD5;color:#AAB2BC;text-decoration:line-through">16:00 penuh</span>
+        </div>
+        <small style="color:var(--muted)">Slot dihitung dari ketersediaan tukang area + kapasitas operasional (vendor.max_order)</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="subview" id="m5b">
+    <div class="card">
+      <h3>Skema Harga Layanan Instan</h3>
+      <table>
+        <tr><th>Jenis Layanan</th><th>Harga Reguler</th><th>Instan (Same-Day)</th><th>Instan (+2 Jam)</th><th>Status</th></tr>
+        <tr><td>Pemasangan AC</td><td>Rp 750.000</td><td>Rp 862.500 (+15%)</td><td>Rp 825.000 (+10%)</td><td><span class="pill g">Aktif</span></td></tr>
+        <tr><td>Pemasangan Gipsum</td><td>Rp 1.500.000</td><td>Rp 1.725.000 (+15%)</td><td>Rp 1.650.000 (+10%)</td><td><span class="pill g">Aktif</span></td></tr>
+        <tr><td>Water Heater</td><td>Rp 950.000</td><td colspan="2" style="color:var(--muted)">Menunggu keputusan bisnis</td><td><span class="pill y">Review</span></td></tr>
+      </table>
+      <div class="note" style="margin-top:12px"><b>Catatan MoM:</b> skema harga khusus instalasi instan perlu keputusan bisnis — angka di atas placeholder untuk mockup.</div>
+    </div>
+    <div class="card">
+      <h3>Ketersediaan Kapasitas Real-Time</h3>
+      <table>
+        <tr><th>Area</th><th>Slot Instan Tersedia Hari Ini</th><th>Kapasitas</th><th>Status</th></tr>
+        <tr><td>Jakarta Selatan</td><td>2 / 12</td><td>12 tukang · max 2 order/tukang</td><td><span class="pill y">Terbatas</span></td></tr>
+        <tr><td>Jakarta Timur</td><td>7 / 16</td><td>16 tukang</td><td><span class="pill g">Tersedia</span></td></tr>
+        <tr><td>Tangerang</td><td>9 / 18</td><td>18 tukang</td><td><span class="pill g">Tersedia</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 6: DISBURSEMENT ================= -->
+<div class="screen" id="m6">
+  <div class="topbar"><div><h1>💸 Real-Time Disbursement</h1><div class="crumb">Prioritas 6 · Pencairan otomatis setelah verifikasi customer</div></div>
+  <span class="pill y">Butuh integrasi payment gateway</span></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m6',this,'m6a')">Alur Pencairan</div>
+    <div class="tab" onclick="sub('m6',this,'m6b')">Transaksi</div>
+    <div class="tab" onclick="sub('m6',this,'m6c')">Rekonsiliasi</div>
+  </div>
+
+  <div class="subview active" id="m6a">
+    <div class="card">
+      <h3>Alur Disbursement (sesuai MoM)</h3>
+      <div class="flow">
+        <div class="fstep"><b>1. Pekerjaan Selesai</b><small>Tukang unggah bukti after</small></div><span class="farrow">→</span>
+        <div class="fstep"><b>2. Verifikasi Customer</b><small>Konfirmasi selesai &amp; tanpa masalah</small></div><span class="farrow">→</span>
+        <div class="fstep"><b>3. Sistem Konfirmasi</b><small>Trigger otomatis</small></div><span class="farrow">→</span>
+        <div class="fstep" style="border:2px solid var(--green)"><b>4. Dana Dicairkan</b><small>Real-time ke rekening vendor/tukang</small></div>
+      </div>
+      <div class="note"><b>Catatan MoM:</b> mekanisme pencairan perlu menyesuaikan integrasi payment gateway / layanan perbankan yang mendukung disbursement (mis. Xendit Disbursement, Midtrans Payout).</div>
+    </div>
+    <div class="grid g4">
+      <div class="kpi"><div class="lbl">Dicairkan Hari Ini</div><div class="val">Rp 84 jt</div><div class="delta">23 transaksi</div></div>
+      <div class="kpi"><div class="lbl">Menunggu Verifikasi</div><div class="val">14</div><div class="delta">order siap cair</div></div>
+      <div class="kpi"><div class="lbl">Gagal (retry)</div><div class="val">2</div><div class="delta down">nomor rekening salah</div></div>
+      <div class="kpi"><div class="lbl">Avg Waktu Cair</div><div class="val">4,2 mnt</div><div class="delta up">dari verifikasi</div></div>
+    </div>
+  </div>
+
+  <div class="subview" id="m6b">
+    <div class="card">
+      <h3>Transaksi Disbursement</h3>
+      <table>
+        <tr><th>Waktu</th><th>Order</th><th>Penerima</th><th>Nominal</th><th>Channel</th><th>Status</th></tr>
+        <tr><td>11 Nov 14:22</td><td>ORD-2837</td><td>CV Bangun Jaya</td><td>Rp 4.250.000</td><td>BCA</td><td><span class="pill g">✓ Berhasil</span></td></tr>
+        <tr><td>11 Nov 14:05</td><td>ORD-2831</td><td>Ahmad Fauzi (mandiri)</td><td>Rp 825.000</td><td>BRI</td><td><span class="pill g">✓ Berhasil</span></td></tr>
+        <tr><td>11 Nov 13:48</td><td>ORD-2829</td><td>PT Sinar Teknik</td><td>Rp 2.100.000</td><td>Mandiri</td><td><span class="pill y">⏳ Diproses Gateway</span></td></tr>
+        <tr><td>11 Nov 11:30</td><td>ORD-2824</td><td>CV Mitra Perkasa</td><td>Rp 1.975.000</td><td>BCA</td><td><span class="pill r">✗ Gagal — rekening tidak valid</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="subview" id="m6c">
+    <div class="card">
+      <h3>Rekonsiliasi Harian</h3>
+      <table>
+        <tr><th>Tanggal</th><th>Total Sistem</th><th>Total Gateway</th><th>Selisih</th><th>Status</th></tr>
+        <tr><td>10 Nov</td><td>Rp 96.400.000</td><td>Rp 96.400.000</td><td>—</td><td><span class="pill g">Balance</span></td></tr>
+        <tr><td>9 Nov</td><td>Rp 112.750.000</td><td>Rp 112.750.000</td><td>—</td><td><span class="pill g">Balance</span></td></tr>
+        <tr><td>8 Nov</td><td>Rp 87.300.000</td><td>Rp 87.100.000</td><td><span style="color:var(--red)">Rp 200.000</span></td><td><span class="pill y">Investigasi</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 7: DEPOSIT & PENALTI ================= -->
+<div class="screen" id="m7">
+  <div class="topbar"><div><h1>🏦 Deposit &amp; Penalti Vendor</h1><div class="crumb">Prioritas 7 · Integrasi langsung dgn sistem violation &amp; SP yang sudah ada</div></div>
+  <button class="btn btn-p btn-s">+ Top-Up Deposit</button></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m7',this,'m7a')">Dashboard Vendor</div>
+    <div class="tab" onclick="sub('m7',this,'m7b')">Aturan Penalti</div>
+    <div class="tab" onclick="sub('m7',this,'m7c')">Riwayat Pemotongan</div>
+  </div>
+
+  <div class="subview active" id="m7a">
+    <div class="grid g3">
+      <div class="kpi"><div class="lbl">Saldo Deposit</div><div class="val" style="color:var(--green)">Rp 12,5 jt</div><div class="delta">Min. Rp 10 jt <span class="pill g">Aman</span></div></div>
+      <div class="kpi"><div class="lbl">Total Pemotongan (Q4)</div><div class="val">Rp 3,5 jt</div><div class="delta">5 penalti</div></div>
+      <div class="kpi"><div class="lbl">Kasus Aktif</div><div class="val">1</div><div class="delta">komplain ORD-2811</div></div>
+    </div>
+    <div style="height:16px"></div>
+    <div class="card">
+      <h3>Ringkasan Deposit Vendor (Admin HO)</h3>
+      <table>
+        <tr><th>Vendor</th><th>Saldo Deposit</th><th>Min. Saldo</th><th>Penalti Q4</th><th>Status</th></tr>
+        <tr><td>CV Bangun Jaya</td><td>Rp 12.500.000</td><td>Rp 10.000.000</td><td>Rp 3.500.000 (5x)</td><td><span class="pill g">Aman</span></td></tr>
+        <tr><td>PT Sinar Teknik</td><td>Rp 6.200.000</td><td>Rp 10.000.000</td><td>Rp 8.800.000 (7x)</td><td><span class="pill r">Di Bawah Minimum</span></td></tr>
+        <tr><td>CV Mitra Perkasa</td><td>Rp 10.000.000</td><td>Rp 10.000.000</td><td>—</td><td><span class="pill y">Tepat Minimum</span></td></tr>
+        <tr><td>Ahmad Fauzi (mandiri)</td><td>Rp 2.000.000</td><td>Rp 2.000.000</td><td>—</td><td><span class="pill y">Tepat Minimum</span></td></tr>
+      </table>
+      <div class="note" style="margin-top:12px"><b>Otomatisasi:</b> pemotongan deposit dieksekusi otomatis saat pelanggaran <code>vendor_violation_log</code> disetujui — hook ke sistem yang <u>sudah berjalan</u>.</div>
+    </div>
+  </div>
+
+  <div class="subview" id="m7b">
+    <div class="card">
+      <h3>Aturan Pemotongan Deposit</h3>
+      <table>
+        <tr><th>Pelanggaran</th><th>Poin</th><th>Penalti Deposit</th><th>Sumber Sistem</th></tr>
+        <tr><td>Order tidak dikonfirmasi &gt; 2×24 jam</td><td>2</td><td>Rp 500.000</td><td>violation log (existing)</td></tr>
+        <tr><td>Reschedule tidak diupdate</td><td>1</td><td>Rp 250.000</td><td>violation log (existing)</td></tr>
+        <tr><td>Komplain terverifikasi — kualitas</td><td>3</td><td>Rp 750.000</td><td>complaints + remedials</td></tr>
+        <tr><td>Pengerjaan terlambat &gt; 1 hari</td><td>2</td><td>Rp 500.000</td><td>work_orders</td></tr>
+        <tr><td>Remedial tidak dikerjakan</td><td>4</td><td>Rp 1.000.000</td><td>remedials</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="subview" id="m7c">
+    <div class="card">
+      <h3>Riwayat Pemotongan — CV Bangun Jaya</h3>
+      <table>
+        <tr><th>Tanggal</th><th>Pelanggaran</th><th>Order</th><th>Potongan</th><th>Saldo Setelah</th><th>Status</th></tr>
+        <tr><td>9 Nov</td><td>Order tidak dikonfirmasi 2×24 jam</td><td>ORD-2799</td><td>-Rp 500.000</td><td>Rp 12.500.000</td><td><span class="pill g">Disetujui</span></td></tr>
+        <tr><td>2 Nov</td><td>Komplain terverifikasi</td><td>ORD-2811</td><td>-Rp 750.000</td><td>Rp 13.000.000</td><td><span class="pill g">Disetujui</span></td></tr>
+        <tr><td>28 Okt</td><td>Terlambat &gt; 1 hari</td><td>ORD-2704</td><td>-Rp 500.000</td><td>Rp 13.750.000</td><td><span class="pill y">Revisi Diminta</span></td></tr>
+      </table>
+      <small style="color:var(--muted)">Vendor dapat mengajukan revisi/reset — alur existing <code>vendor_violation_revision_request</code></small>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODUL 8: REWARD & VENDOR SP ================= -->
+<div class="screen" id="m8">
+  <div class="topbar"><div><h1>🏆 Reward &amp; Vendor Service Performance</h1><div class="crumb">Prioritas 8 · Evaluasi performa + reward atas indikator terukur</div></div>
+  <button class="btn btn-o btn-s">Bagikan Reward Periode</button></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sub('m8',this,'m8a')">Skor &amp; Leaderboard</div>
+    <div class="tab" onclick="sub('m8',this,'m8b')">Detail Penilaian</div>
+    <div class="tab" onclick="sub('m8',this,'m8c')">Vendor SP</div>
+  </div>
+
+  <div class="subview active" id="m8a">
+    <div class="card">
+      <h3>Vendor Service Performance — Periode Q4 2026</h3>
+      <div class="sub">Komposit 5 indikator sesuai MoM: kualitas, ketepatan waktu, kepuasan customer, komplain, kepatuhan SOP</div>
+      <table>
+        <tr><th>Rank</th><th>Vendor</th><th>Kualitas</th><th>Tepat Waktu</th><th>CSI</th><th>Komplain</th><th>SOP</th><th>Skor Total</th><th>Reward</th></tr>
+        <tr><td>🥇 1</td><td>CV Mitra Perkasa</td><td>96</td><td>94</td><td>4,8</td><td>0</td><td>100</td><td><b style="color:var(--green)">95,2</b></td><td><span class="pill g">Gold — Rp 5 jt + bonus order</span></td></tr>
+        <tr><td>🥈 2</td><td>CV Bangun Jaya</td><td>88</td><td>87</td><td>4,5</td><td>7</td><td>92</td><td><b>88,6</b></td><td><span class="pill b">Silver — Rp 2,5 jt</span></td></tr>
+        <tr><td>🥉 3</td><td>PT Sinar Teknik</td><td>82</td><td>79</td><td>4,2</td><td>5</td><td>85</td><td><b>82,4</b></td><td><span class="pill y">Bronze — Rp 1 jt</span></td></tr>
+        <tr><td>4</td><td>CV Karya Abadi</td><td>75</td><td>71</td><td>3,9</td><td>11</td><td>78</td><td style="color:var(--red)"><b>74,1</b></td><td><span class="pill r">Tidak Eligible (SP2 aktif)</span></td></tr>
+      </table>
+      <div class="note" style="margin-top:12px"><b>Aturan reward:</b> vendor dengan SP aktif otomatis tidak eligible — data SP live dari sistem existing.</div>
+    </div>
+  </div>
+
+  <div class="subview" id="m8b">
+    <div class="card">
+      <h3>Detail Penilaian — CV Bangun Jaya (Q4)</h3>
+      <table>
+        <tr><th>Indikator</th><th>Bobot</th><th>Nilai</th><th>Sumber Data</th></tr>
+        <tr><td>Kualitas hasil pekerjaan (remedial rate)</td><td>25%</td><td>88 / 100</td><td>remedials + bukti after</td></tr>
+        <tr><td>Ketepatan waktu</td><td>25%</td><td>87 / 100</td><td>work_orders vs estimasi</td></tr>
+        <tr><td>Kepuasan customer (CSI)</td><td>25%</td><td>4,5 / 5 → 90</td><td>csi_answers</td></tr>
+        <tr><td>Komplain / kasus</td><td>15%</td><td>7 kasus → 72</td><td>complaints</td></tr>
+        <tr><td>Kepatuhan SOP</td><td>10%</td><td>92 / 100</td><td>violation log (non-komplain)</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="subview" id="m8c">
+    <div class="card">
+      <h3>Surat Peringatan Aktif — dari Sistem Existing</h3>
+      <table>
+        <tr><th>Vendor</th><th>SP Level</th><th>Total Poin</th><th>Periode</th><th>Reduksi Alokasi</th><th>Status</th></tr>
+        <tr><td>CV Karya Abadi</td><td><span class="pill r">SP2</span></td><td>28</td><td>Okt–Des 2026</td><td>-50%</td><td><span class="pill r">Aktif</span></td></tr>
+        <tr><td>PT Sinar Teknik</td><td><span class="pill y">SP1</span></td><td>15</td><td>Okt–Des 2026</td><td>-25%</td><td><span class="pill y">Aktif</span></td></tr>
+        <tr><td>CV Jaya Makmur</td><td><span class="pill g">SP1</span></td><td>9</td><td>Jul–Sep 2026</td><td>-25%</td><td><span class="pill g">Selesai</span></td></tr>
+      </table>
+      <small style="color:var(--muted)">Data ini sudah berjalan di sistem — modul reward membacanya sebagai syarat eligibility.</small>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector(`.nav-item[onclick="go('${id}')"]`).classList.add('active');
+  window.scrollTo(0,0);
+}
+function sub(parent, el, viewId){
+  const screen=document.getElementById(parent);
+  screen.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  screen.querySelectorAll('.subview').forEach(v=>v.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+}
+</script>
+</body>
+</html>

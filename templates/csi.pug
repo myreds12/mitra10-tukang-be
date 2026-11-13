@@ -82,21 +82,17 @@ html(lang="en")
                 font-size: 1.125rem;
                 font-weight: 600;
                 margin: 0 !important;
-`)
-| Order ID : #{data.order.id}
-  p(style=`
-    font-size: 0.875rem;
-    margin: 0 !important;
-`)
-  - var formateCreatedAt = new Date(data.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
-    | Tanggal Order : #{formateCreatedAt}
-  p(style=`
-    font-size: 0.875rem;
-    margin: 0 !important;
-    `)
-  - var formateCreatedAt = new Date(data.order.request_survey).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
-    | Request Survey : #{formateCreatedAt}
-    .divider(style="border-top: 1px solid #e5e7eb")
+              `)
+                | Order ID : #{data.order.id}
+              p(style=`
+                font-size: 0.875rem;
+                margin: 0 !important;
+              `)
+              - var formateCreatedAt = new Date(data.order.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
+              - var formateRequestSurvey = new Date(data.order.request_survey).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: '2-digit' });
+              | Tanggal Order : #{formateCreatedAt}
+              | Request Survey : #{formateRequestSurvey}
+            .divider(style="border-top: 1px solid #e5e7eb")
     .content(style=`
       padding-top: 16px;
       padding-left: 24px;
