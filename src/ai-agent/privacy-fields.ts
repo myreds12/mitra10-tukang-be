@@ -24,7 +24,7 @@ export const datasets = {
       "tgl_mulai": "tanggal mulai kerja (work order)",
       "tgl_selesai": "tanggal selesai kerja",
       "durasi_kerja_hari": "selisih hari mulai–selesai kerja",
-      "umur_hari": "umur order dalam hari sampai 2026-11-12",
+      "umur_hari": "umur order dalam hari",
       "jml_komplain": "jumlah komplain",
       "ada_komplain": "true/false",
       "refund": "true/false ada pengajuan refund"
@@ -62,6 +62,15 @@ export const datasets = {
       "vendor": "vendor dari order",
       "kategori": "kategori dari order"
     }
+  },
+  "csi": {
+    "desc": "Satu baris per jawaban survei CSI; hanya ringkasan jumlah dan nama template yang digunakan.",
+    "fields": {
+      "tanggal": "tanggal jawaban diterima",
+      "bulan": "YYYY-MM dari tanggal jawaban",
+      "tahun": "tahun jawaban",
+      "jumlah_jawaban": "jumlah jawaban survei",
+      "template": "nama template survei"
+    }
   }
-}
-;
+};

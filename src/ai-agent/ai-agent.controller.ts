@@ -11,7 +11,7 @@ import { PRIVACY_FIELDS } from './privacy-policy';
 class ChatDto {
   @IsString() @MinLength(1) @MaxLength(2000) question: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) conversation_id?: number;
-  @IsArray() @ArrayMaxSize(49) @ArrayUnique() @IsIn(PRIVACY_FIELDS, { each: true }) allowed_fields: string[];
+  @IsArray() @ArrayMaxSize(PRIVACY_FIELDS.length) @ArrayUnique() @IsIn(PRIVACY_FIELDS, { each: true }) allowed_fields: string[];
 }
 class PeriodDto {
   @IsOptional() @IsString() @MaxLength(10) from?: string;
