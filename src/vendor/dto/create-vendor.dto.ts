@@ -68,6 +68,26 @@ export class CreateVendorDto {
   @Min(3)
   max_order: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  q1?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  q2?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  q3?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  q4?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  quarter_order?: number;
+
   // @IsString()
   pic_name: string;
 

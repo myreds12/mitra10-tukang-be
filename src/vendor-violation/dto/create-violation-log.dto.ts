@@ -2,9 +2,10 @@ import {
   IsString,
   IsOptional,
   IsInt,
-  IsNumber,
+  IsIn,
   Min,
   Max,
+  ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -28,7 +29,18 @@ export class CreateViolationLogDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'File path to evidence (screenshot, photo, etc.)' })
+  @ApiPropertyOptional({
+    description: 'Tanggal kejadian pelanggaran (YYYY-MM-DD)',
+    example: '2026-10-23',
+  })
+  @IsOptional()
+  @IsString()
+  incident_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Path bukti pelanggaran atau tanggal kejadian',
+    example: '2026-10-23',
+  })
   @IsOptional()
   @IsString()
   evidence_path?: string;
@@ -101,4 +113,82 @@ export class GetVendorQuarterPointsDto {
   @IsOptional()
   @IsInt()
   year?: number;
+}
+
+// Cross-field validation (date_from <= date_to) is enforced in the service
+// layer; class-level decorators don't have access to multiple fields.
+export class ExportViolationLogDto {
+  @ApiPropertyOptional({
+    description: 'Output format. Only "excel" is supported in v1.',
+    enum: ['excel'],
+    example: 'excel',
+  })
+  @IsOptional()
+  @IsIn(['excel'])
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toLowerCase() : value,
+  )
+  format?: 'excel';
+
+  @ApiPropertyOptional({ description: 'Filter by Vendor ID', type: Number })
+  @IsOptional()
+  @IsInt()
+  @Transform(({ value }) => parseInt(value, 10))
+  vendor_id?: number;
+
+  @ApiPropertyOptional({ description: 'Filter by Quarter (1-4)', type: Number })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  @Transform(({ value }) => parseInt(value, 10))
+  quarter?: number;
+
+  @ApiPropertyOptional({ description: 'Filter by Year (>= 2000)', type: Number })
+  @IsOptional()
+  @IsInt()
+  @Min(2000)
+  @Max(2999)
+  @Transform(({ value }) => parseInt(value, 10))
+  year?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter by Violation Category (e.g., KONFIRMASI_ORDER, REFUND, LAINNYA)',
+  })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ description: 'Search by vendor, violation code/name, or project number' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter violation logs from date (YYYY-MM-DD)',
+    example: '2024-01-01',
+  })
+  @IsOptional()
+  @ValidateIf((o) => o.date_from !== undefined && o.date_from !== null)
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? value
+      : value,
+  )
+  date_from?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter violation logs to date (YYYY-MM-DD)',
+    example: '2024-12-31',
+  })
+  @IsOptional()
+  @ValidateIf((o) => o.date_to !== undefined && o.date_to !== null)
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? value
+      : value,
+  )
+  date_to?: string;
 }

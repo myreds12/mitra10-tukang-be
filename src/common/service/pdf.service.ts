@@ -1,27 +1,69 @@
 /* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
 import { create } from 'html-pdf';
-import { existsSync } from 'fs';
-import { resolve } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { resolve, extname } from 'path';
 import { renderFile } from 'pug';
 
 @Injectable()
 export class PdfService {
+  private renderTemplate(templatePath: string, data: any): string {
+    const html = renderFile(this.getTemplatePath(templatePath), {data});
+
+    return `
+      <style>
+        html, body { margin: 0; padding: 0; }
+        table { max-width: 100%; }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
+        th, td { word-wrap: break-word; word-break: break-word; }
+        img { max-width: 100%; height: auto; }
+      </style>
+      ${html}
+    `;
+  }
+
   private getTemplatePath(templatePath: string): string {
     const templateFile = `${templatePath}.pug`;
-    const candidates = [
-      resolve(__dirname, '..', '..', '..', 'templates', templateFile),
-      resolve(__dirname, '..', '..', '..', '..', 'templates', templateFile),
-    ];
+    const templateFullPath = resolve(process.cwd(), 'templates', templateFile);
 
-    return candidates.find((path) => existsSync(path)) ?? candidates[0];
+    return templateFullPath;
+  }
+
+  // ============================================================
+  // Helper: convert local image file to base64 data URI
+  // html-pdf (PhantomJS) cannot reliably load external HTTPS URLs
+  // Using base64 embeds images directly in the HTML, avoiding network issues
+  // ============================================================
+  getImageAsBase64(imagePath: string): string | null {
+    try {
+      if (!existsSync(imagePath)) {
+        console.warn(`Image file not found: ${imagePath}`);
+        return null;
+      }
+      const ext = extname(imagePath).toLowerCase().replace('.', '');
+      const mimeType =
+        ext === 'jpg' || ext === 'jpeg'
+          ? 'image/jpeg'
+          : ext === 'png'
+          ? 'image/png'
+          : ext === 'gif'
+          ? 'image/gif'
+          : ext === 'svg'
+          ? 'image/svg+xml'
+          : 'image/png';
+      const buffer = readFileSync(imagePath);
+      const base64 = buffer.toString('base64');
+      return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+      console.error(`Failed to convert image to base64: ${imagePath}`, error.message);
+      return null;
+    }
   }
 
   async generate(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(this.getTemplatePath(templatePath), {
-        data,
-      });
+      const html = this.renderTemplate(templatePath, data);
 
 
       create(html, { format: 'A4',
@@ -50,9 +92,7 @@ export class PdfService {
 
   async generatePotrait(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(this.getTemplatePath(templatePath), {
-        data,
-      });
+      const html = this.renderTemplate(templatePath, data);
 
       
       create(html, { format: 'A4',
@@ -75,9 +115,7 @@ export class PdfService {
 
   async generateLandscape(templatePath: string, data: any) {
     return new Promise((resolve, reject) => {
-      const html = renderFile(this.getTemplatePath(templatePath), {
-        data,
-      });
+      const html = this.renderTemplate(templatePath, data);
 
       const options = {
         format: 'A4',

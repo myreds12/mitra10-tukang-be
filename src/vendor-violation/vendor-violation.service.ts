@@ -1,26 +1,64 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVendorViolationTypeDto, UpdateVendorViolationTypeDto } from './dto/create-violation-type.dto';
-import { CreateViolationLogDto, QueryViolationLogDto } from './dto/create-violation-log.dto';
+import {
+  CreateViolationLogDto,
+  ExportViolationLogDto,
+  QueryViolationLogDto,
+} from './dto/create-violation-log.dto';
 import { Prisma } from '@prisma/client';
-import { SPAllocationReduction } from '../common/enum/violation-type.enum';
+import { SPAllocationReduction, SPThreshold } from '../common/enum/violation-type.enum';
+import { syncVendorSpDetails } from '../common/utils/vendor-sp-detail-sync.util';
+import * as exceljs from 'exceljs';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const VIOLATION_LOG_EXPORT_MAX_ROWS = 50000;
+const VIOLATION_LOG_EXPORT_FOLDER = './storage/excel/vendor-violation';
 
 @Injectable()
 export class VendorViolationService {
+  private readonly logger = new Logger(VendorViolationService.name);
+
   constructor(private readonly dbService: PrismaService) {}
 
+  async getRoleName(userId?: number): Promise<string | null> {
+    if (!userId) return null;
+    const user = await this.dbService.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      select: { roles: { select: { name: true } } },
+    });
+    return user?.roles?.name ?? null;
+  }
+
+  async resolveVendorIdForUser(user?: any): Promise<number | null> {
+    if (!user) return null;
+    if (user.vendor_id) return Number(user.vendor_id);
+    if (!user.id) return null;
+    const pic = await this.dbService.pic_vendor.findFirst({
+      where: { user_id: Number(user.id), deleted_at: null },
+      select: { vendor_id: true },
+    });
+    return pic?.vendor_id ?? null;
+  }
+
   private getSPLevel(totalPoints: number): number | null {
-    if (totalPoints > 50) return 3;
-    if (totalPoints >= 26) return 2;
-    if (totalPoints >= 1) return 1;
+    if (totalPoints >= SPThreshold.SP3) return 3;
+    if (totalPoints >= SPThreshold.SP2) return 2;
+    if (totalPoints >= SPThreshold.SP1) return 1;
     return null;
   }
 
   private getSPStatus(totalPoints: number): string {
-    if (totalPoints > 50) return 'SP3';
-    if (totalPoints >= 26) return 'SP2';
-    if (totalPoints >= 1) return 'SP1';
+    if (totalPoints >= SPThreshold.SP3) return 'SP3';
+    if (totalPoints >= SPThreshold.SP2) return 'SP2';
+    if (totalPoints >= SPThreshold.SP1) return 'SP1';
     return 'active';
   }
 
@@ -206,10 +244,21 @@ export class VendorViolationService {
 
   async createViolationLog(dto: CreateViolationLogDto, userId?: number) {
     try {
-      // Get current quarter and year
-      const now = new Date();
-      const quarter = Math.ceil((now.getMonth() + 1) / 3);
-      const year = now.getFullYear();
+      const rawIncidentDate = dto.incident_date || dto.evidence_path;
+      const parsedIncidentDate =
+        rawIncidentDate && /^\d{4}-\d{2}-\d{2}/.test(rawIncidentDate)
+          ? new Date(rawIncidentDate)
+          : new Date();
+      const targetDate = !Number.isNaN(parsedIncidentDate.getTime())
+        ? parsedIncidentDate
+        : new Date();
+
+      const quarter = Math.ceil((targetDate.getMonth() + 1) / 3);
+      const year = targetDate.getFullYear();
+      const resolvedEvidenceValue =
+        dto.evidence_path ||
+        dto.incident_date ||
+        targetDate.toISOString().split('T')[0];
 
       // Verify vendor exists
       const vendor = await this.dbService.vendor.findFirst({
@@ -231,7 +280,6 @@ export class VendorViolationService {
         );
       }
 
-      // Create violation log
       const violationLog = await this.dbService.vendor_violation_log.create({
         data: {
           vendor_id: dto.vendor_id,
@@ -240,7 +288,9 @@ export class VendorViolationService {
           quarter,
           year,
           description: dto.description,
-          evidence_path: dto.evidence_path,
+          evidence_path: resolvedEvidenceValue,
+          evidence_provenance: 'MANUAL_UPLOAD',
+          created_at: targetDate,
           created_by: userId,
         },
         include: {
@@ -249,8 +299,12 @@ export class VendorViolationService {
         },
       });
 
-      // Check and update vendor SP status based on new point total
-      await this.checkAndUpdateVendorSP(dto.vendor_id);
+      await this.checkAndUpdateVendorSP(
+        dto.vendor_id,
+        userId ?? null,
+        quarter,
+        year,
+      );
 
       return violationLog;
     } catch (error) {
@@ -258,14 +312,23 @@ export class VendorViolationService {
     }
   }
 
-  async findAllViolationLogs(query: QueryViolationLogDto) {
+  async findAllViolationLogs(query: QueryViolationLogDto, user?: any) {
     try {
       const { page = 1, take = 10, vendor_id, quarter, year, category, date_from, date_to, search } = query;
       const skip = page * take - take;
 
+      let effectiveVendorId = vendor_id;
+      const roleName = user?.role || (await this.getRoleName(user?.id));
+      if (roleName === 'Owner Vendor' || roleName === 'Admin Vendor') {
+        const resolvedVendorId = await this.resolveVendorIdForUser(user);
+        if (resolvedVendorId) {
+          effectiveVendorId = resolvedVendorId;
+        }
+      }
+
       const where: Prisma.vendor_violation_logWhereInput = {
         deleted_at: null,
-        ...(vendor_id ? { vendor_id } : {}),
+        ...(effectiveVendorId ? { vendor_id: effectiveVendorId } : {}),
         ...(quarter ? { quarter } : {}),
         ...(year ? { year } : {}),
         ...(category
@@ -316,13 +379,218 @@ export class VendorViolationService {
     }
   }
 
+  async exportViolationLogExcel(
+    query: ExportViolationLogDto,
+    userId: number | null,
+  ): Promise<{ filePath: string; fileName: string; rowCount: number }> {
+    const { vendor_id, quarter, year, category, search, date_from, date_to } = query;
+
+    if (date_from && date_to && new Date(date_from) > new Date(date_to)) {
+      throw new BadRequestException(
+        'date_from tidak boleh lebih besar dari date_to.',
+      );
+    }
+
+    const where: Prisma.vendor_violation_logWhereInput = {
+      deleted_at: null,
+      ...(vendor_id ? { vendor_id } : {}),
+      ...(quarter ? { quarter } : {}),
+      ...(year ? { year } : {}),
+      ...(category ? { violation_type: { category } } : {}),
+      ...(search
+        ? {
+            OR: [
+              { vendor: { company_name: { contains: search } } },
+              { vendor: { pic_name: { contains: search } } },
+              { violation_type: { code: { contains: search } } },
+              { violation_type: { name: { contains: search } } },
+              { orders: { project_number: { contains: search } } },
+            ],
+          }
+        : {}),
+      ...(date_from && date_to
+        ? {
+            created_at: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
+        : {}),
+    };
+
+    const totalCount = await this.dbService.vendor_violation_log.count({ where });
+    if (totalCount > VIOLATION_LOG_EXPORT_MAX_ROWS) {
+      throw new BadRequestException(
+        `Hasil export ${totalCount} baris melebihi batas ${VIOLATION_LOG_EXPORT_MAX_ROWS}. Persempit filter (misalnya tambahkan quarter/year atau vendor_id) lalu coba lagi.`,
+      );
+    }
+
+    const rows = await this.dbService.vendor_violation_log.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      include: {
+        vendor: { select: { id: true, company_name: true, pic_name: true } },
+        violation_type: true,
+        orders: { select: { id: true, project_number: true } },
+      },
+    });
+
+    const workbook = new exceljs.Workbook();
+    workbook.creator = 'Mitra10 Tukang';
+    workbook.created = new Date();
+
+    const logSheet = workbook.addWorksheet('Log Pelanggaran');
+    logSheet.columns = [
+      { header: 'ID', key: 'id', width: 8 },
+      { header: 'Tanggal', key: 'created_at', width: 20 },
+      { header: 'Nama Vendor', key: 'vendor_name', width: 30 },
+      { header: 'PIC', key: 'pic_name', width: 24 },
+      { header: 'Kategori', key: 'category', width: 18 },
+      { header: 'Kode Pelanggaran', key: 'code', width: 28 },
+      { header: 'Nama Pelanggaran', key: 'vt_name', width: 32 },
+      { header: 'Order ID', key: 'order_id', width: 10 },
+      { header: 'Project Number', key: 'project_number', width: 20 },
+      { header: 'Poin', key: 'point', width: 8 },
+      { header: 'Quarter', key: 'quarter', width: 10 },
+      { header: 'Year', key: 'year', width: 8 },
+      { header: 'Status Aktif', key: 'is_active', width: 12 },
+      { header: 'Evidence Path', key: 'evidence_path', width: 36 },
+      { header: 'Ada Evidence', key: 'has_evidence', width: 14 },
+      { header: 'Deskripsi', key: 'description', width: 40 },
+    ];
+
+    logSheet.addRows(
+      rows.map((r) => ({
+        id: r.id,
+        created_at: new Date(r.created_at).toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+        }),
+        vendor_name: r.vendor?.company_name ?? '',
+        pic_name: r.vendor?.pic_name ?? '',
+        category: r.violation_type?.category ?? '',
+        code: r.violation_type?.code ?? '',
+        vt_name: r.violation_type?.name ?? '',
+        order_id: r.order_id ?? '',
+        project_number: r.orders?.project_number ?? '',
+        point: r.adjusted_point ?? r.violation_type?.point ?? 0,
+        quarter: `Q${r.quarter}`,
+        year: r.year,
+        is_active: r.is_active ? 'Aktif' : 'Nonaktif',
+        evidence_path: r.evidence_path ?? '',
+        has_evidence: r.evidence_path ? 'Ya' : 'Tidak',
+        description: r.description ?? '',
+      })),
+    );
+
+    const summaryMap = new Map<
+      number,
+      { vendorName: string; total: number; totalPoint: number; noEvidence: number }
+    >();
+    for (const r of rows) {
+      const key = r.vendor_id;
+      const entry = summaryMap.get(key) ?? {
+        vendorName: r.vendor?.company_name ?? `Vendor ${key}`,
+        total: 0,
+        totalPoint: 0,
+        noEvidence: 0,
+      };
+      entry.total += 1;
+      entry.totalPoint += r.adjusted_point ?? r.violation_type?.point ?? 0;
+      if (!r.evidence_path) entry.noEvidence += 1;
+      summaryMap.set(key, entry);
+    }
+
+    const vendorSpLevels = await this.dbService.vendor_sp.findMany({
+      where: {
+        vendor_id: { in: [...summaryMap.keys()] },
+        status: 1,
+        deleted_at: null,
+        end_date: { gte: new Date() },
+      },
+      orderBy: { sp_level: 'desc' },
+      distinct: ['vendor_id'],
+      select: { vendor_id: true, sp_level: true },
+    });
+    const spLevelByVendor = new Map(vendorSpLevels.map((s) => [s.vendor_id, s.sp_level]));
+
+    const summarySheet = workbook.addWorksheet('Summary per Vendor');
+    summarySheet.columns = [
+      { header: 'Nama Vendor', key: 'vendor_name', width: 32 },
+      { header: 'Total Pelanggaran', key: 'total', width: 18 },
+      { header: 'Total Poin', key: 'total_point', width: 14 },
+      { header: 'SP Level Saat Ini', key: 'sp_level', width: 18 },
+      { header: 'Pelanggaran Tanpa Evidence', key: 'no_evidence', width: 24 },
+    ];
+
+    summarySheet.addRows(
+      [...summaryMap.entries()].map(([vendorId, entry]) => ({
+        vendor_name: entry.vendorName,
+        total: entry.total,
+        total_point: entry.totalPoint,
+        sp_level: spLevelByVendor.has(vendorId)
+          ? `SP${spLevelByVendor.get(vendorId)}`
+          : 'Tidak Ada',
+        no_evidence: entry.noEvidence,
+      })),
+    );
+
+    for (const sheet of [logSheet, summarySheet]) {
+      const headerRow = sheet.getRow(1);
+      headerRow.font = { bold: true, size: 11 };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE9EEF7' },
+      };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'left' };
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    }
+
+    fs.mkdirSync(path.resolve(VIOLATION_LOG_EXPORT_FOLDER), { recursive: true });
+    const stamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .replace(/Z$/, '');
+    const random = Math.random().toString(36).slice(2, 6);
+    const fileName = `log-pelanggaran-${stamp}-${random}.xlsx`;
+    const filePath = path.resolve(VIOLATION_LOG_EXPORT_FOLDER, fileName);
+    await workbook.xlsx.writeFile(filePath);
+
+    try {
+      await this.dbService.logs.create({
+        data: {
+          module_type: 'EXPORT',
+          module_id: null,
+          issuer_type: 'USER',
+          issuer_id: userId ?? null,
+          properties: JSON.stringify({
+            endpoint: 'GET /vendor-violation/log/export',
+            filters: { vendor_id, quarter, year, category, search, date_from, date_to },
+            row_count: rows.length,
+            file_path: filePath,
+            file_name: fileName,
+          }),
+        },
+      });
+    } catch (auditError) {
+      this.logger.warn(
+        `exportViolationLogExcel audit log failed vendor=${vendor_id ?? 'all'} reason=${(auditError as Error)?.message ?? auditError}`,
+      );
+    }
+
+    this.logger.log(
+      `exportViolationLogExcel user=${userId ?? 'anonymous'} rows=${rows.length} file=${filePath}`,
+    );
+
+    return { filePath, fileName, rowCount: rows.length };
+  }
+
   async getVendorQuarterPoints(vendorId: number, quarter?: number, year?: number) {
     try {
       const now = new Date();
       const currentQuarter = quarter || Math.ceil((now.getMonth() + 1) / 3);
       const currentYear = year || now.getFullYear();
 
-      // Get all active violations for this vendor in this quarter
       const violations = await this.dbService.vendor_violation_log.findMany({
         where: {
           vendor_id: vendorId,
@@ -335,22 +603,21 @@ export class VendorViolationService {
         },
       });
 
-      // Calculate total points
       const totalPoints = violations.reduce(
         (sum, v) => sum + (v.adjusted_point ?? v.violation_type.point),
         0,
       );
 
-      // Determine SP level
       const spLevel = this.getSPLevel(totalPoints);
       const spStatus = this.getSPStatus(totalPoints);
 
-      // Get active SP if any
       const activeSP = await this.dbService.vendor_sp.findFirst({
         where: {
           vendor_id: vendorId,
-          status: 1, // AKTIF
-          end_date: { gte: now },
+          quarter: currentQuarter,
+          year: currentYear,
+          status: { in: [1, 3] },
+          deleted_at: null,
         },
         orderBy: { sp_level: 'desc' },
       });
@@ -362,7 +629,7 @@ export class VendorViolationService {
         },
       });
 
-      // Check for penalty period (if points were received less than 12 weeks before next quarter)
+      // Extend penalty to end of next quarter when points are added < 12 weeks before next quarter
       const nextQuarterStart = this.getNextQuarterStart(currentQuarter, currentYear);
       const weeksUntilNextQuarter = Math.floor(
         (nextQuarterStart.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 7),
@@ -370,7 +637,6 @@ export class VendorViolationService {
 
       let penaltyExtendedUntil: Date | null = null;
       if (weeksUntilNextQuarter < 12 && totalPoints > 0) {
-        // Penalty extends to end of next quarter
         penaltyExtendedUntil = this.getQuarterEnd(
           currentQuarter === 4 ? 1 : currentQuarter + 1,
           currentQuarter === 4 ? currentYear + 1 : currentYear,
@@ -405,17 +671,20 @@ export class VendorViolationService {
     }
   }
 
-  // Helper: Check and update vendor SP based on current points
-  async checkAndUpdateVendorSP(vendorId: number) {
+  async checkAndUpdateVendorSP(
+    vendorId: number,
+    userId: number | null = null,
+    targetQuarter?: number,
+    targetYear?: number,
+  ) {
     const now = new Date();
-    const quarter = Math.ceil((now.getMonth() + 1) / 3);
-    const year = now.getFullYear();
+    const quarter = targetQuarter || Math.ceil((now.getMonth() + 1) / 3);
+    const year = targetYear || now.getFullYear();
 
     const pointsInfo = await this.getVendorQuarterPoints(vendorId, quarter, year);
 
-    // If SP level is reached and no active SP of that level
     if (pointsInfo.sp_level && !pointsInfo.active_sp) {
-      await this.issueSP(vendorId, pointsInfo.sp_level, pointsInfo.total_points, quarter, year);
+      await this.issueSP(vendorId, pointsInfo.sp_level, pointsInfo.total_points, quarter, year, userId);
       return;
     }
 
@@ -439,17 +708,21 @@ export class VendorViolationService {
         return;
       }
 
+      const nextSpLevel = Math.max(pointsInfo.active_sp.sp_level, pointsInfo.sp_level);
+
       await this.dbService.vendor_sp.update({
         where: { id: pointsInfo.active_sp.id },
         data: {
-          sp_level: pointsInfo.sp_level,
+          sp_level: nextSpLevel,
           total_point: pointsInfo.total_points,
-          allocation_reduction: this.getAllocationReduction(pointsInfo.sp_level),
+          start_date: this.getQuarterStart(quarter, year),
+          end_date: this.getQuarterEnd(quarter, year),
+          allocation_reduction: this.getAllocationReduction(nextSpLevel),
           updated_at: now,
         },
       });
 
-      if (pointsInfo.sp_level === 3) {
+      if (nextSpLevel === 3) {
         await this.dbService.vendor.update({
           where: { id: vendorId },
           data: { is_active: false },
@@ -458,64 +731,115 @@ export class VendorViolationService {
     }
   }
 
-  // Issue SP to vendor
+  // Issue SP to vendor (atomic: vendor_sp + vendor_sp_detail sync in one transaction)
   private async issueSP(
     vendorId: number,
     spLevel: number,
     totalPoints: number,
     quarter: number,
     year: number,
+    userId: number | null = null,
   ) {
     const now = new Date();
-    const startDate = now;
-    const endDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days
+    const startDate = this.getQuarterStart(quarter, year);
+    const endDate = this.getQuarterEnd(quarter, year);
 
-    // Calculate allocation reduction based on SP level
     const allocationReduction = this.getAllocationReduction(spLevel);
 
-    // FIX: Check if SP with this level already exists (prevent duplicate)
-    const existingSP = await this.dbService.vendor_sp.findFirst({
-      where: {
-        vendor_id: vendorId,
-        sp_level: spLevel,
-        status: 1, // AKTIF
-        deleted_at: null,
-      },
-    });
+    try {
+      return await this.dbService.$transaction(async (tx) => {
+        // Check if active SP already exists for this vendor in this quarter (prevent duplicate SP rows per vendor)
+        const existingSP = await tx.vendor_sp.findFirst({
+          where: {
+            vendor_id: vendorId,
+            quarter,
+            year,
+            status: { in: [1, 3] }, // AKTIF or EXTENDED
+            deleted_at: null,
+          },
+          orderBy: { sp_level: 'desc' },
+        });
 
-    if (existingSP) {
-      // Update existing SP points instead of creating duplicate
-      await this.dbService.vendor_sp.update({
-        where: { id: existingSP.id },
-        data: {
-          total_point: totalPoints,
-          updated_at: now,
-        },
+        if (existingSP) {
+          const updatedLevel = Math.max(existingSP.sp_level, spLevel);
+          if (updatedLevel === 3) {
+            await tx.vendor.update({
+              where: { id: vendorId },
+              data: { is_active: false },
+            });
+          }
+          const updated = await tx.vendor_sp.update({
+            where: { id: existingSP.id },
+            data: {
+              sp_level: updatedLevel,
+              total_point: totalPoints,
+              start_date: startDate,
+              end_date: endDate,
+              allocation_reduction: this.getAllocationReduction(updatedLevel),
+              updated_at: now,
+            },
+          });
+          // Sync detail rows so new violations added since the SP was first
+          // issued get linked too — same helper, idempotent.
+          const detail = await syncVendorSpDetails(tx, {
+            vendorSpId: existingSP.id,
+            vendorId,
+            quarter,
+            year,
+            createdBy: userId,
+          });
+          this.logger.log(
+            `[SP update] vendor=${vendorId} level=SP${updatedLevel} spId=${existingSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
+          );
+          return updated;
+        }
+
+        // If SP3, deactivate vendor inside the same transaction
+        if (spLevel === 3) {
+          await tx.vendor.update({
+            where: { id: vendorId },
+            data: { is_active: false },
+          });
+        }
+
+        const createdSP = await tx.vendor_sp.create({
+          data: {
+            vendor_id: vendorId,
+            sp_level: spLevel,
+            total_point: totalPoints,
+            quarter,
+            year,
+            start_date: startDate,
+            end_date: endDate,
+            status: 1, // AKTIF
+            allocation_reduction: allocationReduction,
+            created_by: userId,
+          },
+        });
+
+        const detail = await syncVendorSpDetails(tx, {
+          vendorSpId: createdSP.id,
+          vendorId,
+          quarter,
+          year,
+          createdBy: userId,
+        });
+
+        this.logger.log(
+          `[SP issued] vendor=${vendorId} level=SP${spLevel} spId=${createdSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
+        );
+
+        return createdSP;
       });
-      return;
+    } catch (error) {
+      this.logger.error(
+        `issueSP failed: vendor=${vendorId} spLevel=SP${spLevel} Q${quarter}/${year} reason=${(error as Error)?.message ?? String(error)}`,
+        (error as Error)?.stack,
+      );
+      // Re-throw so the global exception filter returns a clean 5xx without
+      // leaking internals to the client.
+      throw error;
     }
-
-    // If SP3, deactivate vendor
-    if (spLevel === 3) {
-      await this.dbService.vendor.update({
-        where: { id: vendorId },
-        data: { is_active: false },
-      });
-    }
-
-    await this.dbService.vendor_sp.create({
-      data: {
-        vendor_id: vendorId,
-        sp_level: spLevel,
-        total_point: totalPoints,
-        quarter,
-        year,
-        start_date: startDate,
-        end_date: endDate,
-        status: 1, // AKTIF
-        allocation_reduction: allocationReduction,
-      },
-    });
   }
 
   private getNextQuarterStart(quarter: number, year: number): Date {

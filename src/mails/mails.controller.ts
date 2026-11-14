@@ -25,8 +25,10 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import * as pug from 'pug';
+import { TestSendEmailDto } from './dto/test-send-email.dto';
+import { ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 
-@UseGuards(JwtAuthGuard)
+@ApiTags('Mails')
 @Controller('mails')
 export class MailsController {
   constructor(
@@ -35,14 +37,12 @@ export class MailsController {
   ) { }
 
   private getTemplatePath(templateName: string): string {
-    const candidates = [
-      resolve(__dirname, '..', '..', 'templates', templateName),
-      resolve(__dirname, '..', '..', '..', 'templates', templateName),
-    ];
+    const templateFullPath = resolve(process.cwd(), 'templates', templateName);
 
-    return candidates.find((path) => existsSync(path)) ?? candidates[0];
+    return templateFullPath;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete('/history/:id')
   @HttpCode(200)
   async removeHistory(@Param('id') id: string) {
@@ -60,6 +60,7 @@ export class MailsController {
     return result;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @HttpCode(201)
   @UseInterceptors(
@@ -82,6 +83,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   @HttpCode(200)
   async findAll(@Query() query: QueryParamsDto) {
@@ -89,6 +91,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @HttpCode(200)
   async findOne(@Param('id') id: string) {
@@ -96,6 +99,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @HttpCode(200)
   @UseInterceptors(
@@ -121,6 +125,7 @@ export class MailsController {
     return data;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(200)
   async remove(@Req() req: RequestWithUser, @Param('id') id: string) {
@@ -168,5 +173,66 @@ export class MailsController {
     const html = compiledFn({ data });
 
     return { html };
+  }
+
+  @Get('preview/registrant-account')
+  async previewRegistrantAccountMail() {
+    const baseUrl = 'https://instalasi.mitra10.com';
+    const data = {
+      company_name: 'PT Mitra Sukses Bersama',
+      email_address: 'admin@mitrasukses.com',
+      pic_email: 'dony.pic@mitrasukses.com',
+      phone_number: '081234567890',
+      pic_phone: '081234567891',
+      username: 'mitra_sukses_vendor',
+      password: 'GeneratedSecurePassword123!',
+      website_url: baseUrl,
+      login_url: `${baseUrl}/login`,
+    };
+
+    const templatePath = this.getTemplatePath('registrant-account.pug');
+    const compiledFn = pug.compileFile(templatePath);
+    const html = compiledFn({ data });
+
+    return { html };
+  }
+
+  // ================================
+  // TEST SEND EMAIL (DIAGNOSTIC & TRACING)
+  // ================================
+
+  @Post('send-email')
+  @HttpCode(200)
+  async sendEmail(@Body() body: TestSendEmailDto) {
+    return await this.mailsService.sendTestEmail(body.email);
+  }
+
+  @Post('test-send')
+  @HttpCode(200)
+  async testSend(@Body() body: TestSendEmailDto) {
+    return await this.mailsService.sendTestEmail(body.email);
+  }
+
+  // ================================
+  // TRACE REDIS & BULL QUEUE (DIAGNOSTIC)
+  // ================================
+
+  @Get('trace-redis')
+  @ApiOperation({
+    summary: 'Trace koneksi Redis & Bull Queue',
+    description: 'Diagnostik koneksi TCP ke Redis, status client Bull Queue, dan statistik antrean email.',
+  })
+  async traceRedisGet() {
+    return await this.mailsService.traceRedis();
+  }
+
+  @Post('trace-redis')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Trace koneksi Redis & Bull Queue (POST)',
+    description: 'Diagnostik koneksi TCP ke Redis, status client Bull Queue, dan statistik antrean email.',
+  })
+  async traceRedisPost() {
+    return await this.mailsService.traceRedis();
   }
 }

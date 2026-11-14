@@ -31,6 +31,7 @@ export class TransformInterceptor<T>
             message: 'SUCCESS',
             data: data.data,
             ...data.meta,
+            meta: data.meta,
           };
         }
 

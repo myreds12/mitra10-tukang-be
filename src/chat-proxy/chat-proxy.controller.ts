@@ -9,7 +9,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
@@ -61,7 +60,6 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
 
 @Controller('chat-proxy')
 export class ChatProxyController {
-  constructor(private readonly configService: ConfigService) {}
 
   @Post('rooms/:roomId/upload')
   @UseInterceptors(
@@ -80,10 +78,7 @@ export class ChatProxyController {
       throw new BadRequestException('File tidak ditemukan');
     }
 
-    const baseUrl =
-      this.configService.get<string>('API_URL')?.replace('/api', '') ||
-      `${req.protocol}://${req.get('host')}`;
-    const fileUrl = `${baseUrl}/public/${file.filename}`;
+    const fileUrl = `${req.protocol}://${req.get('host')}/public/${file.filename}`;
 
     // Determine file type
     const isVideo = VIDEO_MIME_TYPES.includes(file.mimetype);

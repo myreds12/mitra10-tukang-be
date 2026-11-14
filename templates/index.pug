@@ -87,7 +87,9 @@ html(lang="en")
   body(style="background-color: rgb(242, 242, 242); font-family: 'Poppins', sans-serif; line-height: 1.6; letter-spacing: normal;")
     .container(style="max-width: 768px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; overflow: hidden;")
       .header
-        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0 ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 1)[0].path}` : 'https://i.ibb.co.com/DpFCt8g/Whats-App-Image-2024-10-10-at-15-42-16-3d05600b.jpg'}`, alt="Banner Image" style="width: 100%; height: auto;")
+        - var headerImg = (data.message && data.message.email_message_image && data.message.email_message_image.find) ? data.message.email_message_image.find((x) => x.type === 1) : null
+        - var headerSrc = (headerImg && headerImg.path) ? `${data.apiUrl}/public/mails-image/${headerImg.path}` : 'https://i.ibb.co.com/DpFCt8g/Whats-App-Image-2024-10-10-at-15-42-16-3d05600b.jpg'
+        img(src=headerSrc, alt="Banner Image" style="width: 100%; height: auto;")
 
       .order-details(style="padding-left: 16px; padding-right: 16px;")
         table(style="width: 100%;")
@@ -98,16 +100,20 @@ html(lang="en")
               p(style="font-size: 1.25rem; font-weight: 600;") Instalasi & Service Mitra 10
             td(style="text-align: right;")
               .order-id
-                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Order ID: #{data.order.id}
-                p(style="font-size: 0.875rem; margin: 0 !important;") Tanggal Order: #{new Date(data.order.created_at).toLocaleDateString('id-ID', {  day: 'numeric',  month: 'long',  year: 'numeric'})}
+                p(style="font-size: 1.125rem; font-weight: 600; margin: 0 !important;") Order ID: #{data.order ? data.order.id : ''}
+                p(style="font-size: 0.875rem; margin: 0 !important;") Tanggal Order: #{data.order && data.order.created_at ? new Date(data.order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric'}) : ''}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .content(style="padding-top: 16px; padding-left: 24px; padding-right: 24px;")
-        p(style="color: #4a5568;") #{data.message.welcome_header} #{data.order.members.full_name}. #{data.message.greetings}
+        - var welcomeH = (data.message && data.message.welcome_header) ? data.message.welcome_header : 'Halo'
+        - var memberName = (data.order && data.order.members && data.order.members.full_name) ? data.order.members.full_name : ''
+        - var greetingsMsg = (data.message && data.message.greetings) ? data.message.greetings : ''
+        p(style="color: #4a5568;") #{welcomeH} #{memberName}. #{greetingsMsg}
         //- p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") #{data.message.greetings}
         p(style="color: #4a5568; font-weight: 600; margin: 0 !important;") Berikut detail pemesanan Anda:
-      if !['WORKREQ', 'WORKSTART', 'BOOKED', 'SURVEYSTART'].includes(data.order.status.category)
+      - var statusCat = (data.order && data.order.status && data.order.status.category) ? data.order.status.category : ''
+      if !['WORKREQ', 'WORKSTART', 'BOOKED', 'SURVEYSTART'].includes(statusCat)
         .order-info(style="padding: 20px;")
           h1(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi Order
           table(style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 24px;")
@@ -262,23 +268,27 @@ html(lang="en")
             li Jika Anda belum membeli produk, tim kami akan menginformasikan kebutuhan material saat survey.
         else
           h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Informasi
-          each item, index in data.message.information_detail
-            p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
+          if data.message && data.message.information_detail
+            each item, index in data.message.information_detail
+              p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.information}
 
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .terms-conditions(style="padding: 20px;")
         h2(style="font-size: 1.25rem; font-weight: 600; margin-bottom: 16px;") Syarat dan Ketentuan
-        each item, index in data.message.terms_detail
-          p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
+        if data.message && data.message.terms_detail
+          each item, index in data.message.terms_detail
+            p(style="margin-bottom: 8px; color: #4a5568;") #{index + 1 + '. ' + item.terms}
       .divider(style="border-top: 1px solid #e5e7eb;")
 
       .notes(style="padding: 20px;")
-        p(style="color: #4a5568; font-weight: 600; margin-top: 10px; margin-bottom: 0px;") #{data.message.footer}
+        p(style="color: #4a5568; font-weight: 600; margin-top: 10px; margin-bottom: 0px;") #{data.message && data.message.footer ? data.message.footer : ''}
 
       .footer(style="background-color: #edf2f7; padding: 20px; text-align: center;")
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami di customer.relation@mitra10.com
         p(style="font-size: 0.875rem; font-weight: 600; margin: 0 !important;") &copy; 2024 Mitra10. All rights reserved.
       .footer-banner
-        img(src=`${data.message && data.message.email_message_image && data.message.email_message_image.length > 0  ? `${data.apiUrl}/public/mails-image/${data.message.email_message_image.filter((x) => x.type === 2)[0].path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'}` alt="Banner Image" style="width: 100%; height: auto;")
+        - var footerImg = (data.message && data.message.email_message_image && data.message.email_message_image.find) ? data.message.email_message_image.find((x) => x.type === 2) : null
+        - var footerSrc = (footerImg && footerImg.path) ? `${data.apiUrl}/public/mails-image/${footerImg.path}` : 'https://i.ibb.co.com/7C3D0hF/footer-email-instalasi-02.jpg'
+        img(src=footerSrc, alt="Banner Image" style="width: 100%; height: auto;")
 

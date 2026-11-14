@@ -107,7 +107,7 @@ export class StoreService {
         ...(date_from && date_to ? [{
           created_at: { gte: new Date(date_from), lte: new Date(`${date_to}T23:59:59.000Z`) }
         }] : []),
-        ...(vendor_id ? [{ vendor_store: { some: { vendor_id: { equals: vendor_id } } } }] : []),
+        ...(vendor_id ? [{ vendor_store: { some: { vendor_id: { equals: vendor_id }, deleted_at: null } } }] : []),
         { deleted_at: null }
       ]
     };

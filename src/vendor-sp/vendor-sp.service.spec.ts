@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { VendorSpService } from './vendor-sp.service';
 // Path ke PrismaService mungkin bervariasi, disesuaikan dengan arsitektur umum NestJS
-import { PrismaService } from '../prisma/prisma.service'; 
+import { PrismaService } from '../prisma/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { PdfService } from '../common/services/pdf.service';
+import { ReportQueryHelper } from './helpers/report-query.helper';
 
 // --- Mock Setup Template ---
 const mockPrismaService = {
@@ -12,6 +14,7 @@ const mockPrismaService = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    count: jest.fn(),
   },
   vendor: {
     findFirst: jest.fn(),
@@ -22,7 +25,17 @@ const mockPrismaService = {
     create: jest.fn(),
   },
   // Mock transaction agar langsung mengeksekusi callback dengan mockPrismaService
-  $transaction: jest.fn(async (callback) => await callback(mockPrismaService)),
+  $transaction: jest.fn(async (callback: any) => await callback(mockPrismaService)),
+};
+
+const mockPdfService = {
+  pipeAndSave: jest.fn(),
+};
+
+const mockReportQueryHelper = {
+  countVendorOrdersInQuarter: jest.fn(),
+  getViolationLogDetails: jest.fn(),
+  getSpByVendorAndQuarter: jest.fn(),
 };
 
 describe('VendorSpService', () => {
@@ -37,12 +50,20 @@ describe('VendorSpService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: PdfService,
+          useValue: mockPdfService,
+        },
+        {
+          provide: ReportQueryHelper,
+          useValue: mockReportQueryHelper,
+        },
       ],
     }).compile();
 
     service = module.get<VendorSpService>(VendorSpService);
     prisma = module.get(PrismaService as any);
-    
+
     // Clear mocks sebelum setiap test
     jest.clearAllMocks();
   });
@@ -53,7 +74,7 @@ describe('VendorSpService', () => {
       prisma.vendor_sp.findFirst.mockResolvedValue(null);
 
       const result = await service.checkVendorSpStatus(1);
-      expect(result).toEqual({ has_active_sp: false, vendor_status: 'AKTIF' });
+      expect(result).toMatchObject({ has_active_sp: false, vendor_status: 'AKTIF' });
       expect(prisma.vendor_sp.findFirst).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({ vendor_id: 1 })
       }));
@@ -65,8 +86,8 @@ describe('VendorSpService', () => {
 
       const result = await service.checkVendorSpStatus(1);
       expect(result.has_active_sp).toBe(true);
-      expect(result.sp_info?.sp_level).toBe(1);
-      expect(result.sp_info?.sp_status).toBe('SP1');
+      expect(result.sp_level).toBe(1);
+      expect(result.sp_status).toBe('SP1');
       expect(result.vendor_status).toBe('AKTIF');
     });
 
@@ -76,8 +97,8 @@ describe('VendorSpService', () => {
 
       const result = await service.checkVendorSpStatus(1);
       expect(result.has_active_sp).toBe(true);
-      expect(result.sp_info?.sp_level).toBe(2);
-      expect(result.sp_info?.sp_status).toBe('SP2');
+      expect(result.sp_level).toBe(2);
+      expect(result.sp_status).toBe('SP2');
       expect(result.vendor_status).toBe('AKTIF');
     });
 
@@ -87,7 +108,7 @@ describe('VendorSpService', () => {
 
       const result = await service.checkVendorSpStatus(1);
       expect(result.has_active_sp).toBe(true);
-      expect(result.sp_info?.sp_level).toBe(3);
+      expect(result.sp_level).toBe(3);
       expect(result.vendor_status).toBe('NONAKTIF');
     });
 
@@ -106,26 +127,26 @@ describe('VendorSpService', () => {
       prisma.vendor_sp.findFirst.mockResolvedValue(mockSp);
       prisma.vendor_sp.update.mockResolvedValue({ ...mockSp, status: 2 });
 
-      const result = await service.completeSp(1, { notes: 'Done' }, 99);
+      const result = await service.completeSp(1, 99);
       expect(prisma.vendor_sp.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: 2, notes: 'Done' })
+        data: expect.objectContaining({ status: 2, updated_by: 99 })
       }));
       expect(result.status).toBe(2);
     });
 
     it('should throw NotFoundException when SP not found', async () => {
       prisma.vendor_sp.findFirst.mockResolvedValue(null);
-      await expect(service.completeSp(999, {}, 99)).rejects.toThrow(NotFoundException);
+      await expect(service.completeSp(999, 99)).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when SP already completed', async () => {
       prisma.vendor_sp.findFirst.mockResolvedValue({ id: 1, status: 2 });
-      await expect(service.completeSp(1, {}, 99)).rejects.toThrow(BadRequestException);
+      await expect(service.completeSp(1, 99)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when SP is inactive', async () => {
       prisma.vendor_sp.findFirst.mockResolvedValue({ id: 1, status: 0 }); // Inactive
-      await expect(service.completeSp(1, {}, 99)).rejects.toThrow(BadRequestException);
+      await expect(service.completeSp(1, 99)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -134,11 +155,13 @@ describe('VendorSpService', () => {
 
     it('should reactivate vendor successfully', async () => {
       const mockVendor = { id: 1, is_active: false };
-      prisma.vendor.findFirst.mockResolvedValue(mockVendor);
+      prisma.vendor.findFirst
+        .mockResolvedValueOnce(mockVendor)
+        .mockResolvedValueOnce({ ...mockVendor, is_active: true });
       prisma.vendor_reactivation_log.create.mockResolvedValue({ id: 1 });
       prisma.vendor.update.mockResolvedValue({ ...mockVendor, is_active: true });
 
-      const result = await service.reactivateVendor(dto, 99);
+      const result = await service.reactivateVendor(dto as any, 99);
       expect(prisma.$transaction).toHaveBeenCalled();
       expect(prisma.vendor.update).toHaveBeenCalledWith(expect.objectContaining({
         data: { is_active: true }
@@ -148,20 +171,20 @@ describe('VendorSpService', () => {
 
     it('should throw BadRequestException when vendor already active', async () => {
       prisma.vendor.findFirst.mockResolvedValue({ id: 1, is_active: true });
-      await expect(service.reactivateVendor(dto, 99)).rejects.toThrow(BadRequestException);
+      await expect(service.reactivateVendor(dto as any, 99)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when vendor not found', async () => {
       prisma.vendor.findFirst.mockResolvedValue(null);
-      await expect(service.reactivateVendor(dto, 99)).rejects.toThrow(NotFoundException);
+      await expect(service.reactivateVendor(dto as any, 99)).rejects.toThrow(NotFoundException);
     });
 
     it('should create reactivation log entry', async () => {
       const mockVendor = { id: 1, is_active: false };
       prisma.vendor.findFirst.mockResolvedValue(mockVendor);
       prisma.vendor_reactivation_log.create.mockResolvedValue({ id: 1 });
-      
-      await service.reactivateVendor(dto, 99);
+
+      await service.reactivateVendor(dto as any, 99);
       expect(prisma.vendor_reactivation_log.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ reason: 'Reactivation request', approved_by: 99 })
       }));
@@ -174,25 +197,28 @@ describe('VendorSpService', () => {
       prisma.vendor_sp.findFirst.mockResolvedValue(mockSp);
       prisma.vendor_sp.update.mockResolvedValue({ ...mockSp, status: 3 }); // Extended
 
-      const result = await service.extendSpDuration(1, { extension_days: 30, reason: 'Test' }, 99);
+      const newEndDate = new Date('2026-12-31');
+      const result = await service.extendSpDuration(1, newEndDate, 99);
       expect(prisma.vendor_sp.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: 3 })
+        data: expect.objectContaining({ status: 3, end_date: newEndDate })
       }));
       expect(result).toBeDefined();
     });
 
     it('should throw NotFoundException when SP not found', async () => {
       prisma.vendor_sp.findFirst.mockResolvedValue(null);
-      await expect(service.extendSpDuration(999, { extension_days: 30, reason: 'Test' }, 99)).rejects.toThrow(NotFoundException);
+      await expect(
+        service.extendSpDuration(999, new Date('2026-12-31'), 99),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findAll()', () => {
     it('should return paginated results', async () => {
       prisma.vendor_sp.findMany.mockResolvedValue([{ id: 1 }]);
-      prisma.vendor_sp.count = jest.fn().mockResolvedValue(1);
+      prisma.vendor_sp.count.mockResolvedValue(1);
 
-      const result = await service.findAll({ page: 1, limit: 10 });
+      const result = await service.findAll({ page: 1, take: 10 });
       expect(result.data).toBeDefined();
       expect(result.meta.page).toBe(1);
       expect(prisma.vendor_sp.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 10, skip: 0 }));
@@ -200,7 +226,7 @@ describe('VendorSpService', () => {
 
     it('should filter by sp_level correctly', async () => {
       prisma.vendor_sp.findMany.mockResolvedValue([]);
-      prisma.vendor_sp.count = jest.fn().mockResolvedValue(0);
+      prisma.vendor_sp.count.mockResolvedValue(0);
 
       await service.findAll({ sp_level: 2 });
       expect(prisma.vendor_sp.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -210,7 +236,7 @@ describe('VendorSpService', () => {
 
     it('should filter by status correctly', async () => {
       prisma.vendor_sp.findMany.mockResolvedValue([]);
-      prisma.vendor_sp.count = jest.fn().mockResolvedValue(0);
+      prisma.vendor_sp.count.mockResolvedValue(0);
 
       await service.findAll({ status: 1 });
       expect(prisma.vendor_sp.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -220,7 +246,7 @@ describe('VendorSpService', () => {
 
     it('should filter by vendor_id correctly', async () => {
       prisma.vendor_sp.findMany.mockResolvedValue([]);
-      prisma.vendor_sp.count = jest.fn().mockResolvedValue(0);
+      prisma.vendor_sp.count.mockResolvedValue(0);
 
       await service.findAll({ vendor_id: 123 });
       expect(prisma.vendor_sp.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -230,11 +256,11 @@ describe('VendorSpService', () => {
 
     it('should include vendor relation in results', async () => {
       prisma.vendor_sp.findMany.mockResolvedValue([]);
-      prisma.vendor_sp.count = jest.fn().mockResolvedValue(0);
+      prisma.vendor_sp.count.mockResolvedValue(0);
 
       await service.findAll({});
       expect(prisma.vendor_sp.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        include: expect.objectContaining({ vendor: true })
+        include: expect.objectContaining({ vendor: expect.anything() })
       }));
     });
   });

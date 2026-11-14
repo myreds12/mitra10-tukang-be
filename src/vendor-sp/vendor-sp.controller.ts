@@ -10,7 +10,12 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  ForbiddenException,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import { Response } from 'express';
+import * as fs from 'fs';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorSpService } from './vendor-sp.service';
 import {
@@ -19,6 +24,10 @@ import {
   UpdateVendorSpDto,
   ReactivateVendorDto,
 } from './dto/vendor-sp.dto';
+import { PenaltyReceiptDto } from './dto/penalty-receipt.dto';
+import { NoViolationCertificateDto } from './dto/no-violation-certificate.dto';
+import { CleanVendorRecapDto } from './dto/clean-vendor-recap.dto';
+import { QueryReactivationLogDto } from './dto/query-reactivation-log.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
@@ -47,8 +56,19 @@ export class VendorSpController {
   @ApiQuery({ name: 'search', required: false, description: 'Search by vendor name' })
   @ApiResponse({ status: 200, description: 'Successfully retrieved SP records' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(@Query() query: QueryVendorSpDto) {
-    return this.service.findAll(query);
+  async findAll(@Query() query: QueryVendorSpDto, @User() user: any) {
+    return this.service.findAll(query, user);
+  }
+
+  @Get('my-status')
+  @ApiOperation({
+    summary: 'Check Current Logged-in Vendor SP Status',
+    description: 'Check active SP status and SP level for the currently logged-in vendor user (Owner Vendor / Admin Vendor).',
+  })
+  @ApiResponse({ status: 200, description: 'Returns SP status and details for current vendor' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async checkMySpStatus(@User() user: any) {
+    return this.service.checkMyVendorSpStatus(user);
   }
 
   @Get('vendor/:vendorId')
@@ -91,18 +111,47 @@ export class VendorSpController {
     return this.service.getVendorsWithSpStatus(ids);
   }
 
+  @Get('reactivation/candidates')
+  @ApiOperation({
+    summary: 'Get SP3 / Inactive Vendors Eligible for Reactivation',
+    description:
+      'Retrieve vendors currently deactivated due to SP3 or holding an active SP3 record.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns list of SP3 reactivation candidate vendors' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getReactivationCandidates(@User() user: any) {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+    return this.service.getReactivationCandidates();
+  }
+
   @Get('reactivation')
   @ApiOperation({
     summary: 'Get Vendor Reactivation Logs',
-    description: 'Retrieve history of vendor reactivation after SP3 deactivation',
+    description:
+      'Retrieve history of vendor reactivation after SP3 deactivation. ' +
+      'Supports filter by vendor name/PIC (search), status, ' +
+      'reactivation request date range, dan pagination. ' +
+      'Proteksi: JWT-only + role-check (Admin HO / Super User).',
   })
-  @ApiQuery({ name: 'vendor_id', required: false, description: 'Filter by specific vendor ID', type: Number })
   @ApiResponse({ status: 200, description: 'Returns reactivation log history' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getReactivationLogs(@Query('vendor_id') vendorId?: string) {
-    return this.service.getReactivationLogs(
-      vendorId ? parseInt(vendorId, 10) : undefined,
-    );
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  async getReactivationLogs(
+    @Query() query: QueryReactivationLogDto,
+    @User() user: any,
+  ) {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+    return this.service.findReactivationLogs(query);
   }
 
   @Get(':id')
@@ -167,6 +216,40 @@ export class VendorSpController {
     return this.service.completeSp(id, user?.id);
   }
 
+  @Put(':id/notes')
+  @ApiOperation({
+    summary: 'Update SP Notes (Catatan)',
+    description: 'Update freetext notes on a specific Vendor SP record.',
+  })
+  @ApiParam({ name: 'id', description: 'SP Record ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'SP notes updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'SP record not found' })
+  async updateSpNotes(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('notes') notes: string,
+    @User() user: any,
+  ) {
+    return this.service.updateSpNotes(id, notes, user?.id);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Update SP Record',
+    description: 'Update notes on a specific Vendor SP record.',
+  })
+  @ApiParam({ name: 'id', description: 'SP Record ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'SP updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'SP record not found' })
+  async updateSp(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateVendorSpDto,
+    @User() user: any,
+  ) {
+    return this.service.updateSpNotes(id, dto.notes ?? '', user?.id);
+  }
+
   @Post('reactivate')
   @ApiOperation({
     summary: 'Reactivate Vendor after SP3',
@@ -181,5 +264,204 @@ export class VendorSpController {
     @User() user: any,
   ) {
     return this.service.reactivateVendor(dto, user?.id);
+  }
+
+  // ================================
+  // POIN 3: PDF REKAP PENALTY (Bukti SP)
+  // ================================
+
+  @Post('penalty-receipt/export')
+  @ApiOperation({
+    summary: '[POIN 3] Export PDF Bukti Surat Peringatan',
+    description:
+      'Generate PDF Bukti SP untuk vendor di quarter tertentu. ' +
+      'Mengandung info vendor, ringkasan order/pelanggaran/poin, rincian ' +
+      'pelanggaran (tabel), dan section tanda tangan Admin HO + Vendor. ' +
+      'Proteksi: JWT-only + role-check handler (Admin HO / Super User).',
+  })
+  @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
+  @ApiResponse({ status: 400, description: 'Invalid input (vendor_id/quarter/year)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  @ApiResponse({ status: 404, description: 'Vendor not found' })
+  async exportPenaltyReceipt(
+    @Body() dto: PenaltyReceiptDto,
+    @User() user: any,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    const result = await this.service.generatePenaltyReceiptPdf(
+      dto.vendor_id,
+      dto.quarter,
+      dto.year,
+      user?.id ?? null,
+    );
+
+    if (!fs.existsSync(result.filePath)) {
+      throw new NotFoundException(
+        `File PDF tidak ditemukan di server: ${result.filePath}`,
+      );
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.userFileName}"`,
+    );
+
+    const stream = fs.createReadStream(result.filePath);
+    stream.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`penalty-receipt stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).end('Export stream error');
+      }
+    });
+    stream.pipe(res);
+  }
+
+  // ================================
+  // POIN 4: PDF REKAP VENDOR TANPA PELANGGARAN
+  // ================================
+
+  @Post('no-violation-certificate/export')
+  @ApiOperation({
+    summary: '[POIN 4] Export PDF Surat Bebas Pelanggaran',
+    description:
+      'Generate PDF Surat Keterangan Bebas Pelanggaran. ' +
+      'WAJIB: (1) vendor TIDAK punya pelanggaran aktif di quarter tsb, ' +
+      '(2) quarter harus lampau (bukan yang sedang berjalan). ' +
+      'Mengandung info vendor, ringkasan, kalimat resmi, dan tanda tangan Admin HO. ' +
+      'Proteksi: JWT-only + role-check handler (Admin HO / Super User).',
+  })
+  @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
+  @ApiResponse({ status: 400, description: 'Ada pelanggaran aktif ATAU kuartal masih berjalan' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  @ApiResponse({ status: 404, description: 'Vendor not found' })
+  async exportNoViolationCertificate(
+    @Body() dto: NoViolationCertificateDto,
+    @User() user: any,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    const result = await this.service.generateNoViolationCertificatePdf(
+      dto.vendor_id,
+      dto.quarter,
+      dto.year,
+      user?.id ?? null,
+    );
+
+    if (!fs.existsSync(result.filePath)) {
+      throw new NotFoundException(
+        `File PDF tidak ditemukan di server: ${result.filePath}`,
+      );
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.userFileName}"`,
+    );
+
+    const stream = fs.createReadStream(result.filePath);
+    stream.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`no-violation-certificate stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).end('Export stream error');
+      }
+    });
+    stream.pipe(res);
+  }
+
+  // Poin 4 (varian aggregate): PDF rekap LIST vendor tanpa pelanggaran.
+  // Pattern konsisten dengan Poin 3 + Poin 4 (POST + body + role-check + file streaming).
+  @Post('clean-vendor-recap/export')
+  @ApiOperation({
+    summary: '[POIN 4] Export PDF Rekap Vendor Tanpa Pelanggaran',
+    description:
+      'Generate PDF berisi LIST semua vendor dengan 0 pelanggaran pada ' +
+      'quarter+year tsb. Filter kategori violation_type opsional. ' +
+      'Proteksi: JWT-only + role-check handler (Admin HO / Super User).',
+  })
+  @ApiResponse({ status: 200, description: 'PDF attachment streamed inline' })
+  @ApiResponse({ status: 400, description: 'Invalid input (quarter/year/category)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  async exportCleanVendorRecap(
+    @Body() dto: CleanVendorRecapDto,
+    @User() user: any,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    const result = await this.service.generateCleanVendorRecapPdf(
+      dto.quarter,
+      dto.year,
+      dto.category,
+      user?.id ?? null,
+    );
+
+    if (!fs.existsSync(result.filePath)) {
+      throw new NotFoundException(
+        `File PDF tidak ditemukan di server: ${result.filePath}`,
+      );
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.userFileName}"`,
+    );
+
+    const stream = fs.createReadStream(result.filePath);
+    stream.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`clean-vendor-recap stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).end('Export stream error');
+      }
+    });
+    stream.pipe(res);
+  }
+
+  @Post('trigger-weekly-warning')
+  @ApiOperation({
+    summary: 'Trigger Weekly Vendor SP Warning Notifications (Manual)',
+    description:
+      'Mengecek seluruh vendor yang total poinnya mendekati threshold SP (>= 70%) dan mengirimkan notifikasi mingguan ke PIC Vendor (Owner Vendor & Admin Vendor). ' +
+      'Dilengkapi idempotency guard (1x per minggu ISO per vendor) dan audit logging. ' +
+      'Proteksi: JWT-only + role-check handler (Admin HO / Super User).',
+  })
+  @ApiResponse({ status: 200, description: 'Result of weekly warning notification process' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  async triggerWeeklyWarning(@User() user: any) {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    return this.service.sendWeeklyWarningNotifications(user?.id);
   }
 }

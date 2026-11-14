@@ -361,6 +361,11 @@ export class MemberService {
 
       return {
         data: dataMember,
+        total: count,
+        page,
+        take,
+        totalOrderOne: orderMemberOne,
+        totalOrderMany: orderMemberMany,
         meta: {
           totalOrderOne: orderMemberOne,
           totalOrderMany: orderMemberMany,

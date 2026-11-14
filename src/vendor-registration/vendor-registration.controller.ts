@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   Controller,
   Delete,
@@ -8,10 +9,12 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   ParseIntPipe,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorRegistrationService } from './vendor-registration.service';
@@ -20,12 +23,23 @@ import {
   QueryVendorRegistrationDto,
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
-  ValidateTokenDto,
-  CreateUserFromTokenDto,
+  UpdateTermsAndConditionsDto,
 } from './dto/vendor-registration.dto';
 import { User } from 'src/common/decorator/user.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { createReadStream } from 'fs';
+import { existsSync } from 'fs';
 
 @ApiTags('Vendor Registration')
 @ApiBearerAuth()
@@ -66,30 +80,331 @@ export class VendorRegistrationController {
     return this.service.registerVendor(dto, files);
   }
 
-  @Get('validate-token')
+  @Get('check-unique')
   @ApiOperation({
-    summary: '[PUBLIC] Validate Registration Token',
-    description: 'Validate if the registration token is still valid and not expired. Used before creating user account.',
+    summary: '[PUBLIC] Cek keunikan NPWP, KTP PIC, KTP Tukang, Email, Nama Perusahaan, atau Nomor Telepon',
+    description: 'Cek apakah field pendaftaran vendor sudah terdaftar di database.',
   })
-  @ApiQuery({ name: 'token', description: 'Registration token from email', type: String, example: 'abc123def456' })
-  @ApiResponse({ status: 200, description: 'Token is valid, returns registration details' })
-  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
-  async validateToken(@Query() query: ValidateTokenDto) {
-    return this.service.validateToken(query.token);
+  @ApiQuery({
+    name: 'type',
+    enum: [
+      'npwp',
+      'ktp_pic',
+      'ktp_tukang',
+      'email',
+      'email_address',
+      'pic_email',
+      'company_name',
+      'company',
+      'phone',
+      'phone_company',
+      'phone_pic',
+      'phone_tukang',
+    ],
+    required: true,
+  })
+  @ApiQuery({ name: 'value', type: String, required: true })
+  @ApiResponse({ status: 200, description: 'Hasil pengecekan keunikan' })
+  async checkUnique(
+    @Query('type')
+    type:
+      | 'npwp'
+      | 'ktp_pic'
+      | 'ktp_tukang'
+      | 'email'
+      | 'email_address'
+      | 'pic_email'
+      | 'company_name'
+      | 'company'
+      | 'phone'
+      | 'phone_company'
+      | 'phone_pic'
+      | 'phone_tukang',
+    @Query('value') value: string,
+  ) {
+    const allowed = [
+      'npwp',
+      'ktp_pic',
+      'ktp_tukang',
+      'email',
+      'email_address',
+      'pic_email',
+      'company_name',
+      'company',
+      'phone',
+      'phone_company',
+      'phone_pic',
+      'phone_tukang',
+    ];
+    if (!type || !allowed.includes(type)) {
+      throw new BadRequestException('Parameter type tidak valid.');
+    }
+    return this.service.checkUnique(type, value || '');
   }
 
-  @Post('create-user')
+  // ================================
+  // PUBLIC: TERMS & CONDITIONS (T&C)
+  // ================================
+  // Catatan: route spesifik ini HARUS berada di atas @Get(':id') supaya tidak
+  // tertangkap sebagai parameter id.
+
+  @Get('terms-and-conditions')
   @ApiOperation({
-    summary: '[PUBLIC] Create User from Token',
-    description: 'Create vendor user account after email validation. Requires valid token from registration email.',
+    summary: '[PUBLIC] Get Active Terms & Conditions',
+    description:
+      'Ambil dokumen Syarat & Ketentuan aktif (HTML atau metadata PDF). Untuk tipe PDF, konten dilayani terpisah via GET /terms-and-conditions/file (streaming read-only).',
   })
-  @ApiResponse({ status: 201, description: 'User created successfully. Vendor is now active.' })
-  @ApiResponse({ status: 400, description: 'Invalid token or data' })
-  async createUserFromToken(@Body() dto: CreateUserFromTokenDto & ValidateTokenDto) {
-    return this.service.createUserFromToken(dto.token, {
-      username: dto.username,
-      password: dto.password,
-    });
+  @ApiResponse({ status: 200, description: 'Returns active terms and conditions content' })
+  async getActiveTermsAndConditions() {
+    return this.service.getActiveTermsAndConditions();
+  }
+
+  // Streaming PDF T&C aktif - READ-ONLY:
+  // - inline (bukan attachment) -> browser tampilkan viewer, TIDAK menawarkan download
+  // - Content-Disposition: inline tanpa filename download
+  // - cache disabled supaya link tidak bisa dipakai ulang di luar viewer
+  @Get('terms-and-conditions/file')
+  @ApiOperation({
+    summary: '[PUBLIC] Stream Active Terms & Conditions PDF (read-only)',
+    description:
+      'Stream file PDF T&C aktif untuk viewer inline. Read-only - tidak bisa didownload.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns PDF stream (inline, no download)' })
+  @ApiResponse({ status: 404, description: 'No active PDF terms and conditions' })
+  async streamActiveTermsPdf(@Res() res: any) {
+    const pdf = await this.service.getActiveTermsPdfPath();
+
+    if (!pdf) {
+      throw new NotFoundException(
+        'T&C aktif bukan tipe PDF atau file tidak ditemukan.',
+      );
+    }
+
+    if (!existsSync(pdf.absolutePath)) {
+      throw new NotFoundException('File PDF T&C tidak ditemukan di server.');
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    const stream = createReadStream(pdf.absolutePath);
+    stream.pipe(res);
+  }
+
+  @Get('terms-and-conditions/versions')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] List All Terms & Conditions Versions',
+    description: 'Riwayat semua versi T&C untuk halaman setting (versi aktif + arsip).',
+  })
+  @ApiResponse({ status: 200, description: 'Returns all terms and conditions versions' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
+  async listTermsAndConditions(@User() user: any) {
+    return this.service.listTermsAndConditions(user?.id);
+  }
+
+  @Get('terms-and-conditions/versions/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Get Terms & Conditions Version by ID',
+    description: 'Detail satu versi T&C (termasuk konten) untuk form edit.',
+  })
+  @ApiParam({ name: 'id', description: 'Version ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Returns terms and conditions version detail' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async getTermsVersionById(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.getTermsVersionById(id, user?.id);
+  }
+
+  @Put('terms-and-conditions/versions/:id/activate')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Activate Terms & Conditions Version',
+    description: 'Aktifkan satu versi T&C. Single-active: semua versi lain otomatis dinonaktifkan.',
+  })
+  @ApiParam({ name: 'id', description: 'Version ID', type: Number, example: 2 })
+  @ApiResponse({ status: 200, description: 'Version activated successfully' })
+  @ApiResponse({ status: 400, description: 'Version already active' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async activateTermsVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.activateTermsVersion(id, user?.id);
+  }
+
+  @Put('terms-and-conditions/versions/:id/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Deactivate Terms & Conditions Version',
+    description:
+      'Nonaktifkan versi T&C. Ditolak jika ini satu-satunya versi aktif (minimal 1 harus aktif).',
+  })
+  @ApiParam({ name: 'id', description: 'Version ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Version deactivated successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot deactivate the only active version' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async deactivateTermsVersion(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.deactivateTermsVersion(id, user?.id);
+  }
+
+  @Put('terms-and-conditions')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+          return;
+        }
+        cb(
+          new BadRequestException(
+            `File harus berformat PDF (application/pdf). Diterima: ${file.mimetype || 'unknown'}`,
+          ),
+          false,
+        );
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Update Terms & Conditions (CREATE NEW VERSION)',
+    description:
+      'Update T&C (HTML dari Quill atau upload PDF) tanpa redeploy. Membuat versi baru yang otomatis menjadi SATU-SATUNYA versi aktif. File PDF max 10 MB. Untuk edit in-place pada versi yang sudah ada, gunakan PUT /terms-and-conditions/versions/:id.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', minLength: 5, maxLength: 200 },
+        content: { type: 'string', description: 'HTML content (tipe HTML)' },
+        document_type: { type: 'string', enum: ['HTML', 'PDF'] },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File PDF (tipe PDF, max 10 MB)',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Terms and conditions updated successfully (new version created)' })
+  @ApiResponse({ status: 400, description: 'Bad Request - validation failed (title length, PDF mime/size)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
+  async updateTermsAndConditions(
+    @Body() dto: UpdateTermsAndConditionsDto,
+    @User() user: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.service.updateTermsAndConditions(dto, user?.id, file);
+  }
+
+  @Put('terms-and-conditions/versions/:id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+          return;
+        }
+        cb(
+          new BadRequestException(
+            `File harus berformat PDF (application/pdf). Diterima: ${file.mimetype || 'unknown'}`,
+          ),
+          false,
+        );
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '[ADMIN HO / SUPER USER] Edit Terms & Conditions Version IN-PLACE',
+    description:
+      'Edit konten (title/content/file) dari versi T&C yang sudah ada TANPA membuat versi baru. Cocok untuk memperbaiki typo. Single-active TETAP berlaku — is_active versi yang diedit TIDAK berubah: edit versi aktif → tetap aktif; edit versi arsip → tetap arsip. Setelah edit, aktivasi manual jika diperlukan (lihat PUT /terms-and-conditions/versions/:id/activate).',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', minLength: 5, maxLength: 200 },
+        content: { type: 'string', description: 'HTML content (tipe HTML)' },
+        document_type: { type: 'string', enum: ['HTML', 'PDF'] },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'File PDF baru (tipe PDF, max 10 MB) — opsional, gunakan existing jika tidak upload',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Version edited in place successfully' })
+  @ApiResponse({ status: 400, description: 'Bad Request - validation failed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin HO / Super User only' })
+  @ApiResponse({ status: 404, description: 'Version not found' })
+  async editTermsVersionInPlace(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTermsAndConditionsDto,
+    @User() user: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.service.editTermsVersionInPlace(id, dto, user?.id, file);
+  }
+
+  // ================================
+  // REGISTRANT (PENDAFTAR) DASHBOARD
+  // ================================
+  // Endpoint khusus role "Pendaftar Vendor" - ownership di-check di service
+  // (role-check manual via getRoleName, tanpa CASL/PermissionsGuard).
+
+  @Get('me/registrations')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[PENDAFTAR] Get My Registrations',
+    description: 'Daftar pendaftaran vendor milik user yang login saja (ownership via user_id). Bukan semua pendaftar.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns registrations owned by the current user' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Pendaftar Vendor role only' })
+  async findMyRegistrations(@User() user: any) {
+    return this.service.findMyRegistrations(user?.id);
+  }
+
+  @Get('me/profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[PENDAFTAR] Get My Registrant Profile',
+    description: 'Profil ringkas akun pendaftar + pendaftaran terakhir untuk header dashboard.',
+  })
+  @ApiResponse({ status: 200, description: 'Returns registrant profile' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Pendaftar Vendor role only' })
+  async getMyRegistrantProfile(@User() user: any) {
+    return this.service.getMyRegistrantProfile(user?.id);
+  }
+
+  @Get('me/home')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[PENDAFTAR] Get Home Content',
+    description: 'Konten statis halaman Home dashboard pendaftar (info & benefit Mitra10).',
+  })
+  @ApiResponse({ status: 200, description: 'Returns home content' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Pendaftar Vendor role only' })
+  async getRegistrantHomeContent(@User() user: any) {
+    await this.service.assertRegistrantAccess(user?.id);
+    return this.service.getRegistrantHomeContent();
   }
 
   // ================================
@@ -234,11 +549,62 @@ export class VendorRegistrationController {
     return this.service.rejectRegistration(id, dto, user?.id);
   }
 
+  @Post(':id/resend-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Kirim Ulang Email Pendaftar Vendor',
+    description: 'Kirim ulang email kredensial/notifikasi ke vendor pendaftar.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Email berhasil dikirim ulang' })
+  async resendEmail(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.resendEmail(id, user?.id);
+  }
+
+  @Get(':id/email-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Cek Status Pengiriman Email Vendor',
+    description: 'Cek log status pengiriman email terakhir untuk pendaftar vendor.',
+  })
+  @ApiParam({ name: 'id', description: 'Registration ID', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Status email berhasil diambil' })
+  async getEmailStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @User() user: any,
+  ) {
+    return this.service.getEmailStatus(id, user?.id);
+  }
+
+  @Delete('by-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: '[ADMIN] Delete Vendor Registration by Email',
+    description: 'Hard delete a vendor registration record and its associated registrant user account by email.',
+  })
+  @ApiQuery({ name: 'email', description: 'Applicant email or company email to delete', type: String, required: true })
+  @ApiResponse({ status: 200, description: 'Registration deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Email parameter is required' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Registration not found' })
+  async deleteRegistrationByEmail(
+    @Query('email') email: string,
+    @User() user: any,
+  ) {
+    if (!email || !email.trim()) {
+      throw new BadRequestException('Parameter email wajib diisi.');
+    }
+    return this.service.deleteRegistrationByEmail(email.trim(), user?.id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: '[ADMIN] Delete Vendor Registration',
-    description: 'Hard delete a vendor registration record. Existing active vendor/user data is not removed.',
+    description: 'Hard delete a vendor registration record and its associated registrant user account.',
   })
   @ApiParam({ name: 'id', description: 'Registration ID to delete', type: Number, example: 1 })
   @ApiResponse({ status: 200, description: 'Registration deleted successfully' })

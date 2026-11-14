@@ -14,8 +14,8 @@ import {
   QueryVendorRegistrationDto,
   ApproveVendorRegistrationDto,
   RejectVendorRegistrationDto,
-  CreateUserFromTokenDto,
   TukangRegistrationDto,
+  UpdateTermsAndConditionsDto,
 } from './dto/vendor-registration.dto';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
@@ -28,11 +28,14 @@ import { moduleTypeNotification } from 'src/notifications/dto/notification-modul
 import { Cron } from '@nestjs/schedule';
 import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 
+// Role khusus akun pendaftar vendor (belum di-approve; dibuat lewat migration seed)
+const PENDAFTAR_VENDOR_ROLE = 'Pendaftar Vendor';
+
 @Injectable()
 export class VendorRegistrationService {
   private readonly logger = new Logger(VendorRegistrationService.name);
   private readonly rejectedCooldownDays = 30;
-  private readonly rejectedDocumentRetentionHours = 36;
+  private readonly rejectedDocumentRetentionHours = 72;
 
   constructor(
     private readonly dbService: PrismaService,
@@ -175,6 +178,26 @@ export class VendorRegistrationService {
     return parsed;
   }
 
+  private parseIntJsonArray(value?: string | number[] | null): number[] {
+    if (value === undefined || value === null || value === '') return [];
+    if (Array.isArray(value)) {
+      return value
+        .map((v) => Number(v))
+        .filter((v): v is number => Number.isInteger(v));
+    }
+    try {
+      const parsed = JSON.parse(value as string);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((v) => Number(v))
+          .filter((v): v is number => Number.isInteger(v));
+      }
+    } catch {
+      return [];
+    }
+    return [];
+  }
+
   private formatRegistration(registration: any) {
     const serviceTypes = registration.service_types
       ? JSON.parse(registration.service_types)
@@ -191,6 +214,112 @@ export class VendorRegistrationService {
       tukang_data: tukangData,
       tukang: tukangData,
     };
+  }
+
+  private async attachEmailStatus(registrations: any[]) {
+    if (!registrations || registrations.length === 0) {
+      return [];
+    }
+
+    const registrationIds = registrations
+      .map((r) => r.id)
+      .filter((id): id is number => typeof id === 'number');
+    const emails = Array.from(
+      new Set(
+        registrations
+          .flatMap((r) => [r.pic_email, r.email_address])
+          .filter((e): e is string => Boolean(e && typeof e === 'string' && e.trim() !== '')),
+      ),
+    );
+
+    const conditions: any[] = [];
+    if (registrationIds.length > 0) {
+      conditions.push({ moduleId: { in: registrationIds } });
+    }
+    for (const email of emails) {
+      conditions.push({ to: { contains: email } });
+    }
+
+    const mailLogs =
+      conditions.length > 0
+        ? await this.dbService.mail_logs.findMany({
+            where: {
+              OR: conditions,
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [];
+
+    return registrations.map((reg) => {
+      const recipient = reg.pic_email || reg.email_address;
+      const regEmails = [reg.pic_email, reg.email_address]
+        .filter((e): e is string => Boolean(e && typeof e === 'string' && e.trim() !== ''))
+        .map((e) => e.trim().toLowerCase());
+
+      // Filter log yang benar-benar terkait dengan pendaftaran vendor ini.
+      // Cegah false-positive dari moduleId yang bertabrakan dengan tabel order/quotation lain.
+      const log = mailLogs.find((ml) => {
+        const mlTo = (ml.to || '').toLowerCase().trim();
+        const matchesEmail = regEmails.some((re) => mlTo.includes(re));
+        if (matchesEmail) {
+          return true;
+        }
+
+        if (ml.moduleId === reg.id && ml.data) {
+          try {
+            const parsed = JSON.parse(ml.data);
+            if (parsed.registration_id === reg.id || parsed.company_name === reg.company_name) {
+              return true;
+            }
+          } catch {
+            // Not valid JSON
+          }
+        }
+
+        return false;
+      });
+
+      const emailStatus = log
+        ? {
+            sent: log.status === 1,
+            status: log.status === 1 ? 'TERKIRIM' : 'GAGAL',
+            sent_at: log.createdAt,
+            recipient: log.to || recipient,
+            log_id: log.id,
+          }
+        : {
+            sent: false,
+            status: 'BELUM_TERKIRIM',
+            sent_at: null,
+            recipient,
+            log_id: null,
+          };
+
+      return {
+        ...reg,
+        email_status: emailStatus,
+      };
+    });
+  }
+
+  private resolveEmailRecipients(registration: {
+    pic_email?: string | null;
+    email_address?: string | null;
+  }): { to: string; cc?: string } {
+    const pic = (registration.pic_email || '').trim();
+    const comp = (registration.email_address || '').trim();
+
+    if (pic && comp) {
+      if (pic.toLowerCase() !== comp.toLowerCase()) {
+        return { to: pic, cc: comp };
+      }
+      return { to: pic };
+    }
+    return { to: pic || comp };
+  }
+
+  private generateVendorPassword(): string {
+    return `M10${randomBytes(3).toString('hex').toUpperCase()}`;
   }
 
   private async assertAdminHO(userId?: number) {
@@ -280,6 +409,652 @@ export class VendorRegistrationService {
     }
   }
 
+  // Pattern role-check manual (konsisten dengan getRoleName di vendor-violation.service.ts)
+  async getRoleName(userId?: number): Promise<string | null> {
+    if (!userId) return null;
+    const user = await this.dbService.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      select: { roles: { select: { name: true } } },
+    });
+    return user?.roles?.name ?? null;
+  }
+
+  private async assertAdminHOOrSuperUser(userId?: number) {
+    const roleName = await this.getRoleName(userId);
+    if (!roleName || !['admin ho', 'super user'].includes(roleName.toLowerCase())) {
+      throw new ForbiddenException('Akses hanya untuk Admin HO / Super User.');
+    }
+  }
+
+  private async assertRegistrant(userId?: number) {
+    const roleName = await this.getRoleName(userId);
+    if (!roleName || roleName.toLowerCase() !== PENDAFTAR_VENDOR_ROLE.toLowerCase()) {
+      throw new ForbiddenException('Akses hanya untuk akun pendaftar vendor.');
+    }
+  }
+
+  // Username akun pendaftar: menggunakan email PIC (fallback email perusahaan) secara utuh (@ tidak dihilangkan).
+  private buildRegistrantUsername(registration: {
+    pic_email?: string | null;
+    email_address?: string | null;
+  }): string {
+    const email = (
+      registration.pic_email ||
+      registration.email_address ||
+      ''
+    )
+      .toLowerCase()
+      .trim();
+    return email || `pendaftar_${Date.now()}@temp.local`;
+  }
+
+  // Role-check publik untuk endpoint dashboard pendaftar (dipanggil controller).
+  async assertRegistrantAccess(userId?: number) {
+    await this.assertRegistrant(userId);
+  }
+
+  private getPhoneVariants(phone: string): string[] {
+    const trimmed = (phone || '').trim();
+    if (!trimmed) return [];
+    const variants = new Set<string>();
+    variants.add(trimmed);
+
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      variants.add(digits);
+      if (digits.startsWith('0')) {
+        const rest = digits.slice(1);
+        variants.add(rest);
+        variants.add('62' + rest);
+        variants.add('+62' + rest);
+      } else if (digits.startsWith('62')) {
+        const rest = digits.slice(2);
+        variants.add('0' + rest);
+        variants.add(rest);
+        variants.add('+' + digits);
+      } else {
+        variants.add('0' + digits);
+        variants.add('62' + digits);
+        variants.add('+62' + digits);
+      }
+    }
+    return Array.from(variants);
+  }
+
+  async checkUnique(
+    type:
+      | 'npwp'
+      | 'ktp_pic'
+      | 'ktp_tukang'
+      | 'email'
+      | 'email_address'
+      | 'pic_email'
+      | 'company_name'
+      | 'company'
+      | 'phone'
+      | 'phone_company'
+      | 'phone_pic'
+      | 'phone_tukang',
+    value: string,
+  ): Promise<{ is_registered: boolean; message: string }> {
+    const trimmed = (value || '').trim();
+    if (!trimmed) {
+      return { is_registered: false, message: '' };
+    }
+
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (type === 'company_name' || type === 'company') {
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          company_name: trimmed,
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'Nama Perusahaan sudah terdaftar' };
+      }
+
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          company_name: trimmed,
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'Nama Perusahaan sudah terdaftar' };
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (
+      type === 'phone' ||
+      type === 'phone_company' ||
+      type === 'phone_pic' ||
+      type === 'phone_tukang'
+    ) {
+      const phoneVariants = this.getPhoneVariants(trimmed);
+      const lastDigits = digits.length >= 9 ? digits.slice(-9) : (digits.length >= 7 ? digits : '');
+
+      // 1. Cek vendor aktif di tabel vendor
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { phone_number: { in: phoneVariants } },
+            ...(lastDigits ? [{ phone_number: { contains: lastDigits } }] : []),
+          ],
+        },
+        select: { id: true, phone_number: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+      }
+
+      // 2. Cek vendor_registration aktif (MENUNGGU_APPROVE, PROSES_PITCHING, DISETUJUI)
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: [
+            { phone_number: { in: phoneVariants } },
+            { pic_phone: { in: phoneVariants } },
+            ...(lastDigits
+              ? [
+                  { phone_number: { contains: lastDigits } },
+                  { pic_phone: { contains: lastDigits } },
+                ]
+              : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+      }
+
+      // 3. Cek tabel tukang
+      const existingTukang = await this.dbService.tukang.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { phone_number: { in: phoneVariants } },
+            ...(lastDigits ? [{ phone_number: { contains: lastDigits } }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingTukang) {
+        return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+      }
+
+      // 4. Cek tukang_data di vendor_registration aktif
+      const activeRegsWithTukang = await this.dbService.vendor_registration.findMany({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          tukang_data: { not: null },
+          OR: [
+            ...phoneVariants.map((p) => ({ tukang_data: { contains: p } })),
+            ...(lastDigits ? [{ tukang_data: { contains: lastDigits } }] : []),
+          ],
+        },
+        select: { tukang_data: true },
+      });
+
+      for (const reg of activeRegsWithTukang) {
+        const tukangs = this.parseTukangData(reg.tukang_data);
+        for (const t of tukangs) {
+          const tPhone = (t.phone_number || (t as any).no_hp || '').trim();
+          const tDigits = tPhone.replace(/\D/g, '');
+          if (
+            tPhone &&
+            (phoneVariants.includes(tPhone) ||
+              (lastDigits && tDigits.includes(lastDigits)))
+          ) {
+            return { is_registered: true, message: 'Nomor telepon sudah terdaftar' };
+          }
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (type === 'npwp') {
+      const regOrConditions: Prisma.vendor_registrationWhereInput[] = [
+        { npwp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        regOrConditions.push({ npwp_number: digits });
+      }
+
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: regOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+      }
+
+      const vendorOrConditions: Prisma.vendorWhereInput[] = [
+        { npwp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        vendorOrConditions.push({ npwp_number: digits });
+      }
+
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: vendorOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+      }
+
+      if (digits.length >= 10) {
+        const activeRegs = await this.dbService.vendor_registration.findMany({
+          where: {
+            deleted_at: null,
+            status: {
+              in: [
+                RegistrationStatus.MENUNGGU_APPROVE,
+                RegistrationStatus.PROSES_PITCHING,
+                RegistrationStatus.DISETUJUI,
+              ],
+            },
+            npwp_number: { not: null },
+          },
+          select: { npwp_number: true },
+        });
+
+        if (activeRegs.some((r) => r.npwp_number && r.npwp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+        }
+
+        const activeVendors = await this.dbService.vendor.findMany({
+          where: {
+            deleted_at: null,
+            npwp_number: { not: null },
+          },
+          select: { npwp_number: true },
+        });
+
+        if (activeVendors.some((v) => v.npwp_number && v.npwp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'No NPWP sudah terdaftar' };
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (type === 'ktp_pic') {
+      const regOrConditions: Prisma.vendor_registrationWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        regOrConditions.push({ ktp_number: digits });
+      }
+
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: regOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'KTP Sudah terdaftar' };
+      }
+
+      const vendorOrConditions: Prisma.vendorWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        vendorOrConditions.push({ ktp_number: digits });
+      }
+
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: vendorOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'KTP Sudah terdaftar' };
+      }
+
+      if (digits.length >= 10) {
+        const activeRegs = await this.dbService.vendor_registration.findMany({
+          where: {
+            deleted_at: null,
+            status: {
+              in: [
+                RegistrationStatus.MENUNGGU_APPROVE,
+                RegistrationStatus.PROSES_PITCHING,
+                RegistrationStatus.DISETUJUI,
+              ],
+            },
+            ktp_number: { not: null },
+          },
+          select: { ktp_number: true },
+        });
+
+        if (activeRegs.some((r) => r.ktp_number && r.ktp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'KTP Sudah terdaftar' };
+        }
+
+        const activeVendors = await this.dbService.vendor.findMany({
+          where: {
+            deleted_at: null,
+            ktp_number: { not: null },
+          },
+          select: { ktp_number: true },
+        });
+
+        if (activeVendors.some((v) => v.ktp_number && v.ktp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'KTP Sudah terdaftar' };
+        }
+      }
+
+      const tukangKtpConditions: Prisma.tukangWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        tukangKtpConditions.push({ ktp_number: digits });
+      }
+
+      const existingTukangWithPicKtp = await this.dbService.tukang.findFirst({
+        where: {
+          deleted_at: null,
+          OR: tukangKtpConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingTukangWithPicKtp) {
+        return { is_registered: true, message: 'KTP Sudah terdaftar' };
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (type === 'ktp_tukang') {
+      const tukangOrConditions: Prisma.tukangWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        tukangOrConditions.push({ ktp_number: digits });
+      }
+
+      const existingTukang = await this.dbService.tukang.findFirst({
+        where: {
+          deleted_at: null,
+          OR: tukangOrConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingTukang) {
+        return { is_registered: true, message: 'No KTP sudah terdaftar' };
+      }
+
+      const picRegConditions: Prisma.vendor_registrationWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        picRegConditions.push({ ktp_number: digits });
+      }
+
+      const existingPicReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: picRegConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingPicReg) {
+        return { is_registered: true, message: 'No KTP sudah terdaftar' };
+      }
+
+      const vendorKtpConditions: Prisma.vendorWhereInput[] = [
+        { ktp_number: trimmed },
+      ];
+      if (digits && digits !== trimmed) {
+        vendorKtpConditions.push({ ktp_number: digits });
+      }
+
+      const existingPicVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: vendorKtpConditions,
+        },
+        select: { id: true },
+      });
+
+      if (existingPicVendor) {
+        return { is_registered: true, message: 'No KTP sudah terdaftar' };
+      }
+
+      const activeRegsWithTukang = await this.dbService.vendor_registration.findMany({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          tukang_data: { not: null },
+          OR: [
+            { tukang_data: { contains: trimmed } },
+            ...(digits ? [{ tukang_data: { contains: digits } }] : []),
+          ],
+        },
+        select: { tukang_data: true },
+      });
+
+      for (const reg of activeRegsWithTukang) {
+        const tukangs = this.parseTukangData(reg.tukang_data);
+        for (const t of tukangs) {
+          const tKtp = (t.ktp_number || (t as any).no_ktp || '').trim();
+          if (tKtp && (tKtp === trimmed || (digits && tKtp.replace(/\D/g, '') === digits))) {
+            return { is_registered: true, message: 'No KTP sudah terdaftar' };
+          }
+        }
+      }
+
+      if (digits.length >= 10) {
+        const tukangsWithKtp = await this.dbService.tukang.findMany({
+          where: {
+            deleted_at: null,
+            ktp_number: { not: null },
+          },
+          select: { ktp_number: true },
+        });
+
+        if (tukangsWithKtp.some((t) => t.ktp_number && t.ktp_number.replace(/\D/g, '') === digits)) {
+          return { is_registered: true, message: 'No KTP sudah terdaftar' };
+        }
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    if (type === 'email' || type === 'email_address' || type === 'pic_email') {
+      const emailLower = trimmed.toLowerCase();
+
+      // 1. Cek vendor_registration yang aktif (MENUNGGU_APPROVE, PROSES_PITCHING, DISETUJUI)
+      const existingReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          status: {
+            in: [
+              RegistrationStatus.MENUNGGU_APPROVE,
+              RegistrationStatus.PROSES_PITCHING,
+              RegistrationStatus.DISETUJUI,
+            ],
+          },
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+            { pic_email: trimmed },
+            { pic_email: emailLower },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingReg) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      // 2. Cek vendor_registration yang ditolak (cooldown 30 hari)
+      const rejectedReg = await this.dbService.vendor_registration.findFirst({
+        where: {
+          deleted_at: null,
+          anonymized_at: null,
+          status: RegistrationStatus.DITOLAK,
+          rejected_at: { not: null },
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+            { pic_email: trimmed },
+            { pic_email: emailLower },
+          ],
+        },
+        orderBy: { rejected_at: 'desc' },
+        select: { id: true, rejected_at: true },
+      });
+
+      if (rejectedReg && rejectedReg.rejected_at) {
+        const cooldownMs = 30 * 24 * 60 * 60 * 1000;
+        const elapsedMs = Date.now() - new Date(rejectedReg.rejected_at).getTime();
+        if (elapsedMs < cooldownMs) {
+          const remainingDays = Math.max(1, Math.ceil((cooldownMs - elapsedMs) / (24 * 60 * 60 * 1000)));
+          return {
+            is_registered: true,
+            message: `Email masih dalam masa cooldown penolakan (${remainingDays} hari lagi)`,
+          };
+        }
+      }
+
+      // 3. Cek vendor aktif di tabel vendor
+      const existingVendor = await this.dbService.vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingVendor) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      // 4. Cek pic_vendor di tabel pic_vendor
+      const existingPicVendor = await this.dbService.pic_vendor.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { email_address: trimmed },
+            { email_address: emailLower },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingPicVendor) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      // 5. Cek username di tabel users (baik raw email atau normalized username)
+      const normalizedUsername = emailLower.replace(/[^a-z0-9._-]/g, '');
+      const existingUser = await this.dbService.users.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { username: trimmed },
+            { username: emailLower },
+            { username: normalizedUsername },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (existingUser) {
+        return { is_registered: true, message: 'Email sudah terdaftar' };
+      }
+
+      return { is_registered: false, message: '' };
+    }
+
+    return { is_registered: false, message: '' };
+  }
+
   async registerVendor(dto: RegisterVendorDto, files?: any) {
     try {
       if (!dto.pdp_consent) {
@@ -290,38 +1065,133 @@ export class VendorRegistrationService {
 
       await this.assertRejectedCooldown(dto);
 
-      // Check if email already registered
-      const existing = await this.dbService.vendor_registration.findFirst({
-        where: {
-          email_address: dto.email_address,
-          deleted_at: null,
-          status: {
-            in: [
-              RegistrationStatus.MENUNGGU_APPROVE,
-              RegistrationStatus.PROSES_PITCHING,
-              RegistrationStatus.DISETUJUI,
-            ],
-          },
-        },
-      });
-
-      if (existing) {
-        throw new BadRequestException(
-          'Email ini sudah terdaftar dalam sistem.',
-        );
+      // 1. Validasi Nama Perusahaan wajib diisi & belum terdaftar
+      if (!dto.company_name || !dto.company_name.trim()) {
+        throw new BadRequestException('Nama Perusahaan wajib diisi.');
+      }
+      const companyCheck = await this.checkUnique('company_name', dto.company_name);
+      if (companyCheck.is_registered) {
+        throw new BadRequestException(companyCheck.message || 'Nama Perusahaan sudah terdaftar.');
       }
 
-      // Check if company already exists in vendor table
-      const companyExists = await this.dbService.vendor.findFirst({
+      // 2. Validasi Email Perusahaan wajib diisi & belum terdaftar
+      if (!dto.email_address || !dto.email_address.trim()) {
+        throw new BadRequestException('Email Perusahaan wajib diisi.');
+      }
+      const emailCheck = await this.checkUnique('email', dto.email_address);
+      if (emailCheck.is_registered) {
+        throw new BadRequestException(emailCheck.message || 'Email Perusahaan sudah terdaftar.');
+      }
+
+      // 3. Validasi Telepon Perusahaan wajib diisi & belum terdaftar
+      if (!dto.phone_number || !dto.phone_number.trim()) {
+        throw new BadRequestException('Nomor Telepon Perusahaan wajib diisi.');
+      }
+      const phoneCheck = await this.checkUnique('phone', dto.phone_number);
+      if (phoneCheck.is_registered) {
+        throw new BadRequestException(phoneCheck.message || 'Nomor Telepon Perusahaan sudah terdaftar.');
+      }
+
+      // 4. Validasi NPWP Perusahaan jika diisi belum terdaftar
+      if (dto.npwp_number && dto.npwp_number.trim()) {
+        const npwpCheck = await this.checkUnique('npwp', dto.npwp_number);
+        if (npwpCheck.is_registered) {
+          throw new BadRequestException(npwpCheck.message || 'No NPWP sudah terdaftar.');
+        }
+      }
+
+      // 5. Nama PIC wajib diisi (nama pic boleh sama, tidak dicek keunikan)
+      if (!dto.pic_name || !dto.pic_name.trim()) {
+        throw new BadRequestException('Nama PIC wajib diisi.');
+      }
+
+      // 6. Validasi Telepon PIC wajib diisi & belum terdaftar
+      if (!dto.pic_phone || !dto.pic_phone.trim()) {
+        throw new BadRequestException('Nomor HP PIC wajib diisi.');
+      }
+      const picPhoneCheck = await this.checkUnique('phone', dto.pic_phone);
+      if (picPhoneCheck.is_registered) {
+        throw new BadRequestException(picPhoneCheck.message || 'Nomor HP PIC sudah terdaftar.');
+      }
+
+      // 7. Validasi Email PIC wajib diisi & belum terdaftar
+      if (!dto.pic_email || !dto.pic_email.trim()) {
+        throw new BadRequestException('Email PIC wajib diisi.');
+      }
+      const picEmailCheck = await this.checkUnique('email', dto.pic_email);
+      if (picEmailCheck.is_registered) {
+        throw new BadRequestException(picEmailCheck.message || 'Email PIC sudah terdaftar.');
+      }
+
+      // 8. Validasi KTP PIC wajib diisi dan belum terdaftar
+      if (!dto.ktp_number || !dto.ktp_number.trim()) {
+        throw new BadRequestException('Nomor KTP PIC wajib diisi.');
+      }
+      const ktpPicCheck = await this.checkUnique('ktp_pic', dto.ktp_number);
+      if (ktpPicCheck.is_registered) {
+        throw new BadRequestException(ktpPicCheck.message || 'KTP Sudah terdaftar.');
+      }
+
+      // 9. Validasi duplikasi internal antar email & telepon perusahaan vs PIC
+      if (dto.email_address.trim().toLowerCase() === dto.pic_email.trim().toLowerCase()) {
+        throw new BadRequestException('Email Perusahaan dan Email PIC tidak boleh sama.');
+      }
+      const compPhoneDigits = dto.phone_number.replace(/\D/g, '');
+      const picPhoneDigits = dto.pic_phone.replace(/\D/g, '');
+      if (compPhoneDigits && picPhoneDigits && compPhoneDigits === picPhoneDigits) {
+        throw new BadRequestException('Nomor Telepon Perusahaan dan Nomor HP PIC tidak boleh sama.');
+      }
+
+      // 10. Validasi Tukang: nama boleh sama, KTP & HP TIDAK boleh sama
+      const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
+      const seenTukangKtps = new Set<string>();
+      const seenTukangPhones = new Set<string>();
+
+      for (const [idx, t] of tukangData.entries()) {
+        const tKtp = (t.ktp_number || (t as any).no_ktp || '').trim();
+        if (tKtp) {
+          const key = tKtp.replace(/\D/g, '') || tKtp;
+          if (seenTukangKtps.has(key)) {
+            throw new BadRequestException(`No KTP tukang (${tKtp}) pada baris ke-${idx + 1} duplikat.`);
+          }
+          seenTukangKtps.add(key);
+
+          const tukangKtpCheck = await this.checkUnique('ktp_tukang', tKtp);
+          if (tukangKtpCheck.is_registered) {
+            throw new BadRequestException(`No KTP tukang (${tKtp}) sudah terdaftar.`);
+          }
+        }
+
+        const tPhone = (t.phone_number || (t as any).no_hp || '').trim();
+        if (tPhone) {
+          const phoneKey = tPhone.replace(/\D/g, '') || tPhone;
+          if (seenTukangPhones.has(phoneKey)) {
+            throw new BadRequestException(`No HP tukang (${tPhone}) pada baris ke-${idx + 1} duplikat.`);
+          }
+          seenTukangPhones.add(phoneKey);
+
+          const tukangPhoneCheck = await this.checkUnique('phone', tPhone);
+          if (tukangPhoneCheck.is_registered) {
+            throw new BadRequestException(`No HP tukang (${tPhone}) sudah terdaftar.`);
+          }
+        }
+      }
+
+      // Idempotensi username akun pendaftar (username = email pendaftar utuh termasuk @)
+      const registrantUsername = this.buildRegistrantUsername(dto);
+      const existingUser = await this.dbService.users.findFirst({
         where: {
-          company_name: dto.company_name,
           deleted_at: null,
+          OR: [
+            { username: registrantUsername },
+            { username: registrantUsername.replace(/[^a-z0-9._-]/g, '') },
+          ],
         },
       });
 
-      if (companyExists) {
+      if (existingUser) {
         throw new BadRequestException(
-          'Nama perusahaan sudah terdaftar sebagai vendor.',
+          'Email sudah terdaftar sebagai akun pengguna. Silakan gunakan email lain atau hubungi Admin Mitra10.',
         );
       }
 
@@ -370,8 +1240,10 @@ export class VendorRegistrationService {
           ? dto.areas
           : JSON.stringify(dto.areas)
         : null;
+      // Password sementara acak yang aman; dikirim via email supaya pendaftar bisa
+      // login ke dashboard pendaftar dan memantau status (reset password tersedia).
+      const registrantPassword = this.generateVendorPassword();
 
-      const tukangData = this.parseTukangData(dto.tukang_data, { validate: true });
       const registration = await this.dbService.$transaction(async (tx) => {
         const createdRegistration = await tx.vendor_registration.create({
           data: {
@@ -414,24 +1286,63 @@ export class VendorRegistrationService {
           notes: 'Registrasi vendor berhasil disubmit.',
         });
 
+        // AUTO-CREATE AKUN PENDAFTAR (role "Pendaftar Vendor", BUKAN vendor aktif).
+        // Akun ini hanya untuk memantau status pendaftaran (dashboard Home & Status).
+        const registrantRole = await tx.roles.findFirst({
+          where: { name: PENDAFTAR_VENDOR_ROLE },
+        });
+        if (!registrantRole) {
+          throw new Error(
+            `Role "${PENDAFTAR_VENDOR_ROLE}" tidak ditemukan. Jalankan migration rekrut vendor.`,
+          );
+        }
+
+        const registrantUser = await tx.users.create({
+          data: {
+            username: registrantUsername,
+            password: hashSync(registrantPassword, 12),
+            role_id: registrantRole.id,
+          },
+        });
+
+        await tx.vendor_registration.update({
+          where: { id: createdRegistration.id },
+          data: { user_id: registrantUser.id },
+        });
+
+        await this.createHistory(tx, {
+          vendor_registration_id: createdRegistration.id,
+          from_status: RegistrationStatus.MENUNGGU_APPROVE,
+          to_status: RegistrationStatus.MENUNGGU_APPROVE,
+          action: 'REGISTRANT_ACCOUNT_CREATED',
+          notes: `Akun pendaftar dibuat otomatis (username: ${registrantUsername}).`,
+          actor_id: registrantUser.id,
+        });
+
         return createdRegistration;
       });
 
+      const { to: primaryRecipient, cc: ccRecipient } = this.resolveEmailRecipients(dto);
+
       try {
         await this.emailQueue.add(
-          'send-vendor-submitted-mail',
+          'send-registrant-account-mail',
           {
-            to: dto.pic_email || dto.email_address,
+            registration_id: registration.id,
+            to: primaryRecipient,
+            cc: ccRecipient,
             company_name: dto.company_name,
             email_address: dto.email_address,
             pic_email: dto.pic_email,
             phone_number: dto.phone_number,
             pic_phone: dto.pic_phone,
+            username: registrantUsername,
+            password: registrantPassword,
           },
           { attempts: 3 },
         );
       } catch (emailError) {
-        console.error('Failed to queue vendor submitted email:', emailError);
+        console.error('Failed to queue vendor registration email:', emailError);
       }
 
       try {
@@ -448,7 +1359,7 @@ export class VendorRegistrationService {
       }
 
       return {
-        message: 'Pendaftaran berhasil submitted. Mohon tunggu konfirmasi dari admin HO.',
+        message: 'Informasi username dan password telah dikirimkan ke email PIC yang terdaftar.',
         registration_id: registration.id,
       };
     } catch (error) {
@@ -464,38 +1375,56 @@ export class VendorRegistrationService {
     try {
       await this.assertAdminHO(userId);
 
+      const pageNum = Math.max(1, parseInt(String(query.page || 1), 10) || 1);
+      const takeNum = Math.max(1, parseInt(String(query.take || 10), 10) || 10);
+      const skip = (pageNum - 1) * takeNum;
+
       const {
-        page = 1,
-        take = 10,
         status,
         search,
         company_name,
         date_from,
         date_to,
       } = query;
-      const skip = page * take - take;
+
+      const statusNum =
+        status !== undefined && status !== null && String(status) !== ''
+          ? parseInt(String(status), 10)
+          : undefined;
 
       const where: Prisma.vendor_registrationWhereInput = {
         deleted_at: null,
-        ...(status ? { status } : {}),
-        ...(company_name
-          ? { company_name: { contains: company_name } }
-          : {}),
-        ...(search
+        ...(statusNum !== undefined && !isNaN(statusNum)
+          ? statusNum > 0
+            ? { status: statusNum }
+            : {} // Status 0 artinya "Semua" status (all)
+          : {
+              status: {
+                in: [
+                  RegistrationStatus.MENUNGGU_APPROVE,
+                  RegistrationStatus.PROSES_PITCHING,
+                ],
+              },
+            }),
+        ...(search && search.trim()
           ? {
               OR: [
-                { company_name: { contains: search } },
-                { pic_name: { contains: search } },
-                { email_address: { contains: search } },
-                { phone_number: { contains: search } },
+                { company_name: { contains: search.trim() } },
+                { pic_name: { contains: search.trim() } },
+                { email_address: { contains: search.trim() } },
+                { phone_number: { contains: search.trim() } },
               ],
             }
+          : company_name && company_name.trim()
+          ? { company_name: { contains: company_name.trim() } }
           : {}),
         ...(date_from || date_to
           ? {
               created_at: {
-                ...(date_from ? { gte: new Date(date_from) } : {}),
-                ...(date_to
+                ...(date_from && !isNaN(new Date(date_from).getTime())
+                  ? { gte: new Date(date_from) }
+                  : {}),
+                ...(date_to && !isNaN(new Date(date_to).getTime())
                   ? { lte: new Date(`${date_to}T23:59:59.999Z`) }
                   : {}),
               },
@@ -507,7 +1436,7 @@ export class VendorRegistrationService {
         this.dbService.vendor_registration.findMany({
           where,
           skip,
-          take,
+          take: takeNum,
           orderBy: { created_at: 'desc' },
           include: {
             bank: true,
@@ -521,13 +1450,79 @@ export class VendorRegistrationService {
         this.formatRegistration(reg),
       );
 
+      const withEmailStatus = await this.attachEmailStatus(formattedRegistrations);
+      const totalPages = Math.ceil(total / takeNum) || 1;
+
       return {
-        data: formattedRegistrations,
-        meta: { total, page, take, skip },
+        data: withEmailStatus,
+        meta: {
+          total,
+          page: pageNum,
+          take: takeNum,
+          skip,
+          total_pages: totalPages,
+        },
       };
     } catch (error) {
       throw error;
     }
+  }
+
+  private async enrichHistoriesWithActor(histories: any[]) {
+    if (!histories || histories.length === 0) return [];
+
+    const actorIds = Array.from(
+      new Set(
+        histories
+          .map((h: any) => h.actor_id)
+          .filter((id: any): id is number => typeof id === 'number'),
+      ),
+    );
+
+    let actorMap: Record<number, { username: string; role_name?: string }> = {};
+    if (actorIds.length > 0) {
+      try {
+        const users = await this.dbService.users.findMany({
+          where: { id: { in: actorIds } },
+          select: {
+            id: true,
+            username: true,
+            roles: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+        users.forEach((u) => {
+          actorMap[u.id] = {
+            username: u.username,
+            role_name: u.roles?.name,
+          };
+        });
+      } catch (err) {
+        // ignore if query fails
+      }
+    }
+
+    return histories.map((h: any) => {
+      const actorInfo = h.actor_id ? actorMap[h.actor_id] : null;
+      let actorDisplay = 'Sistem';
+      if (actorInfo) {
+        actorDisplay = actorInfo.role_name
+          ? `${actorInfo.username} (${actorInfo.role_name})`
+          : actorInfo.username;
+      } else if (h.actor_id) {
+        actorDisplay = `Admin #${h.actor_id}`;
+      }
+
+      return {
+        ...h,
+        actor_username: actorInfo?.username || null,
+        actor_role: actorInfo?.role_name || null,
+        actor_display: actorDisplay,
+      };
+    });
   }
 
   async findOneRegistration(id: number, userId?: number) {
@@ -535,7 +1530,7 @@ export class VendorRegistrationService {
       await this.assertAdminHO(userId);
 
       const registration = await this.dbService.vendor_registration.findFirst({
-        where: { id, deleted_at: null },
+        where: { id },
         include: {
           bank: true,
         },
@@ -545,16 +1540,20 @@ export class VendorRegistrationService {
         throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
       }
 
-      const histories = await (this.dbService as any).vendor_registration_history.findMany({
+      const rawHistories = await (this.dbService as any).vendor_registration_history.findMany({
         where: { vendor_registration_id: id },
         orderBy: { created_at: 'asc' },
       });
+      const histories = await this.enrichHistoriesWithActor(rawHistories);
 
-      return this.formatRegistration({
+      const formatted = this.formatRegistration({
         ...registration,
         histories,
         history: histories,
       });
+
+      const [withEmail] = await this.attachEmailStatus([formatted]);
+      return withEmail;
     } catch (error) {
       throw error;
     }
@@ -565,17 +1564,18 @@ export class VendorRegistrationService {
       await this.assertAdminHO(userId);
 
       const registration = await this.dbService.vendor_registration.findFirst({
-        where: { id, deleted_at: null },
+        where: { id },
       });
 
       if (!registration) {
         throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
       }
 
-      const histories = await (this.dbService as any).vendor_registration_history.findMany({
+      const rawHistories = await (this.dbService as any).vendor_registration_history.findMany({
         where: { vendor_registration_id: id },
         orderBy: { created_at: 'asc' },
       });
+      const histories = await this.enrichHistoriesWithActor(rawHistories);
 
       return {
         registration_id: id,
@@ -586,6 +1586,272 @@ export class VendorRegistrationService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async getEmailStatus(id: number, userId?: number) {
+    await this.assertAdminHO(userId);
+    const registration = await this.dbService.vendor_registration.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!registration) {
+      throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
+    }
+
+    const regEmails = [registration.pic_email, registration.email_address]
+      .filter((e): e is string => Boolean(e && typeof e === 'string' && e.trim() !== ''))
+      .map((e) => e.trim().toLowerCase());
+
+    const conditions: any[] = [{ moduleId: id }];
+    for (const email of regEmails) {
+      conditions.push({ to: { contains: email } });
+    }
+
+    const rawMailLogs = await this.dbService.mail_logs.findMany({
+      where: {
+        OR: conditions,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const mailLogs = rawMailLogs.filter((ml) => {
+      const mlTo = (ml.to || '').toLowerCase().trim();
+      const matchesEmail = regEmails.some((re) => mlTo.includes(re));
+      if (matchesEmail) {
+        return true;
+      }
+
+      if (ml.moduleId === id && ml.data) {
+        try {
+          const parsed = JSON.parse(ml.data);
+          if (parsed.registration_id === id || parsed.company_name === registration.company_name) {
+            return true;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      return false;
+    });
+
+    const latestLog = mailLogs[0];
+    const recipient = latestLog?.to || registration.pic_email || registration.email_address;
+    return {
+      registration_id: id,
+      sent: latestLog ? latestLog.status === 1 : false,
+      status: latestLog ? (latestLog.status === 1 ? 'TERKIRIM' : 'GAGAL') : 'BELUM_TERKIRIM',
+      sent_at: latestLog ? latestLog.createdAt : null,
+      recipient,
+      history: mailLogs.map((l) => ({
+        id: l.id,
+        to: l.to,
+        status: l.status === 1 ? 'TERKIRIM' : 'GAGAL',
+        sent_at: l.createdAt,
+      })),
+    };
+  }
+
+  async resendEmail(id: number, userId?: number) {
+    await this.assertAdminHO(userId);
+
+    const registration = await this.dbService.vendor_registration.findFirst({
+      where: { id, deleted_at: null },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!registration) {
+      throw new NotFoundException(`Pendaftaran dengan ID ${id} tidak ditemukan.`);
+    }
+
+    const { to: recipient, cc: ccRecipient } = this.resolveEmailRecipients(registration);
+    if (!recipient) {
+      throw new BadRequestException('Data email tidak ditemukan untuk pendaftaran ini.');
+    }
+    const fullRecipientStr = ccRecipient ? `${recipient}, ${ccRecipient}` : recipient;
+
+    // 1. If registration is approved (status = 3), resend approval credentials
+    if (registration.status === RegistrationStatus.DISETUJUI) {
+      const generatedPassword = this.generateVendorPassword();
+      const hashedPassword = hashSync(generatedPassword, 12);
+
+      let user = registration.user;
+      if (!user) {
+        user = await this.dbService.users.findFirst({
+          where: {
+            username: {
+              contains: registration.company_name
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 8),
+            },
+          },
+        });
+      }
+
+      if (user) {
+        await this.dbService.users.update({
+          where: { id: user.id },
+          data: { password: hashedPassword },
+        });
+      }
+
+      const username = user?.username || recipient;
+
+      await this.emailQueue.add(
+        'send-vendor-approval-mail',
+        {
+          registration_id: registration.id,
+          to: recipient,
+          cc: ccRecipient,
+          company_name: registration.company_name,
+          token: '',
+          expires_hours: 48,
+          username,
+          password: generatedPassword,
+        },
+        { attempts: 3 },
+      );
+
+      await this.createHistory(this.dbService, {
+        vendor_registration_id: id,
+        from_status: registration.status,
+        to_status: registration.status,
+        action: 'RESEND_EMAIL',
+        notes: `Admin HO mengirim ulang email persetujuan & kredensial vendor ke ${fullRecipientStr}.`,
+        actor_id: userId,
+      });
+
+      return {
+        success: true,
+        message: `Email persetujuan vendor berhasil dikirim ulang ke ${fullRecipientStr}.`,
+        recipient: fullRecipientStr,
+      };
+    }
+
+    // 2. If registration is rejected (status = 4), resend rejection notification
+    if (registration.status === RegistrationStatus.DITOLAK) {
+      await this.emailQueue.add(
+        'send-vendor-rejection-mail',
+        {
+          registration_id: registration.id,
+          to: recipient,
+          cc: ccRecipient,
+          company_name: registration.company_name,
+          rejection_reason: registration.rejection_reason || 'Tidak ada alasan spesifik diberikan.',
+          reapply_date: this.formatCooldownDate(
+            this.getRejectedCooldownUntil(registration.rejected_at || new Date()),
+          ),
+        },
+        { attempts: 3 },
+      );
+
+      await this.createHistory(this.dbService, {
+        vendor_registration_id: id,
+        from_status: registration.status,
+        to_status: registration.status,
+        action: 'RESEND_EMAIL',
+        notes: `Admin HO mengirim ulang email penolakan ke ${fullRecipientStr}.`,
+        actor_id: userId,
+      });
+
+      return {
+        success: true,
+        message: `Email penolakan berhasil dikirim ulang ke ${fullRecipientStr}.`,
+        recipient: fullRecipientStr,
+      };
+    }
+
+    // 3. For MENUNGGU_APPROVE (1) or PROSES_PITCHING (2): Resend registrant account credentials
+    let user = registration.user;
+    if (!user && registration.user_id) {
+      user = await this.dbService.users.findUnique({
+        where: { id: registration.user_id },
+      });
+    }
+
+    const registrantUsername = (
+      registration.pic_email || registration.email_address || ''
+    )
+      .toLowerCase()
+      .trim();
+
+    if (!user) {
+      user = await this.dbService.users.findFirst({
+        where: {
+          deleted_at: null,
+          OR: [
+            { username: registrantUsername },
+            { username: registrantUsername.replace(/[^a-z0-9._-]/g, '') },
+          ],
+        },
+      });
+    }
+
+    const registrantPassword = this.generateVendorPassword();
+    const hashedPassword = hashSync(registrantPassword, 12);
+
+    if (user) {
+      user = await this.dbService.users.update({
+        where: { id: user.id },
+        data: {
+          username: registrantUsername,
+          password: hashedPassword,
+        },
+      });
+    } else {
+      const registrantRole = await this.dbService.roles.findFirst({
+        where: { name: PENDAFTAR_VENDOR_ROLE },
+      });
+      if (registrantRole) {
+        user = await this.dbService.users.create({
+          data: {
+            username: registrantUsername,
+            password: hashedPassword,
+            role_id: registrantRole.id,
+          },
+        });
+        await this.dbService.vendor_registration.update({
+          where: { id: registration.id },
+          data: { user_id: user.id },
+        });
+      }
+    }
+
+    await this.emailQueue.add(
+      'send-registrant-account-mail',
+      {
+        registration_id: registration.id,
+        to: recipient,
+        cc: ccRecipient,
+        company_name: registration.company_name,
+        email_address: registration.email_address,
+        pic_email: registration.pic_email,
+        phone_number: registration.phone_number,
+        pic_phone: registration.pic_phone,
+        username: user?.username || registrantUsername,
+        password: registrantPassword,
+      },
+      { attempts: 3 },
+    );
+
+    await this.createHistory(this.dbService, {
+      vendor_registration_id: id,
+      from_status: registration.status,
+      to_status: registration.status,
+      action: 'RESEND_EMAIL',
+      notes: `Admin HO mengirim ulang email akun pendaftar ke ${fullRecipientStr}.`,
+      actor_id: userId,
+    });
+
+    return {
+      success: true,
+      message: `Email akun pendaftar berhasil dikirim ulang ke ${fullRecipientStr}.`,
+      recipient: fullRecipientStr,
+    };
   }
 
   // ================================
@@ -636,6 +1902,7 @@ export class VendorRegistrationService {
           await this.emailQueue.add(
             'send-vendor-pitching-mail',
             {
+              registration_id: id,
               to: registration.pic_email || registration.email_address,
               company_name: registration.company_name,
             },
@@ -657,9 +1924,7 @@ export class VendorRegistrationService {
 
         // Generate credentials
         const slug = registration.company_name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-        const generatedUsername = `vendor_${id}_${slug}`;
-        const randomStr = randomBytes(4).toString('hex').toUpperCase();
-        const generatedPassword = `M1tr${randomStr}@${new Date().getFullYear()}`;
+        const generatedPassword = this.generateVendorPassword();
         const hashedPassword = hashSync(generatedPassword, 12);
 
         // Get vendor owner role
@@ -670,8 +1935,12 @@ export class VendorRegistrationService {
           throw new Error('Role vendor owner tidak ditemukan.');
         }
 
-        await tx.vendor_registration.update({
-          where: { id },
+        const transitionResult = await tx.vendor_registration.updateMany({
+          where: {
+            id,
+            status: RegistrationStatus.PROSES_PITCHING,
+            deleted_at: null,
+          },
           data: {
             status: RegistrationStatus.DISETUJUI,
             reviewed_by: userId,
@@ -679,8 +1948,16 @@ export class VendorRegistrationService {
             notes: dto.notes,
             updated_by: userId,
             updated_at: new Date(),
+            deleted_at: new Date(),
+            deleted_by: userId,
           },
         });
+
+        if (transitionResult.count === 0) {
+          throw new BadRequestException(
+            'Pendaftaran sudah diproses oleh admin lain atau status tidak valid.',
+          );
+        }
 
         await this.createHistory(tx, {
           vendor_registration_id: id,
@@ -691,34 +1968,57 @@ export class VendorRegistrationService {
           actor_id: userId,
         });
 
-        // 1. Create user immediately with bcrypt-hashed password
-        const user = await tx.users.create({
-          data: {
-            username: generatedUsername,
-            password: hashedPassword,
-            role_id: role.id,
-          },
-        });
+        // 1. Reuse akun pendaftar yang dibuat saat registrasi (jika ada):
+        //    promote role "Pendaftar Vendor" -> "Owner Vendor" sehingga user yang
+        //    sudah login sebagai pendaftar langsung menjadi vendor aktif.
+        //    Jika tidak ada (data lama), tetap buat user baru seperti sebelumnya.
+        const existingRegistrant = registration.user_id
+          ? await tx.users.findFirst({
+              where: { id: registration.user_id, deleted_at: null },
+            })
+          : null;
 
-        const credentialToken = randomBytes(32).toString('hex');
-        const credentialExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-        await tx.vendor_registration_token.upsert({
-          where: { registration_id: id },
-          create: {
-            registration_id: id,
-            token: credentialToken,
-            expires_at: credentialExpiresAt,
-            user_id: user.id,
-          },
-          update: {
-            token: credentialToken,
-            expires_at: credentialExpiresAt,
-            status: 1,
-            user_id: user.id,
-          },
-        });
+        const registrantEmail = (
+          registration.pic_email || registration.email_address || ''
+        )
+          .toLowerCase()
+          .trim();
 
-        // 2. Create vendor record
+        let user;
+        let generatedUsername = registrantEmail || `vendor_${id}_${slug}`;
+
+        if (existingRegistrant) {
+          generatedUsername = registrantEmail || existingRegistrant.username;
+          // Sinkronkan password akun dengan generatedPassword yang dikirim di email approval,
+          // dan pastikan username memakai email utuh (@ tidak dihilangkan).
+          user = await tx.users.update({
+            where: { id: existingRegistrant.id },
+            data: {
+              username: generatedUsername,
+              password: hashedPassword,
+              role_id: role.id,
+            },
+          });
+
+          await this.createHistory(tx, {
+            vendor_registration_id: id,
+            from_status: RegistrationStatus.DISETUJUI,
+            to_status: RegistrationStatus.DISETUJUI,
+            action: 'REGISTRANT_PROMOTED',
+            notes: `Akun pendaftar (${generatedUsername}) dipromosikan menjadi Owner Vendor.`,
+            actor_id: userId,
+          });
+        } else {
+          user = await tx.users.create({
+            data: {
+              username: generatedUsername,
+              password: hashedPassword,
+              role_id: role.id,
+            },
+          });
+        }
+
+        // 2. Create vendor record (with max_order from DTO if provided)
         const vendor = await tx.vendor.create({
           data: {
             company_name: registration.company_name,
@@ -763,7 +2063,7 @@ export class VendorRegistrationService {
                     address: registration.address,
                     phone_number: phoneNumber,
                     ktp_number: ktpNumber,
-                    email: `${generatedUsername}_tukang${idx + 1}@temp.local`,
+                    email: `tukang_${vendor.id}_${idx + 1}@temp.local`,
                     bod: new Date('1990-01-01'),
                     created_by: user.id,
                     vendor_id: vendor.id,
@@ -787,14 +2087,58 @@ export class VendorRegistrationService {
           }
         }
 
-        // 5. Queue email notification with credentials
+        const serviceTypeIds = this.parseIntJsonArray(registration.service_types);
+        for (const serviceTypeId of serviceTypeIds) {
+          await tx.vendor_service.create({
+            data: {
+              vendor_id: vendor.id,
+              service_type_id: serviceTypeId,
+              created_by: user.id,
+            },
+          });
+        }
+
+        const areaIds = this.parseIntJsonArray(registration.areas);
+        for (const areaId of areaIds) {
+          await tx.vendor_area.create({
+            data: {
+              vendor_id: vendor.id,
+              area_id: areaId,
+              created_by: user.id,
+            },
+          });
+        }
+
+        const storeIds = Array.isArray(dto.vendor_store)
+          ? dto.vendor_store.filter((id) => Number.isInteger(id))
+          : [];
+        for (const storeId of storeIds) {
+          await tx.vendor_store.create({
+            data: {
+              vendor_id: vendor.id,
+              store_id: storeId,
+              created_by: user.id,
+            },
+          });
+        }
+
+        if (Number.isInteger(dto.max_order) && dto.max_order! > 0) {
+          await tx.vendor.update({
+            where: { id: vendor.id },
+            data: { max_order: dto.max_order },
+          });
+        }
+
+        const { to: approvalRecipient, cc: approvalCc } =
+          this.resolveEmailRecipients(registration);
+
         await this.emailQueue.add(
           'send-vendor-approval-mail',
           {
-            to: registration.pic_email,
+            registration_id: id,
+            to: approvalRecipient,
+            cc: approvalCc,
             company_name: registration.company_name,
-            token: credentialToken,
-            expires_hours: 48,
             username: generatedUsername,
             password: generatedPassword,
           },
@@ -846,11 +2190,14 @@ export class VendorRegistrationService {
           );
         }
 
+        const rejectionReason =
+          dto.rejection_reason?.trim() || 'Belum memenuhi kriteria';
+
         await tx.vendor_registration.update({
           where: { id },
           data: {
             status: RegistrationStatus.DITOLAK,
-            rejection_reason: dto.rejection_reason,
+            rejection_reason: rejectionReason,
             reviewed_by: userId,
             reviewed_at: new Date(),
             rejected_at: new Date(),
@@ -865,20 +2212,37 @@ export class VendorRegistrationService {
           from_status: currentRegistration.status,
           to_status: RegistrationStatus.DITOLAK,
           action: 'REJECTED',
-          notes: dto.rejection_reason || dto.notes || 'Pendaftaran vendor ditolak.',
+          notes: rejectionReason,
           actor_id: userId,
+        });
+
+        await tx.vendor_registration_token.updateMany({
+          where: {
+            registration_id: id,
+            status: { not: 2 },
+          },
+          data: {
+            status: 3,
+          },
         });
 
         return currentRegistration;
       });
 
-      // Send rejection email
+      const { to: rejectionRecipient, cc: rejectionCc } =
+        this.resolveEmailRecipients(registration);
+
+      const rejectionReason =
+        dto.rejection_reason?.trim() || 'Belum memenuhi kriteria';
+
       await this.emailQueue.add(
         'send-vendor-rejection-mail',
         {
-          to: registration.pic_email,
+          registration_id: id,
+          to: rejectionRecipient,
+          cc: rejectionCc,
           company_name: registration.company_name,
-          rejection_reason: dto.rejection_reason,
+          rejection_reason: rejectionReason,
           reapply_date: this.formatCooldownDate(this.getRejectedCooldownUntil(new Date())),
         },
         { attempts: 3 },
@@ -1028,13 +2392,15 @@ export class VendorRegistrationService {
     }
   }
 
-  async deleteRegistration(id: number, userId: number) {
+  async deleteRegistration(id: number, userId?: number) {
     try {
-      await this.assertAdminHO(userId);
+      if (userId) {
+        await this.assertAdminHO(userId);
+      }
 
       return await this.dbService.$transaction(async (tx) => {
         const registration = await tx.vendor_registration.findFirst({
-          where: { id, deleted_at: null },
+          where: { id },
         });
 
         if (!registration) {
@@ -1042,6 +2408,8 @@ export class VendorRegistrationService {
             `Pendaftaran dengan ID ${id} tidak ditemukan.`,
           );
         }
+
+        const registrantUserId = registration.user_id;
 
         await (tx as any).vendor_registration_history.deleteMany({
           where: { vendor_registration_id: id },
@@ -1055,6 +2423,26 @@ export class VendorRegistrationService {
           where: { id },
         });
 
+        // Hapus juga akun pendaftar (role "Pendaftar Vendor") jika dibuat saat registrasi
+        if (registrantUserId) {
+          const registrantUser = await tx.users.findUnique({
+            where: { id: registrantUserId },
+            include: { roles: true },
+          });
+
+          if (
+            registrantUser &&
+            registrantUser.roles?.name === PENDAFTAR_VENDOR_ROLE
+          ) {
+            await tx.notifications.deleteMany({
+              where: { user_id: registrantUserId },
+            });
+            await tx.users.delete({
+              where: { id: registrantUserId },
+            });
+          }
+        }
+
         return {
           message: 'Pendaftaran vendor berhasil dihapus permanen.',
           registration_id: id,
@@ -1065,136 +2453,29 @@ export class VendorRegistrationService {
     }
   }
 
-  // ================================
-  // PUBLIC: VALIDATE TOKEN
-  // ================================
-
-  async validateToken(token: string) {
+  async deleteRegistrationByEmail(email: string, userId?: number) {
     try {
-      const tokenData = await this.dbService.vendor_registration_token.findFirst({
-        where: { token },
-        include: { registration: true },
+      if (userId) {
+        await this.assertAdminHO(userId);
+      }
+
+      const normalizedEmail = (email || '').trim().toLowerCase();
+      const registration = await this.dbService.vendor_registration.findFirst({
+        where: {
+          OR: [
+            { email_address: normalizedEmail },
+            { pic_email: normalizedEmail },
+          ],
+        },
       });
 
-      if (!tokenData) {
-        throw new BadRequestException('Token tidak ditemukan atau tidak valid.');
+      if (!registration) {
+        throw new NotFoundException(
+          `Pendaftaran vendor dengan email "${email}" tidak ditemukan.`,
+        );
       }
 
-      if (tokenData.status === 2) {
-        throw new BadRequestException('Token sudah pernah digunakan.');
-      }
-
-      if (tokenData.expires_at < new Date()) {
-        throw new BadRequestException('Token sudah kadaluarsa.');
-      }
-
-      if (tokenData.status !== 1) {
-        throw new BadRequestException('Token tidak dapat digunakan.');
-      }
-
-      return {
-        valid: true,
-        registration_id: tokenData.registration_id,
-        company_name: tokenData.registration.company_name,
-        expires_at: tokenData.expires_at,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // ================================
-  // PUBLIC: CREATE USER FROM TOKEN
-  // ================================
-
-  async createUserFromToken(token: string, dto: CreateUserFromTokenDto) {
-    try {
-      return await this.dbService.$transaction(async (tx) => {
-        const tokenData = await tx.vendor_registration_token.findFirst({
-          where: {
-            token,
-            status: 1, // ACTIVE
-            expires_at: { gte: new Date() },
-          },
-          include: {
-            registration: true,
-          },
-        });
-
-        if (!tokenData) {
-          throw new BadRequestException(
-            'Token tidak valid atau sudah kadaluarsa.',
-          );
-        }
-
-        // Check if user already exists
-        const existingUser = await tx.users.findFirst({
-          where: { username: dto.username },
-        });
-
-        if (existingUser) {
-          throw new BadRequestException('Username sudah digunakan.');
-        }
-
-        // Get vendor owner role
-        const role = await tx.roles.findFirst({
-          where: { name: { contains: 'owner vendor' } },
-        });
-
-        if (!role) {
-          throw new BadRequestException('Role vendor tidak ditemukan.');
-        }
-
-        // Create user
-        const user = await tx.users.create({
-          data: {
-            username: dto.username,
-            password: hashSync(dto.password, 12),
-            role_id: role.id,
-          },
-        });
-
-        // Create vendor from registration
-        const vendor = await tx.vendor.create({
-          data: {
-            company_name: tokenData.registration.company_name,
-            address: tokenData.registration.address,
-            phone_number: tokenData.registration.phone_number,
-            email_address: tokenData.registration.email_address,
-            ktp_number: tokenData.registration.ktp_number,
-            npwp_number: tokenData.registration.npwp_number,
-            bank_id: tokenData.registration.bank_id,
-            pic_name: tokenData.registration.pic_name,
-            join_date: new Date(),
-            created_by: user.id,
-          },
-        });
-
-        // Create pic_vendor relation
-        await tx.pic_vendor.create({
-          data: {
-            vendor_id: vendor.id,
-            user_id: user.id,
-            pic_name: tokenData.registration.pic_name,
-            email_address: tokenData.registration.pic_email,
-          },
-        });
-
-        // Update token status
-        await tx.vendor_registration_token.update({
-          where: { id: tokenData.id },
-          data: {
-            status: 2, // USED
-            user_id: user.id,
-          },
-        });
-
-        return {
-          message: 'Akun berhasil dibuat. Silakan login.',
-          vendor_id: vendor.id,
-          user_id: user.id,
-        };
-      });
+      return await this.deleteRegistration(registration.id, userId);
     } catch (error) {
       throw error;
     }
@@ -1245,5 +2526,465 @@ export class VendorRegistrationService {
     } catch (error) {
       throw error;
     }
+  }
+
+  // ================================
+  // TERMS & CONDITIONS (Syarat & Ketentuan)
+  // ================================
+
+  // [PUBLIC] Ambil T&C aktif untuk ditampilkan read-only di halaman login/pendaftar.
+  async getActiveTermsAndConditions() {
+    const terms = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { is_active: true, deleted_at: null },
+    });
+
+    if (!terms) {
+      throw new NotFoundException(
+        'Dokumen Syarat & Ketentuan belum tersedia. Silakan hubungi Admin Mitra10.',
+      );
+    }
+
+    return {
+      id: terms.id,
+      title: terms.title,
+      document_type: terms.document_type, // HTML | PDF
+      // Konten HTML hanya dikirim untuk tipe HTML. Tipe PDF: konten dilayani
+      // terpisah via GET /terms-and-conditions/file (streaming read-only).
+      content: terms.document_type === 'HTML' ? terms.content : null,
+      version: terms.version,
+      updated_at: terms.updated_at ?? terms.created_at,
+    };
+  }
+
+  // [ADMIN HO / SUPER USER] Riwayat semua versi T&C (untuk halaman setting).
+  async listTermsAndConditions(userId: number) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    const termsList = await this.dbService.vendor_terms_and_conditions.findMany({
+      where: { deleted_at: null },
+      orderBy: { version: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        version: true,
+        is_active: true,
+        document_type: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    return { data: termsList, total: termsList.length };
+  }
+
+  // [ADMIN HO / SUPER USER] Detail satu versi T&C by id (untuk form edit versi arsip).
+  async getTermsVersionById(id: number, userId: number) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    const terms = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!terms) {
+      throw new NotFoundException(`Versi Syarat & Ketentuan dengan ID ${id} tidak ditemukan.`);
+    }
+
+    return {
+      id: terms.id,
+      title: terms.title,
+      document_type: terms.document_type,
+      content: terms.document_type === 'HTML' ? terms.content : null,
+      file_path: terms.file_path,
+      version: terms.version,
+      is_active: terms.is_active,
+      created_at: terms.created_at,
+      updated_at: terms.updated_at,
+    };
+  }
+
+  // [ADMIN HO / SUPER USER] Update isi T&C tanpa redeploy. Mendukung HTML (Quill)
+  // maupun PDF (upload file). Single-active: versi baru otomatis jadi SATU-satunya
+  // versi aktif (versi lama dinonaktifkan dalam transaction yang sama).
+  async updateTermsAndConditions(
+    dto: UpdateTermsAndConditionsDto,
+    userId: number,
+    file?: Express.Multer.File,
+  ) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    const documentType = dto.document_type === 'PDF' ? 'PDF' : 'HTML';
+
+    // Validasi per tipe dokumen
+    if (documentType === 'PDF') {
+      if (!file) {
+        throw new BadRequestException(
+          'File PDF wajib diunggah untuk dokumen tipe PDF.',
+        );
+      }
+      if (!file.mimetype || file.mimetype !== 'application/pdf') {
+        throw new BadRequestException('File harus berformat PDF (application/pdf).');
+      }
+    } else {
+      const plainContent = (dto.content ?? '').replace(/<[^>]*>/g, '').trim();
+      if (!plainContent) {
+        throw new BadRequestException(
+          'Konten T&C (HTML) wajib diisi untuk dokumen tipe HTML.',
+        );
+      }
+    }
+
+    let pdfPath: string | null = null;
+    if (documentType === 'PDF' && file) {
+      pdfPath = this.saveTermsFile(file);
+    }
+
+    const created = await this.dbService.$transaction(async (tx) => {
+      const current = await tx.vendor_terms_and_conditions.findFirst({
+        where: { is_active: true, deleted_at: null },
+      });
+
+      // Single-active: nonaktifkan SEMUA versi aktif dalam transaction yang sama.
+      if (current) {
+        await tx.vendor_terms_and_conditions.updateMany({
+          where: { is_active: true, deleted_at: null },
+          data: {
+            is_active: false,
+            updated_at: new Date(),
+            updated_by: userId,
+          },
+        });
+      }
+
+      return tx.vendor_terms_and_conditions.create({
+        data: {
+          title: dto.title.trim(),
+          content: documentType === 'HTML' ? dto.content ?? '' : '',
+          document_type: documentType,
+          file_path: pdfPath,
+          version: (current?.version ?? 0) + 1,
+          is_active: true,
+          created_by: userId,
+        },
+      });
+    });
+
+    return {
+      message: 'Syarat & Ketentuan berhasil diperbarui.',
+      id: created.id,
+      version: created.version,
+      document_type: created.document_type,
+    };
+  }
+
+  // [ADMIN HO / SUPER USER] Edit IN-PLACE satu versi T&C yang sudah ada.
+  // Tidak membuat versi baru — hanya update konten (title/content/file) dari
+  // versi yang dimaksud. Cocok untuk memperbaiki typo tanpa menambah baris
+  // baru di audit trail. Single-active TETAP berlaku karena is_active TIDAK
+  // diubah: edit versi aktif → tetap aktif; edit versi arsip → tetap arsip.
+  async editTermsVersionInPlace(
+    id: number,
+    dto: UpdateTermsAndConditionsDto,
+    userId: number,
+    file?: Express.Multer.File,
+  ) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    const existing = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        `Versi Syarat & Ketentuan dengan ID ${id} tidak ditemukan.`,
+      );
+    }
+
+    const documentType = dto.document_type === 'PDF' ? 'PDF' : 'HTML';
+
+    if (documentType === 'PDF') {
+      if (!file && !existing.file_path) {
+        throw new BadRequestException(
+          'File PDF wajib diunggah untuk dokumen tipe PDF.',
+        );
+      }
+      if (file && (!file.mimetype || file.mimetype !== 'application/pdf')) {
+        throw new BadRequestException(
+          'File harus berformat PDF (application/pdf).',
+        );
+      }
+    } else {
+      const plainContent = (dto.content ?? '').replace(/<[^>]*>/g, '').trim();
+      if (!plainContent) {
+        throw new BadRequestException(
+          'Konten T&C (HTML) wajib diisi untuk dokumen tipe HTML.',
+        );
+      }
+    }
+
+    let pdfPath: string | null = existing.file_path;
+    if (documentType === 'PDF' && file) {
+      pdfPath = this.saveTermsFile(file);
+    }
+
+    const updated = await this.dbService.vendor_terms_and_conditions.update({
+      where: { id },
+      data: {
+        title: dto.title.trim(),
+        content: documentType === 'HTML' ? dto.content ?? '' : '',
+        document_type: documentType,
+        file_path: pdfPath,
+        updated_at: new Date(),
+        updated_by: userId,
+      },
+    });
+
+    return {
+      message: `Versi v${updated.version} berhasil diperbarui (in-place).`,
+      id: updated.id,
+      version: updated.version,
+      document_type: updated.document_type,
+      is_active: updated.is_active,
+    };
+  }
+
+  // [ADMIN HO / SUPER USER] Aktivasi satu versi T&C.
+  // Single-active: semua versi lain otomatis dinonaktifkan dalam transaction.
+  async activateTermsVersion(id: number, userId: number) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    return this.dbService.$transaction(async (tx) => {
+      const terms = await tx.vendor_terms_and_conditions.findFirst({
+        where: { id, deleted_at: null },
+      });
+
+      if (!terms) {
+        throw new NotFoundException(
+          `Versi Syarat & Ketentuan dengan ID ${id} tidak ditemukan.`,
+        );
+      }
+
+      if (terms.is_active) {
+        throw new BadRequestException(
+          `Versi v${terms.version} sudah aktif. Hanya satu versi yang boleh aktif.`,
+        );
+      }
+
+      await tx.vendor_terms_and_conditions.updateMany({
+        where: { is_active: true, deleted_at: null },
+        data: {
+          is_active: false,
+          updated_at: new Date(),
+          updated_by: userId,
+        },
+      });
+
+      await tx.vendor_terms_and_conditions.update({
+        where: { id },
+        data: {
+          is_active: true,
+          updated_at: new Date(),
+          updated_by: userId,
+        },
+      });
+
+      return {
+        message: `Versi v${terms.version} berhasil diaktifkan (versi lain dinonaktifkan).`,
+        id,
+        version: terms.version,
+      };
+    });
+  }
+
+  // [ADMIN HO / SUPER USER] Nonaktifkan versi T&C.
+  // Validasi: tidak boleh menonaktifkan jika ini SATU-satunya versi aktif
+  // (harus selalu ada minimal 1 T&C aktif untuk halaman login/pendaftar).
+  async deactivateTermsVersion(id: number, userId: number) {
+    await this.assertAdminHOOrSuperUser(userId);
+
+    return this.dbService.$transaction(async (tx) => {
+      const terms = await tx.vendor_terms_and_conditions.findFirst({
+        where: { id, deleted_at: null },
+      });
+
+      if (!terms) {
+        throw new NotFoundException(
+          `Versi Syarat & Ketentuan dengan ID ${id} tidak ditemukan.`,
+        );
+      }
+
+      if (!terms.is_active) {
+        throw new BadRequestException(`Versi v${terms.version} memang sudah tidak aktif.`);
+      }
+
+      // Validasi single-active invariant: minimal 1 harus tetap aktif.
+      const activeCount = await tx.vendor_terms_and_conditions.count({
+        where: { is_active: true, deleted_at: null },
+      });
+
+      if (activeCount <= 1) {
+        throw new BadRequestException(
+          'Tidak bisa menonaktifkan satu-satunya T&C aktif. Aktifkan versi lain terlebih dahulu.',
+        );
+      }
+
+      await tx.vendor_terms_and_conditions.update({
+        where: { id },
+        data: {
+          is_active: false,
+          updated_at: new Date(),
+          updated_by: userId,
+        },
+      });
+
+      return {
+        message: `Versi v${terms.version} berhasil dinonaktifkan.`,
+        id,
+        version: terms.version,
+      };
+    });
+  }
+
+  // [PUBLIC] Path absolut file PDF T&C aktif (untuk controller streaming read-only).
+  // Dipanggil controller -> validasi file -> stream ke response TANPA Content-Disposition
+  // attachment (browser tidak menawarkan download; viewer inline saja).
+  async getActiveTermsPdfPath(): Promise<{ title: string; absolutePath: string } | null> {
+    const terms = await this.dbService.vendor_terms_and_conditions.findFirst({
+      where: { is_active: true, deleted_at: null, document_type: 'PDF' },
+    });
+
+    if (!terms?.file_path) return null;
+
+    const absolutePath = this.resolveTermsFilePath(terms.file_path);
+    return { title: terms.title, absolutePath };
+  }
+
+  // Simpan file PDF T&C ke folder storage (pattern sama dengan saveFile vendor docs).
+  private saveTermsFile(file: Express.Multer.File): string {
+    const uploadDir = resolveUploadPath('terms');
+    const fileName = `terms-${Date.now()}.pdf`;
+    const filePath = join(uploadDir, fileName);
+    writeFileSync(filePath, file.buffer as any);
+    return `uploads/terms/${fileName}`;
+  }
+
+  // Resolve path relatif -> absolut dengan guard path traversal.
+  private resolveTermsFilePath(storedPath: string): string {
+    const uploadRoot = resolveUploadPath();
+    const normalized = storedPath.replace(/^[/\\]+/, '').replace(/^uploads[/\\]/, '');
+    const absolutePath = resolve(uploadRoot, normalized);
+    const relativePath = relative(uploadRoot, absolutePath);
+
+    if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+      throw new BadRequestException('Path file T&C tidak valid.');
+    }
+
+    return absolutePath;
+  }
+
+  // ================================
+  // REGISTRANT (PENDAFTAR) DASHBOARD
+  // ================================
+
+  // [REGISTRANT] Daftar pendaftaran milik user yang login (ownership via user_id).
+  async findMyRegistrations(userId: number) {
+    await this.assertRegistrant(userId);
+
+    const registrations = await this.dbService.vendor_registration.findMany({
+      where: { user_id: userId, deleted_at: null },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return {
+      data: registrations.map((reg) => ({
+        id: reg.id,
+        company_name: reg.company_name,
+        pic_name: reg.pic_name,
+        pic_email: reg.pic_email,
+        pic_phone: reg.pic_phone,
+        status: reg.status,
+        rejection_reason: reg.rejection_reason,
+        created_at: reg.created_at,
+        updated_at: reg.updated_at,
+      })),
+      total: registrations.length,
+    };
+  }
+
+  // [REGISTRANT] Info profil ringkas untuk header dashboard pendaftar.
+  async getMyRegistrantProfile(userId: number) {
+    await this.assertRegistrant(userId);
+
+    const user = await this.dbService.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      select: {
+        id: true,
+        username: true,
+        vendor_registrations: {
+          where: { deleted_at: null },
+          orderBy: { created_at: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            company_name: true,
+            pic_name: true,
+            pic_email: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    return {
+      user_id: user?.id,
+      username: user?.username,
+      registration: user?.vendor_registrations?.[0] ?? null,
+    };
+  }
+
+  // [REGISTRANT] Home content statis (placeholder banner, konten hardcode V1).
+  // Rekomendasi improvement: pindahkan konten ke CMS/DB bila perlu update dinamis.
+  getRegistrantHomeContent() {
+    return {
+      title: 'Bergabung & Tumbuh Bersama Mitra10',
+      intro:
+        'Menjadi bagian dari jaringan Vendor Instalasi Mitra10 dan dapatkan berbagai kesempatan untuk mengembangkan bisnis, meningkatkan kompetensi, serta memperluas peluang pekerjaan bersama Mitra10.',
+      subtitle: 'Kenapa Bergabung Menjadi Vendor Mitra10?',
+      sub_intro:
+        'Dapatkan lebih dari sekadar order. Bergabung bersama jaringan Vendor Instalasi Mitra10 untuk mendapatkan peluang pekerjaan, meningkatkan kompetensi, dan mengembangkan bisnis Anda.',
+      benefits: [
+        {
+          icon: 'briefcase',
+          title: 'Peluang Order',
+          description: 'Kesempatan mendapatkan pekerjaan instalasi sesuai area dan kompetensi.',
+        },
+        {
+          icon: 'graduation-cap',
+          title: 'Pelatihan & Product Knowledge',
+          description: 'Edukasi produk, standar instalasi, dan peningkatan kompetensi.',
+        },
+        {
+          icon: 'book-open',
+          title: 'Akses Katalog & Informasi Produk',
+          description: 'Informasi produk dan kebutuhan layanan instalasi Mitra10.',
+        },
+        {
+          icon: 'gift',
+          title: 'Benefit Program Mitra',
+          description: 'Kesempatan mendapatkan program dan benefit khusus sesuai ketentuan.',
+        },
+        {
+          icon: 'chart-line',
+          title: 'Monitoring Digital',
+          description: 'Kelola dan pantau pekerjaan melalui sistem.',
+        },
+        {
+          icon: 'handshake',
+          title: 'Kembangkan Bisnis',
+          description: 'Perluas jaringan dan peluang pekerjaan bersama Mitra10.',
+        },
+        // PLACEHOLDER: 6 benefit di atas sesuai konten yang diberikan (hardcode V1).
+      ],
+      // PLACEHOLDER BANNER: perlu diganti dengan aset banner asli dari tim Mitra10.
+      banner_image: null,
+    };
   }
 }

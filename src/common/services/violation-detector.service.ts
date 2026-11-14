@@ -1,17 +1,108 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   ViolationTypeCode,
   ViolationCategory,
   SPThreshold,
   SPAllocationReduction,
-  SP_DURATION_DAYS,
   ViolationContext,
+  ViolationEvidence,
   ViolationResult,
+  ESCALATION_CHAINS,
 } from '../../common/enum/violation-type.enum';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { moduleTypeNotification } from '../../notifications/dto/notification-module-type.enum';
+import { syncVendorSpDetails } from '../../common/utils/vendor-sp-detail-sync.util';
+
+export const DEFAULT_VIOLATION_TYPES: Record<
+  string,
+  { category: ViolationCategory; name: string; description: string; point: number }
+> = {
+  [ViolationTypeCode.ORDER_NOT_CONFIRMED_H]: {
+    category: ViolationCategory.KONFIRMASI_ORDER,
+    name: 'Orderan tidak terkonfirmasi pada Hari H',
+    description: 'Vendor tidak mengkonfirmasi order pada tanggal yang dijadwalkan (Hari H)',
+    point: 1,
+  },
+  [ViolationTypeCode.ORDER_NOT_CONFIRMED_H1]: {
+    category: ViolationCategory.KONFIRMASI_ORDER,
+    name: 'Orderan tidak terkonfirmasi pada H+1',
+    description: 'Vendor tidak mengkonfirmasi order pada H+1 sejak penjadwalan',
+    point: 1,
+  },
+  [ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS]: {
+    category: ViolationCategory.KONFIRMASI_ORDER,
+    name: 'Orderan tidak terkonfirmasi pada >H+1',
+    description: 'Vendor tidak mengkonfirmasi order lebih dari H+1',
+    point: 1,
+  },
+  [ViolationTypeCode.RESCHEDULE_NOT_UPDATED]: {
+    category: ViolationCategory.RESCHEDULE,
+    name: 'Tidak update status order sejak tanggal reschedule diajukan',
+    description: 'Vendor tidak mengupdate status order di Aplikasi Tukang sejak tanggal reschedule diajukan',
+    point: 1,
+  },
+  [ViolationTypeCode.RESCHEDULE_CHANGE_SCHEDULE]: {
+    category: ViolationCategory.RESCHEDULE,
+    name: 'Mengubah jadwal survey/pengerjaan saat hari pelaksanaan',
+    description: 'Vendor mengubah jadwal survey atau pengerjaan pada hari pelaksanaan',
+    point: 1,
+  },
+  [ViolationTypeCode.REFUND_5_PER_QUARTER]: {
+    category: ViolationCategory.REFUND,
+    name: '5 order refund per quarter',
+    description: 'Vendor memiliki 5 order refund dalam satu quarter',
+    point: 1,
+  },
+  [ViolationTypeCode.REFUND_6_10_PER_QUARTER]: {
+    category: ViolationCategory.REFUND,
+    name: '6-10 order refund per quarter',
+    description: 'Vendor memiliki 6-10 order refund dalam satu quarter',
+    point: 1,
+  },
+  [ViolationTypeCode.CUSTOMER_COMPLAINT]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Komplain customer (jadwal/pengerjaan)',
+    description: 'Customer mengajukan komplain terkait jadwal atau pengerjaan',
+    point: 1,
+  },
+  [ViolationTypeCode.QUOTATION_LATE_H2]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Quotation terbit > H+2 sejak Survey Selesai',
+    description: 'Quotation tidak terbit lebih dari 2 hari sejak Survey Selesai',
+    point: 1,
+  },
+  [ViolationTypeCode.QUOTATION_LATE_H3]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Quotation terbit > H+3 sejak Survey Selesai',
+    description: 'Quotation tidak terbit lebih dari 3 hari sejak Survey Selesai',
+    point: 1,
+  },
+  [ViolationTypeCode.STATUS_NOT_UPDATED_H]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak update status order pada hari H',
+    description: 'Vendor tidak mengupdate status order pada hari H',
+    point: 1,
+  },
+  [ViolationTypeCode.STATUS_NOT_UPDATED_H1]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak update status order pada H+1',
+    description: 'Vendor tidak mengupdate status order pada H+1',
+    point: 1,
+  },
+  [ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS]: {
+    category: ViolationCategory.LAINNYA,
+    name: 'Tidak update status order pada >H+2',
+    description: 'Vendor tidak mengupdate status order lebih dari H+2',
+    point: 1,
+  },
+};
 
 @Injectable()
 export class ViolationDetectorService {
@@ -25,7 +116,9 @@ export class ViolationDetectorService {
   /**
    * Method utama untuk mencatat pelanggaran
    * @param violationCode Kode pelanggaran dari ViolationTypeCode enum
-   * @param context Context pelanggaran (vendorId, orderId, dll)
+   * @param context Context pelanggaran (vendorId, orderId, evidence, dll).
+   *   [POIN 6] `context.evidence` WAJIB diisi — MANUAL_UPLOAD (path) atau
+   *   SYSTEM_GENERATED (snapshot). Throw BadRequestException kalau kosong/invalid.
    * @param userId User yang mencatat (opsional)
    */
   async recordViolation(
@@ -33,14 +126,18 @@ export class ViolationDetectorService {
     context: ViolationContext,
     userId?: number,
   ): Promise<ViolationResult> {
-    if (process.env.VENDOR_SP_ENABLED !== 'true') {
+    // [POIN 6] Lapis 2 guard: validate evidence WAJIB ada dan valid.
+    // Kalau kosong → throw BadRequestException (data tidak akan tersimpan).
+    if (violationCode === 'QUOTATION_NOT_FULFILLED' || violationCode === 'DOC_NOT_UPLOADED') {
       return {
         success: false,
         pointAdded: 0,
         newTotalPoints: 0,
-        message: 'Vendor SP feature is disabled',
+        message: `Jenis pelanggaran ${violationCode} sudah dinonaktifkan`,
       };
     }
+
+    const { evidencePath, evidenceProvenance } = this.resolveEvidence(context.evidence);
 
     try {
       // 1. Get violation type dari database
@@ -58,23 +155,84 @@ export class ViolationDetectorService {
       // 2. Get current quarter dan year
       const { quarter, year } = this.getCurrentQuarterYear();
 
-      // 3. Check jika pelanggaran sudah pernah dicatat untuk order ini (prevent duplicate)
-      const isDuplicate = await this.checkDuplicateViolation(
-        context.vendorId,
-        violationType.id,
-        context.orderId,
-        quarter,
-        year,
-      );
+      // [OPSI B: ESKALASI] Check jika tipe pelanggaran ini bagian dari rantai eskalasi
+      const chainInfo = context.orderId
+        ? this.getEscalationChainForCode(violationCode)
+        : null;
 
-      if (isDuplicate) {
-        this.logger.debug(`Duplicate violation skipped: ${violationCode} for vendor ${context.vendorId}`);
-        return {
-          success: false,
-          pointAdded: 0,
-          newTotalPoints: 0,
-          message: 'Pelanggaran sudah pernah dicatat untuk order ini',
-        };
+      if (chainInfo && context.orderId) {
+        const existingChainLog = await this.dbService.vendor_violation_log.findFirst({
+          where: {
+            vendor_id: context.vendorId,
+            order_id: context.orderId,
+            quarter,
+            year,
+            deleted_at: null,
+            is_active: true,
+            violation_type: {
+              code: { in: chainInfo.chain },
+            },
+          },
+          include: {
+            violation_type: true,
+          },
+        });
+
+        if (existingChainLog) {
+          const existingRank =
+            chainInfo.chain.indexOf(existingChainLog.violation_type.code) + 1;
+
+          if (existingRank < chainInfo.rank) {
+            // Eskalasi: Tier lebih tinggi -> update log yang sudah ada
+            return await this.escalateViolation(
+              existingChainLog,
+              violationType,
+              context,
+              userId,
+            );
+          } else {
+            // Tier sama atau sudah di tier lebih tinggi -> skip idempotency
+            this.logger.debug(
+              `Duplicate or already escalated violation skipped: ${violationCode} (existing: ${existingChainLog.violation_type.code}) for vendor ${context.vendorId}`,
+            );
+            return {
+              success: false,
+              pointAdded: 0,
+              newTotalPoints: await this.calculateTotalPoints(
+                context.vendorId,
+                quarter,
+                year,
+              ),
+              message:
+                'Pelanggaran sudah pernah dicatat atau dieskalasi untuk order ini',
+            };
+          }
+        }
+      } else {
+        // 3. Check jika pelanggaran non-chain sudah pernah dicatat untuk order ini (prevent duplicate)
+        const isDuplicate = await this.checkDuplicateViolation(
+          context.vendorId,
+          violationType.id,
+          context.orderId,
+          quarter,
+          year,
+        );
+
+        if (isDuplicate) {
+          this.logger.debug(
+            `Duplicate violation skipped: ${violationCode} for vendor ${context.vendorId}`,
+          );
+          return {
+            success: false,
+            pointAdded: 0,
+            newTotalPoints: await this.calculateTotalPoints(
+              context.vendorId,
+              quarter,
+              year,
+            ),
+            message: 'Pelanggaran sudah pernah dicatat untuk order ini',
+          };
+        }
       }
 
       // 4. Simpan ke vendor_violation_log
@@ -86,7 +244,8 @@ export class ViolationDetectorService {
           quarter,
           year,
           description: context.description || violationType.description,
-          evidence_path: context.evidencePath,
+          evidence_path: evidencePath,
+          evidence_provenance: evidenceProvenance,
           is_active: true,
           created_by: userId,
         },
@@ -131,16 +290,267 @@ export class ViolationDetectorService {
   }
 
   /**
-   * Get violation type dari database berdasarkan kode
+   * Pastikan semua 15 master violation type default ada di database (auto-seed pada boot / demand)
    */
-  private async getViolationType(code: string) {
-    return await this.dbService.vendor_violation_type.findFirst({
+  async ensureDefaultViolationTypes(): Promise<void> {
+    try {
+      await this.dbService.vendor_violation_type.updateMany({
+        where: {
+          code: { in: ['QUOTATION_NOT_FULFILLED', 'DOC_NOT_UPLOADED'] },
+          is_active: true,
+        },
+        data: { is_active: false, updated_at: new Date() },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Could not deactivate removed violation types: ${err.message}`);
+    }
+    for (const [code, def] of Object.entries(DEFAULT_VIOLATION_TYPES)) {
+      try {
+        const existing = await this.dbService.vendor_violation_type.findFirst({
+          where: { code, deleted_at: null },
+        });
+        if (!existing) {
+          await this.dbService.vendor_violation_type.create({
+            data: {
+              code,
+              category: def.category,
+              name: def.name,
+              description: def.description,
+              point: def.point,
+              is_active: true,
+            },
+          });
+          this.logger.log(`Initialized default violation type in DB: ${code}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not ensure violation type ${code}: ${err.message}`);
+      }
+    }
+  }
+
+  /**
+   * Get violation type dari database berdasarkan kode.
+   * Jika belum ada di database, auto-create dari DEFAULT_VIOLATION_TYPES.
+   */
+  async getViolationType(code: string) {
+    let type = await this.dbService.vendor_violation_type.findFirst({
       where: {
         code,
         is_active: true,
         deleted_at: null,
       },
     });
+
+    if (!type) {
+      const def = DEFAULT_VIOLATION_TYPES[code];
+      if (def) {
+        try {
+          type = await this.dbService.vendor_violation_type.create({
+            data: {
+              code,
+              category: def.category,
+              name: def.name,
+              description: def.description,
+              point: def.point,
+              is_active: true,
+            },
+          });
+          this.logger.log(`Auto-created missing violation type in DB: ${code}`);
+        } catch (e) {
+          type = await this.dbService.vendor_violation_type.findFirst({
+            where: { code, deleted_at: null },
+          });
+        }
+      }
+    }
+
+    return type;
+  }
+
+  /**
+   * Helper untuk mendeteksi apakah kode pelanggaran memiliki rantai eskalasi
+   */
+  private getEscalationChainForCode(
+    code: string,
+  ): { chainKey: string; chain: string[]; rank: number } | null {
+    for (const [chainKey, chain] of Object.entries(ESCALATION_CHAINS)) {
+      const idx = chain.indexOf(code);
+      if (idx !== -1) {
+        return { chainKey, chain, rank: idx + 1 };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Eskalasi pelanggaran yang sudah ada ke tier lebih tinggi (Opsi B: Maks 1 Penalti per Order)
+   * Mengupdate log existing alih-alih membuat baris baru.
+   *
+   * @param existingLogOrId Violation log yang ada (object atau ID)
+   * @param newViolationTypeOrCode Jenis pelanggaran baru (object atau kode string)
+   * @param context Context pelanggaran
+   * @param userId User pembuat / pengeskalasi
+   */
+  async escalateViolation(
+    existingLogOrId: number | any,
+    newViolationTypeOrCode: string | any,
+    context: ViolationContext,
+    userId?: number,
+  ): Promise<ViolationResult> {
+    let existingLog = existingLogOrId;
+    if (typeof existingLogOrId === 'number') {
+      existingLog = await this.dbService.vendor_violation_log.findUnique({
+        where: { id: existingLogOrId },
+        include: { violation_type: true },
+      });
+      if (!existingLog) {
+        throw new NotFoundException(
+          `Violation log #${existingLogOrId} tidak ditemukan`,
+        );
+      }
+    }
+
+    let newViolationType = newViolationTypeOrCode;
+    if (typeof newViolationTypeOrCode === 'string') {
+      newViolationType = await this.getViolationType(newViolationTypeOrCode);
+      if (!newViolationType) {
+        throw new NotFoundException(
+          `Violation type ${newViolationTypeOrCode} tidak ditemukan`,
+        );
+      }
+    }
+
+    const { quarter, year } = this.getCurrentQuarterYear();
+
+    // Hitung selisih poin jika ada
+    const oldPoint = existingLog.violation_type?.point ?? 1;
+    const newPoint = newViolationType.point ?? 1;
+    const pointAdded = Math.max(0, newPoint - oldPoint);
+
+    // Build evidence snapshot dengan metadata eskalasi
+    let snapshot: Record<string, any> = {};
+    if (context.evidence && (context.evidence as any).snapshot) {
+      snapshot = { ...(context.evidence as any).snapshot };
+    } else if (existingLog.evidence_path) {
+      try {
+        snapshot = JSON.parse(existingLog.evidence_path);
+      } catch {
+        snapshot = { rawEvidence: existingLog.evidence_path };
+      }
+    }
+
+    snapshot.escalated_from = existingLog.violation_type?.code || 'UNKNOWN';
+    snapshot.escalated_at = new Date().toISOString();
+
+    let evidencePath = JSON.stringify(snapshot);
+    if (evidencePath.length > 500) {
+      evidencePath = evidencePath.slice(0, 500);
+    }
+
+    // Update log existing
+    await this.dbService.vendor_violation_log.update({
+      where: { id: existingLog.id },
+      data: {
+        violation_type_id: newViolationType.id,
+        description: context.description || newViolationType.description,
+        evidence_path: evidencePath,
+        evidence_provenance:
+          context.evidence?.provenance ||
+          existingLog.evidence_provenance ||
+          'SYSTEM_GENERATED',
+        updated_by: userId ?? null,
+        updated_at: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `Violation escalated: ${existingLog.violation_type?.code} -> ${newViolationType.code} | Vendor: ${context.vendorId} | Log ID: ${existingLog.id}`,
+    );
+
+    // Recalculate total points
+    const totalPoints = await this.calculateTotalPoints(
+      context.vendorId,
+      quarter,
+      year,
+    );
+
+    // Check & issue / sync SP
+    const spResult = await this.checkAndIssueSP(
+      context.vendorId,
+      totalPoints,
+      quarter,
+      year,
+      userId,
+    );
+
+    // Notifikasi eskalasi ke vendor
+    await this.sendViolationNotification(
+      context.vendorId,
+      newViolationType.name,
+      pointAdded,
+      totalPoints,
+    );
+
+    return {
+      success: true,
+      violationLogId: existingLog.id,
+      pointAdded,
+      newTotalPoints: totalPoints,
+      spIssued: spResult,
+      message: `Pelanggaran dieskalasi ke "${newViolationType.name}". Total poin: ${totalPoints}`,
+    };
+  }
+
+  /**
+   * [POIN 6] Resolve + validate evidence dari context.evidence.
+   * - Kalau evidence undefined / provenance tidak valid → throw BadRequestException.
+   * - MANUAL_UPLOAD → butuh `path` non-empty string.
+   * - SYSTEM_GENERATED → butuh `snapshot` non-empty object.
+   * Return tuple: (evidencePath_to_persist, provenance_to_persist).
+   *   Untuk SYSTEM_GENERATED, evidence_path berisi JSON.stringify(snapshot).
+   */
+  private resolveEvidence(evidence: ViolationEvidence | undefined | null): {
+    evidencePath: string | null;
+    evidenceProvenance: 'MANUAL_UPLOAD' | 'SYSTEM_GENERATED';
+  } {
+    if (!evidence || typeof evidence !== 'object') {
+      throw new BadRequestException(
+        'Evidence wajib diisi untuk mencatat pelanggaran. Gunakan { provenance: "MANUAL_UPLOAD", path } atau { provenance: "SYSTEM_GENERATED", snapshot }.',
+      );
+    }
+
+    if (evidence.provenance === 'MANUAL_UPLOAD') {
+      const path = (evidence as any).path;
+      if (!path || typeof path !== 'string' || path.trim() === '') {
+        throw new BadRequestException(
+          'Evidence MANUAL_UPLOAD wajib menyertakan path (string non-empty).',
+        );
+      }
+      return { evidencePath: path.trim(), evidenceProvenance: 'MANUAL_UPLOAD' };
+    }
+
+    if (evidence.provenance === 'SYSTEM_GENERATED') {
+      const snapshot = (evidence as any).snapshot;
+      if (
+        !snapshot ||
+        typeof snapshot !== 'object' ||
+        Array.isArray(snapshot) ||
+        Object.keys(snapshot).length === 0
+      ) {
+        throw new BadRequestException(
+          'Evidence SYSTEM_GENERATED wajib menyertakan snapshot (object non-empty).',
+        );
+      }
+      return {
+        evidencePath: JSON.stringify(snapshot),
+        evidenceProvenance: 'SYSTEM_GENERATED',
+      };
+    }
+
+    throw new BadRequestException(
+      `Evidence provenance tidak valid: ${(evidence as any).provenance}. ` +
+        `Harus MANUAL_UPLOAD atau SYSTEM_GENERATED.`,
+    );
   }
 
   /**
@@ -190,6 +600,7 @@ export class ViolationDetectorService {
         vendor_id: vendorId,
         quarter,
         year,
+        is_active: true,
         deleted_at: null,
       },
       include: {
@@ -207,8 +618,17 @@ export class ViolationDetectorService {
 
   /**
    * Check dan issue SP jika threshold tercapai
-   * Mengikuti rule: jika poin < 12 minggu sebelum quartal berikutnya,
-   * penalti tetap berlaku 90 hari meski quartal berganti
+   * Mengikuti rule: tanggal mulai dimulai dari tanggal 1 awal quarter
+   * dan berakhir di akhir quarter sesuai Q1, Q2, Q3, dan Q4.
+   * Satu vendor hanya memiliki satu SP aktif tertinggi.
+   *
+   * ATOMICITY: vendor_sp + vendor_sp_detail + vendor.is_active dijalankan
+   * dalam satu Prisma transaction.
+   *
+   * NOTIFICATION: sendSPNotification dipanggil HANYA setelah transaction
+   * commit berhasil dan HANYA untuk SP3 baru (bukan update SP existing,
+   * bukan SP1/SP2). Kegagalan notifikasi di-catch terpisah agar tidak
+   * menggulingkan response yang sebenarnya sudah sukses.
    */
   private async checkAndIssueSP(
     vendorId: number,
@@ -217,7 +637,6 @@ export class ViolationDetectorService {
     year: number,
     userId?: number,
   ): Promise<{ spId: number; spLevel: number } | undefined> {
-    // Tentukan level SP berdasarkan threshold
     let spLevel: number | null = null;
 
     if (totalPoints >= SPThreshold.SP3) {
@@ -232,85 +651,132 @@ export class ViolationDetectorService {
       return undefined;
     }
 
-    // Cek apakah vendor sudah punya SP aktif
-    const existingSP = await this.dbService.vendor_sp.findFirst({
-      where: {
-        vendor_id: vendorId,
-        sp_level: { gte: spLevel },
-        status: 1, // AKTIF
-        deleted_at: null,
-      },
-    });
+    type Outcome =
+      | { kind: 'updated'; spId: number; spLevel: number }
+      | { kind: 'issued'; spId: number; spLevel: number };
 
-    if (existingSP) {
-      // Update total point di SP yang ada
-      await this.dbService.vendor_sp.update({
-        where: { id: existingSP.id },
-        data: {
-          total_point: totalPoints,
-          updated_by: userId,
-          updated_at: new Date(),
-        },
+    let outcome: Outcome;
+    try {
+      outcome = await this.dbService.$transaction(async (tx) => {
+        const startDate = this.getQuarterStartDate(quarter, year);
+        const endDate = this.getQuarterEndDate(quarter, year);
+
+        const existingSP = await tx.vendor_sp.findFirst({
+          where: {
+            vendor_id: vendorId,
+            quarter,
+            year,
+            status: { in: [1, 3] },
+            deleted_at: null,
+          },
+          orderBy: [{ sp_level: 'desc' }, { updated_at: 'desc' }],
+        });
+
+        if (existingSP) {
+          const nextLevel = Math.max(existingSP.sp_level, spLevel!);
+          const escalatedToSp3 = existingSP.sp_level < 3 && nextLevel === 3;
+
+          await tx.vendor_sp.update({
+            where: { id: existingSP.id },
+            data: {
+              sp_level: nextLevel,
+              total_point: totalPoints,
+              start_date: startDate,
+              end_date: endDate,
+              allocation_reduction: this.getAllocationReduction(nextLevel),
+              updated_by: userId,
+              updated_at: new Date(),
+            },
+          });
+
+          if (escalatedToSp3) {
+            await tx.vendor.update({
+              where: { id: vendorId },
+              data: { is_active: false },
+            });
+            this.logger.warn(`Vendor ${vendorId} deactivated due to SP3`);
+          }
+
+          const detail = await syncVendorSpDetails(tx, {
+            vendorSpId: existingSP.id,
+            vendorId,
+            quarter,
+            year,
+            createdBy: userId ?? null,
+          });
+          this.logger.log(
+            `[detector][SP update] vendor=${vendorId} level=SP${nextLevel} spId=${existingSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
+          );
+          return {
+            kind: escalatedToSp3 ? 'issued' : 'updated',
+            spId: existingSP.id,
+            spLevel: nextLevel,
+          } satisfies Outcome;
+        }
+
+        const allocationReduction = this.getAllocationReduction(spLevel!);
+
+        const newSP = await tx.vendor_sp.create({
+          data: {
+            vendor_id: vendorId,
+            sp_level: spLevel!,
+            total_point: totalPoints,
+            quarter,
+            year,
+            start_date: startDate,
+            end_date: endDate,
+            status: 1,
+            allocation_reduction: allocationReduction,
+            notes: `SP${spLevel} issued automatically by system. Total points: ${totalPoints}`,
+            created_by: userId,
+          },
+        });
+
+        const detail = await syncVendorSpDetails(tx, {
+          vendorSpId: newSP.id,
+          vendorId,
+          quarter,
+          year,
+          createdBy: userId ?? null,
+        });
+
+        this.logger.log(
+          `[detector][SP issued] vendor=${vendorId} level=SP${spLevel} spId=${newSP.id} Q${quarter}/${year} linked=${detail.totalLinked} newLinked=${detail.inserted}`,
+        );
+
+        if (spLevel === 3) {
+          await tx.vendor.update({
+            where: { id: vendorId },
+            data: { is_active: false },
+          });
+          this.logger.warn(`Vendor ${vendorId} deactivated due to SP3`);
+        }
+
+        return {
+          kind: 'issued',
+          spId: newSP.id,
+          spLevel,
+        } satisfies Outcome;
       });
-
-      this.logger.log(`SP${existingSP.sp_level} updated for vendor ${vendorId}. Total points: ${totalPoints}`);
-
-      return { spId: existingSP.id, spLevel: existingSP.sp_level };
+    } catch (error) {
+      this.logger.error(
+        `checkAndIssueSP failed: vendor=${vendorId} spLevel=SP${spLevel} Q${quarter}/${year} reason=${(error as Error)?.message ?? String(error)}`,
+        (error as Error)?.stack,
+      );
+      throw error;
     }
 
-    // Buat SP baru
-    const now = new Date();
-
-    // Hitung 12 minggu ke depan
-    const twelveWeeksLater = new Date(now.getTime() + 84 * 24 * 60 * 60 * 1000);
-    const nextQuarterStart = this.getNextQuarterStartDate(quarter, year);
-
-    // Jika kurang dari 12 minggu sebelum quartal berikutnya, extend ke 90 hari penuh
-    let endDate: Date;
-    if (twelveWeeksLater < nextQuarterStart) {
-      // Rule: penalti tetap 90 hari meski quartal berganti
-      endDate = new Date(now.getTime() + SP_DURATION_DAYS * 24 * 60 * 60 * 1000);
-    } else {
-      endDate = new Date(now.getTime() + SP_DURATION_DAYS * 24 * 60 * 60 * 1000);
+    if (outcome.kind === 'issued' && outcome.spLevel === 3) {
+      try {
+        await this.sendSPNotification(vendorId, outcome.spLevel, totalPoints);
+      } catch (notifErr) {
+        this.logger.warn(
+          `sendSPNotification failed (already-committed SP) vendor=${vendorId} spId=${outcome.spId} reason=${(notifErr as Error)?.message ?? String(notifErr)}`,
+        );
+      }
     }
 
-    const allocationReduction = this.getAllocationReduction(spLevel);
-
-    // Buat SP baru
-    const newSP = await this.dbService.vendor_sp.create({
-      data: {
-        vendor_id: vendorId,
-        sp_level: spLevel,
-        total_point: totalPoints,
-        quarter,
-        year,
-        start_date: now,
-        end_date: endDate,
-        status: 1, // AKTIF
-        allocation_reduction: allocationReduction,
-        notes: `SP${spLevel} issued automatically by system. Total points: ${totalPoints}`,
-        created_by: userId,
-      },
-    });
-
-    this.logger.log(
-      `SP${spLevel} issued for vendor ${vendorId}. Total points: ${totalPoints}. End date: ${endDate.toISOString()}`,
-    );
-
-    // Jika SP3, nonaktifkan vendor
-    if (spLevel === 3) {
-      await this.dbService.vendor.update({
-        where: { id: vendorId },
-        data: { is_active: false },
-      });
-
-      this.logger.warn(`Vendor ${vendorId} deactivated due to SP3`);
-
-      // Kirim notifikasi ke admin
-      await this.sendSPNotification(vendorId, spLevel, totalPoints);
-    }
-
-    return { spId: newSP.id, spLevel };
+    return { spId: outcome.spId, spLevel: outcome.spLevel };
   }
 
   /**
@@ -505,6 +971,235 @@ export class ViolationDetectorService {
   private getQuarterEndDate(quarter: number, year: number): Date {
     const month = quarter * 3; // Bulan pertama quartal berikutnya
     return new Date(year, month, 0, 23, 59, 59);
+  }
+
+  /**
+   * Batalkan pelanggaran konfirmasi order jika order dikonfirmasi atau survei selesai lebih cepat.
+   */
+  async cancelUnconfirmedViolation(
+    orderId: number,
+    vendorId: number,
+    reason?: string,
+  ): Promise<boolean> {
+    const existingLogs = await this.dbService.vendor_violation_log.findMany({
+      where: {
+        order_id: orderId,
+        vendor_id: vendorId,
+        is_active: true,
+        deleted_at: null,
+        violation_type: {
+          code: {
+            in: [
+              ViolationTypeCode.ORDER_NOT_CONFIRMED_H,
+              ViolationTypeCode.ORDER_NOT_CONFIRMED_H1,
+              ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS,
+            ],
+          },
+        },
+      },
+      include: {
+        violation_type: true,
+      },
+    });
+
+    if (existingLogs.length === 0) return false;
+
+    const { quarter, year } = this.getCurrentQuarterYear();
+
+    await this.dbService.$transaction(async (tx) => {
+      await tx.vendor_violation_log.updateMany({
+        where: {
+          id: { in: existingLogs.map((l) => l.id) },
+        },
+        data: {
+          is_active: false,
+          adjusted_point: 0,
+          description: reason
+            ? `Dibatalkan: ${reason}`
+            : 'Dibatalkan otomatis: order terkonfirmasi atau survei diselesaikan lebih cepat.',
+          updated_at: new Date(),
+        },
+      });
+
+      const totalPoints = await this.calculateTotalPoints(vendorId, quarter, year);
+      let spLevel: number | null = null;
+      if (totalPoints >= SPThreshold.SP3) {
+        spLevel = 3;
+      } else if (totalPoints >= SPThreshold.SP2) {
+        spLevel = 2;
+      } else if (totalPoints >= SPThreshold.SP1) {
+        spLevel = 1;
+      }
+
+      const activeSp = await tx.vendor_sp.findFirst({
+        where: {
+          vendor_id: vendorId,
+          quarter,
+          year,
+          status: { in: [1, 3] },
+          deleted_at: null,
+        },
+        orderBy: { sp_level: 'desc' },
+      });
+
+      if (!spLevel) {
+        if (activeSp) {
+          await tx.vendor_sp.update({
+            where: { id: activeSp.id },
+            data: {
+              status: 2,
+              total_point: totalPoints,
+              updated_at: new Date(),
+            },
+          });
+        }
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: true },
+        });
+      } else if (activeSp) {
+        await tx.vendor_sp.update({
+          where: { id: activeSp.id },
+          data: {
+            sp_level: spLevel,
+            total_point: totalPoints,
+            allocation_reduction: this.getAllocationReduction(spLevel),
+            updated_at: new Date(),
+          },
+        });
+        await syncVendorSpDetails(tx, {
+          vendorSpId: activeSp.id,
+          vendorId,
+          quarter,
+          year,
+          createdBy: null,
+        });
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: spLevel !== 3 },
+        });
+      }
+    });
+
+    this.logger.log(
+      `Cancelled unconfirmed violation for order #${orderId} (vendor #${vendorId}). Active violations deactivated.`,
+    );
+    return true;
+  }
+
+  /**
+   * Batalkan pelanggaran update status jika pengerjaan dimulai lebih awal atau status diperbarui.
+   */
+  async cancelStatusUpdateViolation(
+    workOrderId: number,
+    orderId: number,
+    vendorId: number,
+    reason?: string,
+  ): Promise<boolean> {
+    const existingLogs = await this.dbService.vendor_violation_log.findMany({
+      where: {
+        order_id: orderId,
+        vendor_id: vendorId,
+        is_active: true,
+        deleted_at: null,
+        violation_type: {
+          code: {
+            in: [
+              ViolationTypeCode.STATUS_NOT_UPDATED_H,
+              ViolationTypeCode.STATUS_NOT_UPDATED_H1,
+              ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS,
+            ],
+          },
+        },
+      },
+      include: {
+        violation_type: true,
+      },
+    });
+
+    if (existingLogs.length === 0) return false;
+
+    const { quarter, year } = this.getCurrentQuarterYear();
+
+    await this.dbService.$transaction(async (tx) => {
+      await tx.vendor_violation_log.updateMany({
+        where: {
+          id: { in: existingLogs.map((l) => l.id) },
+        },
+        data: {
+          is_active: false,
+          adjusted_point: 0,
+          description: reason
+            ? `Dibatalkan: ${reason}`
+            : 'Dibatalkan otomatis: pengerjaan dimulai lebih awal atau status diperbarui.',
+          updated_at: new Date(),
+        },
+      });
+
+      const totalPoints = await this.calculateTotalPoints(vendorId, quarter, year);
+      let spLevel: number | null = null;
+      if (totalPoints >= SPThreshold.SP3) {
+        spLevel = 3;
+      } else if (totalPoints >= SPThreshold.SP2) {
+        spLevel = 2;
+      } else if (totalPoints >= SPThreshold.SP1) {
+        spLevel = 1;
+      }
+
+      const activeSp = await tx.vendor_sp.findFirst({
+        where: {
+          vendor_id: vendorId,
+          quarter,
+          year,
+          status: { in: [1, 3] },
+          deleted_at: null,
+        },
+        orderBy: { sp_level: 'desc' },
+      });
+
+      if (!spLevel) {
+        if (activeSp) {
+          await tx.vendor_sp.update({
+            where: { id: activeSp.id },
+            data: {
+              status: 2,
+              total_point: totalPoints,
+              updated_at: new Date(),
+            },
+          });
+        }
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: true },
+        });
+      } else if (activeSp) {
+        await tx.vendor_sp.update({
+          where: { id: activeSp.id },
+          data: {
+            sp_level: spLevel,
+            total_point: totalPoints,
+            allocation_reduction: this.getAllocationReduction(spLevel),
+            updated_at: new Date(),
+          },
+        });
+        await syncVendorSpDetails(tx, {
+          vendorSpId: activeSp.id,
+          vendorId,
+          quarter,
+          year,
+          createdBy: null,
+        });
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { is_active: spLevel !== 3 },
+        });
+      }
+    });
+
+    this.logger.log(
+      `Cancelled status update violation for work order #${workOrderId} (order #${orderId}, vendor #${vendorId}). Active violations deactivated.`,
+    );
+    return true;
   }
 
   /**

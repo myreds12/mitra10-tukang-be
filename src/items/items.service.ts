@@ -37,6 +37,7 @@ export class ItemsService {
           default_price,
           type: item_type,
           invoice_nominal,
+          is_active: true,
           category: { connect: { id: category_id } },
         },
       });
@@ -45,13 +46,23 @@ export class ItemsService {
         const { periodic_start, periodic_end, min_order, price, price_store } =
           prc;
 
+        const startDate = periodic_start ? new Date(periodic_start) : undefined;
+        if (startDate && !isNaN(startDate.getTime())) {
+          startDate.setHours(0, 0, 0, 0);
+        }
+        const endDate = periodic_end ? new Date(periodic_end) : undefined;
+        if (endDate && !isNaN(endDate.getTime())) {
+          endDate.setHours(23, 59, 59, 999);
+        }
+
         const createdPrice = await this.dbService.prices.create({
           data: {
             item_id: createdItem.id,
-            periodic_start: new Date(periodic_start),
-            periodic_end: new Date(periodic_end),
+            periodic_start: startDate,
+            periodic_end: endDate,
             min_order,
             price: price,
+            is_active: (prc as any).is_active !== undefined ? Boolean((prc as any).is_active) : true,
             created_by: user_id,
           },
         });
@@ -126,7 +137,6 @@ export class ItemsService {
   async findAll(queryParamsDto: QueryParamsDto) {
     try {
       const {
-        search,
         take,
         page,
         all_store,
@@ -135,13 +145,25 @@ export class ItemsService {
         item_type,
         is_promotion,
       } = queryParamsDto;
+      const search = queryParamsDto.search?.trim();
       // const category_id = +search ? Number.parseInt(search) : undefined;
 
       const allStore = await this.dbService.store
         .findMany()
         .then((data) => data.map((x) => x.id));
 
-      const skip = page * take - take;
+      const isAll = queryParamsDto.take === 0 || take === 0;
+      const skip = isAll ? 0 : page * take - take;
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const validStoreIds = store_id
+        ? store_id.map(Number).filter((s) => !isNaN(s) && s > 0)
+        : [];
 
       const where: Prisma.itemsWhereInput = {
         AND: [
@@ -174,37 +196,86 @@ export class ItemsService {
                 prices: {
                   some: {
                     deleted_at: null,
-                    periodic_start: {
-                      lte: new Date(),
-                    },
-                    periodic_end: {
-                      gte: new Date(),
-                    }
+                    is_active: { not: false },
+                    OR: [
+                      {
+                        periodic_end: {
+                          gte: todayStart,
+                        },
+                      },
+                      {
+                        periodic_end: null,
+                      },
+                    ],
+                    ...(validStoreIds.length > 0
+                      ? {
+                        OR: [
+                          {
+                            price_stores: {
+                              none: {
+                                deleted_at: null,
+                              },
+                            },
+                          },
+                          {
+                            price_stores: {
+                              some: {
+                                deleted_at: null,
+                                store_id: {
+                                  in: validStoreIds,
+                                },
+                              },
+                            },
+                          },
+                        ],
+                      }
+                      : {}),
                   },
                 },
               },
             ]
-            : []),
-          ...(store_id
-            ? [
-              {
-                prices: {
-                  some: {
-                    deleted_at: null,
-                    is_active: true,
-                    price_stores: {
-                      some: {
-                        deleted_at: null,
-                        store_id: {
-                          in: store_id,
+            : validStoreIds.length > 0
+              ? [
+                {
+                  OR: [
+                    {
+                      prices: {
+                        some: {
+                          deleted_at: null,
+                          is_active: { not: false },
+                          OR: [
+                            {
+                              price_stores: {
+                                none: {
+                                  deleted_at: null,
+                                },
+                              },
+                            },
+                            {
+                              price_stores: {
+                                some: {
+                                  deleted_at: null,
+                                  store_id: {
+                                    in: validStoreIds,
+                                  },
+                                },
+                              },
+                            },
+                          ],
                         },
                       },
                     },
-                  },
+                    {
+                      prices: {
+                        none: {
+                          deleted_at: null,
+                        },
+                      },
+                    },
+                  ],
                 },
-              },
-            ]
-            : []),
+              ]
+              : []),
           ...(item_type ? [{ type: { in: item_type } }] : []),
           ...(is_free === 1
             ? [
@@ -263,9 +334,12 @@ export class ItemsService {
       // console.log('Generated WHERE clause:', JSON.stringify(where, null, 2));
 
       const itemsOptions: Prisma.itemsFindManyArgs = {
-        skip,
-        take: take > 0 ? take : undefined,
+        skip: isAll ? undefined : skip,
+        take: isAll ? undefined : (take > 0 ? take : undefined),
         where,
+        orderBy: {
+          id: 'desc',
+        },
         include: {
           category: true,
           prices: {
@@ -286,6 +360,7 @@ export class ItemsService {
                   deleted_at: null,
                 },
                 select: {
+                  store_id: true,
                   store: {
                     select: {
                       id: true,
@@ -468,15 +543,22 @@ export class ItemsService {
             }
             // console.log(Boolean(price.is_active));
 
+            let updateStartDate: Date | undefined;
+            if (price?.periodic_start) {
+              updateStartDate = new Date(price.periodic_start);
+              if (!isNaN(updateStartDate.getTime())) updateStartDate.setHours(0, 0, 0, 0);
+            }
+            let updateEndDate: Date | undefined;
+            if (price?.periodic_end) {
+              updateEndDate = new Date(price.periodic_end);
+              if (!isNaN(updateEndDate.getTime())) updateEndDate.setHours(23, 59, 59, 999);
+            }
+
             return {
               where: { item_id: id, id: price?.id ?? 0 },
               update: {
-                periodic_start: price?.periodic_start
-                  ? new Date(price.periodic_start)
-                  : undefined,
-                periodic_end: price?.periodic_end
-                  ? new Date(price.periodic_end)
-                  : undefined,
+                periodic_start: updateStartDate,
+                periodic_end: updateEndDate,
                 min_order: price?.min_order,
                 is_active: Boolean(price?.is_active),
                 price: price.price,
@@ -488,12 +570,8 @@ export class ItemsService {
               },
               create: {
                 is_active: Boolean(price?.is_active),
-                periodic_start: price?.periodic_start
-                  ? new Date(price.periodic_start)
-                  : undefined,
-                periodic_end: price?.periodic_end
-                  ? new Date(price.periodic_end)
-                  : undefined,
+                periodic_start: updateStartDate,
+                periodic_end: updateEndDate,
                 min_order: price?.min_order,
                 price: price.price,
                 created_at: new Date(),

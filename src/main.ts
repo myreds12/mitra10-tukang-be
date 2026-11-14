@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -12,18 +13,29 @@ import { PrismaValidationFilter } from './common/filters/prisma-validation-error
 import { NotFoundExceptionFilter } from './common/filters/not-found-exceptopm.filter';
 
 function resolveProjectPath(folderName: string): string {
-  const candidates = [
-    resolve(__dirname, '..', folderName),
-    resolve(__dirname, '..', '..', folderName),
-  ];
-
-  return candidates.find((path) => existsSync(path)) ?? candidates[0];
+  const uploadPath = resolve(process.cwd(), folderName);
+  return uploadPath;
 }
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    cors: true,
+    cors: {
+      origin: process.env.CORS_ORIGIN || '*',
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'Accept',
+        'Cache-Control',
+        'Pragma',
+      ],
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+    },
   });
+
+  app.set('trust proxy', 1);
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('INSTALASI REST API')
@@ -36,6 +48,9 @@ async function bootstrap() {
   app.useStaticAssets(resolveProjectPath('uploads'), {
     prefix: '/public/',
   });
+  app.useStaticAssets(resolveProjectPath('storage'), {
+    prefix: '/storage/',
+  });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalFilters(
     new HttpExceptionFilter(),
@@ -47,6 +62,8 @@ async function bootstrap() {
 
   app.setBaseViewsDir(resolveProjectPath('templates'));
   app.setViewEngine('pug');
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   await app.listen(process.env.PORT);
 }

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Notifikasi Pendaftaran Vendor Instalasi Mitra10</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;padding:40px;">
+          <tr>
+            <td style="font-size:22px;color:#333333;font-weight:normal;padding-bottom:20px;">
+              Yth. {{nama_vendor}},
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:14px;color:#333333;line-height:22px;padding-bottom:30px;">
+              <a href="mailto:{{email_pendaftar}}" style="color:#1a73e8;font-weight:bold;text-decoration:none;">{{email_pendaftar}}</a>
+              telah terdaftar sebagai calon vendor instalasi Mitra10.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:30px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="background-color:#f7f7f7;border-radius:4px;width:100%;">
+                <tr>
+                  <td style="padding:18px 20px;font-size:14px;color:#333333;line-height:26px;">
+                    <strong>User:</strong> {{email_vendor}}<br>
+                    <strong>Password:</strong> {{password_generated}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:30px;">
+              <a href="{{link_konfirmasi}}" target="_blank"
+                 style="background-color:#00a1e0;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;padding:14px 28px;border-radius:3px;display:inline-block;">
+                Klik di sini untuk login
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#333333;padding-bottom:4px;">
+              Atau salin link berikut ke browser:
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;padding-bottom:30px;word-break:break-all;">
+              <a href="{{link_konfirmasi}}" style="color:#1a73e8;">{{link_konfirmasi}}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="border-top:1px solid #e0e0e0;padding-top:20px;font-size:13px;color:#333333;line-height:20px;">
+              Terima kasih,<br>
+              Mitra10
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

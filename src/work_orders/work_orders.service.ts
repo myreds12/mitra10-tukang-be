@@ -43,7 +43,7 @@ export class WorkOrdersService {
       this.logger.error(`WA order completed notification failed for order_id=${orderId}:`, err?.message);
     }
   }
-
+>>>> origin/vendor-sp-registration
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
@@ -157,6 +157,14 @@ export class WorkOrdersService {
         this.dbService.work_orders.create(work_order_data),
       ]);
 
+      if (order.vendor_id && dataDto.work_order_tukang?.length) {
+        await this.violationDetector.cancelUnconfirmedViolation(
+          order.id,
+          order.vendor_id,
+          'Tukang telah dialokasikan ke work order.',
+        );
+      }
+
       await this.sendTukangAssignedWhatsApp(work_order.id);
 
       return work_order;
@@ -236,7 +244,14 @@ export class WorkOrdersService {
               ],
             }
             : undefined,
-          status ? { status: { id: { in: status } } } : undefined,
+          status
+            ? {
+              OR: [
+                { status: { id: { in: status } } },
+                { order: { project_status_id: { in: status } } },
+              ],
+            }
+            : undefined,
           vendor_id
             ? {
               vendor_id: vendor_id,
@@ -274,9 +289,10 @@ export class WorkOrdersService {
         skip,
         take: take <= 0 ? undefined : take,
         where,
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: [
+          { updated_at: 'desc' },
+          { created_at: 'desc' },
+        ],
         include: {
           order: {
             include: {
@@ -293,6 +309,9 @@ export class WorkOrdersService {
               sales: true,
               members: true,
               quotation: {
+                where: {
+                  deleted_at: null,
+                },
                 include: {
                   quotation_details: true,
                 },
@@ -522,7 +541,10 @@ export class WorkOrdersService {
         },
         include: {
           status: true,
-          work_order_status: true,
+          work_order_status: {
+            where: { deleted_at: null },
+            orderBy: { created_at: 'desc' },
+          },
           work_order_tukang: { where: { deleted_at: null } },
         },
       });
@@ -530,15 +552,12 @@ export class WorkOrdersService {
       if (!checkWorkOrder)
         throw new BadRequestException('Work Order not exist');
 
-      let updateStatus: number | undefined = undefined;
-      let parentId: number | undefined = undefined;
-      if (
-        dataDto.work_order_status === 7 &&
-        checkWorkOrder.work_order_status[0].status_id === 6
-      ) {
-        updateStatus = dataDto.work_order_status;
-        parentId = checkWorkOrder.work_order_status[0].status_id;
-      }
+      const latestWorkOrderStatusId = checkWorkOrder.work_order_status[0]?.status_id;
+      const updateStatus: number | undefined = dataDto.work_order_status;
+      const parentId: number | undefined =
+        dataDto.work_order_status === 7 && latestWorkOrderStatusId === 6
+          ? latestWorkOrderStatusId
+          : undefined;
 
       const { id: user_id } = user;
       const evidences: Prisma.work_order_evidencesCreateManyWork_ordersInputEnvelope =
@@ -702,6 +721,14 @@ export class WorkOrdersService {
       );
       if (shouldSendAssignedWhatsApp) {
         await this.sendTukangAssignedWhatsApp(work_order.id);
+      }
+
+      if (work_order?.vendor_id && dataDto.work_order_tukang?.length) {
+        await this.violationDetector.cancelUnconfirmedViolation(
+          work_order.order_id,
+          work_order.vendor_id,
+          'Tukang telah dialokasikan ke work order.',
+        );
       }
 
       return work_order;
@@ -1091,7 +1118,13 @@ export class WorkOrdersService {
       // =========================================
       if (work_order?.order?.vendor_id) {
         await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
-        await this.checkStatusUpdateViolation(work_order, NEW_STATUS);
+        await this.checkStatusUpdateViolation(workOrder, NEW_STATUS);
+      }
+
+      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
+      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
+      if (isWorkEndStatus && !wasWorkEndStatus) {
+        await this.sendOrderCompletedWhatsApp(work_order.order_id, work_order.id);
       }
 
       return work_order;
@@ -1101,9 +1134,6 @@ export class WorkOrdersService {
     }
   }
 
-  /**
-   * Trigger #12: Check dokumentasi foto (blur/tidak lengkap)
-   */
   private async checkDocumentationViolation(
     workOrder: any,
     updateData: any,
@@ -1120,10 +1150,13 @@ export class WorkOrdersService {
       );
 
       if (isFinalStatus) {
+        // Include soft-deleted rows so previously uploaded photos still count when status updates mark old rows deleted_at.
         const existingEvidences = await this.dbService.work_order_evidences.findMany({
           where: {
             work_order_id: workOrder.id,
-            deleted_at: null,
+          },
+          select: {
+            type: true,
           },
         });
 
@@ -1142,6 +1175,19 @@ export class WorkOrdersService {
               orderId: workOrder.order_id,
               workOrderId: workOrder.id,
               description: `Work Order #${workOrder.id} tidak memiliki dokumentasi foto ${!hasBefore ? 'before' : ''}${!hasBefore && !hasAfter ? ' dan ' : ''}${!hasAfter ? 'after' : ''}`,
+              evidence: {
+                provenance: 'SYSTEM_GENERATED',
+                snapshot: {
+                  workOrderId: workOrder.id,
+                  orderId: workOrder.order_id,
+                  missingPhotos: [
+                    !hasBefore && 'before',
+                    !hasAfter && 'after',
+                  ].filter(Boolean),
+                  finalStatus: newStatus?.category,
+                  triggeredAt: new Date().toISOString(),
+                },
+              },
             },
           );
         }
@@ -1151,46 +1197,94 @@ export class WorkOrdersService {
     }
   }
 
-  /**
-   * Trigger #13: Check delay status update
-   */
   private async checkStatusUpdateViolation(
     workOrder: any,
     newStatus: any,
   ): Promise<void> {
     try {
-      // Jika vendor mengupdate status ke progres (WORKSTART, dll)
-      const progressStatuses = ['WORKSTART', 'WORKREQ', 'TUKANGWORK'];
+      const progressStatuses = [
+        'WORKSTART',
+        'WORKREQ',
+        'TUKANGWORK',
+        'SURVEYREQ',
+        'TUKANGSURVEY',
+        'WIP',
+        'SIP',
+        'SURVEYDONE',
+        'RESURVEYDONE',
+        'WORKEND',
+        'REWORKSTART',
+        'REWORKEND',
+        'RETUKANGWORK',
+        'RETUKANGSURVEY',
+      ];
       const isProgress = progressStatuses.some(
-        (s) => newStatus?.category?.toUpperCase().includes(s),
+        (status) => newStatus?.category?.toUpperCase().includes(status),
       );
 
       if (isProgress) {
-        // Status diupdate - tidak ada pelanggaran delay
-        this.logger.debug(
-          `Status updated for WO ${workOrder.id}. No delay violation.`,
-        );
+        if (workOrder?.order?.vendor_id) {
+          await this.violationDetector.cancelStatusUpdateViolation(
+            workOrder.id,
+            workOrder.order_id,
+            workOrder.order.vendor_id,
+            `Pekerjaan dimulai lebih awal atau status diperbarui (${newStatus.category})`,
+          );
+        }
         return;
       }
 
-      // Check delay jika vendor tidak mengupdate status
-      const lastUpdate = await this.dbService.work_order_status.findFirst({
-        where: {
-          work_order_id: workOrder.id,
-          deleted_at: null,
-        },
-        orderBy: { created_at: 'desc' },
-      });
+      const lastUpdate =
+        workOrder.work_order_status?.[0] ??
+        (await this.dbService.work_order_status.findFirst({
+          where: {
+            work_order_id: workOrder.id,
+            deleted_at: null,
+            ...(newStatus?.id ? { status_id: { not: newStatus.id } } : {}),
+          },
+          orderBy: { created_at: 'desc' },
+        }));
 
       if (!lastUpdate) return;
 
       const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const lastUpdateDate = new Date(lastUpdate.created_at);
-      const daysDiff = Math.floor(
-        (now.getTime() - lastUpdateDate.getTime()) / (24 * 60 * 60 * 1000),
+      const lastUpdateDay = new Date(
+        lastUpdateDate.getFullYear(),
+        lastUpdateDate.getMonth(),
+        lastUpdateDate.getDate(),
       );
 
-      // Jika sudah lebih dari 1 hari tanpa update status
+      const candidateScheduleDates = [
+        workOrder.work_start_date,
+        workOrder.survey_date,
+        workOrder.order?.request_work,
+        workOrder.order?.request_survey,
+      ]
+        .filter((date): date is Date => Boolean(date))
+        .map((date) => {
+          const parsed = new Date(date);
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        });
+
+      const scheduledDay =
+        candidateScheduleDates.length > 0
+          ? new Date(Math.max(...candidateScheduleDates.map((date) => date.getTime())))
+          : null;
+
+      if (scheduledDay && today.getTime() <= scheduledDay.getTime()) {
+        return;
+      }
+
+      const baselineTime = scheduledDay
+        ? Math.max(lastUpdateDay.getTime(), scheduledDay.getTime())
+        : lastUpdateDay.getTime();
+
+      const daysDiff = Math.floor(
+        (today.getTime() - baselineTime) / (24 * 60 * 60 * 1000),
+      );
+
       if (daysDiff >= 1) {
         const violationCode =
           daysDiff >= 2 ? 'STATUS_NOT_UPDATED_H_PLUS' : 'STATUS_NOT_UPDATED_H1';
@@ -1201,7 +1295,19 @@ export class WorkOrdersService {
             vendorId: workOrder.order.vendor_id,
             orderId: workOrder.order_id,
             workOrderId: workOrder.id,
-            description: `Work Order #${workOrder.id} tidak diupdate selama ${daysDiff} hari`,
+            description: 'Work Order #' + workOrder.id + ' tidak diupdate selama ' + daysDiff + ' hari',
+            evidence: {
+              provenance: 'SYSTEM_GENERATED',
+              snapshot: {
+                workOrderId: workOrder.id,
+                orderId: workOrder.order_id,
+                daysSinceUpdate: daysDiff,
+                lastStatusUpdate: lastUpdate.created_at,
+                scheduledDate: scheduledDay ? scheduledDay.toISOString() : null,
+                currentStatus: newStatus?.category,
+                triggeredAt: new Date().toISOString(),
+              },
+            },
           },
         );
       }

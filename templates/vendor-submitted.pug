@@ -1,34 +1,25 @@
 doctype html
 html(lang="id")
-    head
-        meta(charset="UTF-8")
-        meta(name="viewport" content="width=device-width, initial-scale=1.0")
-        title Pendaftaran Vendor Diterima - Mitra10
-    body(style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;")
-        table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f0f2f5;")
+  head
+    meta(charset="UTF-8")
+    title Notifikasi Pendaftaran Vendor Instalasi Mitra10
+  body(style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial, Helvetica, sans-serif;")
+    table(role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:30px 0;")
+      tr
+        td(align="center")
+          table(role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;padding:40px;")
             tr
-                td(style="padding:40px 10px;")
-                    table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;")
-                        tr
-                            td(style="background-color:#183383;padding:28px 35px;text-align:center;")
-                                img(src="https://seeklogo.com/images/M/mitra-10-logo-5C2346D8FD-seeklogo.com.png" alt="Logo Mitra10" width="70" style="display:block;margin:0 auto 12px auto;border:0;")
-                                h1(style="color:#ffffff;font-size:20px;font-weight:700;margin:0;") Instalasi &amp; Service Mitra10
-                        tr
-                            td(style="padding:32px 35px;")
-                                h2(style="font-size:22px;color:#1a1a2e;margin:0 0 12px 0;") Terima kasih, #{data.company_name}
-                                p(style="font-size:14px;color:#495057;line-height:1.7;margin:0 0 16px 0;") Pendaftaran vendor Anda telah kami terima. Tim Mitra10 akan memproses dan meninjau data yang dikirimkan.
-                                table(role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f8f9fa;border-left:4px solid #183383;margin:20px 0;")
-                                    tr
-                                        td(style="padding:18px 20px;")
-                                            p(style="font-size:13px;font-weight:700;color:#183383;margin:0 0 12px 0;") Data kontak terdaftar
-                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Email perusahaan: #{data.email_address}
-                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Email PIC: #{data.pic_email}
-                                            p(style="font-size:13px;color:#495057;margin:0 0 6px 0;") Telepon perusahaan: #{data.phone_number}
-                                            p(style="font-size:13px;color:#495057;margin:0;") Telepon PIC: #{data.pic_phone}
-                                p(style="font-size:14px;color:#495057;line-height:1.7;margin:0;") Informasi status pendaftaran akan dikirimkan melalui email yang didaftarkan. Pastikan email dan nomor telepon aktif agar tim kami dapat menghubungi Anda.
-                        tr
-                            td(style="background-color:#f8f9fa;padding:22px 35px;text-align:center;border-top:1px solid #e9ecef;")
-                                p(style="font-size:11px;color:#6c757d;line-height:1.6;margin:0 0 6px 0;") Hormat kami,
-                                    br
-                                    strong Mitra10 Instalasi &amp; Service
-                                p(style="font-size:11px;color:#6c757d;margin:0;") Email otomatis. Mohon jangan membalas.
+              td(style="font-size:22px;color:#333333;font-weight:normal;padding-bottom:20px;")
+                | Yth. #{data.company_name},
+            tr
+              td(style="font-size:14px;color:#333333;line-height:22px;padding-bottom:30px;")
+                a(href="mailto:" + (data.pic_email || data.email_address) style="color:#1a73e8;font-weight:bold;text-decoration:none;") #{data.pic_email || data.email_address}
+                |  telah terdaftar sebagai calon vendor instalasi Mitra10.
+            tr
+              td(style="font-size:14px;color:#333333;line-height:22px;padding-bottom:30px;")
+                | Data pendaftaran Anda sedang dalam proses peninjauan oleh tim Mitra10. Kami akan menginformasikan lebih lanjut mengenai status pendaftaran Anda.
+            tr
+              td(style="border-top:1px solid #e0e0e0;padding-top:20px;font-size:13px;color:#333333;line-height:20px;")
+                | Terima kasih,
+                br
+                | Mitra10

@@ -13,6 +13,9 @@ import {
   QueryViolationRevisionRequestDto,
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
+import { RebuildVendorSpDto } from './dto/rebuild-vendor-sp.dto';
+import { syncVendorSpDetails } from '../common/utils/vendor-sp-detail-sync.util';
+import { getQuarterDateRange } from '../common/constants/vendor-sp.constant';
 
 @Injectable()
 export class VendorViolationRevisionService {
@@ -226,6 +229,596 @@ export class VendorViolationRevisionService {
     });
   }
 
+  async rebuildYear(dto: RebuildVendorSpDto, user: users) {
+    await this.assertRole(user, ['Super User']);
+
+    const year = Number(dto.year);
+    const quarter = Number(dto.quarter ?? 4);
+    const { startDate: rangeStart, endDate: rangeEnd } = getQuarterDateRange(quarter, year);
+    const removedCodes = new Set(['QUOTATION_NOT_FULFILLED', 'DOC_NOT_UPLOADED']);
+    const requestedCodes = [...new Set(dto.violation_codes.map((code) => code.trim()))];
+    const violationCodes = requestedCodes.filter((code) => !removedCodes.has(code));
+    const violationTypes =
+      violationCodes.length > 0
+        ? await this.dbService.vendor_violation_type.findMany({
+            where: {
+              code: { in: violationCodes },
+              is_active: true,
+              deleted_at: null,
+            },
+            select: { id: true, code: true, point: true },
+          })
+        : [];
+
+    const foundCodes = new Set(violationTypes.map((type) => type.code));
+    const unknownCodes = violationCodes.filter((code) => !foundCodes.has(code));
+    if (unknownCodes.length > 0) {
+      throw new BadRequestException(
+        `Jenis pelanggaran tidak ditemukan atau tidak aktif: ${unknownCodes.join(', ')}`,
+      );
+    }
+
+    const logs = await this.dbService.vendor_violation_log.findMany({
+      where: {
+        year,
+        quarter,
+        created_at: { gte: rangeStart, lte: rangeEnd },
+        deleted_at: null,
+        is_active: true,
+      },
+      select: {
+        id: true,
+        vendor_id: true,
+        violation_type_id: true,
+        order_id: true,
+        quarter: true,
+        created_at: true,
+        description: true,
+        evidence_path: true,
+        evidence_provenance: true,
+        created_by: true,
+        adjusted_point: true,
+        violation_type: { select: { code: true, point: true } },
+        vendor: { select: { id: true, company_name: true } },
+        orders: {
+          select: {
+            created_at: true,
+            status: { select: { category: true } },
+            request_survey: true,
+            request_work: true,
+            order_history: {
+              where: { deleted_at: null },
+              orderBy: { created_at: 'asc' },
+              select: {
+                created_at: true,
+                status: { select: { category: true } },
+              },
+            },
+            work_orders: {
+              select: {
+                created_at: true,
+                survey_date: true,
+                work_start_date: true,
+                work_order_status: {
+                  where: { deleted_at: null },
+                  orderBy: { created_at: 'desc' },
+                  select: {
+                    created_at: true,
+                    status: { select: { category: true } },
+                  },
+                },
+                work_order_evidences: {
+                  select: { type: true },
+                },
+              },
+            },
+            reschedule: {
+              where: { deleted_at: null },
+              select: {
+                id: true,
+                confirm_date: true,
+                status: { select: { category: true } },
+              },
+            },
+            refund: {
+              where: { deleted_at: null },
+              select: { id: true },
+            },
+            complaints: {
+              where: { deleted_at: null },
+              select: { id: true },
+            },
+            quotation: {
+              where: { deleted_at: null },
+              select: {
+                id: true,
+                created_at: true,
+                status: { select: { category: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const selectedCodeSet = new Set(violationCodes);
+    const excludedLogs: Array<{ id: number; code: string; reason: string }> = [];
+    const grouped = new Map<string, {
+      vendorId: number;
+      vendorName: string;
+      quarter: number;
+      logIds: number[];
+      totalPoints: number;
+    }>();
+
+    const requestedCodeSet = new Set(requestedCodes);
+    for (const log of logs) {
+      if (!requestedCodeSet.has(log.violation_type.code)) continue;
+
+      const eligibility = this.getRebuildLogEligibility(log, rangeStart, rangeEnd);
+      if (!eligibility.valid) {
+        excludedLogs.push({
+          id: log.id,
+          code: log.violation_type.code,
+          reason: eligibility.reason,
+        });
+        continue;
+      }
+
+      const key = `${log.vendor_id}:${log.quarter}`;
+      const current = grouped.get(key) ?? {
+        vendorId: log.vendor_id,
+        vendorName: log.vendor.company_name,
+        quarter: log.quarter,
+        logIds: [],
+        totalPoints: 0,
+      };
+      current.logIds.push(log.id);
+      current.totalPoints += log.violation_type.point;
+      grouped.set(key, current);
+    }
+
+    const currentPointTotal = logs.reduce(
+      (sum, log) => sum + (log.adjusted_point ?? log.violation_type.point),
+      0,
+    );
+    const rebuiltPointTotal = [...grouped.values()].reduce(
+      (sum, group) => sum + group.totalPoints,
+      0,
+    );
+    const summary = {
+      year,
+      quarter,
+      periodStart: rangeStart.toISOString(),
+      periodEnd: rangeEnd.toISOString(),
+      violationCodes,
+      dryRun: dto.dry_run !== false,
+      violationLogCount: logs.length,
+      selectedViolationLogCount: [...grouped.values()].reduce(
+        (sum, group) => sum + group.logIds.length,
+        0,
+      ),
+      currentPointTotal,
+      rebuiltPointTotal,
+      vendorQuarterCount: grouped.size,
+      excludedLogs,
+      vendors: [...grouped.values()].map((group) => ({
+        vendorId: group.vendorId,
+        vendorName: group.vendorName,
+        quarter: group.quarter,
+        pointTotal: group.totalPoints,
+        spLevel: this.getSPLevel(group.totalPoints),
+        violationLogCount: group.logIds.length,
+      })),
+    };
+
+    if (dto.dry_run !== false) return summary;
+
+    const allowedConfirmations = new Set([
+      'DELETE_ALL_AND_REBUILD_VENDOR_SP_BY_QUARTER',
+      'DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026',
+    ]);
+
+    if (
+      !dto.delete_existing ||
+      !dto.delete_all ||
+      !dto.confirmation ||
+      !allowedConfirmations.has(dto.confirmation)
+    ) {
+      throw new BadRequestException(
+        'Untuk hard-delete, delete_existing dan delete_all harus true serta confirmation harus DELETE_ALL_AND_REBUILD_VENDOR_SP_BY_QUARTER (atau DELETE_ALL_AND_REBUILD_VENDOR_SP_FROM_JULY_2026).',
+      );
+    }
+
+    await this.dbService.$transaction(async (tx) => {
+      const now = new Date();
+
+      await tx.vendor_violation_revision_request.updateMany({
+        where: { target_log_id: { not: null } },
+        data: { target_log_id: null, updated_at: now },
+      });
+
+      await tx.vendor_sp_detail.deleteMany({ where: {} });
+      await tx.vendor_sp.deleteMany({ where: {} });
+      await tx.vendor_violation_log.deleteMany({ where: {} });
+
+      const recreatedLogIds = new Map<number, number>();
+      for (const log of logs) {
+        const eligibility = this.getRebuildLogEligibility(log, rangeStart, rangeEnd);
+        if (!selectedCodeSet.has(log.violation_type.code) || !eligibility.valid) continue;
+
+        const recreatedLog = await tx.vendor_violation_log.create({
+          data: {
+            vendor_id: log.vendor_id,
+            violation_type_id: log.violation_type_id,
+            order_id: log.order_id,
+            quarter: log.quarter,
+            year,
+            description: log.description,
+            evidence_path: log.evidence_path,
+            evidence_provenance: log.evidence_provenance,
+            adjusted_point: null,
+            is_active: true,
+            created_at: log.created_at,
+            created_by: log.created_by,
+          },
+          select: { id: true },
+        });
+        recreatedLogIds.set(log.id, recreatedLog.id);
+      }
+
+      for (const group of grouped.values()) {
+        const spLevel = this.getSPLevel(group.totalPoints);
+        if (!spLevel) continue;
+
+        const { startDate, endDate } = getQuarterDateRange(group.quarter, year);
+        const sp = await tx.vendor_sp.create({
+          data: {
+            vendor_id: group.vendorId,
+            sp_level: spLevel,
+            total_point: group.totalPoints,
+            quarter: group.quarter,
+            year,
+            start_date: startDate,
+            end_date: endDate,
+            status: 1,
+            allocation_reduction: this.getAllocationReduction(spLevel),
+            notes: `SP rebuilt for Q${group.quarter} ${year} from selected violation types.`,
+            created_by: user.id,
+          },
+        });
+
+        await tx.vendor_sp_detail.createMany({
+          data: group.logIds
+            .map((oldLogId) => recreatedLogIds.get(oldLogId))
+            .filter((violationLogId): violationLogId is number => violationLogId !== undefined)
+            .map((violationLogId) => ({
+              vendor_sp_id: sp.id,
+              violation_log_id: violationLogId,
+              created_by: user.id,
+            })),
+        });
+      }
+    }, { maxWait: 10000, timeout: 60000 });
+
+    return {
+      ...summary,
+      dryRun: false,
+      quarter,
+      deleteExisting: true,
+      deleteAll: true,
+      notificationsSent: 0,
+      vendorStatusChanged: false,
+    };
+  }
+
+  private getRebuildLogEligibility(
+    log: any,
+    rangeStart: Date,
+    rangeEnd: Date,
+  ): { valid: boolean; reason: string } {
+    const code = log.violation_type?.code;
+    if (code === 'QUOTATION_NOT_FULFILLED' || code === 'DOC_NOT_UPLOADED') {
+      return {
+        valid: false,
+        reason: `Jenis pelanggaran ${code} sudah dihapus/dinonaktifkan.`,
+      };
+    }
+
+    const order = log.orders;
+
+    if (!order) {
+      return { valid: true, reason: 'Tidak ada relasi order untuk divalidasi ulang.' };
+    }
+
+    if (order.created_at) {
+      const orderCreatedAt = new Date(order.created_at);
+      if (orderCreatedAt < rangeStart || orderCreatedAt > rangeEnd) {
+        return {
+          valid: false,
+          reason: 'Order dibuat di luar periode kuartal evaluasi.',
+        };
+      }
+    }
+
+    const snapshot = this.parseViolationSnapshot(log.evidence_path);
+    const relatedId = (key: string): number | undefined => {
+      const value = snapshot?.[key];
+      return value == null ? undefined : Number(value);
+    };
+
+    if (code === 'RESCHEDULE_NOT_UPDATED' || code === 'RESCHEDULE_CHANGE_SCHEDULE') {
+      const reschedule = order.reschedule?.find(
+        (item: any) => item.id === relatedId('rescheduleId'),
+      );
+      if (!reschedule) {
+        return { valid: false, reason: 'Reschedule sumber tidak ditemukan atau sudah dihapus.' };
+      }
+      if (
+        code === 'RESCHEDULE_NOT_UPDATED' &&
+        (reschedule.confirm_date ||
+          ['RESCHEDULEAPPROVEDBYVENDOR', 'RESCHEDULEREJECTEDBYVENDOR', 'RESCHEDULEAPPROVEDBYHO'].includes(
+            reschedule.status?.category,
+          ))
+      ) {
+        return { valid: false, reason: 'Reschedule sudah ditindaklanjuti atau memiliki keputusan final.' };
+      }
+    }
+
+    if (code === 'CUSTOMER_COMPLAINT') {
+      const targetComplaintId = relatedId('complaintId');
+      const complaintExists = targetComplaintId
+        ? order.complaints?.some((item: any) => item.id === targetComplaintId)
+        : (order.complaints?.length ?? 0) > 0;
+      if (!complaintExists) {
+        return { valid: false, reason: 'Complaint sumber tidak ditemukan atau sudah dihapus.' };
+      }
+      const hasActiveRefund = (order.refund?.length ?? 0) > 0;
+      if (!hasActiveRefund) {
+        return { valid: false, reason: 'Komplain customer tidak berujung refund.' };
+      }
+    }
+
+    if (
+      (code === 'REFUND_5_PER_QUARTER' ||
+        code === 'REFUND_6_10_PER_QUARTER' ||
+        code === 'QUOTATION_NOT_FULFILLED') &&
+      relatedId('refundId')
+    ) {
+      const refundExists = order.refund?.some((item: any) => item.id === relatedId('refundId'));
+      if (!refundExists) {
+        return { valid: false, reason: 'Refund sumber tidak ditemukan atau sudah dihapus.' };
+      }
+    }
+
+    if (code === 'QUOTATION_NOT_FULFILLED' && relatedId('quotationId')) {
+      const quotationExists = order.quotation?.some(
+        (item: any) => item.id === relatedId('quotationId'),
+      );
+      if (!quotationExists) {
+        return { valid: false, reason: 'Quotation sumber tidak ditemukan atau sudah dihapus.' };
+      }
+    }
+
+    if (code === 'QUOTATION_LATE_H2' || code === 'QUOTATION_LATE_H3') {
+      const quotation = order.quotation?.find(
+        (item: any) => item.id === relatedId('quotationId'),
+      );
+      const surveyDone = [...(order.order_history ?? [])]
+        .filter((history: any) => history.status?.category?.toUpperCase() === 'SURVEYDONE')
+        .sort(
+          (left: any, right: any) =>
+            new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+        )[0];
+
+      if (quotation && surveyDone) {
+        const daysSinceSurvey = Math.floor(
+          (new Date(quotation.created_at).getTime() - new Date(surveyDone.created_at).getTime()) /
+            (24 * 60 * 60 * 1000),
+        );
+        const stillLate =
+          (code === 'QUOTATION_LATE_H2' && daysSinceSurvey === 2) ||
+          (code === 'QUOTATION_LATE_H3' && daysSinceSurvey >= 3);
+        if (!stillLate) {
+          return { valid: false, reason: 'Waktu quotation saat ini tidak lagi memenuhi threshold keterlambatan.' };
+        }
+      }
+    }
+
+    if (code?.startsWith('ORDER_NOT_CONFIRMED_')) {
+      const assignmentDate = order.work_orders?.created_at ?? order.created_at;
+      const confirmedStatuses = new Set([
+        'QUOTEIN',
+        'QUOTEOUT',
+        'QUOTATIONDRAFT',
+        'QUOTATIONPAID',
+        'QUOTATIONPAIDSTEPONE',
+        'QUOTATIONPAIDSTEPTWO',
+        'QUOTATIONPAIDSTEPTHREE',
+        'QUOTATIONAPPROVED',
+        'WORKREQ',
+        'WORKREQSTEPONE',
+        'WORKREQSTEPTWO',
+        'WORKREQSTEPTHREE',
+        'SURVEYREQ',
+        'TUKANGSURVEY',
+        'RETUKANGSURVEY',
+        'SURVEYSTART',
+        'RESURVEYSTART',
+        'SURVEYDONE',
+        'RESURVEYDONE',
+        'WORKSTART',
+        'WORKSTARTSTEPONE',
+        'WORKSTARTSTEPTWO',
+        'WORKSTARTSTEPTHREE',
+        'WIP',
+        'SIP',
+        'WORKEND',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'WORKENDSTEPTHREE',
+        'REWORKEND',
+      ]);
+
+      const currentStatus = order.status?.category?.toUpperCase();
+      if (currentStatus && confirmedStatuses.has(currentStatus)) {
+        return {
+          valid: false,
+          reason: `Status order saat ini ${currentStatus} (sudah terkonfirmasi/survei selesai).`,
+        };
+      }
+
+      const hasConfirmedHistory = order.order_history?.some((history: any) => {
+        const category = history.status?.category?.toUpperCase();
+        return (
+          category &&
+          confirmedStatuses.has(category) &&
+          (!assignmentDate || new Date(history.created_at) >= new Date(assignmentDate))
+        );
+      });
+
+      if (hasConfirmedHistory) {
+        return {
+          valid: false,
+          reason: 'Order memiliki history status confirmed setelah assignment/order dibuat.',
+        };
+      }
+
+      const scheduledDate =
+        order.request_survey ||
+        order.request_work ||
+        order.work_orders?.survey_date ||
+        order.work_orders?.work_start_date;
+
+      if (scheduledDate) {
+        const scheduledDay = new Date(
+          new Date(scheduledDate).getFullYear(),
+          new Date(scheduledDate).getMonth(),
+          new Date(scheduledDate).getDate(),
+        );
+        const logDate = new Date(log.created_at);
+        const logDay = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+        if (logDay.getTime() < scheduledDay.getTime()) {
+          return {
+            valid: false,
+            reason: 'Pelanggaran dicatat sebelum tanggal jadwal survei/pekerjaan (Hari H).',
+          };
+        }
+      }
+    }
+
+    if (code === 'DOC_NOT_UPLOADED') {
+      const evidenceTypes = new Set(
+        (order.work_orders?.work_order_evidences ?? []).map((evidence: any) => evidence.type),
+      );
+      if (evidenceTypes.has(2) && evidenceTypes.has(3)) {
+        return {
+          valid: false,
+          reason: 'Evidence before dan after saat ini sudah tersedia.',
+        };
+      }
+    }
+
+    if (code?.startsWith('STATUS_NOT_UPDATED_')) {
+      const latestStatus = order.work_orders?.work_order_status?.[0];
+      if (latestStatus && new Date(latestStatus.created_at) > new Date(log.created_at)) {
+        return {
+          valid: false,
+          reason: 'Work order memiliki update status setelah violation log dibuat.',
+        };
+      }
+
+      const activeWorkStatuses = new Set([
+        'WORKSTART',
+        'WORKSTARTSTEPONE',
+        'WORKSTARTSTEPTWO',
+        'WORKSTARTSTEPTHREE',
+        'TUKANGWORK',
+        'TUKANGWORKSTEPONE',
+        'TUKANGWORKSTEPTWO',
+        'TUKANGWORKSTEPTHREE',
+        'RETUKANGWORK',
+        'REWORKSTART',
+        'REWORKEND',
+        'WORKEND',
+        'WORKENDSTEPONE',
+        'WORKENDSTEPTWO',
+        'WORKENDSTEPTHREE',
+        'WIP',
+        'SIP',
+        'SURVEYDONE',
+        'RESURVEYDONE',
+      ]);
+
+      const currentStatus = order.status?.category?.toUpperCase();
+      if (currentStatus && activeWorkStatuses.has(currentStatus)) {
+        const candidateDates = [
+          order.work_orders?.work_start_date,
+          order.request_work,
+        ].filter(Boolean);
+        if (candidateDates.length > 0) {
+          const scheduledWork = new Date(Math.max(...candidateDates.map((d: any) => new Date(d).getTime())));
+          const logDate = new Date(log.created_at);
+          if (logDate.getTime() <= scheduledWork.getTime()) {
+            return {
+              valid: false,
+              reason: 'Pekerjaan dimulai lebih awal atau tepat pada jadwal pengerjaan.',
+            };
+          }
+        }
+      }
+
+      const candidateScheduleDates = [
+        order.work_orders?.work_start_date,
+        order.work_orders?.survey_date,
+        order.request_work,
+        order.request_survey,
+      ]
+        .filter((date): date is Date => Boolean(date))
+        .map((date) => {
+          const parsed = new Date(date);
+          return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+        });
+
+      if (candidateScheduleDates.length > 0) {
+        const scheduledDay = new Date(
+          Math.max(...candidateScheduleDates.map((date) => date.getTime())),
+        );
+        const logDate = new Date(log.created_at);
+        const logDay = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate());
+        const daysSinceSchedule = Math.floor(
+          (logDay.getTime() - scheduledDay.getTime()) / (24 * 60 * 60 * 1000),
+        );
+        const requiredDays =
+          code === 'STATUS_NOT_UPDATED_H_PLUS'
+            ? 2
+            : code === 'STATUS_NOT_UPDATED_H1'
+              ? 1
+              : 0;
+
+        if (daysSinceSchedule < requiredDays) {
+          return {
+            valid: false,
+            reason:
+              'Violation tercatat sebelum jadwal pengerjaan/survei melewati batas waktu update status.',
+          };
+        }
+      }
+    }
+
+    return { valid: true, reason: 'Log masih dipertahankan.' };
+  }
+
+  private parseViolationSnapshot(evidencePath?: string | null): Record<string, any> | null {
+    if (!evidencePath) return null;
+    try {
+      const parsed = JSON.parse(evidencePath);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async assertRole(user: users, allowedRoles: string[]) {
     if (!user?.id) {
       throw new ForbiddenException('User tidak valid.');
@@ -248,6 +841,7 @@ export class VendorViolationRevisionService {
     userId: number,
   ) {
     const { quarter, year } = this.getCurrentQuarterYear();
+    const { startDate: quarterStart, endDate: quarterEnd } = getQuarterDateRange(quarter, year);
     const totalPoints = await this.calculateTotalPoints(tx, vendorId, quarter, year);
     const spLevel = this.getSPLevel(totalPoints);
     const activeSp = await tx.vendor_sp.findFirst({
@@ -286,27 +880,42 @@ export class VendorViolationRevisionService {
         data: {
           sp_level: spLevel,
           total_point: totalPoints,
+          start_date: quarterStart,
+          end_date: quarterEnd,
           allocation_reduction: this.getAllocationReduction(spLevel),
           updated_by: userId,
           updated_at: new Date(),
         },
       });
+      await syncVendorSpDetails(tx, {
+        vendorSpId: activeSp.id,
+        vendorId,
+        quarter,
+        year,
+        createdBy: userId,
+      });
     } else {
-      const now = new Date();
-      await tx.vendor_sp.create({
+      const createdSp = await tx.vendor_sp.create({
         data: {
           vendor_id: vendorId,
           sp_level: spLevel,
           total_point: totalPoints,
           quarter,
           year,
-          start_date: now,
-          end_date: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+          start_date: quarterStart,
+          end_date: quarterEnd,
           status: 1,
           allocation_reduction: this.getAllocationReduction(spLevel),
           notes: 'SP issued after approved violation point revision/reset.',
           created_by: userId,
         },
+      });
+      await syncVendorSpDetails(tx, {
+        vendorSpId: createdSp.id,
+        vendorId,
+        quarter,
+        year,
+        createdBy: userId,
       });
     }
 
@@ -327,6 +936,7 @@ export class VendorViolationRevisionService {
         vendor_id: vendorId,
         quarter,
         year,
+        is_active: true,
         deleted_at: null,
       },
       include: { violation_type: true },

@@ -1,0 +1,53 @@
+# =========================================================
+# .github/workflows/deploy.yml  (taruh di repo mitra10-tukang-be)
+# Jalan di self-hosted runner yang terpasang di server THESEUS
+# Memanggil scripts/deploy/auto-deploy-be.ps1
+# =========================================================
+
+name: Deploy Backend Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-be-prod
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build
+        env:
+          CI: false
+      - run: npm test --if-present
+
+  deploy:
+    needs: test
+    runs-on: [self-hosted, windows]   # cek label runner BE yang asli, sesuaikan kalau beda
+    env:
+      APP_DIR:         "D:\\Applications\\tukangapi"
+      BRANCH:          "main"
+      PM_NAME:         "tukangapi"
+      HEALTH_URL:      "http://localhost:3000/health"
+      WEB_CONFIG_SRC:  "D:\\Applications\\tukangapi\\web.config"
+      DIST_DIR:        "D:\\Applications\\tukangapi\\dist"
+      PRISMA_STRATEGY: "push"
+
+    steps:
+      - name: Checkout repo (ambil scripts/deploy terbaru)
+        uses: actions/checkout@v4
+
+      - name: Jalankan auto-deploy-be.ps1
+        shell: powershell
+        run: |
+          powershell -ExecutionPolicy Bypass -File "scripts\deploy\auto-deploy-be.ps1"

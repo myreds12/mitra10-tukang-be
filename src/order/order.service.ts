@@ -16,7 +16,8 @@ import { QueryParamsDto } from '../common/dto/query-params.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Response } from 'express';
 import * as exceljs from 'exceljs';
-import { createReadStream, existsSync, mkdirSync } from 'fs';
+import { createReadStream, existsSync, mkdirSync, readFileSync } from 'fs';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
 import { MailType } from 'src/mails/enum/mail_type.enum';
 import { basename, join } from 'path';
 import { PdfService } from 'src/common/service/pdf.service';
@@ -25,6 +26,10 @@ import { moduleTypeNotification } from 'src/notifications/dto/notification-modul
 import { CreateMemberDto } from 'src/member/dto/create-member.dto';
 import { ConfigService } from '@nestjs/config';
 import { ViolationDetectorService } from 'src/common/services/violation-detector.service';
+import { SPThreshold } from 'src/common/enum/violation-type.enum';
+import { SpStatus } from 'src/vendor-sp/enums/sp-status.enum';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class OrderService {
@@ -36,7 +41,7 @@ export class OrderService {
     private notifService: NotificationsService,
     private configService: ConfigService,
     private violationDetector: ViolationDetectorService,
-
+    @InjectQueue('email') private emailQueue: Queue,
   ) { }
   // Tambahkan sebagai private method di dalam OrderService
   private async withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
@@ -62,6 +67,110 @@ export class OrderService {
     }
   }
 
+  private async assertVendorCanReceiveOrder(vendorId?: number) {
+    if (!vendorId) return;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const [vendorRecord, activeSp] = await Promise.all([
+      this.dbService.vendor.findFirst({
+        where: { id: Number(vendorId), deleted_at: null },
+        select: { id: true, q1: true, q2: true, q3: true, q4: true },
+      }),
+      this.dbService.vendor_sp.findFirst({
+        where: {
+          vendor_id: Number(vendorId),
+          deleted_at: null,
+          OR: [
+            {
+              status: SpStatus.ACTIVE,
+              quarter: currentQuarter,
+              year: currentYear,
+              end_date: { gte: now },
+            },
+            {
+              status: SpStatus.EXTENDED,
+              end_date: { gte: now },
+            },
+          ],
+        },
+        orderBy: { sp_level: 'desc' },
+      }),
+    ]);
+    if (!activeSp) return;
+    const reduction =
+      activeSp.sp_level >= 3
+        ? 100
+        : Number(
+            activeSp.allocation_reduction ??
+              (activeSp.sp_level === 2 ? 75 : activeSp.sp_level === 1 ? 50 : 0),
+          );
+    if (
+      activeSp.sp_level >= 3 ||
+      reduction >= 100 ||
+      Number(activeSp.total_point ?? 0) >= SPThreshold.SP3
+    ) {
+      throw new BadRequestException(
+        'Vendor sedang terkena SP3 (pengurangan alokasi order 100%) pada kuartal ini dan tidak dapat menerima order baru.',
+      );
+    }
+    if (reduction > 0 && vendorRecord) {
+      const quarterKeys = ['q1', 'q2', 'q3', 'q4'] as const;
+      const currentQKey = quarterKeys[currentQuarter - 1];
+      const prevQKey = quarterKeys[(currentQuarter + 2) % 4];
+      const acuanOrder =
+        Number(vendorRecord[prevQKey] ?? 0) > 0
+          ? Number(vendorRecord[prevQKey])
+          : Number(vendorRecord[currentQKey] ?? 0);
+      if (acuanOrder > 0) {
+        const maxAllowedAfterReduction = Math.max(
+          1,
+          Math.floor(acuanOrder * (1 - reduction / 100)),
+        );
+        const startMonth = (currentQuarter - 1) * 3;
+        const quarterStart = new Date(currentYear, startMonth, 1, 0, 0, 0, 0);
+        const quarterEnd = new Date(currentYear, startMonth + 3, 0, 23, 59, 59, 999);
+        const currentQuarterOrderCount = await this.dbService.orders.count({
+          where: {
+            vendor_id: Number(vendorId),
+            deleted_at: null,
+            created_at: { gte: quarterStart, lte: quarterEnd },
+          },
+        });
+        if (currentQuarterOrderCount >= maxAllowedAfterReduction) {
+          throw new BadRequestException(
+            `Alokasi order vendor pada kuartal ini telah mencapai batas maksimal pasca pengurangan SP${activeSp.sp_level} (${reduction}% dari acuan ${acuanOrder} order = maksimal ${maxAllowedAfterReduction} order).`,
+          );
+        }
+      }
+    }
+  }
+
+  private async syncVendorQuarterOrderCount(vendorId?: number, refDate: Date = new Date()) {
+    if (!vendorId) return;
+    const year = refDate.getFullYear();
+    const quarter = Math.ceil((refDate.getMonth() + 1) / 3);
+    const startMonth = (quarter - 1) * 3;
+    const quarterStart = new Date(year, startMonth, 1, 0, 0, 0, 0);
+    const quarterEnd = new Date(year, startMonth + 3, 0, 23, 59, 59, 999);
+    const count = await this.dbService.orders.count({
+      where: {
+        vendor_id: Number(vendorId),
+        deleted_at: null,
+        created_at: { gte: quarterStart, lte: quarterEnd },
+      },
+    });
+    const qKey = (`q${quarter}`) as 'q1' | 'q2' | 'q3' | 'q4';
+    try {
+      await this.dbService.vendor.update({
+        where: { id: Number(vendorId) },
+        data: { [qKey]: count },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Could not sync vendor quarter order count: ${err.message}`);
+    }
+  }
+
   // Lalu di method update(), wrap bagian items.findMany:
 
 
@@ -74,6 +183,9 @@ export class OrderService {
       // console.log(createOrderDto);
 
       const { id: user_id, role_id } = user;
+      if (createOrderDto.vendor_id) {
+        await this.assertVendorCanReceiveOrder(Number(createOrderDto.vendor_id));
+      }
       const ROLES = await this.dbService.roles.findMany();
 
       const SALES_ROLES = ROLES.find(({ name }) =>
@@ -118,26 +230,41 @@ export class OrderService {
         }
       }
 
-      const orderDetailItems = await this.dbService.items.findMany({
-        where: {
-          id: {
-            in: createOrderDto.order_details.map(({ item_id }) => item_id),
-          },
-          deleted_at: null,
-          is_active: true,
-        },
-        include: {
-          category: true,
-          prices: {
-            where: {
-              periodic_start: { lte: new Date() },
-              periodic_end: { gte: new Date() },
-            },
-          },
-        },
-      });
+      const validItemIds = (createOrderDto.order_details || [])
+        .map((x) =>
+          x?.item_id !== undefined && x?.item_id !== null
+            ? Number(x.item_id)
+            : null,
+        )
+        .filter((x): x is number => x !== null && !isNaN(x) && x > 0);
 
-      if (orderDetailItems.some((item) => item === null))
+      const orderDetailItems =
+        validItemIds.length > 0
+          ? await this.dbService.items.findMany({
+              where: {
+                id: {
+                  in: validItemIds,
+                },
+                deleted_at: null,
+                is_active: true,
+              },
+              include: {
+                category: true,
+                prices: {
+                  where: {
+                    deleted_at: null,
+                    is_active: true,
+                    OR: [
+                      { periodic_end: { gte: new Date() } },
+                      { periodic_end: null },
+                    ],
+                  },
+                },
+              },
+            })
+          : [];
+
+      if (validItemIds.length > 0 && orderDetailItems.length === 0)
         throw new BadRequestException('Item not found!');
 
       let grand_total = 0;
@@ -165,11 +292,16 @@ export class OrderService {
       const order_details: Prisma.m_order_detailsCreateManyOrderInput[] =
         createOrderDto.order_details.map((item) => {
           let total = 0;
-          const currentItem = orderDetailItems?.find(
-            ({ id }) => id === item?.item_id,
-          );
+          const parsedItemId =
+            item?.item_id !== undefined && item?.item_id !== null
+              ? Number(item.item_id)
+              : null;
+          const currentItem =
+            parsedItemId && !isNaN(parsedItemId)
+              ? orderDetailItems?.find(({ id }) => id === parsedItemId)
+              : null;
           const itemPrice =
-            currentItem?.prices.filter((x) => item.quantity >= x.min_order)?.[0]
+            currentItem?.prices?.filter((x) => item.quantity >= x.min_order)?.[0]
               ?.price ??
             currentItem?.default_price ??
             0;
@@ -182,14 +314,20 @@ export class OrderService {
           if (
             PAYMENT_TYPE.PEMASANGAN_TANPA_SURVEY === createOrderDto.payment_type
           ) {
-            total = Number(itemPrice) * item.quantity;
+            total = Number(itemPrice) * Number(item.quantity || 1);
             grand_total += total;
             grand_total_comission += comission;
           }
 
           return {
-            ...item,
-            item_notes: item?.item_notes,
+            item_id:
+              parsedItemId && !isNaN(parsedItemId) && parsedItemId > 0
+                ? parsedItemId
+                : null,
+            item_code: item?.item_code ?? null,
+            item_name: item?.item_name ?? null,
+            item_notes: item?.item_notes ?? '',
+            quantity: Number(item?.quantity) || 1,
             unit_price: itemPrice,
             created_by: user_id,
             total,
@@ -276,6 +414,9 @@ export class OrderService {
       ]);
 
       if (order) {
+        if (order.vendor_id) {
+          await this.syncVendorQuarterOrderCount(order.vendor_id, order.created_at ?? new Date());
+        }
         await this.notifService.create(
           { orders: order },
           'CREATE',
@@ -284,6 +425,24 @@ export class OrderService {
           order.id,
           order.project_status_id,
         );
+
+        try {
+          await this.emailQueue.add(
+            'send-order-mail',
+            {
+              module_id: order.id,
+              template_id: undefined,
+            },
+            {
+              jobId: `send-order-mail-${order.id}-${order.project_status_id}`,
+              attempts: 3,
+              delay: 2000,
+            },
+          );
+          this.logger.log(`Enqueued send-order-mail for order #${order.id}`);
+        } catch (queueErr) {
+          this.logger.error(`Failed to enqueue order mail for order #${order.id}: ${queueErr.message}`);
+        }
       }
 
       await this.addHistory(
@@ -781,6 +940,11 @@ export class OrderService {
 
       return {
         data: ordersWithUser,
+        total: count,
+        page,
+        take,
+        orderGrandTotal,
+        orderPaidGrandTotal,
         meta: {
           total: count,
           orderGrandTotal,
@@ -1163,6 +1327,12 @@ export class OrderService {
       const { data: order } = await this.findOne(id);
 
       if (!order) throw new NotFoundException('Order not found');
+      if (
+        updateOrderDto.vendor_id &&
+        Number(updateOrderDto.vendor_id) !== Number(order.vendor_id)
+      ) {
+        await this.assertVendorCanReceiveOrder(Number(updateOrderDto.vendor_id));
+      }
 
       const orderdetailsIds = updateOrderDto.order_details
         ? updateOrderDto.order_details
@@ -1183,8 +1353,12 @@ export class OrderService {
                 category: true,
                 prices: {
                   where: {
-                    periodic_start: { lte: new Date() },
-                    periodic_end: { gte: new Date() },
+                    deleted_at: null,
+                    is_active: true,
+                    OR: [
+                      { periodic_end: { gte: new Date() } },
+                      { periodic_end: null },
+                    ],
                   },
                 },
               },
@@ -1226,8 +1400,12 @@ export class OrderService {
             category: true,
             prices: {
               where: {
-                periodic_start: { lte: new Date() },
-                periodic_end: { gte: new Date() },
+                deleted_at: null,
+                is_active: true,
+                OR: [
+                  { periodic_end: { gte: new Date() } },
+                  { periodic_end: null },
+                ],
               },
             },
           },
@@ -1475,6 +1653,9 @@ export class OrderService {
         ]);
 
       if (orderQuery) {
+        if (orderQuery.vendor_id) {
+          await this.syncVendorQuarterOrderCount(orderQuery.vendor_id, orderQuery.created_at ?? new Date());
+        }
         await this.notifService.create(
           { orders: orderQuery },
           'UPDATE',
@@ -1483,6 +1664,33 @@ export class OrderService {
           orderQuery.id,
           orderQuery.project_status_id,
         );
+
+        if (
+          updateOrderDto?.project_status_id &&
+          updateOrderDto.project_status_id !== order.project_status_id
+        ) {
+          try {
+            await this.emailQueue.add(
+              'send-order-mail',
+              {
+                module_id: orderQuery.id,
+                template_id: undefined,
+              },
+              {
+                jobId: `send-order-mail-${orderQuery.id}-${orderQuery.project_status_id}`,
+                attempts: 3,
+                delay: 2000,
+              },
+            );
+            this.logger.log(
+              `Enqueued send-order-mail for order #${orderQuery.id} status change to ${orderQuery.project_status_id}`,
+            );
+          } catch (queueErr) {
+            this.logger.error(
+              `Failed to enqueue order mail for order #${orderQuery.id}: ${queueErr.message}`,
+            );
+          }
+        }
       }
 
       await this.addHistory(
@@ -1729,8 +1937,7 @@ export class OrderService {
   }
 
   /**
-   * Check pelanggaran konfirmasi order
-   * Jika status berubah dari unconfirmed ke confirmed, pelanggaran batal dicatat
+   * Batalkan pelanggaran konfirmasi order jika status terkonfirmasi atau survei selesai lebih cepat.
    */
   private async checkOrderConfirmationViolation(
     previousOrder: any,
@@ -1738,39 +1945,46 @@ export class OrderService {
     updatedOrder: any,
   ): Promise<void> {
     try {
-      // Status yang mengindikasikan vendor sudah mengkonfirmasi
-      const confirmedStatuses = ['QUOTEIN', 'QUOTEOUT', 'WORKREQ', 'SURVEYREQ', 'TUKANGSURVEY', 'SURVEYDONE', 'WORKSTART', 'WORKEND'];
+      const confirmedStatuses = [
+        'QUOTEIN',
+        'QUOTEOUT',
+        'QUOTATION',
+        'WORKREQ',
+        'SURVEYREQ',
+        'TUKANGSURVEY',
+        'SURVEYSTART',
+        'SURVEYDONE',
+        'RESURVEYSTART',
+        'RESURVEYDONE',
+        'WORKSTART',
+        'TUKANGWORK',
+        'RETUKANGWORK',
+        'REWORKSTART',
+        'REWORKEND',
+        'WORKEND',
+        'WIP',
+        'SIP',
+      ];
 
       const isNowConfirmed = confirmedStatuses.some((s) =>
         newStatus.category?.toUpperCase().includes(s),
       );
 
-      // Jika vendor mengkonfirmasi order, tidak ada pelanggaran
-      if (isNowConfirmed && previousOrder?.vendor_id) {
-        this.logger.debug(
-          `Order ${updatedOrder.id} confirmed by vendor ${previousOrder.vendor_id}. No violation recorded.`,
-        );
-        return;
-      }
+      const vendorId = updatedOrder?.vendor_id || previousOrder?.vendor_id;
 
-      // Jika order punya vendor dan belum dikonfirmasi
-      if (updatedOrder.vendor_id && !isNowConfirmed) {
-        const createdAt = new Date(updatedOrder.created_at);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const daysDiff = Math.floor(
-          (today.getTime() - createdAt.getTime()) / (24 * 60 * 60 * 1000),
+      if (isNowConfirmed && vendorId) {
+        await this.violationDetector.cancelUnconfirmedViolation(
+          updatedOrder.id,
+          vendorId,
+          `Order terkonfirmasi/survei/pekerjaan berjalan (status: ${newStatus.category})`,
         );
 
-        // Catat pelanggaran jika sudah > 0 hari (Hari H)
-        if (daysDiff >= 0 && previousOrder?.vendor_id) {
-          await this.violationDetector.recordViolation(
-            'ORDER_NOT_CONFIRMED_H',
-            {
-              vendorId: updatedOrder.vendor_id,
-              orderId: updatedOrder.id,
-              description: `Order #${updatedOrder.project_number || updatedOrder.id} tidak dikonfirmasi pada Hari H`,
-            },
+        if (['WORKSTART', 'TUKANGWORK', 'WIP', 'WORKEND', 'REWORKSTART', 'REWORKEND'].some((w) => newStatus.category?.toUpperCase().includes(w))) {
+          await this.violationDetector.cancelStatusUpdateViolation(
+            updatedOrder.work_orders?.id || 0,
+            updatedOrder.id,
+            vendorId,
+            `Pekerjaan dimulai lebih awal atau status diperbarui (${newStatus.category})`,
           );
         }
       }
@@ -3752,11 +3966,31 @@ export class OrderService {
       throw new NotFoundException('message not found!');
     }
 
+    // Convert email message images to base64 for PDF rendering
+    // html-pdf (PhantomJS) cannot reliably load external HTTPS URLs
+    const mailsImageDir = resolveUploadPath('mails-image');
+    const headerImage = message.email_message_image?.find((img) => img.type === 1);
+    const footerImage = message.email_message_image?.find((img) => img.type === 2);
+
+    const headerImageBase64 = headerImage
+      ? this.pdfService.getImageAsBase64(join(mailsImageDir, headerImage.path))
+      : null;
+    const footerImageBase64 = footerImage
+      ? this.pdfService.getImageAsBase64(join(mailsImageDir, footerImage.path))
+      : null;
+
+    const mitra10LogoBase64 = this.pdfService.getImageAsBase64(
+      join(process.cwd(), 'templates', 'public', 'img', 'logo-mitra.png'),
+    );
+
     const data = {
       quotation,
       order: quotation.order,
       apiUrl: this.configService.get<string>('API_URL'),
       message,
+      headerImageBase64,
+      footerImageBase64,
+      mitra10LogoBase64,
     };
 
     // console.log(data.message);
@@ -5041,23 +5275,32 @@ export class OrderService {
         });
       }
 
-      const requestedItemCodes = dto?.order_details?.map((x) => x?.item_code);
+      const requestedItemCodes = (dto?.order_details || [])
+        .map((x) => x?.item_code)
+        .filter((code): code is string => Boolean(code));
 
-      const items = await this.dbService.items.findMany({
-        where: {
-          deleted_at: null,
-          item_code: { in: requestedItemCodes },
-        },
-        include: {
-          category: true,
-          prices: {
-            where: {
-              periodic_start: { lte: new Date() },
-              periodic_end: { gte: new Date() },
-            },
-          },
-        },
-      });
+      const items =
+        requestedItemCodes.length > 0
+          ? await this.dbService.items.findMany({
+              where: {
+                deleted_at: null,
+                item_code: { in: requestedItemCodes },
+              },
+              include: {
+                category: true,
+                prices: {
+                  where: {
+                    deleted_at: null,
+                    is_active: true,
+                    OR: [
+                      { periodic_end: { gte: new Date() } },
+                      { periodic_end: null },
+                    ],
+                  },
+                },
+              },
+            })
+          : [];
 
       const foundItemCodes = new Set(items.map((item) => item.item_code));
       const missingItems = requestedItemCodes.filter(

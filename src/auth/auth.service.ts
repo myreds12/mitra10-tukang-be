@@ -1,6 +1,8 @@
 /* eslint-disable prettier/prettier */
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -227,106 +229,214 @@ export class AuthService {
     }
   }
 
+  async updateUserStatus(id: number, isActive: boolean, currentUserId?: number) {
+    const actor = currentUserId
+      ? await this.dbService.users.findFirst({
+        where: { id: currentUserId, deleted_at: null },
+        include: { roles: true },
+      })
+      : null;
+
+    if (!actor || !['Super User', 'Owner Vendor'].includes(actor.roles?.name)) {
+      throw new ForbiddenException('Anda tidak memiliki akses mengubah status user.');
+    }
+
+    if (currentUserId === id && !isActive) {
+      throw new BadRequestException('Anda tidak dapat menonaktifkan akun sendiri.');
+    }
+
+    const user = await this.dbService.users.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ada.');
+    }
+
+    const updatedUser = await this.dbService.users.update({
+      where: { id },
+      data: { is_active: isActive },
+    });
+
+    return omit(updatedUser, [
+      'password',
+      'forget_password',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ]);
+  }
+
   async login(dto: CreateLoginDto) {
     try {
-      const user = await this.dbService.users.findFirst({
+      const cleanUsername = (dto.username || '').trim();
+      const cleanPassword = (dto.password || '').trim();
+
+      const userInclude = {
+        tukang: true,
+        store: {
+          select: {
+            id: true,
+            store_name: true,
+            address: true,
+            phone_number_1: true,
+            phone_number_2: true,
+            email: true,
+            area: true,
+          },
+        },
+        roles: {
+          select: { id: true, name: true },
+        },
+        employee: {
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true,
+            phone_number: true,
+            nik: true,
+            whatsapp_number: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+                area: true,
+              },
+            },
+          },
+        },
+        sales: {
+          select: {
+            id: true,
+            user_id: true,
+            full_name: true,
+            account_name: true,
+            account_number: true,
+            bank_id: true,
+            phone_number: true,
+            sales_brand: true,
+            is_active: true,
+            deleted_at: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+              },
+            },
+          },
+        },
+        manager: {
+          select: {
+            id: true,
+            user_id: true,
+            full_name: true,
+            account_name: true,
+            account_number: true,
+            bank_id: true,
+            phone_number: true,
+            is_active: true,
+            deleted_at: true,
+            store: {
+              select: {
+                id: true,
+                store_name: true,
+              },
+            },
+          },
+        },
+        pic_vendor: {
+          include: {
+            vendor: true,
+          },
+        },
+      };
+
+      // Ambil semua kandidat agar password menentukan record yang dipakai.
+      const userCandidates = await this.dbService.users.findMany({
         where: {
-          username: {
-            equals: dto.username,
-          },
+          deleted_at: null,
+          OR: [
+            { username: { equals: cleanUsername } },
+            { username: { equals: cleanUsername.toLowerCase() } },
+          ],
         },
-        include: {
-          tukang: true,
-          store: {
-            select: {
-              id: true,
-              store_name: true,
-              address: true,
-              phone_number_1: true,
-              phone_number_2: true,
-              email: true,
-              area: true,
-            },
-          },
-          roles: {
-            select: { id: true, name: true },
-          },
-          employee: {
-            select: {
-              user_id: true,
-              full_name: true,
-              email: true,
-              phone_number: true,
-              nik: true,
-              whatsapp_number: true,
-              store: {
-                select: {
-                  id: true,
-                  store_name: true,
-                  area: true,
-                },
-              },
-            },
-          },
-          sales: {
-            select: {
-              id: true,
-              user_id: true,
-              full_name: true,
-              account_name: true,
-              account_number: true,
-              bank_id: true,
-              phone_number: true,
-              sales_brand: true,
-              is_active: true,
-              deleted_at: true,
-              store: {
-                select: {
-                  id: true,
-                  store_name: true,
-                },
-              },
-            },
-          },
-          manager: {
-            select: {
-              id: true,
-              user_id: true,
-              full_name: true,
-              account_name: true,
-              account_number: true,
-              bank_id: true,
-              phone_number: true,
-              is_active: true,
-              deleted_at: true,
-              store: {
-                select: {
-                  id: true,
-                  store_name: true,
-                },
-              },
-            },
-          },
-          pic_vendor: {
-            include: {
-              vendor: true,
-            },
-          },
-        },
+        include: userInclude,
+        orderBy: [{ is_active: 'desc' }, { id: 'desc' }],
       });
-      console.log(user);
-      
+
+      let user = userCandidates[0];
+
+      if (user) {
+        for (const candidate of userCandidates) {
+          let passwordMatches = await compare(cleanPassword, candidate.password);
+          if (!passwordMatches && dto.password !== cleanPassword) {
+            passwordMatches = await compare(dto.password, candidate.password);
+          }
+          if (passwordMatches) {
+            user = candidate;
+            break;
+          }
+        }
+      }
+
+      // 2. Fallback: cari berdasarkan pic_email atau email_address pada pendaftaran vendor
+      if (!user && cleanUsername) {
+        const reg = await this.dbService.vendor_registration.findFirst({
+          where: {
+            user_id: { not: null },
+            OR: [
+              { pic_email: cleanUsername },
+              { pic_email: cleanUsername.toLowerCase() },
+              { email_address: cleanUsername },
+              { email_address: cleanUsername.toLowerCase() },
+            ],
+          },
+          select: { user_id: true },
+          orderBy: { id: 'desc' },
+        });
+
+        if (reg?.user_id) {
+          user = await this.dbService.users.findFirst({
+            where: { id: reg.user_id, deleted_at: null },
+            include: userInclude,
+          });
+        }
+      }
+
+      // 3. Fallback ke user yang sudah di-soft-delete agar tetap bisa menampilkan pesan akun dihapus
+      if (!user) {
+        user = await this.dbService.users.findFirst({
+          where: {
+            OR: [
+              { username: { equals: cleanUsername } },
+              { username: { equals: cleanUsername.toLowerCase() } },
+            ],
+          },
+          include: userInclude,
+          orderBy: { id: 'desc' },
+        });
+      }
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      const checkPassword = await compare(dto.password, user.password);
+      let checkPassword = await compare(cleanPassword, user.password);
+      if (!checkPassword && dto.password && dto.password !== cleanPassword) {
+        checkPassword = await compare(dto.password, user.password);
+      }
 
       if (!checkPassword) {
         throw new HttpException(
           'Username atau Password salah',
           HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      if (user.is_active === false && user.deleted_at === null) {
+        throw new HttpException(
+          'Akun anda tidak aktif, mohon hubungi administrator',
+          HttpStatus.FORBIDDEN,
         );
       }
 
@@ -355,97 +465,79 @@ export class AuthService {
         });
       }
 
-      const roles = await this.dbService.roles.findFirst({
-        where: {
-          name: {
-            contains: 'sales',
-          },
-        },
-      });
+      const roleName = user.roles?.name?.trim();
 
-      const roles2 = await this.dbService.roles.findFirst({
-        where: {
-          name: {
-            contains: 'Manager Store',
-          },
-        },
-      });
+      if (roleName === 'Sales') {
+        const salesData = user.sales?.[0];
+        const requiredFields = [
+          'id',
+          'full_name',
+          'bank_id',
+          'account_name',
+          'account_number',
+          'phone_number',
+          'sales_brand',
+        ];
 
-      if (roles) {
-        if (user.roles.id === roles.id) {
-          const salesData = user.sales[0];
-          const requiredFields = [
-            'id',
-            'full_name',
-            'bank_id',
-            'account_name',
-            'account_number',
-            'phone_number',
-            'sales_brand',
-          ];
+        const isSalesDataIncomplete = !salesData || requiredFields.some(
+          (field) => !salesData[field],
+        );
 
-          const isSalesDataIncomplete = requiredFields.some(
-            (field) => !salesData[field],
+        if (isSalesDataIncomplete || !salesData.store?.id) {
+          throw new HttpException(
+            'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
+            HttpStatus.FORBIDDEN,
           );
+        }
 
-          if (isSalesDataIncomplete || !salesData.store?.id) {
-            throw new HttpException(
-              'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
-              HttpStatus.FORBIDDEN,
-            );
-          }
+        if (salesData.is_active === false && salesData.deleted_at === null) {
+          throw new HttpException(
+            'Akun anda tidak aktif, mohon hubungi admin toko',
+            HttpStatus.FORBIDDEN,
+          );
+        }
 
-          if (salesData.is_active === false && salesData.deleted_at === null) {
-            throw new HttpException(
-              'Akun anda tidak aktif, mohon hubungi admin toko',
-              HttpStatus.FORBIDDEN,
-            );
-          } else if (
-            salesData.is_active === false &&
-            salesData.deleted_at !== null
-          ) {
-            throw new HttpException(
-              'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
-              HttpStatus.FORBIDDEN,
-            );
-          }
+        if (salesData.is_active === false && salesData.deleted_at !== null) {
+          throw new HttpException(
+            'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
+            HttpStatus.FORBIDDEN,
+          );
         }
       }
-      if (roles2) {
-        if (user.roles.id === roles2.id) {
-          const salesData = user.manager[0];
-          const requiredFields = [
-            'id',
-            'full_name',
-            'bank_id',
-            'account_name',
-            'account_number',
-            'phone_number',
-          ];
-          const isSalesDataIncomplete = requiredFields.some(
-            (field) => !salesData[field],
-          );
-          if (isSalesDataIncomplete || !salesData.store?.id) {
-            throw new HttpException(
-              'Data sales tidak lengkap, mohon untuk menghubungi admin toko',
-              HttpStatus.FORBIDDEN,
-            );
-          }
 
-          if (salesData.is_active === false && salesData.deleted_at === null) {
-            throw new HttpException(
-              'Akun anda tidak aktif, mohon hubungi admin toko',
-              HttpStatus.FORBIDDEN,
-            );
-          } else if (
-            salesData.is_active === false &&
-            salesData.deleted_at !== null
-          ) {
-            throw new HttpException(
-              'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
-              HttpStatus.FORBIDDEN,
-            );
-          }
+      if (roleName === 'Manager Store') {
+        const managerData = user.manager?.[0];
+        const requiredFields = [
+          'id',
+          'full_name',
+          'bank_id',
+          'account_name',
+          'account_number',
+          'phone_number',
+        ];
+        const isManagerDataIncomplete = !managerData || requiredFields.some(
+          (field) => !managerData[field],
+        );
+
+        if (isManagerDataIncomplete || !managerData.store?.id) {
+          throw new HttpException(
+            'Data manager tidak lengkap, mohon untuk menghubungi admin toko',
+            HttpStatus.FORBIDDEN,
+          );
+        }
+
+        if (managerData.is_active === false && managerData.deleted_at === null) {
+          throw new HttpException(
+            'Akun anda tidak aktif, mohon hubungi admin toko',
+            HttpStatus.FORBIDDEN,
+          );
+        }
+
+        if (managerData.is_active === false && managerData.deleted_at !== null) {
+          throw new HttpException(
+            'Akun anda sudah dihapus, mohon untuk registrasi ulang ke admin toko',
+            HttpStatus.FORBIDDEN,
+          );
         }
       }
 
@@ -491,15 +583,36 @@ export class AuthService {
     });
   }
 
+  private async findUniquePasswordTarget(username: string) {
+    const cleanUsername = (username || '').trim();
+    const users = await this.dbService.users.findMany({
+      where: {
+        deleted_at: null,
+        OR: [
+          { username: { equals: cleanUsername } },
+          { username: { equals: cleanUsername.toLowerCase() } },
+        ],
+      },
+      orderBy: [{ is_active: 'desc' }, { id: 'desc' }],
+      take: 2,
+    });
+
+    if (users.length === 0) {
+      throw new NotFoundException('User Not Found!');
+    }
+
+    if (users.length > 1) {
+      throw new ConflictException(
+        'Username memiliki lebih dari satu akun. Hubungi administrator untuk memperbaiki data akun.',
+      );
+    }
+
+    return users[0];
+  }
+
   async updatePassword(username: string, dto: ResetPasswordDto) {
     try {
-      const user = await this.dbService.users.findFirst({
-        where: {
-          username,
-        },
-      });
-
-      if (!user) throw new NotFoundException('User Not Found!');
+      const user = await this.findUniquePasswordTarget(username);
       if (
         user.forget_password &&
         new Date(user.forget_password) <
@@ -603,13 +716,7 @@ export class AuthService {
 
   async resetPassword(username: string) {
     try {
-      const user = await this.dbService.users.findFirst({
-        where: {
-          username: username,
-        },
-      });
-
-      if (!user) throw new NotFoundException('User Not Found!!');
+      const user = await this.findUniquePasswordTarget(username);
 
       const userUpdate = await this.dbService.users.update({
         where: {
@@ -644,6 +751,7 @@ export class AuthService {
         vendor_id,
         store_id,
         role_name,
+        is_active,
       } = query;
       const skip = page * take - take;
 
@@ -697,6 +805,13 @@ export class AuthService {
               },
             ]
             : []),
+          ...(is_active !== undefined
+            ? [
+              {
+                is_active: Boolean(Number(is_active)),
+              },
+            ]
+            : []),
         ].filter(Boolean),
         deleted_at: null,
       };
@@ -714,6 +829,7 @@ export class AuthService {
         select: {
           id: true,
           username: true,
+          is_active: true,
           created_at: true,
           created_by: true,
           updated_at: true,

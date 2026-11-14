@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { PrismaClient, Prisma } from '@prisma/client';
+import { HomeContentSeed } from './seed/home-content-seed';
 
 const prisma = new PrismaClient();
 
@@ -1013,8 +1014,12 @@ async function main() {
   console.log(`   ✅ Quotations: ${quotations.length} created`);
 
   // ============================================
-  // SUMMARY
+  // 15. HOME CONTENT (Portal Instalasi - dashboard pendaftar)
   // ============================================
+  console.log('\n🏠 Seeding Home Content...');
+  await HomeContentSeed(false);
+  console.log('   ✅ Home Content seeded.');
+
   console.log('\n' + '='.repeat(50));
   console.log('✅ DATABASE SEEDING COMPLETED');
   console.log('='.repeat(50));
@@ -1042,6 +1047,7 @@ Summary:
 - Complaints: ${complaints.length}
 - Quotations: ${quotations.length}
 - Vendor Registrations: ${registrations.length}
+- Home Content: 15 (1 HERO + 6 BENEFIT + 8 CATALOG)
   `);
 
   console.log('\n🎯 Vendor SP Test Data:');

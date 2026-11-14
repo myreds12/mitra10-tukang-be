@@ -41,8 +41,8 @@ export enum ViolationCategory {
  * Threshold poin untuk SP
  */
 export enum SPThreshold {
-  SP1 = 1,
-  SP2 = 26,
+  SP1 = 31,
+  SP2 = 41,
   SP3 = 51,
 }
 
@@ -80,6 +80,35 @@ export enum ViolationRevisionStatus {
 export const VIOLATION_TYPE_CACHE = new Map<string, number>();
 
 /**
+ * [POIN 6] Evidence provenance type. Disimpan di kolom evidence_provenance
+ * (String di DB karena SQL Server). Validasi di service-layer (recordViolation
+ * throw kalau evidence tidak valid).
+ *
+ * - MANUAL_UPLOAD: ada bukti fisik (foto, file, path) yang diupload user/manual.
+ *   Wajib menyertakan `path` non-empty.
+ * - SYSTEM_GENERATED: tidak ada bukti fisik — sistem auto-generate snapshot
+ *   JSON dari state kejadian (timestamp, ids, kondisi pemicu). Wajib menyertakan
+ *   `snapshot` non-empty object.
+ * - LEGACY: data historis sebelum fix ini — tidak ada tracking provenance.
+ *   Hanya untuk record lama (default value).
+ */
+export type EvidenceProvenance = 'MANUAL_UPLOAD' | 'SYSTEM_GENERATED' | 'LEGACY';
+
+export const EVIDENCE_PROVENANCE_VALUES: EvidenceProvenance[] = [
+  'MANUAL_UPLOAD',
+  'SYSTEM_GENERATED',
+  'LEGACY',
+];
+
+/**
+ * [POIN 6] Evidence payload. Union type — MANUAL_UPLOAD butuh path,
+ * SYSTEM_GENERATED butuh snapshot. recordViolation() akan validate.
+ */
+export type ViolationEvidence =
+  | { provenance: 'MANUAL_UPLOAD'; path: string }
+  | { provenance: 'SYSTEM_GENERATED'; snapshot: Record<string, any> };
+
+/**
  * Context untuk pelanggaran
  */
 export interface ViolationContext {
@@ -89,8 +118,15 @@ export interface ViolationContext {
   workOrderId?: number;
   refundId?: number;
   complaintId?: number;
+  rescheduleId?: number;
   description?: string;
-  evidencePath?: string;
+  /**
+   * [POIN 6] Evidence untuk pelanggaran ini — WAJIB diisi (Lapis 2 guard).
+   * Bisa berupa evidence_path (MANUAL_UPLOAD) atau snapshot kejadian sistem
+   * (SYSTEM_GENERATED). recordViolation() akan throw BadRequestException kalau
+   * kosong/invalid.
+   */
+  evidence: ViolationEvidence;
   additionalData?: Record<string, any>;
 }
 
@@ -108,3 +144,24 @@ export interface ViolationResult {
   };
   message: string;
 }
+
+/**
+ * Escalation chains untuk pelanggaran berjenjang (Opsi B: Maks 1 Penalti per Order).
+ * Tiap array terurut dari tier terendah (rank 1) ke tier tertinggi.
+ */
+export const ESCALATION_CHAINS: Record<string, string[]> = {
+  KONFIRMASI_ORDER: [
+    ViolationTypeCode.ORDER_NOT_CONFIRMED_H,
+    ViolationTypeCode.ORDER_NOT_CONFIRMED_H1,
+    ViolationTypeCode.ORDER_NOT_CONFIRMED_H_PLUS,
+  ],
+  QUOTATION_LATE: [
+    ViolationTypeCode.QUOTATION_LATE_H2,
+    ViolationTypeCode.QUOTATION_LATE_H3,
+  ],
+  STATUS_NOT_UPDATED: [
+    ViolationTypeCode.STATUS_NOT_UPDATED_H,
+    ViolationTypeCode.STATUS_NOT_UPDATED_H1,
+    ViolationTypeCode.STATUS_NOT_UPDATED_H_PLUS,
+  ],
+};

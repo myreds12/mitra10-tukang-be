@@ -8,9 +8,17 @@ import {
   Body,
   Param,
   Query,
+  Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   ParseIntPipe,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VendorViolationService } from './vendor-violation.service';
 import { VendorViolationRevisionService } from './vendor-violation-revision.service';
@@ -21,6 +29,7 @@ import {
 } from './dto/create-violation-type.dto';
 import {
   CreateViolationLogDto,
+  ExportViolationLogDto,
   QueryViolationLogDto,
 } from './dto/create-violation-log.dto';
 import {
@@ -28,8 +37,52 @@ import {
   QueryViolationRevisionRequestDto,
   ReviewViolationRevisionRequestDto,
 } from './dto/violation-revision-request.dto';
+import { RebuildVendorSpDto } from './dto/rebuild-vendor-sp.dto';
 import { User } from 'src/common/decorator/user.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { Request, Response } from 'express';
+import { extname } from 'path';
+import { diskStorage } from 'multer';
+import { resolveUploadPath } from 'src/common/utils/upload-path.util';
+import { VendorViolationScheduler } from '../scheduler/vendor-violation.scheduler';
+import * as fs from 'fs';
+
+// 10MB bukan 50MB (chat) karena evidence gambar/PDF tidak butuh preview video.
+const EVIDENCE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+];
+const MAX_EVIDENCE_SIZE = 10 * 1024 * 1024;
+
+const evidenceStorage = diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, resolveUploadPath('evidence'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `evidence-${uniqueSuffix}${extname(file.originalname)}`);
+  },
+});
+
+const evidenceFileFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: any,
+) => {
+  if (EVIDENCE_MIME_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new BadRequestException(
+        'Tipe file tidak diizinkan. Hanya gambar (jpg/png/gif/webp) dan PDF.',
+      ),
+      false,
+    );
+  }
+};
 
 @ApiTags('Vendor Violation')
 @ApiBearerAuth()
@@ -39,6 +92,7 @@ export class VendorViolationController {
   constructor(
     private readonly service: VendorViolationService,
     private readonly revisionService: VendorViolationRevisionService,
+    private readonly scheduler: VendorViolationScheduler,
   ) {}
 
   // ================================
@@ -142,6 +196,45 @@ export class VendorViolationController {
     return this.service.createViolationLog(dto, user?.id);
   }
 
+  // Pattern 2-step (upload -> submit path) konsisten dengan chat-proxy.controller.ts.
+  @Post('log/upload')
+  @ApiOperation({
+    summary: 'Upload violation evidence file',
+    description:
+      'Upload image or PDF sebagai bukti pelanggaran. Return saved path untuk dipakai sebagai evidence_path saat POST /log.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file type or size' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: evidenceStorage,
+      fileFilter: evidenceFileFilter,
+      limits: { fileSize: MAX_EVIDENCE_SIZE },
+    }),
+  )
+  async uploadEvidence(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File tidak ditemukan');
+    }
+    const fileUrl = `${req.protocol}://${req.get('host')}/public/${file.filename}`;
+    const path = `/public/${file.filename}`;
+    return {
+      success: true,
+      data: {
+        path,
+        fileUrl,
+        fileName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      },
+    };
+  }
+
   @Get('log')
   @ApiOperation({
     summary: 'Get All Violation Logs',
@@ -157,8 +250,79 @@ export class VendorViolationController {
   @ApiQuery({ name: 'date_to', required: false, description: 'Filter to date (YYYY-MM-DD)' })
   @ApiResponse({ status: 200, description: 'Successfully retrieved violation logs' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAllViolationLogs(@Query() query: QueryViolationLogDto) {
-    return this.service.findAllViolationLogs(query);
+  async findAllViolationLogs(
+    @Query() query: QueryViolationLogDto,
+    @User() user: any,
+  ) {
+    return this.service.findAllViolationLogs(query, user);
+  }
+
+  // Pola proteksi endpoint export (konsisten dengan mayoritas controller
+  // lain di codebase): JWT auth saja (harus login), role-check manual
+  // di handler (harus Admin HO / Super User). Tanpa CASL granular.
+  @Get('log/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Export Vendor Violation Logs to Excel',
+    description:
+      'Download raw violation-log data (Sheet 1) plus per-vendor summary ' +
+      '(Sheet 2). Streams XLSX inline; no pagination. Hard-capped at 50k rows. ' +
+      'Role check di handler: Admin HO / Super User only.',
+  })
+  @ApiQuery({ name: 'format', required: false, enum: ['excel'], example: 'excel' })
+  @ApiQuery({ name: 'vendor_id', required: false, type: Number })
+  @ApiQuery({ name: 'quarter', required: false, type: Number })
+  @ApiQuery({ name: 'year', required: false, type: Number })
+  @ApiQuery({ name: 'category', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'date_from', required: false, type: String, example: '2026-01-01' })
+  @ApiQuery({ name: 'date_to', required: false, type: String, example: '2026-03-31' })
+  @ApiResponse({ status: 200, description: 'XLSX attachment streamed inline' })
+  @ApiResponse({ status: 400, description: 'Invalid filters or row count exceeds limit' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
+  async exportViolationLog(
+    @Query() query: ExportViolationLogDto,
+    @User() user: any,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    const userRole = await this.service.getRoleName(user?.id);
+    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
+      );
+    }
+
+    const result = await this.service.exportViolationLogExcel(
+      query,
+      user?.id ?? null,
+    );
+
+    if (!fs.existsSync(result.filePath)) {
+      throw new NotFoundException(
+        `File export tidak ditemukan di server: ${result.fileName}`,
+      );
+    }
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.fileName}"`,
+    );
+    res.setHeader('X-Export-Row-Count', String(result.rowCount));
+
+    const stream = fs.createReadStream(result.filePath);
+    stream.on('error', (err) => {
+      // eslint-disable-next-line no-console
+      console.error(`export stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).end('Export stream error');
+      }
+    });
+    stream.pipe(res);
   }
 
   @Get('vendor/:vendorId/points')
@@ -251,5 +415,95 @@ export class VendorViolationController {
     @User() user: any,
   ) {
     return this.revisionService.reject(id, dto, user);
+  }
+
+  @Post('rebuild-sp-year')
+  @ApiOperation({
+    summary: 'Preview or rebuild vendor SP per quarter',
+    description:
+      'Defaults to dry-run. Evaluates and rebuilds vendor SP strictly for the target year and quarter (both violation log and order creation date must belong to the target quarter).',
+  })
+  async rebuildVendorSpYear(
+    @Body() dto: RebuildVendorSpDto,
+    @User() user: any,
+  ) {
+    return this.revisionService.rebuildYear(dto, user);
+  }
+
+  // ================================
+  // SCHEDULER MANUAL TRIGGER ENDPOINTS (POSTMAN & ADMIN)
+  // ================================
+
+  @Post('trigger-daily-check')
+  @Get('trigger-daily-check')
+  @ApiOperation({
+    summary: '[TRIGGER] Jalankan Daily Violation Check (Cron 1)',
+    description:
+      'Mengecek pelanggaran harian vendor: 1) Order belum dikonfirmasi/alokasi tukang (Hari H, H+1, >H+1), ' +
+      '2) Quotation terlambat (>H+2, >H+3 sejak survey selesai), ' +
+      '3) Status work order tidak diupdate (H+1, >H+2), ' +
+      '4) Reschedule belum ditindaklanjuti vendor. Membutuhkan JWT dan role Admin HO atau Super User.',
+  })
+  @ApiResponse({ status: 200, description: 'Laporan eksekusi daily violation check' })
+  async triggerDailyCheck(@User() user: any) {
+    await this.assertSchedulerRole(user);
+    const report = await this.scheduler.handleDailyViolationCheck(true);
+    return {
+      statusCode: 200,
+      message: 'Daily violation check berhasil dijalankan',
+      data: report,
+    };
+  }
+
+  @Post('trigger-sp-status-check')
+  @Get('trigger-sp-status-check')
+  @ApiOperation({
+    summary: '[TRIGGER] Jalankan SP Status & Maintenance Check (Cron 2)',
+    description:
+      'Mengecek status SP dan vendor: 1) Selesaikan SP yang sudah expired (>90 hari), ' +
+      '2) Reaktivasi vendor SP3 yang masa suspend-nya selesai, ' +
+      '3) Cek quarterly reset. Membutuhkan JWT dan role Admin HO atau Super User.',
+  })
+  @ApiResponse({ status: 200, description: 'Laporan eksekusi SP status check' })
+  async triggerSpStatusCheck(@User() user: any) {
+    await this.assertSchedulerRole(user);
+    const report = await this.scheduler.handleSPStatusCheck(true);
+    return {
+      statusCode: 200,
+      message: 'SP status check berhasil dijalankan',
+      data: report,
+    };
+  }
+
+  @Post('trigger-all')
+  @Get('trigger-all')
+  @ApiOperation({
+    summary: '[TRIGGER] Jalankan Semua Check Scheduler Sekaligus',
+    description:
+      'Menjalankan Cron 1 (Daily Violation Check) dan Cron 2 (SP Status Check) secara berurutan. ' +
+      'Membutuhkan JWT dan role Admin HO atau Super User.',
+  })
+  @ApiResponse({ status: 200, description: 'Laporan eksekusi lengkap' })
+  async triggerAllChecks(@User() user: any) {
+    await this.assertSchedulerRole(user);
+    const dailyReport = await this.scheduler.handleDailyViolationCheck(true);
+    const spReport = await this.scheduler.handleSPStatusCheck(true);
+    return {
+      statusCode: 200,
+      message: 'Semua check scheduler berhasil dijalankan',
+      data: {
+        dailyViolationCheck: dailyReport,
+        spStatusCheck: spReport,
+      },
+    };
+  }
+
+  private async assertSchedulerRole(user: any): Promise<void> {
+    const roleName = await this.service.getRoleName(user?.id);
+    if (roleName !== 'Admin HO' && roleName !== 'Super User') {
+      throw new ForbiddenException(
+        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${roleName ?? 'tidak diketahui'}.`,
+      );
+    }
   }
 }

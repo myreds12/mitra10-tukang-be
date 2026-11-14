@@ -341,9 +341,14 @@ model users {
   pic_vendor    pic_vendor[]
   notifications notifications[]
 
-  // Vendor Registration
+  // Vendor Registration (akun pendaftar vendor)
+  vendor_registrations vendor_registration[] @relation("VendorRegistrationRegistrant")
+
+  // Vendor Registration (token create user)
+  registration_tokens vendor_registration_token[] @relation("VendorRegistrationTokenUser")
+
+  // AI Agent
   ai_agent_conversations ai_agent_conversation[]
-  registration_tokens vendor_registration_token[]
 }
 
 model sales {
@@ -619,6 +624,10 @@ model vendor {
   updated_at DateTime? @db.DateTime()
   deleted_at DateTime? @db.DateTime()
   max_order  Int       @default(3) @db.SmallInt()
+  q1         Int       @default(0)
+  q2         Int       @default(0)
+  q3         Int       @default(0)
+  q4         Int       @default(0)
 
   created_by Int?
   updated_by Int?
@@ -635,10 +644,10 @@ model vendor {
   pic_vendor      pic_vendor[]
 
   // Vendor SP System
-    vendor_violation_logs vendor_violation_log[]
-    sp_records           vendor_sp[]
-    reactivation_logs    vendor_reactivation_log[]
-    violation_revision_requests vendor_violation_revision_request[]
+  vendor_violation_logs       vendor_violation_log[]
+  sp_records                  vendor_sp[]
+  reactivation_logs           vendor_reactivation_log[]
+  violation_revision_requests vendor_violation_revision_request[]
 
   bank bank? @relation(fields: [bank_id], references: [id])
 }
@@ -1786,9 +1795,9 @@ model setting_incentive {
   updated_by Int? @map("updatedBy")
   deleted_by Int? @map("deletedBy")
 
-  salesIncentive  sales_incentive[]
-  stores          incentive_store[]
-  storesIncentive store_incentive[]
+  salesIncentive     sales_incentive[]
+  stores             incentive_store[]
+  storesIncentive    store_incentive[]
   manager_incentives manager_incentive[]
 }
 
@@ -1861,17 +1870,17 @@ model incentive_store {
 }
 
 model store_incentive {
-  id                           Int     @id @default(autoincrement())
+  id                           Int       @id @default(autoincrement())
   comission_store_incentive_id Int?
-  store_id                     Int     @map("storeId")
-  incentive_id                 Int     @map("incentiveId")
-  status                       Int     @default(0) @db.Int()
-  total_amount                 Decimal @default(0) @db.Decimal(32, 2)
-  tanggal_awal                 DateTime?  @map("tanggal_awal")
-  tanggal_akhir                DateTime?  @map("tanggal_akhir")
-  created_at DateTime? @default(now()) @map("createdAt") @db.DateTime()
-  updated_at DateTime? @map("updatedAt") @db.DateTime()
-  deleted_at DateTime? @map("deletedAt") @db.DateTime()
+  store_id                     Int       @map("storeId")
+  incentive_id                 Int       @map("incentiveId")
+  status                       Int       @default(0) @db.Int()
+  total_amount                 Decimal   @default(0) @db.Decimal(32, 2)
+  tanggal_awal                 DateTime? @map("tanggal_awal")
+  tanggal_akhir                DateTime? @map("tanggal_akhir")
+  created_at                   DateTime? @default(now()) @map("createdAt") @db.DateTime()
+  updated_at                   DateTime? @map("updatedAt") @db.DateTime()
+  deleted_at                   DateTime? @map("deletedAt") @db.DateTime()
 
   created_by Int? @map("createdBy")
   updated_by Int? @map("updatedBy")
@@ -1938,16 +1947,16 @@ model manager {
   updated_by Int?
   deleted_by Int?
 
-  store            store?             @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  users            users?             @relation(fields: [user_id], references: [id])
-  bank             bank?              @relation(fields: [bank_id], references: [id])
-  manager_incentives manager_incentive[] 
+  store              store?              @relation(fields: [store_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users?              @relation(fields: [user_id], references: [id])
+  bank               bank?               @relation(fields: [bank_id], references: [id])
+  manager_incentives manager_incentive[]
 }
 
 model manager_incentive {
-  id                           Int  @id @default(autoincrement())
-  incentive_id                 Int  @map("incentiveId")
-  manager_id                     Int  @map("managerId")
+  id           Int @id @default(autoincrement())
+  incentive_id Int @map("incentiveId")
+  manager_id   Int @map("managerId")
 
   nominal Decimal @default(0) @db.Decimal(32, 2)
   status  Int     @default(0) @db.Int()
@@ -1961,8 +1970,8 @@ model manager_incentive {
   updated_by Int? @map("updatedBy")
   deleted_by Int? @map("deletedBy")
 
-  incentive                 setting_incentive          @relation(fields: [incentive_id], references: [id])
-  manager                   manager                    @relation(fields: [manager_id], references: [id])
+  incentive setting_incentive @relation(fields: [incentive_id], references: [id])
+  manager   manager           @relation(fields: [manager_id], references: [id])
 }
 
 // ============================================
@@ -1971,119 +1980,126 @@ model manager_incentive {
 
 // Jenis-jenis pelanggaran yang bisa dilakukan vendor
 model vendor_violation_type {
-  id          Int      @id @default(autoincrement())
-  code        String   @db.VarChar(50)  // Contoh: ORDER_NOT_CONFIRMED_H, RESCHEDULE_NOT_UPDATED
-  category    String   @db.VarChar(100)  // KONFIRMASI_ORDER, RESCHEDULE, REFUND, LAINNYA
-  name        String   @db.VarChar(255)  // Nama pelanggaran
-  description String?  @db.Text          // Deskripsi detail
-  point       Int      @default(1)        // Poin per kejadian
-  is_active   Boolean  @default(true)
+  id          Int     @id @default(autoincrement())
+  code        String  @db.VarChar(50) // Contoh: ORDER_NOT_CONFIRMED_H, RESCHEDULE_NOT_UPDATED
+  category    String  @db.VarChar(100) // KONFIRMASI_ORDER, RESCHEDULE, REFUND, LAINNYA
+  name        String  @db.VarChar(255) // Nama pelanggaran
+  description String? @db.Text // Deskripsi detail
+  point       Int     @default(1) // Poin per kejadian
+  is_active   Boolean @default(true)
 
-  created_at  DateTime @default(now()) @db.DateTime()
-  updated_at  DateTime? @db.DateTime()
-  deleted_at  DateTime? @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 
-  created_by  Int?
-  updated_by  Int?
-  deleted_by  Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
   vendor_violation_log vendor_violation_log[]
 }
 
 // Log pelanggaran per vendor per quarter
 model vendor_violation_log {
-  id              Int      @id @default(autoincrement())
-  vendor_id       Int
+  id                Int  @id @default(autoincrement())
+  vendor_id         Int
   violation_type_id Int
-  order_id        Int?                         // Order yang terkait (nullable jika pelanggaran umum)
+  order_id          Int? // Order yang terkait (nullable jika pelanggaran umum)
 
   // Quarter & Year tracking
-  quarter         Int      // 1, 2, 3, atau 4
-  year            Int
+  quarter Int // 1, 2, 3, atau 4
+  year    Int
 
   // Detail pelanggaran
-    description     String?  @db.Text
-    evidence_path   String?  @db.VarChar(500)   // Path ke bukti pelanggaran
-    adjusted_point  Int?                         // Override poin setelah approval revisi/reset
-    revision_note   String?  @db.Text
-    revised_at      DateTime? @db.DateTime()
-    revised_by      Int?
-    is_active       Boolean  @default(true)
+  description         String?   @db.Text
+  evidence_path       String?   @db.VarChar(500) // Path ke bukti pelanggaran
+  // [POIN 6] Provenance evidence — MANUAL_UPLOAD (ada foto/file fisik),
+  // SYSTEM_GENERATED (snapshot JSON kejadian sistem), LEGACY (data lama
+  // sebelum fix ini, tanpa tracking provenance). Disimpan sebagai String
+  // (bukan Prisma enum) karena schema pakai SQL Server yang tidak support
+  // Prisma enum. Validasi di TS via union type 'EvidenceProvenance'.
+  // Nullable: data legacy sudah ada tanpa kolom ini — default LEGACY.
+  evidence_provenance String?   @default("LEGACY") @db.VarChar(50)
+  adjusted_point      Int? // Override poin setelah approval revisi/reset
+  revision_note       String?   @db.Text
+  revised_at          DateTime? @db.DateTime()
+  revised_by          Int?
+  is_active           Boolean   @default(true)
 
-  created_at      DateTime @default(now()) @db.DateTime()
-  updated_at      DateTime? @db.DateTime()
-  deleted_at      DateTime? @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
-    vendor          vendor                 @relation(fields: [vendor_id], references: [id])
-    violation_type  vendor_violation_type @relation(fields: [violation_type_id], references: [id])
-    orders         orders?                @relation(fields: [order_id], references: [id])
+  vendor         vendor                @relation(fields: [vendor_id], references: [id])
+  violation_type vendor_violation_type @relation(fields: [violation_type_id], references: [id])
+  orders         orders?               @relation(fields: [order_id], references: [id])
 
   // Reverse relation for SP details
-    sp_details     vendor_sp_detail[]
-    revision_requests vendor_violation_revision_request[]
-  }
+  sp_details        vendor_sp_detail[]
+  revision_requests vendor_violation_revision_request[]
+}
 
-  // Request revisi/reset poin pelanggaran vendor
-  model vendor_violation_revision_request {
-    id              Int      @id @default(autoincrement())
-    vendor_id       Int
-    requested_by    Int
-    type            String   @db.VarChar(20)   // REVISE | RESET
-    target_log_id   Int?
-    new_point       Int?
-    reason          String   @db.Text
-    status          String   @default("PENDING") @db.VarChar(20) // PENDING | APPROVED | REJECTED
-    reviewed_by     Int?
-    review_note     String?  @db.Text
-    reviewed_at     DateTime? @db.DateTime()
+// Request revisi/reset poin pelanggaran vendor
+model vendor_violation_revision_request {
+  id            Int       @id @default(autoincrement())
+  vendor_id     Int
+  requested_by  Int
+  type          String    @db.VarChar(20) // REVISE | RESET
+  target_log_id Int?
+  new_point     Int?
+  reason        String    @db.Text
+  status        String    @default("PENDING") @db.VarChar(20) // PENDING | APPROVED | REJECTED
+  reviewed_by   Int?
+  review_note   String?   @db.Text
+  reviewed_at   DateTime? @db.DateTime()
 
-    created_at      DateTime @default(now()) @db.DateTime()
-    updated_at      DateTime? @db.DateTime()
-    deleted_at      DateTime? @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 
-    vendor          vendor @relation(fields: [vendor_id], references: [id])
-    target_log      vendor_violation_log? @relation(fields: [target_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor     vendor                @relation(fields: [vendor_id], references: [id])
+  target_log vendor_violation_log? @relation(fields: [target_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-    @@index([vendor_id])
-    @@index([status])
-    @@index([created_at])
-  }
+  @@index([vendor_id])
+  @@index([status])
+  @@index([created_at])
+}
 
 // Surat Peringatan (SP) Vendor
 model vendor_sp {
-  id              Int      @id @default(autoincrement())
-  vendor_id       Int
+  id        Int @id @default(autoincrement())
+  vendor_id Int
 
-  sp_level        Int      // 1 = SP1, 2 = SP2, 3 = SP3
-  total_point     Int      // Total poin saat SP diterbitkan
-  quarter         Int      // Quarter saat SP diterbitkan
-  year            Int
+  sp_level    Int // 1 = SP1, 2 = SP2, 3 = SP3
+  total_point Int // Total poin saat SP diterbitkan
+  quarter     Int // Quarter saat SP diterbitkan
+  year        Int
 
   // Durasi SP (default 3 bulan / 90 hari)
-  start_date      DateTime @db.DateTime()
-  end_date        DateTime @db.DateTime()
+  start_date DateTime @db.DateTime()
+  end_date   DateTime @db.DateTime()
 
   // Status SP
-  status          Int      @default(1)  // 1 = AKTIF, 2 = SELESAI, 3 = EXTENDED
-  notes           String?  @db.Text
+  status Int     @default(1) // 1 = AKTIF, 2 = SELESAI, 3 = EXTENDED
+  notes  String? @db.Text
 
   // Pengurangan alokasi order
-  allocation_reduction Int?  // Persentase pengurangan: 25, 50, 75, 100
+  allocation_reduction Int? // Persentase pengurangan: 25, 50, 75, 100
 
-  created_at      DateTime @default(now()) @db.DateTime()
-  updated_at      DateTime? @db.DateTime()
-  deleted_at      DateTime? @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
-  vendor          vendor             @relation(fields: [vendor_id], references: [id])
-  sp_details      vendor_sp_detail[]
+  vendor     vendor             @relation(fields: [vendor_id], references: [id])
+  sp_details vendor_sp_detail[]
 
   @@index([vendor_id])
   @@index([sp_level])
@@ -2093,33 +2109,33 @@ model vendor_sp {
 
 // Detail pelanggaran dalam satu SP
 model vendor_sp_detail {
-  id              Int      @id @default(autoincrement())
-  vendor_sp_id    Int
+  id               Int @id @default(autoincrement())
+  vendor_sp_id     Int
   violation_log_id Int
 
-  created_at      DateTime @default(now()) @db.DateTime()
-  created_by      Int?
+  created_at DateTime @default(now()) @db.DateTime()
+  created_by Int?
 
-  vendor_sp        vendor_sp          @relation(fields: [vendor_sp_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  violation_log    vendor_violation_log @relation(fields: [violation_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor_sp     vendor_sp            @relation(fields: [vendor_sp_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  violation_log vendor_violation_log @relation(fields: [violation_log_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 // Log reaktivasi vendor SP3
 model vendor_reactivation_log {
-  id              Int      @id @default(autoincrement())
-  vendor_id       Int
-  previous_sp_id  Int?     // SP3 sebelumnya
+  id             Int  @id @default(autoincrement())
+  vendor_id      Int
+  previous_sp_id Int? // SP3 sebelumnya
 
-  reason          String   @db.Text           // Alasan reaktivasi
-  approved_by     Int      // User ID admin HO yang approve
-  status          Int      @default(1)  // 1 = PENDING, 2 = APPROVED, 3 = REJECTED
+  reason      String @db.Text // Alasan reaktivasi
+  approved_by Int // User ID admin HO yang approve
+  status      Int    @default(1) // 1 = PENDING, 2 = APPROVED, 3 = REJECTED
 
-  notes           String?  @db.Text
+  notes String? @db.Text
 
-  created_at      DateTime @default(now()) @db.DateTime()
-  updated_at      DateTime? @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
 
-  vendor          vendor   @relation(fields: [vendor_id], references: [id])
+  vendor vendor @relation(fields: [vendor_id], references: [id])
 }
 
 // ============================================
@@ -2128,75 +2144,101 @@ model vendor_reactivation_log {
 
 // Pendaftaran vendor baru (pending approval)
 model vendor_registration {
-  id              Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Data perusahaan
-  company_name    String   @db.VarChar(200)
-  address         String   @db.VarChar(500)
-  phone_number    String   @db.VarChar(30)
-  email_address   String   @db.VarChar(100)
+  company_name  String @db.VarChar(200)
+  address       String @db.VarChar(500)
+  phone_number  String @db.VarChar(30)
+  email_address String @db.VarChar(100)
 
   // Data PIC
-  pic_name        String   @db.VarChar(200)
-  pic_email       String   @db.VarChar(100)
-  pic_phone       String   @db.VarChar(30)
+  pic_name  String @db.VarChar(200)
+  pic_email String @db.VarChar(100)
+  pic_phone String @db.VarChar(30)
 
   // Data opsional
-  ktp_number      String?  @db.VarChar(50)
-  npwp_number     String?  @db.VarChar(50)
-  bank_id         Int?
+  ktp_number  String? @db.VarChar(50)
+  npwp_number String? @db.VarChar(50)
+  bank_id     Int?
 
   // Service & Area yang dilayani
-  service_types   String?  @db.VarChar(500)  // JSON array of service type IDs
-  areas           String?  @db.VarChar(500)  // JSON array of area IDs
+  service_types String? @db.VarChar(500) // JSON array of service type IDs
+  areas         String? @db.VarChar(500) // JSON array of area IDs
 
   // Dokumen - stored as JSON
-  documents       String?  @db.Text          // JSON array of document paths
+  documents String? @db.Text // JSON array of document paths
 
   // Photo fields for vendor documents
-  vendor_photo          String?  @db.VarChar(500)  // Foto vendor/perusahaan
-  ktp_photo             String?  @db.VarChar(500)  // Foto KTP
-  npwp_photo            String?  @db.VarChar(500)  // Foto NPWP
-  compro_photo          String?  @db.VarChar(500)  // Foto COMPRO
-  surat_permohonan_photo String?  @db.VarChar(500)  // Foto Surat Permohonan
-  pks_photo            String?  @db.VarChar(500)  // Foto PKS
-  siup_photo            String?  @db.VarChar(500)  // Foto SIUP
+  vendor_photo           String? @db.VarChar(500) // Foto vendor/perusahaan
+  ktp_photo              String? @db.VarChar(500) // Foto KTP
+  npwp_photo             String? @db.VarChar(500) // Foto NPWP
+  compro_photo           String? @db.VarChar(500) // Foto COMPRO
+  surat_permohonan_photo String? @db.VarChar(500) // Foto Surat Permohonan
+  pks_photo              String? @db.VarChar(500) // Foto PKS
+  siup_photo             String? @db.VarChar(500) // Foto SIUP
 
   // Status pendaftaran
-  status          Int      @default(1)  // 1 = MENUNGGU_APPROVE, 2 = PROSES_PITCHING, 3 = DISETUJUI, 4 = DITOLAK
-  rejection_reason String? @db.Text          // Alasan penolakan (jika ditolak)
-  reviewed_by     Int?                         // User ID admin HO yang mereview
-  reviewed_at     DateTime? @db.DateTime()
-  rejected_at      DateTime? @db.DateTime()
+  status               Int       @default(1) // 1 = MENUNGGU_APPROVE, 2 = PROSES_PITCHING, 3 = DISETUJUI, 4 = DITOLAK
+  rejection_reason     String?   @db.Text // Alasan penolakan (jika ditolak)
+  reviewed_by          Int? // User ID admin HO yang mereview
+  reviewed_at          DateTime? @db.DateTime()
+  rejected_at          DateTime? @db.DateTime()
   documents_deleted_at DateTime? @db.DateTime()
-  anonymized_at    DateTime? @db.DateTime()
+  anonymized_at        DateTime? @db.DateTime()
 
-  notes           String?  @db.Text
+  notes String? @db.Text
 
   // Tukang data - temporary JSON storage during registration (before approved)
-  tukang_data     String?  @db.NVarChar(Max)  // JSON array of tukang objects
+  tukang_data String? @db.NVarChar(Max) // JSON array of tukang objects
 
   // Personal data protection consent
-  pdp_consent     Boolean  @default(false)
-  pdp_consent_at  DateTime? @db.DateTime()
+  pdp_consent    Boolean   @default(false)
+  pdp_consent_at DateTime? @db.DateTime()
 
-  created_at      DateTime @default(now()) @db.DateTime()
-  updated_at      DateTime? @db.DateTime()
-  deleted_at      DateTime? @db.DateTime()
+  // Relasi ke user akun pendaftar (auto-create saat registrasi; null jika belum ada)
+  user_id    Int?
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
 
-  created_by      Int?
-  updated_by      Int?
-  deleted_by      Int?
+  created_by Int?
+  updated_by Int?
+  deleted_by Int?
 
-  bank            bank?    @relation(fields: [bank_id], references: [id])
+  user               users?                        @relation("VendorRegistrationRegistrant", fields: [user_id], references: [id])
+  bank               bank?                         @relation(fields: [bank_id], references: [id])
   registration_token vendor_registration_token?
-  histories       vendor_registration_history[]
+  histories          vendor_registration_history[]
 
   @@index([status])
   @@index([email_address])
   @@index([created_at])
   @@index([rejected_at])
-  @@index([documents_deleted_at])
+  @@index([user_id])
+}
+
+// Dokumen Syarat & Ketentuan (T&C) pendaftaran vendor - editable oleh Admin HO tanpa redeploy.
+// Dua tipe dokumen: HTML (dibuat via editor Quill) atau PDF (file upload, disajikan
+// read-only via streaming endpoint - tidak bisa didownload).
+// HANYA SATU versi boleh aktif (enforced di service layer dengan transaction).
+model vendor_terms_and_conditions {
+  id        Int     @id @default(autoincrement())
+  title     String  @default("Syarat dan Ketentuan Pendaftaran Vendor Mitra10")
+  content   String  @db.NVarChar(Max) // HTML content, rendered read-only di frontend (no download)
+  version   Int     @default(1)
+  is_active Boolean @default(true)
+
+  // Tipe dokumen: HTML (default) atau PDF
+  document_type String  @default("HTML") @db.VarChar(10) // HTML | PDF
+  file_path     String? @db.VarChar(500) // Path file PDF di storage (hanya untuk tipe PDF)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  deleted_at DateTime? @db.DateTime()
+
+  created_by Int?
+  updated_by Int?
 }
 
 // Histori proses approval vendor registration
@@ -2219,62 +2261,91 @@ model vendor_registration_history {
 
 // Token untuk create user setelah approval
 model vendor_registration_token {
-  id              Int      @id @default(autoincrement())
-  registration_id Int      @unique
-  token           String   @db.VarChar(255) @unique
+  id              Int    @id @default(autoincrement())
+  registration_id Int    @unique
+  token           String @unique @db.VarChar(255)
 
   // Token expiry (default 48 jam)
-  expires_at      DateTime @db.DateTime()
+  expires_at DateTime @db.DateTime()
 
   // Status token
-  status          Int      @default(1)  // 1 = ACTIVE, 2 = USED, 3 = EXPIRED
+  status Int @default(1) // 1 = ACTIVE, 2 = USED, 3 = EXPIRED
 
   // User yang dibuat dari token ini
-  user_id         Int?
+  user_id Int?
 
-  created_at      DateTime @default(now()) @db.DateTime()
-  updated_at      DateTime? @db.DateTime()
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
 
-  registration    vendor_registration @relation(fields: [registration_id], references: [id])
-  user            users?              @relation(fields: [user_id], references: [id])
+  registration vendor_registration @relation(fields: [registration_id], references: [id])
+  user         users?              @relation("VendorRegistrationTokenUser", fields: [user_id], references: [id], onUpdate: NoAction, onDelete: NoAction)
 
   @@index([token])
   @@index([status])
 }
 
-
 model ai_agent_conversation {
-  id Int @id @default(autoincrement())
-  user_id Int
-  title String? @db.VarChar(255)
-  is_active Boolean @default(true)
-  created_at DateTime @default(now()) @db.DateTime()
-  users users @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  messages ai_agent_message[]
+  id         Int                @id @default(autoincrement())
+  user_id    Int
+  title      String?            @db.VarChar(255)
+  is_active  Boolean            @default(true)
+  created_at DateTime           @default(now()) @db.DateTime()
+  users      users              @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  messages   ai_agent_message[]
+
   @@index([user_id, created_at])
 }
 
 model ai_agent_message {
-  id Int @id @default(autoincrement())
+  id              Int                   @id @default(autoincrement())
   conversation_id Int
-  role String @db.VarChar(20)
-  content String @db.Text
-  input_tokens Int @default(0)
-  output_tokens Int @default(0)
-  created_at DateTime @default(now()) @db.DateTime()
-  conversation ai_agent_conversation @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tool_logs ai_agent_tool_log[]
+  role            String                @db.VarChar(20)
+  content         String                @db.Text
+  input_tokens    Int                   @default(0)
+  output_tokens   Int                   @default(0)
+  created_at      DateTime              @default(now()) @db.DateTime()
+  conversation    ai_agent_conversation @relation(fields: [conversation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tool_logs       ai_agent_tool_log[]
+
   @@index([conversation_id, created_at])
 }
 
 model ai_agent_tool_log {
-  id Int @id @default(autoincrement())
-  message_id Int
-  tool_name String @db.VarChar(100)
-  arguments String @db.Text
-  result_digest String? @db.Text
-  duration_ms Int?
-  created_at DateTime @default(now()) @db.DateTime()
-  message ai_agent_message @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id            Int              @id @default(autoincrement())
+  message_id    Int
+  tool_name     String           @db.VarChar(100)
+  arguments     String           @db.Text
+  result_digest String?          @db.Text
+  duration_ms   Int?
+  created_at    DateTime         @default(now()) @db.DateTime()
+  message       ai_agent_message @relation(fields: [message_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
   @@index([tool_name])
+}
+
+// [PORTAL INSTALASI] Home content (hero/benefit/banner/catalog) untuk dashboard pendaftar vendor
+// section: HERO | BENEFIT | BANNER | CATALOG (string, no enum untuk fleksibilitas migration)
+model home_content {
+  id               Int     @id @default(autoincrement())
+  section          String  @db.VarChar(50) // HERO | BENEFIT | BANNER | CATALOG | PROGRAM_BERJALAN | HASIL_PEKERJAAN
+  payload          String? @db.Text // JSON payload per section_type
+  title            String? @db.VarChar(200)
+  subtitle         String? @db.VarChar(500)
+  description      String? @db.Text
+  icon             String? @db.VarChar(50) // FontAwesome icon key (e.g. "briefcase", "graduation-cap")
+  image_url        String? @db.VarChar(500) // path relatif untuk upload BANNER/HERO/PROGRAM image
+  badge_label      String? @db.VarChar(100) // opsional: label promo/tag
+  cta_label        String? @db.VarChar(100) // opsional: teks tombol CTA
+  image_before_url String? @db.VarChar(500) // foto sebelum (before)
+  image_after_url  String? @db.VarChar(500) // foto sesudah (after)
+  video_url        String? @db.VarChar(500) // video url hasil pekerjaan (upload mp4/webm atau url embed)
+  media_type       String? @db.VarChar(20) // 'before_after' | 'video'
+  order_index      Int     @default(0)
+  is_active        Boolean @default(true)
+
+  created_at DateTime  @default(now()) @db.DateTime()
+  updated_at DateTime? @db.DateTime()
+  updated_by Int?
+
+  @@index([section, is_active, order_index])
 }

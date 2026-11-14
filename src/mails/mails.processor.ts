@@ -30,6 +30,7 @@ export class EmailProcessor {
         id: id ?? undefined,
         is_active: true,
         email_type: mailType,
+        deleted_at: null,
       },
       select: {
         id: true,
@@ -89,6 +90,7 @@ export class EmailProcessor {
         },
         select: {
           id: true,
+          project_status_id: true,
           payment_type: true,
           project_address: true,
           project_number: true,
@@ -172,15 +174,72 @@ export class EmailProcessor {
           order_files: true,
         },
       });
-      this.logger.log('Order: ', order);
+
+      if (!order) throw new NotFoundException(`Order with id ${module_id} not found!`);
+
       order['order_details'] = order.m_order_details;
       delete order.m_order_details;
 
-      if (!order) throw new NotFoundException('order not found!');
-      this.logger.log('Order Data : ', order.id);
+      const recipientEmail = order.members?.email;
+      if (!recipientEmail) {
+        this.logger.warn(`Order #${order.id} has no member email. Skipping sending.`);
+        return;
+      }
 
-      const message = await this.getMessage(MailType.ORDER, template_id);
-      if (!message) throw new NotFoundException('message not found!');
+      let message: any = null;
+      if (template_id) {
+        message = await this.getMessage(MailType.ORDER, template_id);
+      }
+      if (!message && order.project_status_id) {
+        message = await this.dbService.email_messages.findFirst({
+          where: {
+            email_type: MailType.ORDER,
+            trigger_id: order.project_status_id,
+            is_active: true,
+            deleted_at: null,
+          },
+          select: {
+            id: true,
+            title: true,
+            cc: true,
+            bcc: true,
+            greetings: true,
+            welcome_header: true,
+            footer: true,
+            is_active: true,
+            terms_detail: {
+              where: { deleted_at: null },
+              select: { id: true, email_messages_id: true, terms: true },
+            },
+            information_detail: {
+              where: { deleted_at: null },
+              select: { id: true, email_messages_id: true, information: true },
+            },
+            email_message_image: {
+              where: { deleted_at: null },
+              select: { id: true, email_message_id: true, type: true, path: true },
+            },
+          },
+        });
+      }
+      if (!message) {
+        message = await this.getMessage(MailType.ORDER);
+      }
+      if (!message) {
+        message = {
+          id: 0,
+          title: `Update Pesanan #${order.id} - Mitra10`,
+          welcome_header: 'Halo',
+          greetings: 'Berikut adalah rincian pesanan Anda',
+          footer: 'Terima kasih telah mempercayai Mitra10',
+          terms_detail: [],
+          information_detail: [],
+          email_message_image: [],
+          cc: '',
+          bcc: '',
+          is_active: true,
+        };
+      }
 
       const data = {
         order,
@@ -188,91 +247,157 @@ export class EmailProcessor {
         apiUrl: this.configService.get<string>('API_URL'),
       };
 
-      const { bcc } = message;
-      const storeMail = order.store.email;
-      // TODO: add admin ho as bcc too
+      const bcc = message.bcc;
+      const storeMail = order.store?.email || '';
       const adminHo = '';
+      const mailBccList = this.configService.get<string>('MAIL_BCC_LIST') || '';
 
-      const defaultBcc = bcc
-        ? bcc
-          .split(',')
-          .concat(
-            this.configService.get<string>('MAIL_BCC_LIST').split(','),
-            storeMail,
-            adminHo,
-          )
-          .filter((email) => email && email.trim() !== '')
-        : [];
+      const defaultBcc = [
+        ...(bcc ? bcc.split(',') : []),
+        ...(mailBccList ? mailBccList.split(',') : []),
+        storeMail,
+        adminHo,
+      ]
+        .map((email) => email && email.trim())
+        .filter((email) => Boolean(email));
 
-      // if (order.status.category === 'WORKREQ' && order.work_orders.work_order_tukang) {
-      //   const tukangEmail = order.work_orders.work_order_tukang.map(item => item?.tukang?.email || '').filter(email => email).join(', ');
-      //   console.log(tukangEmail, "EMAIL TUKANG");
-
-      //   if (tukangEmail) {
-      //     defaultBcc = defaultBcc.concat(tukangEmail.split(',').map(email => email.trim()));
-      //   }
-      // }
       const uniqueBcc = [...new Set(defaultBcc)];
+      const from = this.configService.get<string>('MAIL_DEFAULTS') || 'instalasi@mitra10.com';
 
       const mailOptions = {
-        to: order.members.email,
-        // cc: data.order.members.email,
-        from: 'instalasi@mitra10.com',
-        subject: message.title,
+        to: recipientEmail,
+        from,
+        subject: message.title || `Pesanan Mitra10 #${order.id}`,
         template: 'index',
-        bcc,
+        bcc: uniqueBcc.length > 0 ? uniqueBcc.join(',') : '',
         context: { data },
       };
 
-      if (uniqueBcc.length > 0) {
-        mailOptions.bcc = uniqueBcc.join(',');
-      } else {
-        mailOptions.bcc = '';
-      }
-
-      if (order.members.email) {
-        await this.mailerService.sendMail(mailOptions);
-      }
+      await this.mailerService.sendMail(mailOptions);
 
       await this.maillogs(
         module_id,
-        message.id,
+        message.id || null,
         {
-          to: order.members.email,
+          to: recipientEmail,
           cc: '',
           bcc: mailOptions.bcc,
         },
         1,
-        JSON.stringify(data),
+        data,
       );
-      // console.log('Mail Sent');
+      this.logger.log(`Order email sent for order ${module_id} to ${recipientEmail}`);
     } catch (error) {
-      this.logger.error(job.data);
-      this.logger.error(error);
-      console.error(error);
+      this.logger.error(`Error sending order email for order ${module_id}: ${error.message}`, error.stack);
+      await this.maillogs(
+        module_id || null,
+        template_id || null,
+        { to: 'unknown', cc: '', bcc: '' },
+        0,
+        { error: error?.message || 'Failed to send order mail', data: job.data },
+      );
+      throw error;
+    }
+  }
 
-      // try {
-      //   if (error instanceof NotFoundException) {
-      //
-      //   } else if (error instanceof PrismaClientKnownRequestError) {
-      //
-      //   } else {
-      //     this.logger.warn(`Retrys: ${job.attemptsMade}`);
-      //     // job.retry();
-      //   }
-      // } catch (innerError) {
-      //   this.logger.error(
-      //     'An error occurred while handling the original error:',
-      //     innerError,
-      //   );
-      // }
+  @Process('send-credential-mail')
+  async sendCredentialMail(
+    job: Job<{
+      username: string;
+      password: string;
+      email?: string;
+      to?: string;
+      name?: string;
+      user_id?: number;
+    }>,
+  ) {
+    try {
+      const { username, password } = job.data;
+      if (!username) {
+        throw new NotFoundException('Username is required for credential mail');
+      }
+
+      const user = await this.dbService.users.findFirst({
+        where: {
+          username: username,
+          deleted_at: null,
+          deleted_by: null,
+        },
+        include: {
+          employee: true,
+          pic_vendor: true,
+          sales: true,
+          tukang: true,
+          store: true,
+        },
+      });
+
+      let to = job.data.to || job.data.email;
+      if (!to && user) {
+        if (user.username && user.username.includes('@')) {
+          to = user.username;
+        } else if (user.employee?.email) {
+          to = user.employee.email;
+        } else if (user.pic_vendor && user.pic_vendor.length > 0 && user.pic_vendor[0].email_address) {
+          to = user.pic_vendor[0].email_address;
+        } else if (user.tukang && user.tukang.length > 0 && user.tukang[0].email) {
+          to = user.tukang[0].email;
+        } else if (user.store && user.store.length > 0 && user.store[0].email) {
+          to = user.store[0].email;
+        }
+      }
+
+      if (!to && username.includes('@')) {
+        to = username;
+      }
+
+      if (!to) {
+        this.logger.warn(`Recipient email for user ${username} not found. Skipping credential mail.`);
+        return;
+      }
+
+      const data = {
+        username,
+        password,
+      };
+
+      const from = this.configService.get<string>('MAIL_DEFAULTS') || 'instalasi@mitra10.com';
+
+      await this.mailerService.sendMail({
+        to,
+        from,
+        subject: 'Informasi Akun Kredensial - Mitra10',
+        template: 'credential-mail',
+        context: { data },
+      });
+
+      await this.maillogs(
+        user?.id ?? job.data.user_id ?? null,
+        null,
+        { to, cc: '', bcc: '' },
+        1,
+        data,
+      );
+      this.logger.log(`Credential mail successfully sent to ${to} for username ${username}`);
+    } catch (error) {
+      this.logger.error(`Failed to send credential mail: ${error.message}`, error.stack);
+      await this.maillogs(
+        job.data?.user_id || null,
+        null,
+        { to: job.data?.to || job.data?.email || job.data?.username || 'unknown', cc: '', bcc: '' },
+        0,
+        { error: error?.message || 'Failed to send credential mail', data: job.data },
+      );
+      throw error;
     }
   }
 
   @Process('send-reset-password-mail')
   async sendMailResetPassword(job: Job<DefaultDataMailInterface>) {
+    const user_id = (job.data as any)?.user_id || job.data?.module_id;
     try {
-      const { module_id: user_id } = job.data;
+      if (!user_id) throw new NotFoundException('user_id is missing!');
+
       const users = await this.dbService.users.findFirst({
         where: {
           id: user_id,
@@ -286,45 +411,63 @@ export class EmailProcessor {
           tukang: true,
         },
       });
-      if (!users) throw new NotFoundException('User not found!');
+      if (!users) throw new NotFoundException(`User with id ${user_id} not found!`);
 
-      const message = await this.getMessage(MailType.CREDENTIALS);
-      if (!message) throw new NotFoundException('message not found!');
+      let message = await this.getMessage(MailType.CREDENTIALS);
+      if (!message) {
+        message = {
+          id: 0,
+          title: 'Reset Password Akun Mitra10',
+          welcome_header: 'Hi,',
+          greetings: 'Berikut adalah tautan reset password Anda',
+          footer: 'Terima kasih',
+          terms_detail: [],
+          information_detail: [],
+          email_message_image: [],
+          cc: '',
+          bcc: '',
+          is_active: true,
+        } as any;
+      }
 
-      const to = users.username.includes('@')
+      const to = users.username?.includes('@')
         ? users.username
         : users.employee?.email ??
-        users.pic_vendor[0]?.email_address ??
-        users.tukang[0]?.email ??
-        'example@example.com';
+          users.pic_vendor?.[0]?.email_address ??
+          users.tukang?.[0]?.email ??
+          null;
+
+      if (!to) {
+        throw new NotFoundException(`No email address found for user id ${user_id}!`);
+      }
+
       const data = {
         users,
         message,
       };
 
+      const from = this.configService.get<string>('MAIL_DEFAULTS') || 'instalasi@mitra10.com';
+
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com', // sender address
-        subject: 'Email Reset Password', // Subject line
+        from,
+        subject: message.title || 'Email Reset Password',
         template: 'reset-password',
         context: { data },
       });
-    } catch (error) {
-      this.logger.error(error);
 
-      // try {
-      //   if (error instanceof NotFoundException) {
-      //   } else if (error instanceof PrismaClientKnownRequestError) {
-      //
-      //   } else {
-      //     // job.retry();
-      //   }
-      // } catch (innerError) {
-      //   this.logger.error(
-      //     'An error occurred while handling the original error:s',
-      //     innerError,
-      //   );
-      // }
+      await this.maillogs(user_id, message.id || null, { to, cc: '', bcc: '' }, 1, data);
+      this.logger.log(`Reset password mail successfully sent to ${to}`);
+    } catch (error) {
+      this.logger.error(`Error sending reset password mail: ${error.message}`, error.stack);
+      await this.maillogs(
+        user_id || null,
+        null,
+        { to: 'unknown', cc: '', bcc: '' },
+        0,
+        { error: error?.message || 'Failed to send reset password mail', data: job.data },
+      );
+      throw error;
     }
   }
 
@@ -334,6 +477,7 @@ export class EmailProcessor {
 
   @Process('send-vendor-submitted-mail')
   async sendVendorSubmittedMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
     email_address: string;
@@ -342,7 +486,7 @@ export class EmailProcessor {
     pic_phone: string;
   }>) {
     try {
-      const { to, company_name, email_address, pic_email, phone_number, pic_phone } = job.data;
+      const { registration_id, to, company_name, email_address, pic_email, phone_number, pic_phone } = job.data;
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
       const data = {
@@ -357,24 +501,30 @@ export class EmailProcessor {
       await this.mailerService.sendMail({
         to,
         from: 'instalasi@mitra10.com',
-        subject: 'Pendaftaran Vendor Diterima - Mitra10',
+        subject: 'Notifikasi Pendaftaran Vendor Instalasi Mitra10',
         template: 'vendor-submitted',
         context: { data },
       });
 
-      await this.maillogs(0, 0, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 
   @Process('send-vendor-pitching-mail')
   async sendVendorPitchingMail(job: Job<{
+    registration_id?: number;
     to: string;
     company_name: string;
   }>) {
     try {
-      const { to, company_name } = job.data;
+      const { registration_id, to, company_name } = job.data;
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
       const data = {
@@ -390,93 +540,188 @@ export class EmailProcessor {
         context: { data },
       });
 
-      await this.maillogs(0, 0, { to, cc: '', bcc: '' }, 1, data);
+      await this.maillogs(registration_id || null, null, { to, cc: '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      if (job.data?.to) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: job.data.to, cc: '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+        });
+      }
     }
   }
 
   @Process('send-vendor-approval-mail')
   async sendVendorApprovalMail(job: Job<{
+    registration_id?: number;
     to: string;
+    cc?: string;
     company_name: string;
-    token: string;
-    expires_hours: number;
+    token?: string;
+    expires_hours?: number;
     username: string;
     password: string;
   }>) {
     try {
-      const { to, company_name, token, expires_hours, username, password } = job.data;
+      const { registration_id, to, cc, company_name, token, expires_hours, username, password } = job.data;
 
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
       const loginUrl = `${baseUrl}/login`;
 
       const data = {
         company_name,
-        token,
-        expires_hours,
+        token: token || '',
+        expires_hours: expires_hours || 24,
         username,
         password,
         website_url: baseUrl,
         login_url: loginUrl,
+        registration_id,
       };
+
+      const mailFrom =
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
 
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com',
-        subject: 'Pendaftaran Vendor Disetujui - Mitra10',
+        cc: cc || undefined,
+        from: mailFrom,
+        subject: 'Notifikasi Vendor Resmi Terdaftar sebagai Mitra Mitra10',
         template: 'vendor-approval',
         context: { data },
       });
 
-      await this.maillogs(
-        0, // module_id not applicable for vendor registration
-        0, // email_message_id not applicable
-        { to, cc: '', bcc: '' },
-        1,
-        data,
-      );
+      const recipientStr = cc ? `${to}, ${cc}` : to;
+      await this.maillogs(registration_id || null, null, { to: recipientStr, cc: cc || '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      const recipientStr = job.data?.cc ? `${job.data.to}, ${job.data.cc}` : job.data?.to;
+      if (recipientStr) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: recipientStr, cc: job.data?.cc || '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+          registration_id: job.data?.registration_id,
+        });
+      }
+    }
+  }
+
+  @Process('send-registrant-account-mail')
+  async sendRegistrantAccountMail(job: Job<{
+    registration_id?: number;
+    to: string;
+    cc?: string;
+    company_name: string;
+    email_address: string;
+    pic_email: string;
+    phone_number: string;
+    pic_phone: string;
+    username: string;
+    password: string;
+  }>) {
+    try {
+      const {
+        registration_id,
+        to,
+        cc,
+        company_name,
+        email_address,
+        pic_email,
+        phone_number,
+        pic_phone,
+        username,
+        password,
+      } = job.data;
+
+      const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
+      const loginUrl = `${baseUrl}/login`;
+
+      const data = {
+        company_name,
+        email_address,
+        pic_email,
+        phone_number,
+        pic_phone,
+        username,
+        password,
+        website_url: baseUrl,
+        login_url: loginUrl,
+        registration_id,
+      };
+
+      const mailFrom =
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
+
+      await this.mailerService.sendMail({
+        to,
+        cc: cc || undefined,
+        from: mailFrom,
+        subject: 'Notifikasi Pendaftaran Vendor Instalasi Mitra10',
+        template: 'registrant-account',
+        context: { data },
+      });
+
+      const recipientStr = cc ? `${to}, ${cc}` : to;
+      await this.maillogs(registration_id || null, null, { to: recipientStr, cc: cc || '', bcc: '' }, 1, data);
+    } catch (error) {
+      this.logger.error(error);
+      const recipientStr = job.data?.cc ? `${job.data.to}, ${job.data.cc}` : job.data?.to;
+      if (recipientStr) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: recipientStr, cc: job.data?.cc || '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+          registration_id: job.data?.registration_id,
+        });
+      }
     }
   }
 
   @Process('send-vendor-rejection-mail')
   async sendVendorRejectionMail(job: Job<{
+    registration_id?: number;
     to: string;
+    cc?: string;
     company_name: string;
     rejection_reason?: string;
     reapply_date?: string;
   }>) {
     try {
-      const { to, company_name, rejection_reason, reapply_date } = job.data;
+      const { registration_id, to, cc, company_name, rejection_reason, reapply_date } = job.data;
       
       const baseUrl = this.configService.get<string>('FRONTEND_URL') || 'https://instalasi.mitra10.com';
 
       const data = {
         company_name,
-        rejection_reason: rejection_reason || 'Tidak ada alasan spesifik diberikan.',
+        rejection_reason: rejection_reason || 'Belum memenuhi kriteria yang ditetapkan oleh Mitra10.',
         reapply_date,
         website_url: baseUrl,
+        registration_id,
       };
+
+      const mailFrom =
+        this.configService.get<string>('MAIL_DEFAULTS') ||
+        '"Mitra 10 - Instalasi" <instalasi@mitra10.com>';
 
       await this.mailerService.sendMail({
         to,
-        from: 'instalasi@mitra10.com',
-        subject: 'Pendaftaran Vendor Ditolak - Mitra10',
+        cc: cc || undefined,
+        from: mailFrom,
+        subject: 'Notifikasi Penolakan Pendaftaran Vendor Mitra10',
         template: 'vendor-rejection',
         context: { data },
       });
 
-      await this.maillogs(
-        0,
-        0,
-        { to, cc: '', bcc: '' },
-        1,
-        data,
-      );
+      const recipientStr = cc ? `${to}, ${cc}` : to;
+      await this.maillogs(registration_id || null, null, { to: recipientStr, cc: cc || '', bcc: '' }, 1, data);
     } catch (error) {
       this.logger.error(error);
+      const recipientStr = job.data?.cc ? `${job.data.to}, ${job.data.cc}` : job.data?.to;
+      if (recipientStr) {
+        await this.maillogs(job.data?.registration_id || null, null, { to: recipientStr, cc: job.data?.cc || '', bcc: '' }, 0, {
+          error: error?.message || 'Failed to send mail',
+          registration_id: job.data?.registration_id,
+        });
+      }
     }
   }
 
@@ -1364,8 +1609,8 @@ export class EmailProcessor {
   }
 
   async maillogs(
-    moduleId: number,
-    emailMessageId: number,
+    moduleId: number | null,
+    emailMessageId: number | null,
     to: { cc: string; bcc: string; to: string },
     status: number,
     data: any = null,
@@ -1373,8 +1618,8 @@ export class EmailProcessor {
     try {
       const mail_logs = await this.dbService.mail_logs.create({
         data: {
-          moduleId: moduleId,
-          emailMessageId: emailMessageId,
+          moduleId: moduleId ?? null,
+          emailMessageId: emailMessageId ?? null,
           to: to.to,
           status,
           data: data ? JSON.stringify(data) : null,

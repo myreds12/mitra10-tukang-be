@@ -234,10 +234,10 @@ export class SalesService {
                 },
               ]
             : []),
-          ...(is_active
+          ...(is_active !== undefined && is_active !== null
             ? [
                 {
-                  is_active: Boolean(is_active),
+                  is_active: Boolean(Number(is_active)),
                 },
               ]
             : []),
@@ -252,7 +252,6 @@ export class SalesService {
               ]
             : []),
         ].filter(Boolean),
-        deleted_at: null,
       };
 
       const count = await this.dbService.sales.count({
@@ -443,9 +442,13 @@ export class SalesService {
                   ...(updateSalesDto.password && {
                     password: salesPassword,
                   }),
-                  ...(updateSalesDto.is_active !== null && {
-                    is_active: Boolean(updateSalesDto.is_active),
-                  }),
+                  ...(updateSalesDto.is_active !== null &&
+                    updateSalesDto.is_active !== undefined && {
+                      is_active: Boolean(updateSalesDto.is_active),
+                      ...(Boolean(updateSalesDto.is_active)
+                        ? { deleted_at: null, deleted_by: null }
+                        : {}),
+                    }),
                   updated_at: new Date(),
                   updated_by: user_id,
                 },
@@ -494,7 +497,13 @@ export class SalesService {
         sales_categories: {
           upsert: upsertSalesCategories,
         },
-        is_active: Boolean(updateSalesDto.is_active),
+        ...(updateSalesDto.is_active !== null &&
+          updateSalesDto.is_active !== undefined && {
+            is_active: Boolean(updateSalesDto.is_active),
+            ...(Boolean(updateSalesDto.is_active)
+              ? { deleted_at: null, deleted_by: null }
+              : {}),
+          }),
         updated_at: new Date(),
         updated_by: user_id,
       };
@@ -1042,7 +1051,6 @@ export class SalesService {
               ]
             : []),
         ].filter(Boolean),
-        deleted_at: null,
       };
 
       const count = await this.dbService.sales.count({
@@ -1374,7 +1382,7 @@ export class SalesService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async salesUserManagement() {
     if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
@@ -1391,6 +1399,9 @@ export class SalesService {
 
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lte: endOfTargetMonth,
+          },
           NOT: {
             orders: {
               some: {
@@ -1433,7 +1444,7 @@ export class SalesService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async managementSalesSixMonth() {
     if ((process.env.NODE_APP_INSTANCE ?? '0') !== '0') return;
     try {
@@ -1449,6 +1460,9 @@ export class SalesService {
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lte: endOfTargetMonth,
+          },
           NOT: {
             orders: {
               some: {
@@ -1528,6 +1542,9 @@ export class SalesService {
       const batchSize = 200;
       const salesToUpdate = await this.dbService.sales.findMany({
         where: {
+          created_at: {
+            lte: endOfTargetMonth,
+          },
           NOT: {
             orders: {
               some: {

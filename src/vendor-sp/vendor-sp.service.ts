@@ -1,5 +1,11 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   QueryVendorSpDto,
@@ -7,8 +13,20 @@ import {
   UpdateVendorSpDto,
   ReactivateVendorDto,
 } from './dto/vendor-sp.dto';
+import { QueryReactivationLogDto } from './dto/query-reactivation-log.dto';
 import { Prisma } from '@prisma/client';
 import { SpStatus, SpLevel } from './enums/sp-status.enum';
+import { SPThreshold } from '../common/enum/violation-type.enum';
+import * as fs from 'fs';
+import * as path from 'path';
+import { PdfService } from '../common/services/pdf.service';
+import { ReportQueryHelper } from './helpers/report-query.helper';
+import {
+  evaluateSPWarning,
+  getIsoWeekAndYear,
+  getIsoWeekRange,
+  getQuarterDateRange,
+} from '../common/constants/vendor-sp.constant';
 
 @Injectable()
 export class VendorSpService {
@@ -27,13 +45,99 @@ export class VendorSpService {
     this.spStatusCache.set(vendorId, { data, timestamp: Date.now() });
   }
 
-  constructor(private readonly dbService: PrismaService) {}
+  constructor(
+    private readonly dbService: PrismaService,
+    private readonly pdfService: PdfService,
+    private readonly reportQuery: ReportQueryHelper,
+  ) {}
 
-  // ================================
-  // VENDOR SP CRUD
-  // ================================
+  private normalizeSpQuarterDates<
+    T extends { quarter: number; year: number; start_date: Date; end_date: Date; status?: number },
+  >(sp: T): T {
+    const { startDate, endDate } = getQuarterDateRange(sp.quarter, sp.year);
+    const isExtended =
+      sp.status === 3 &&
+      sp.end_date &&
+      new Date(sp.end_date).getTime() > endDate.getTime();
+    return {
+      ...sp,
+      start_date: startDate,
+      end_date: isExtended ? sp.end_date : endDate,
+    };
+  }
 
-  async findAll(query: QueryVendorSpDto) {
+  private isBetterSpCandidate(candidate: any, current: any): boolean {
+    if ((candidate.sp_level ?? 0) !== (current.sp_level ?? 0)) {
+      return (candidate.sp_level ?? 0) > (current.sp_level ?? 0);
+    }
+    const candidateActive = candidate.status === 1 || candidate.status === 3 ? 1 : 0;
+    const currentActive = current.status === 1 || current.status === 3 ? 1 : 0;
+    if (candidateActive !== currentActive) {
+      return candidateActive > currentActive;
+    }
+    if ((candidate.total_point ?? 0) !== (current.total_point ?? 0)) {
+      return (candidate.total_point ?? 0) > (current.total_point ?? 0);
+    }
+    const candidateTime = new Date(candidate.updated_at ?? candidate.created_at ?? 0).getTime();
+    const currentTime = new Date(current.updated_at ?? current.created_at ?? 0).getTime();
+    return candidateTime > currentTime;
+  }
+
+  async getRoleName(userId?: number): Promise<string | null> {
+    if (!userId) return null;
+    const user = await this.dbService.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      select: { roles: { select: { name: true } } },
+    });
+    return user?.roles?.name ?? null;
+  }
+
+  async resolveVendorIdForUser(user?: any): Promise<number | null> {
+    if (!user) return null;
+    if (user.vendor_id) return Number(user.vendor_id);
+    if (!user.id) return null;
+    const pic = await this.dbService.pic_vendor.findFirst({
+      where: { user_id: Number(user.id), deleted_at: null },
+      select: { vendor_id: true },
+    });
+    return pic?.vendor_id ?? null;
+  }
+
+  async checkMyVendorSpStatus(user?: any) {
+    const vendorId = await this.resolveVendorIdForUser(user);
+    if (!vendorId) {
+      const now = new Date();
+      const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+      const currentYear = now.getFullYear();
+      const { startDate, endDate } = getQuarterDateRange(currentQuarter, currentYear);
+      return {
+        vendor_id: null,
+        has_active_sp: false,
+        has_ever_sp: false,
+        sp_level: null,
+        sp_status: 'NORMAL',
+        vendor_status: 'AKTIF',
+        total_point: 0,
+        quarter_point: 0,
+        all_time_point: 0,
+        violation_count: 0,
+        total_violation_count: 0,
+        allocation_reduction: 0,
+        quarter: currentQuarter,
+        year: currentYear,
+        start_date: startDate,
+        end_date: endDate,
+        message: 'Data vendor untuk user ini tidak ditemukan.',
+      };
+    }
+    const status = await this.checkVendorSpStatus(vendorId);
+    return {
+      vendor_id: vendorId,
+      ...status,
+    };
+  }
+
+  async findAll(query: QueryVendorSpDto, user?: any) {
     try {
       const {
         page = 1,
@@ -49,9 +153,18 @@ export class VendorSpService {
       } = query;
       const skip = page * take - take;
 
+      let effectiveVendorId = vendor_id;
+      const roleName = user?.role || (await this.getRoleName(user?.id));
+      if (roleName === 'Owner Vendor' || roleName === 'Admin Vendor') {
+        const resolvedVendorId = await this.resolveVendorIdForUser(user);
+        if (resolvedVendorId) {
+          effectiveVendorId = resolvedVendorId;
+        }
+      }
+
       const where: Prisma.vendor_spWhereInput = {
         deleted_at: null,
-        ...(vendor_id ? { vendor_id } : {}),
+        ...(effectiveVendorId ? { vendor_id: effectiveVendorId } : {}),
         ...(sp_level ? { sp_level } : {}),
         ...(status ? { status } : {}),
         ...(quarter ? { quarter } : {}),
@@ -76,40 +189,79 @@ export class VendorSpService {
           : {}),
       };
 
-      const [spList, total] = await Promise.all([
-        this.dbService.vendor_sp.findMany({
-          where,
-          skip,
-          take,
-          orderBy: { created_at: 'desc' },
-          include: {
-            vendor: {
-              select: {
-                id: true,
-                company_name: true,
-                pic_name: true,
-                email_address: true,
-                phone_number: true,
-                is_active: true,
-              },
+      const allMatching = await this.dbService.vendor_sp.findMany({
+        where,
+        orderBy: [
+          { sp_level: 'desc' },
+          { total_point: 'desc' },
+          { updated_at: 'desc' },
+          { created_at: 'desc' },
+        ],
+        include: {
+          vendor: {
+            select: {
+              id: true,
+              company_name: true,
+              pic_name: true,
+              email_address: true,
+              phone_number: true,
+              is_active: true,
             },
-            sp_details: {
-              include: {
-                violation_log: {
-                  include: {
-                    violation_type: true,
-                    orders: { select: { id: true, project_number: true } },
-                  },
+          },
+          sp_details: {
+            include: {
+              violation_log: {
+                include: {
+                  violation_type: true,
+                  orders: { select: { id: true, project_number: true } },
                 },
               },
             },
           },
-        }),
-        this.dbService.vendor_sp.count({ where }),
-      ]);
+        },
+      });
+
+      // Keep only the highest SP record per vendor
+      const highestByVendor = new Map<number, (typeof allMatching)[number]>();
+      for (const item of allMatching) {
+        const existing = highestByVendor.get(item.vendor_id);
+        if (!existing || this.isBetterSpCandidate(item, existing)) {
+          highestByVendor.set(item.vendor_id, item);
+        }
+      }
+
+      const unsyncedSp3VendorIds: number[] = [];
+      for (const sp of highestByVendor.values()) {
+        const isActiveSp3 =
+          sp.sp_level === SpLevel.SP3 &&
+          (sp.status === SpStatus.ACTIVE || sp.status === SpStatus.EXTENDED);
+        if (isActiveSp3 && sp.vendor?.is_active) {
+          unsyncedSp3VendorIds.push(sp.vendor_id);
+          sp.vendor.is_active = false;
+        }
+      }
+
+      if (unsyncedSp3VendorIds.length > 0) {
+        await this.dbService.vendor.updateMany({
+          where: { id: { in: unsyncedSp3VendorIds }, is_active: true },
+          data: { is_active: false },
+        });
+      }
+
+      const deduplicatedList = Array.from(highestByVendor.values())
+        .sort((a, b) => {
+          if (b.sp_level !== a.sp_level) return b.sp_level - a.sp_level;
+          const timeB = new Date(b.updated_at ?? b.created_at ?? 0).getTime();
+          const timeA = new Date(a.updated_at ?? a.created_at ?? 0).getTime();
+          return timeB - timeA;
+        })
+        .map((sp) => this.normalizeSpQuarterDates(sp));
+
+      const total = deduplicatedList.length;
+      const paginatedList = deduplicatedList.slice(skip, skip + take);
 
       return {
-        data: spList,
+        data: paginatedList,
         meta: { total, page, take, skip },
       };
     } catch (error) {
@@ -151,10 +303,64 @@ export class VendorSpService {
         throw new NotFoundException(`Surat Peringatan dengan ID ${id} tidak ditemukan.`);
       }
 
-      return sp;
+      return this.normalizeSpQuarterDates(sp);
     } catch (error) {
       throw error;
     }
+  }
+
+  async updateSpNotes(id: number, notes: string, userId?: number) {
+    const sp = await this.dbService.vendor_sp.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!sp) {
+      throw new NotFoundException(`Surat Peringatan dengan ID ${id} tidak ditemukan.`);
+    }
+
+    const { startDate, endDate } = getQuarterDateRange(sp.quarter, sp.year);
+    const isExtended =
+      sp.status === 3 &&
+      sp.end_date &&
+      new Date(sp.end_date).getTime() > endDate.getTime();
+
+    const updated = await this.dbService.vendor_sp.update({
+      where: { id },
+      data: {
+        notes: notes ?? '',
+        start_date: startDate,
+        end_date: isExtended ? sp.end_date : endDate,
+        updated_by: userId ?? null,
+        updated_at: new Date(),
+      },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            company_name: true,
+            pic_name: true,
+            email_address: true,
+            phone_number: true,
+            is_active: true,
+          },
+        },
+        sp_details: {
+          include: {
+            violation_log: {
+              include: {
+                violation_type: true,
+                orders: {
+                  select: { id: true, project_number: true, status: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    this.spStatusCache.delete(sp.vendor_id);
+    return this.normalizeSpQuarterDates(updated);
   }
 
   async findByVendor(vendorId: number) {
@@ -164,7 +370,7 @@ export class VendorSpService {
           vendor_id: vendorId,
           deleted_at: null,
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: [{ sp_level: 'desc' }, { created_at: 'desc' }],
         include: {
           sp_details: {
             include: {
@@ -178,30 +384,28 @@ export class VendorSpService {
         },
       });
 
-      return spList;
+      return spList.map((sp) => this.normalizeSpQuarterDates(sp));
     } catch (error) {
       throw error;
     }
   }
 
-  // ================================
-  // CHECK VENDOR SP STATUS
-  // ================================
-
   async checkVendorSpStatus(vendorId: number) {
-    const cached = this.getCachedSpStatus(vendorId);
-    if (cached) return cached;
-
     const now = new Date();
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const currentYear = now.getFullYear();
 
-    // Get active SP
-    const activeSP = await this.dbService.vendor_sp.findFirst({
+    const candidateActiveSP = await this.dbService.vendor_sp.findFirst({
       where: {
         vendor_id: vendorId,
-        status: { in: [SpStatus.ACTIVE, SpStatus.EXTENDED] }, // AKTIF or EXTENDED
-        end_date: { gte: now },
+        deleted_at: null,
+        status: { in: [SpStatus.ACTIVE, SpStatus.EXTENDED] },
       },
-      orderBy: { sp_level: 'desc' },
+      orderBy: [
+        { sp_level: 'desc' },
+        { total_point: 'desc' },
+        { updated_at: 'desc' },
+      ],
       include: {
         vendor: {
           select: {
@@ -214,6 +418,54 @@ export class VendorSpService {
       },
     });
 
+    const isSpValidForCurrentQuarter =
+      candidateActiveSP &&
+      ((candidateActiveSP.quarter == null && candidateActiveSP.year == null) ||
+        (candidateActiveSP.quarter === currentQuarter &&
+          candidateActiveSP.year === currentYear) ||
+        (candidateActiveSP.status === SpStatus.EXTENDED &&
+          candidateActiveSP.end_date &&
+          new Date(candidateActiveSP.end_date) >= now));
+
+    const activeSP = isSpValidForCurrentQuarter ? candidateActiveSP : null;
+
+    const targetQuarter = currentQuarter;
+    const targetYear = currentYear;
+
+    const [quarterViolations, allActiveViolations] = await Promise.all([
+      (this.dbService.vendor_violation_log?.findMany({
+        where: {
+          vendor_id: vendorId,
+          quarter: targetQuarter,
+          year: targetYear,
+          deleted_at: null,
+          is_active: true,
+        },
+        include: {
+          violation_type: { select: { point: true } },
+        },
+      }) ?? Promise.resolve([])),
+      (this.dbService.vendor_violation_log?.findMany({
+        where: {
+          vendor_id: vendorId,
+          deleted_at: null,
+          is_active: true,
+        },
+        include: {
+          violation_type: { select: { point: true } },
+        },
+      }) ?? Promise.resolve([])),
+    ]);
+
+    const quarterPoints = quarterViolations.reduce(
+      (sum, v) => sum + (v.adjusted_point ?? v.violation_type?.point ?? 0),
+      0,
+    );
+    const allTimePoints = allActiveViolations.reduce(
+      (sum, v) => sum + (v.adjusted_point ?? v.violation_type?.point ?? 0),
+      0,
+    );
+
     if (!activeSP) {
       const spHistoryCount = await this.dbService.vendor_sp.count({
         where: {
@@ -221,13 +473,25 @@ export class VendorSpService {
           deleted_at: null,
         },
       });
+      const { startDate, endDate } = getQuarterDateRange(currentQuarter, currentYear);
 
       const result = {
         has_active_sp: false,
         has_ever_sp: spHistoryCount > 0,
+        sp_id: null,
         sp_level: null,
         sp_status: 'NORMAL',
         vendor_status: 'AKTIF',
+        total_point: quarterPoints,
+        quarter_point: quarterPoints,
+        all_time_point: allTimePoints,
+        violation_count: quarterViolations.length,
+        total_violation_count: allActiveViolations.length,
+        allocation_reduction: 0,
+        quarter: currentQuarter,
+        year: currentYear,
+        start_date: startDate,
+        end_date: endDate,
         message: 'Vendor tidak memiliki Surat Peringatan yang aktif.',
       };
       this.setCachedSpStatus(vendorId, result);
@@ -236,29 +500,33 @@ export class VendorSpService {
 
     const spStatusText = this.getSpStatusText(activeSP.sp_level);
     const vendorStatus = activeSP.sp_level === SpLevel.SP3 ? 'NONAKTIF' : 'AKTIF';
+    const normalizedSp = this.normalizeSpQuarterDates(activeSP);
+    const effectiveTotalPoint = Math.max(normalizedSp.total_point ?? 0, quarterPoints);
 
     const result = {
       has_active_sp: true,
       has_ever_sp: true,
-      sp_id: activeSP.id,
-      sp_level: activeSP.sp_level,
+      sp_id: normalizedSp.id,
+      sp_level: normalizedSp.sp_level,
       sp_status: spStatusText,
       vendor_status: vendorStatus,
-      total_point: activeSP.total_point,
-      start_date: activeSP.start_date,
-      end_date: activeSP.end_date,
-      allocation_reduction: activeSP.allocation_reduction,
-      vendor: activeSP.vendor,
-      message: `Vendor memiliki ${spStatusText} dengan total ${activeSP.total_point} poin penalti.`,
+      total_point: effectiveTotalPoint,
+      quarter_point: quarterPoints,
+      all_time_point: allTimePoints,
+      violation_count: quarterViolations.length,
+      total_violation_count: allActiveViolations.length,
+      quarter: normalizedSp.quarter,
+      year: normalizedSp.year,
+      start_date: normalizedSp.start_date,
+      end_date: normalizedSp.end_date,
+      allocation_reduction: normalizedSp.allocation_reduction ?? 0,
+      vendor: normalizedSp.vendor,
+      message: `Vendor memiliki ${spStatusText} dengan total ${effectiveTotalPoint} poin penalti.`,
     };
     
     this.setCachedSpStatus(vendorId, result);
     return result;
   }
-
-  // ================================
-  // EXTEND SP DURATION
-  // ================================
 
   async extendSpDuration(id: number, newEndDate: Date, userId?: number) {
     try {
@@ -278,7 +546,7 @@ export class VendorSpService {
         where: { id },
         data: {
           end_date: newEndDate,
-          status: 3, // EXTENDED
+          status: 3,
           updated_by: userId,
           updated_at: new Date(),
         },
@@ -287,10 +555,6 @@ export class VendorSpService {
       throw error;
     }
   }
-
-  // ================================
-  // COMPLETE SP
-  // ================================
 
   async completeSp(id: number, userId?: number) {
     try {
@@ -309,25 +573,147 @@ export class VendorSpService {
       const updated = await this.dbService.vendor_sp.update({
         where: { id },
         data: {
-          status: 2, // SELESAI
+          status: 2,
           end_date: new Date(),
           updated_by: userId,
           updated_at: new Date(),
         },
       });
 
-      // If vendor is inactive due to SP3, keep them inactive
-      // They need to go through reactivation process
-
+      // SP3 vendors remain inactive until explicitly reactivated via reactivateVendor
+      this.spStatusCache.delete(sp.vendor_id);
       return updated;
     } catch (error) {
       throw error;
     }
   }
 
-  // ================================
-  // REACTIVATION (SP3 only)
-  // ================================
+  async getReactivationCandidates() {
+    const [activeSp3Records, inactiveVendors] = await Promise.all([
+      this.dbService.vendor_sp.findMany({
+        where: {
+          deleted_at: null,
+          sp_level: SpLevel.SP3,
+          status: { in: [SpStatus.ACTIVE, SpStatus.EXTENDED] },
+          vendor: { deleted_at: null },
+        },
+        orderBy: [
+          { total_point: 'desc' },
+          { updated_at: 'desc' },
+          { created_at: 'desc' },
+        ],
+        include: {
+          vendor: {
+            select: {
+              id: true,
+              company_name: true,
+              pic_name: true,
+              email_address: true,
+              phone_number: true,
+              is_active: true,
+            },
+          },
+        },
+      }),
+      this.dbService.vendor.findMany({
+        where: {
+          deleted_at: null,
+          is_active: false,
+        },
+        select: {
+          id: true,
+          company_name: true,
+          pic_name: true,
+          email_address: true,
+          phone_number: true,
+          is_active: true,
+        },
+      }),
+    ]);
+
+    const unsyncedVendorIds: number[] = [];
+    const candidateMap = new Map<number, any>();
+
+    for (const sp of activeSp3Records) {
+      if (!sp.vendor) continue;
+      if (sp.vendor.is_active) {
+        unsyncedVendorIds.push(sp.vendor.id);
+      }
+      if (!candidateMap.has(sp.vendor.id)) {
+        const normalized = this.normalizeSpQuarterDates(sp);
+        candidateMap.set(sp.vendor.id, {
+          id: sp.vendor.id,
+          company_name: sp.vendor.company_name,
+          pic_name: sp.vendor.pic_name,
+          email_address: sp.vendor.email_address,
+          phone_number: sp.vendor.phone_number,
+          is_active: false,
+          previous_sp_id: normalized.id,
+          sp_level: normalized.sp_level,
+          total_point: normalized.total_point,
+          quarter: normalized.quarter,
+          year: normalized.year,
+          start_date: normalized.start_date,
+          end_date: normalized.end_date,
+          sp_status: normalized.status,
+        });
+      }
+    }
+
+    if (unsyncedVendorIds.length > 0) {
+      await this.dbService.vendor.updateMany({
+        where: { id: { in: unsyncedVendorIds }, is_active: true },
+        data: { is_active: false },
+      });
+    }
+
+    const remainingInactiveVendorIds = inactiveVendors
+      .map((v) => v.id)
+      .filter((id) => !candidateMap.has(id));
+
+    const latestSpByVendor = new Map<number, any>();
+    if (remainingInactiveVendorIds.length > 0) {
+      const spHistory = await this.dbService.vendor_sp.findMany({
+        where: {
+          vendor_id: { in: remainingInactiveVendorIds },
+          deleted_at: null,
+        },
+        orderBy: [
+          { sp_level: 'desc' },
+          { updated_at: 'desc' },
+          { created_at: 'desc' },
+        ],
+      });
+      for (const sp of spHistory) {
+        if (!latestSpByVendor.has(sp.vendor_id)) {
+          latestSpByVendor.set(sp.vendor_id, this.normalizeSpQuarterDates(sp));
+        }
+      }
+    }
+
+    for (const vendor of inactiveVendors) {
+      if (candidateMap.has(vendor.id)) continue;
+      const latestSp = latestSpByVendor.get(vendor.id) ?? null;
+      candidateMap.set(vendor.id, {
+        id: vendor.id,
+        company_name: vendor.company_name,
+        pic_name: vendor.pic_name,
+        email_address: vendor.email_address,
+        phone_number: vendor.phone_number,
+        is_active: false,
+        previous_sp_id: latestSp?.id ?? null,
+        sp_level: latestSp?.sp_level ?? SpLevel.SP3,
+        total_point: latestSp?.total_point ?? null,
+        quarter: latestSp?.quarter ?? null,
+        year: latestSp?.year ?? null,
+        start_date: latestSp?.start_date ?? null,
+        end_date: latestSp?.end_date ?? null,
+        sp_status: latestSp?.status ?? null,
+      });
+    }
+
+    return Array.from(candidateMap.values());
+  }
 
   async reactivateVendor(dto: ReactivateVendorDto, userId: number) {
     try {
@@ -335,7 +721,7 @@ export class VendorSpService {
         throw new BadRequestException('User approver tidak ditemukan.');
       }
 
-      return await this.dbService.$transaction(async (tx) => {
+      const result = await this.dbService.$transaction(async (tx) => {
         const vendor = await tx.vendor.findFirst({
           where: { id: dto.vendor_id, deleted_at: null },
         });
@@ -344,27 +730,69 @@ export class VendorSpService {
           throw new NotFoundException(`Vendor dengan ID ${dto.vendor_id} tidak ditemukan.`);
         }
 
-        // Check if vendor is inactive
-        if (vendor.is_active) {
-          throw new BadRequestException('Vendor sudah aktif. Reaktivasi hanya untuk vendor nonaktif.');
+        const activeSpRecords = await tx.vendor_sp.findMany({
+          where: {
+            vendor_id: dto.vendor_id,
+            deleted_at: null,
+            status: { in: [SpStatus.ACTIVE, SpStatus.EXTENDED] },
+          },
+          orderBy: [
+            { sp_level: 'desc' },
+            { updated_at: 'desc' },
+            { created_at: 'desc' },
+          ],
+        });
+
+        const safeActiveSpRecords = activeSpRecords ?? [];
+        const hasActiveSp3 = safeActiveSpRecords.some((sp) => sp.sp_level === SpLevel.SP3);
+
+        if (vendor.is_active && !hasActiveSp3) {
+          throw new BadRequestException(
+            'Vendor sudah aktif dan tidak memiliki SP3 aktif.',
+          );
         }
 
-        // Create reactivation log
+        const latestSp3 =
+          safeActiveSpRecords.find((sp) => sp.sp_level === SpLevel.SP3) ??
+          (await tx.vendor_sp.findFirst({
+            where: {
+              vendor_id: dto.vendor_id,
+              sp_level: SpLevel.SP3,
+              deleted_at: null,
+            },
+            orderBy: [{ updated_at: 'desc' }, { created_at: 'desc' }],
+          }));
+
+        const resolvedPreviousSpId = dto.previous_sp_id ?? latestSp3?.id ?? null;
+
         const reactivationLog = await tx.vendor_reactivation_log.create({
           data: {
             vendor_id: dto.vendor_id,
-            previous_sp_id: dto.previous_sp_id,
+            previous_sp_id: resolvedPreviousSpId,
             reason: dto.reason,
             approved_by: userId,
-            status: 2, // APPROVED
+            status: 2,
           },
         });
 
-        // Reactivate vendor
         await tx.vendor.update({
           where: { id: dto.vendor_id },
           data: { is_active: true },
         });
+
+        if (activeSpRecords.length > 0) {
+          await tx.vendor_sp.updateMany({
+            where: {
+              id: { in: activeSpRecords.map((sp) => sp.id) },
+            },
+            data: {
+              status: SpStatus.COMPLETED,
+              end_date: new Date(),
+              updated_by: userId,
+              updated_at: new Date(),
+            },
+          });
+        }
 
         return {
           reactivation_log: reactivationLog,
@@ -374,6 +802,9 @@ export class VendorSpService {
           }),
         };
       });
+
+      this.spStatusCache.delete(dto.vendor_id);
+      return result;
     } catch (error) {
       throw error;
     }
@@ -397,9 +828,59 @@ export class VendorSpService {
     }
   }
 
-  // ================================
-  // GET ALL VENDORS WITH SP STATUS (for allocation)
-  // ================================
+  async findReactivationLogs(query: QueryReactivationLogDto) {
+    const page = query.page ?? 1;
+    const take = query.take ?? 10;
+    const skip = (page - 1) * take;
+
+    const where: any = {};
+
+    if (query.status != null) {
+      where.status = query.status;
+    }
+
+    if (query.date_from || query.date_to) {
+      where.created_at = {};
+      if (query.date_from) {
+        where.created_at.gte = new Date(query.date_from);
+      }
+      if (query.date_to) {
+        where.created_at.lte = new Date(`${query.date_to}T23:59:59.999Z`);
+      }
+    }
+
+    if (query.search && query.search.trim()) {
+      where.vendor = {
+        OR: [
+          { company_name: { contains: query.search.trim() } },
+          { pic_name: { contains: query.search.trim() } },
+        ],
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.dbService.vendor_reactivation_log.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { created_at: 'desc' },
+        include: {
+          vendor: {
+            select: {
+              id: true,
+              company_name: true,
+              pic_name: true,
+              email_address: true,
+              is_active: true,
+            },
+          },
+        },
+      }),
+      this.dbService.vendor_reactivation_log.count({ where }),
+    ]);
+
+    return { data, meta: { total, page, take, skip } };
+  }
 
   async getVendorsWithSpStatus(vendorIds?: number[]) {
     try {
@@ -418,18 +899,22 @@ export class VendorSpService {
         },
       });
 
-      // Get active SP for each vendor
       const vendorIdsList = vendors.map((v) => v.id);
       const activeSPs = await this.dbService.vendor_sp.findMany({
         where: {
           vendor_id: { in: vendorIdsList },
-          status: { in: [1, 3] }, // AKTIF or EXTENDED
+          status: { in: [1, 3] },
           end_date: { gte: now },
         },
         orderBy: { sp_level: 'desc' },
       });
 
-      const spMap = new Map(activeSPs.map((sp) => [sp.vendor_id, sp]));
+      const spMap = new Map<number, (typeof activeSPs)[number]>();
+      for (const sp of activeSPs) {
+        if (!spMap.has(sp.vendor_id)) {
+          spMap.set(sp.vendor_id, sp);
+        }
+      }
 
       return vendors.map((vendor) => {
         const activeSP = spMap.get(vendor.id);
@@ -448,10 +933,6 @@ export class VendorSpService {
     }
   }
 
-  // ================================
-  // HELPER METHODS
-  // ================================
-
   private getSpStatusText(level: number): string {
     const statusMap: Record<number, string> = {
       1: 'SP1',
@@ -459,5 +940,840 @@ export class VendorSpService {
       3: 'SP3',
     };
     return statusMap[level] || 'UNKNOWN';
+  }
+
+  async generatePenaltyReceiptPdf(
+    vendorId: number,
+    quarter: number,
+    year: number,
+    generatedBy?: number,
+  ): Promise<{ filePath: string; userFileName: string }> {
+    // 1. Vendor harus ada
+    const vendor = await this.dbService.vendor.findFirst({
+      where: { id: vendorId, deleted_at: null },
+      select: {
+        id: true,
+        company_name: true,
+        pic_name: true,
+        email_address: true,
+        phone_number: true,
+        is_active: true,
+      },
+    });
+    if (!vendor) {
+      throw new NotFoundException(
+        `Vendor dengan ID ${vendorId} tidak ditemukan atau sudah dihapus.`,
+      );
+    }
+
+    // 2. Lookup SP di kuartal tsb (kalau ada)
+    const sp = await this.reportQuery.getSpByVendorAndQuarter(
+      vendorId,
+      quarter,
+      year,
+    );
+
+    // 3. Rincian pelanggaran aktif di quarter
+    let violations = await this.reportQuery.getViolationLogDetails(
+      vendorId,
+      quarter,
+      year,
+    );
+    if ((sp as any)?.sp_details && (sp as any).sp_details.length > 0) {
+      const spViolations = (sp as any).sp_details
+        .map((d: any) => d.violation_log)
+        .filter(Boolean);
+      if (spViolations.length > 0) {
+        violations = spViolations;
+      }
+    }
+
+    // 4. Total order di quarter (seluruh order)
+    const totalOrders = await this.reportQuery.countVendorOrdersInQuarter(
+      vendorId,
+      quarter,
+      year,
+    );
+
+    // 5. Hitung agregat
+    const totalPenaltyPoints = violations.reduce((sum, v) => {
+      const effective = v.adjusted_point ?? v.violation_type?.point ?? 0;
+      return sum + effective;
+    }, 0);
+    const uniqueOrderIds = new Set(
+      violations.map((v) => v.order_id).filter((id): id is number => id != null),
+    );
+    const totalPenaltyOrders = uniqueOrderIds.size;
+
+    // 6. Build PDF
+    const generatedAt = new Date();
+    const doc = this.pdfService.createDocument(generatedAt);
+    const effectiveSpLevel =
+      sp?.sp_level ??
+      (totalPenaltyPoints >= SPThreshold.SP3
+        ? 3
+        : totalPenaltyPoints >= SPThreshold.SP2
+        ? 2
+        : totalPenaltyPoints >= SPThreshold.SP1
+        ? 1
+        : null);
+    const spStatusText = effectiveSpLevel ? `SP${effectiveSpLevel}` : 'NORMAL';
+    const allocationReductionText = sp?.allocation_reduction
+      ? `${sp.allocation_reduction}%`
+      : effectiveSpLevel === 3
+      ? '100% (Vendor Dinonaktifkan)'
+      : effectiveSpLevel === 2
+      ? '50%'
+      : effectiveSpLevel === 1
+      ? '25%'
+      : 'Tidak ada pengurangan';
+    const documentNo = `SP/${year}/Q${quarter}/${String(vendorId).padStart(4, '0')}`;
+
+    this.pdfService.addStyledHeader(doc, {
+      title: 'BUKTI SURAT PERINGATAN (SP)',
+      subtitle: `Evaluasi Kuartal Q${quarter} ${year} | PT Catur Mitra Sejati Sentosa (Mitra10)`,
+      documentNo,
+    });
+
+    this.pdfService.addInfoBox(doc, 'Informasi Vendor', [
+      { label: 'Nama Perusahaan', value: vendor.company_name || '-' },
+      { label: 'PIC Vendor', value: vendor.pic_name || '-' },
+      { label: 'Email / Telepon', value: `${vendor.email_address || '-'} / ${vendor.phone_number || '-'}` },
+      { label: 'Status Vendor', value: vendor.is_active ? 'AKTIF' : 'NONAKTIF' },
+    ]);
+
+    this.pdfService.addInfoBox(doc, 'Ringkasan Evaluasi & Ketentuan Sanksi SP', [
+      { label: 'Tanggal Dokumen', value: generatedAt.toLocaleDateString('id-ID') },
+      { label: 'Tingkat Surat Peringatan', value: spStatusText },
+      { label: 'Periode Kuartal', value: `Q${quarter} ${year}` },
+      { label: 'Total Order Kuartal / Masalah', value: `${totalOrders} Order Total (${totalPenaltyOrders} Pelanggaran)` },
+      { label: 'Total Poin Penalti', value: `${totalPenaltyPoints} Poin` },
+      { label: 'Ketentuan Alokasi Order', value: allocationReductionText },
+    ]);
+
+    // Catatan SP (apabila ada catatan khusus yang diinput pada detail SP)
+    if (sp?.notes && sp.notes.trim()) {
+      this.pdfService.addInfoBox(
+        doc,
+        'Catatan / Keterangan Khusus SP',
+        [{ label: 'Catatan SP', value: sp.notes.trim() }],
+        { columns: 1, marginBottom: 8 },
+      );
+    }
+
+    if (violations.length > 0) {
+      if (doc.y > 841.89 - 40 - 100) {
+        doc.addPage();
+      }
+
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(11)
+        .fillColor('#0f2a7a')
+        .text(`Daftar Pelanggaran Terkait (${violations.length} Pelanggaran)`, 40, doc.y);
+      doc.moveDown(0.4);
+
+      this.pdfService.addStyledTable(doc, {
+        repeatHeader: false,
+        columns: [
+          {
+            key: 'no',
+            label: 'No',
+            width: 28,
+            align: 'center',
+            accessor: (r: any) => String(violations.indexOf(r) + 1),
+          },
+          {
+            key: 'order',
+            label: 'Order ID',
+            width: 72,
+            align: 'center',
+            accessor: (r: any) => {
+              const oId = r.order_id ?? r.orders?.id;
+              if (oId) return String(oId);
+              if (r.orders?.project_number) return String(r.orders.project_number);
+              return '-';
+            },
+          },
+          {
+            key: 'kode',
+            label: 'Kode',
+            width: 105,
+            accessor: (r: any) => r.violation_type?.code ?? '-',
+          },
+          {
+            key: 'nama',
+            label: 'Nama Pelanggaran',
+            width: 175,
+            accessor: (r: any) => r.violation_type?.name ?? '-',
+          },
+          {
+            key: 'tanggal',
+            label: 'Tanggal Kejadian',
+            width: 80,
+            align: 'center',
+            accessor: (r: any) => {
+              const raw = r.evidence_path || r.created_at;
+              return raw && !isNaN(new Date(raw).getTime())
+                ? new Date(raw).toLocaleDateString('id-ID')
+                : '-';
+            },
+          },
+          {
+            key: 'poin',
+            label: 'Poin',
+            width: 55,
+            align: 'center',
+            accessor: (r: any) =>
+              `${r.adjusted_point ?? r.violation_type?.point ?? 0} Poin`,
+          },
+        ],
+        rows: violations,
+      });
+    } else {
+      this.pdfService.addInfoBox(doc, 'Rincian Pelanggaran', [
+        { label: 'Catatan', value: 'Tidak ada pelanggaran aktif di kuartal ini.' },
+      ]);
+    }
+
+    this.pdfService.addSignatureBox(
+      doc,
+      [
+        {
+          header: 'PIHAK VENDOR',
+          name: vendor.pic_name || '(Nama PIC Vendor)',
+          role: vendor.company_name || 'Vendor Mitra10',
+          placeholder: 'Tanda tangan & stempel vendor',
+        },
+        {
+          header: 'PIHAK MITRA10',
+          name: '(Admin Head Office)',
+          role: 'PT Catur Mitra Sejati Sentosa (Mitra10)',
+          placeholder: 'Tanda tangan & cap resmi HO',
+        },
+      ],
+      {
+        position: 'center',
+        intro: 'Surat Bukti Peringatan ini disahkan dan ditandatangani oleh:',
+      },
+    );
+
+    // 7. Save file dengan nama unik
+    const ts = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19); // YYYY-MM-DDTHH-MM-SS
+    const rand = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+    const fileName = `penalty-${vendorId}-${quarter}-${year}-${ts}-${rand}.pdf`;
+    const folder = path.resolve('./storage/pdf/vendor-sp');
+    const filePath = path.join(folder, fileName);
+    await this.pdfService.pipeAndSave(doc, filePath, generatedAt);
+
+    // 8. User-facing filename (dikirim via Content-Disposition)
+    const safeVendorName = (vendor.company_name || 'Vendor')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .slice(0, 40);
+    const userFileName = `Bukti_SP_${safeVendorName}_${quarter}_${year}.pdf`;
+
+    // 9. Audit log (best-effort, jangan gagalkan export kalau audit gagal)
+    try {
+      await this.dbService.logs.create({
+        data: {
+          module_type: 'EXPORT_PDF_PENALTY',
+          module_id: sp?.id ?? null,
+          issuer_type: 'USER',
+          issuer_id: generatedBy ?? null,
+          properties: JSON.stringify({
+            vendor_id: vendorId,
+            quarter,
+            year,
+            total_orders: totalOrders,
+            total_penalty_orders: totalPenaltyOrders,
+            total_points: totalPenaltyPoints,
+            sp_level: sp?.sp_level ?? null,
+            file_path: filePath,
+            file_name: fileName,
+            user_file_name: userFileName,
+          }),
+        },
+      });
+    } catch (auditError) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[vendor-sp] audit log failed for penalty receipt vendor=${vendorId} Q${quarter}/${year} reason=${(auditError as Error)?.message ?? auditError}`,
+      );
+    }
+
+    return { filePath, userFileName };
+  }
+
+  async generateNoViolationCertificatePdf(
+    vendorId: number,
+    quarter: number,
+    year: number,
+    generatedBy?: number,
+  ): Promise<{ filePath: string; userFileName: string }> {
+    // 1. Vendor harus ada
+    const vendor = await this.dbService.vendor.findFirst({
+      where: { id: vendorId, deleted_at: null },
+      select: {
+        id: true,
+        company_name: true,
+        pic_name: true,
+        email_address: true,
+        phone_number: true,
+        is_active: true,
+      },
+    });
+    if (!vendor) {
+      throw new NotFoundException(
+        `Vendor dengan ID ${vendorId} tidak ditemukan atau sudah dihapus.`,
+      );
+    }
+
+    // 2. Validasi: TIDAK BOLEH ada pelanggaran aktif di quarter tsb
+    const activeViolations = await this.reportQuery.getViolationLogDetails(
+      vendorId,
+      quarter,
+      year,
+    );
+    if (activeViolations.length > 0) {
+      throw new BadRequestException(
+        `Vendor memiliki ${activeViolations.length} pelanggaran pada Q${quarter} ${year}, tidak bisa cetak bukti tanpa pelanggaran. Selesaikan atau arsipkan pelanggaran tersebut terlebih dahulu.`,
+      );
+    }
+
+    // 3. Validasi: quarter harus lampau (bukan yang sedang berjalan)
+    const now = new Date();
+    if (!this.reportQuery.isPastQuarter(quarter, year, now)) {
+      const current = this.reportQuery.getCurrentQuarterInfo(now);
+      throw new BadRequestException(
+        `Q${quarter} ${year} adalah kuartal yang sedang berjalan (saat ini Q${current.quarter} ${current.year}). Surat bebas pelanggaran hanya bisa dicetak untuk kuartal lampau.`,
+      );
+    }
+
+    // 4. Total order di quarter (seluruh order, bukan cuma yg kena penalty)
+    const totalOrders = await this.reportQuery.countVendorOrdersInQuarter(
+      vendorId,
+      quarter,
+      year,
+    );
+
+    // 5. Auto-increment nomor surat dari logs table
+    const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
+    const yearEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+    const sequenceCount = await this.dbService.logs.count({
+      where: {
+        module_type: 'EXPORT_PDF_NO_VIOLATION',
+        created_at: { gte: yearStart, lt: yearEnd },
+      },
+    });
+    const sequence = String(sequenceCount + 1).padStart(4, '0');
+    const letterNumber = `BEBAS-${year}-${sequence}`;
+
+    // 6. Build PDF
+    const generatedAt = new Date();
+    const doc = this.pdfService.createDocument(generatedAt);
+    this.pdfService.addStyledHeader(doc, {
+      title: 'SURAT KETERANGAN BEBAS PELANGGARAN',
+      subtitle: `Periode Evaluasi Q${quarter} ${year} | PT Catur Mitra Sejati Sentosa (Mitra10)`,
+      documentNo: letterNumber,
+    });
+
+    this.pdfService.addInfoBox(doc, 'Informasi Vendor', [
+      { label: 'Nama Perusahaan', value: vendor.company_name || '-' },
+      { label: 'PIC Vendor', value: vendor.pic_name || '-' },
+      { label: 'Email / Telepon', value: `${vendor.email_address || '-'} / ${vendor.phone_number || '-'}` },
+      { label: 'Status Operasional', value: vendor.is_active ? 'AKTIF' : 'NONAKTIF' },
+    ]);
+
+    this.pdfService.addInfoBox(doc, 'Keterangan Kinerja & Evaluasi', [
+      { label: 'Total Order Kuartal', value: `${totalOrders} Order Selesai` },
+      { label: 'Total Pelanggaran', value: '0 (Nol Pelanggaran)' },
+      { label: 'Status Surat Peringatan', value: 'NORMAL (Bebas SP)' },
+      { label: 'Status Kelayakan Order', value: 'Memenuhi Syarat Alokasi Penuh (100%)' },
+    ]);
+
+    doc.moveDown(0.4);
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor('#222')
+      .text(
+        `Dengan ini PT Catur Mitra Sejati Sentosa (Mitra10) menerangkan bahwa vendor di atas tidak memiliki ` +
+          `pelanggaran aktif pada periode Q${quarter} ${year}. ` +
+          `Surat keterangan ini diterbitkan secara resmi sebagai bukti performa operasional vendor.`,
+        40,
+        doc.y,
+        { align: 'justify', width: 515 },
+      );
+    doc.moveDown(1.5);
+
+    this.pdfService.addSignatureBox(
+      doc,
+      [
+        {
+          name: '(Admin Head Office)',
+          role: 'PT Catur Mitra Sejati Sentosa (Mitra10)',
+          placeholder: 'Tanda tangan & cap resmi HO',
+        },
+      ],
+      {
+        position: 'right',
+        intro: 'Surat Keterangan ini disahkan oleh:',
+      },
+    );
+
+    // 7. Save file
+    const ts = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+    const rand = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+    const fileName = `no-violation-${vendorId}-${quarter}-${year}-${ts}-${rand}.pdf`;
+    const folder = path.resolve('./storage/pdf/vendor-sp');
+    const filePath = path.join(folder, fileName);
+    await this.pdfService.pipeAndSave(doc, filePath, generatedAt);
+
+    // 8. User-facing filename
+    const safeVendorName = (vendor.company_name || 'Vendor')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .replace(/_+/g, '_')
+      .slice(0, 40);
+    const userFileName = `Surat_Bebas_Pelanggaran_${safeVendorName}_${quarter}_${year}.pdf`;
+
+    // 9. Audit log
+    try {
+      await this.dbService.logs.create({
+        data: {
+          module_type: 'EXPORT_PDF_NO_VIOLATION',
+          module_id: null,
+          issuer_type: 'USER',
+          issuer_id: generatedBy ?? null,
+          properties: JSON.stringify({
+            vendor_id: vendorId,
+            quarter,
+            year,
+            letter_number: letterNumber,
+            total_orders: totalOrders,
+            file_path: filePath,
+            file_name: fileName,
+            user_file_name: userFileName,
+          }),
+        },
+      });
+    } catch (auditError) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[vendor-sp] audit log failed for no-violation cert vendor=${vendorId} Q${quarter}/${year} reason=${(auditError as Error)?.message ?? auditError}`,
+      );
+    }
+
+    return { filePath, userFileName };
+  }
+
+  /**
+   * Poin 4 (varian aggregate): PDF rekap LIST vendor tanpa pelanggaran pada
+   * quarter tsb. Bukan per-vendor certificate — ini bukti aggregate untuk
+   * audit/compliance. Filter opsional: category (lihat helper untuk semantik).
+   */
+  async generateCleanVendorRecapPdf(
+    quarter: number,
+    year: number,
+    category: string | undefined,
+    generatedBy?: number,
+  ): Promise<{ filePath: string; userFileName: string }> {
+    const cleanVendors = await this.reportQuery.getVendorsWithZeroViolations(
+      quarter,
+      year,
+      category,
+    );
+
+    const generatedAt = new Date();
+    const doc = this.pdfService.createDocument(generatedAt);
+
+    const catPart = category ? `-${category.toLowerCase()}` : '';
+
+    this.pdfService.addStyledHeader(doc, {
+      title: 'REKAP VENDOR TANPA PELANGGARAN',
+      subtitle: `Periode Q${quarter} ${year}${category ? `    |    Kategori: ${category}` : ''}    |    Total vendor bersih: ${cleanVendors.length}`,
+      documentNo: `CLEAN-RECAP-Q${quarter}-${year}${catPart}`,
+    });
+
+    this.pdfService.addInfoBox(
+      doc,
+      'Informasi Dokumen',
+      [
+        { label: 'Tanggal Generate', value: generatedAt.toLocaleDateString('id-ID') },
+        { label: 'Kategori Filter', value: category ?? 'Semua Kategori' },
+        { label: 'Periode Kuartal', value: `Q${quarter} ${year}` },
+        { label: 'Total Vendor Bersih', value: `${cleanVendors.length} Vendor` },
+      ],
+      { columns: 2, marginBottom: 6 },
+    );
+
+    if (cleanVendors.length === 0) {
+      this.pdfService.addInfoBox(doc, 'Daftar Vendor', [
+        {
+          label: 'Catatan',
+          value: 'Tidak ada vendor tanpa pelanggaran pada periode ini.',
+        },
+      ]);
+    } else {
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(11)
+        .fillColor('#183383')
+        .text('Daftar Vendor Bersih', 40, doc.y);
+      doc.moveDown(0.2);
+
+      const rows = cleanVendors.map((v, i) => ({ no: i + 1, ...v }));
+      this.pdfService.addStyledTable(doc, {
+        columns: [
+          {
+            key: 'no',
+            label: 'No',
+            width: 25,
+            align: 'center',
+            accessor: (r: any) => String(r.no),
+          },
+          {
+            key: 'company',
+            label: 'Nama Perusahaan',
+            width: 165,
+            accessor: (r: any) => r.company_name,
+          },
+          {
+            key: 'pic',
+            label: 'PIC',
+            width: 95,
+            accessor: (r: any) => r.pic_name ?? '-',
+          },
+          {
+            key: 'order_id',
+            label: 'Order ID',
+            width: 110,
+            align: 'center',
+            accessor: (r: any) =>
+              r.order_ids && r.order_ids.length > 0
+                ? r.order_ids.join(', ')
+                : '-',
+          },
+          {
+            key: 'orders',
+            label: 'Total Order',
+            width: 60,
+            align: 'center',
+            accessor: (r: any) => String(r.total_orders),
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            width: 60,
+            align: 'center',
+            accessor: () => 'BERSIH',
+          },
+        ],
+        rows,
+        repeatHeader: true,
+      });
+    }
+
+    this.pdfService.addSignatureBox(doc, [
+      {
+        name: '(Admin HO)',
+        role: 'Head Office',
+        placeholder: 'Tanda tangan & cap',
+      },
+    ], { position: 'right' });
+
+    const ts = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+    const rand = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0');
+    const fileName = `clean-recap-${quarter}-${year}${catPart}-${ts}-${rand}.pdf`;
+    const folder = path.resolve('./storage/pdf/vendor-sp');
+    const filePath = path.join(folder, fileName);
+    await this.pdfService.pipeAndSave(doc, filePath, generatedAt);
+
+    const userFileName = `Rekap_Vendor_Bersih_Q${quarter}_${year}${category ? '_' + category : ''}.pdf`;
+
+    try {
+      await this.dbService.logs.create({
+        data: {
+          module_type: 'EXPORT_PDF_CLEAN_VENDOR_RECAP',
+          module_id: null,
+          issuer_type: 'USER',
+          issuer_id: generatedBy ?? null,
+          properties: JSON.stringify({
+            quarter,
+            year,
+            category: category ?? null,
+            total_clean_vendors: cleanVendors.length,
+            file_path: filePath,
+            file_name: fileName,
+            user_file_name: userFileName,
+          }),
+        },
+      });
+    } catch (auditError) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[vendor-sp] audit log failed for clean vendor recap Q${quarter}/${year} reason=${(auditError as Error)?.message ?? auditError}`,
+      );
+    }
+
+    return { filePath, userFileName };
+  }
+
+  // ==========================================
+  // [POIN 7] WEEKLY SP WARNING NOTIFICATIONS
+  // ==========================================
+
+  /**
+   * [POIN 7] Dapatkan daftar vendor yang total poin penalty-nya mendekati threshold SP berikutnya (>= 70%)
+   * dan belum dikirimkan notifikasi peringatan pada minggu ISO berjalan (idempotent).
+   *
+   * @param quarter Kuartal (1-4). Jika tidak diisi, gunakan kuartal berjalan dari checkDate.
+   * @param year Tahun (e.g. 2026). Jika tidak diisi, gunakan tahun berjalan dari checkDate.
+   * @param checkDate Tanggal acuan (default: new Date()) untuk evaluasi minggu ISO & status SP aktif.
+   */
+  async getVendorsApproachingThreshold(
+    quarter?: number,
+    year?: number,
+    checkDate: Date = new Date(),
+  ) {
+    const q = quarter ?? Math.ceil((checkDate.getMonth() + 1) / 3);
+    const y = year ?? checkDate.getFullYear();
+    const { start: weekStart, end: weekEnd } = getIsoWeekRange(checkDate);
+
+    // 1. Cek audit logs untuk idempotency (vendor yang sudah dapat warning minggu ISO ini)
+    const warnedLogs = await this.dbService.logs.findMany({
+      where: {
+        module_type: 'VENDOR_SP_WARNING',
+        created_at: {
+          gte: weekStart,
+          lte: weekEnd,
+        },
+      },
+      select: { module_id: true },
+    });
+    const warnedVendorIds = new Set(
+      warnedLogs
+        .map((l) => l.module_id)
+        .filter((id): id is number => typeof id === 'number'),
+    );
+
+    // 2. Query vendor yang aktif
+    const vendors = await this.dbService.vendor.findMany({
+      where: {
+        is_active: true,
+        deleted_at: null,
+      },
+      include: {
+        sp_records: {
+          where: {
+            status: 1, // Aktif
+            deleted_at: null,
+            end_date: { gte: checkDate },
+          },
+          orderBy: { sp_level: 'desc' },
+        },
+        pic_vendor: {
+          where: {
+            deleted_at: null,
+            users: {
+              is_active: true,
+              deleted_at: null,
+              roles: {
+                name: { in: ['Owner Vendor', 'Admin Vendor'] },
+              },
+            },
+          },
+          include: {
+            users: {
+              include: { roles: true },
+            },
+          },
+        },
+      },
+    });
+
+    const approachingVendors = [];
+
+    for (const v of vendors) {
+      // Idempotency: skip jika sudah diberi warning minggu ini
+      if (warnedVendorIds.has(v.id)) {
+        continue;
+      }
+
+      // Skip jika vendor sudah SP3 aktif (sudah maksimal / dinonaktifkan)
+      const activeSP = v.sp_records?.[0];
+      if (activeSP?.sp_level === 3) {
+        continue;
+      }
+
+      // Hitung total poin kuartal ini dari vendor_violation_log
+      const violations = await this.dbService.vendor_violation_log.findMany({
+        where: {
+          vendor_id: v.id,
+          quarter: q,
+          year: y,
+          is_active: true,
+          deleted_at: null,
+        },
+        include: {
+          violation_type: {
+            select: { id: true, code: true, name: true, category: true, point: true },
+          },
+        },
+      });
+
+      const totalPoints = violations.reduce(
+        (sum, item) => sum + (item.adjusted_point ?? item.violation_type?.point ?? 0),
+        0,
+      );
+
+      const evaluation = evaluateSPWarning(totalPoints, activeSP?.sp_level ?? null, v.is_active);
+
+      if (evaluation.shouldWarn) {
+        // Buat ringkasan pelanggaran per kategori
+        const summaryMap: Record<string, { category: string; count: number; points: number }> = {};
+        for (const item of violations) {
+          const cat = item.violation_type?.category ?? 'LAINNYA';
+          const pts = item.adjusted_point ?? item.violation_type?.point ?? 0;
+          if (!summaryMap[cat]) {
+            summaryMap[cat] = { category: cat, count: 0, points: 0 };
+          }
+          summaryMap[cat].count += 1;
+          summaryMap[cat].points += pts;
+        }
+
+        const picUsers = v.pic_vendor
+          .map((pv) => pv.users)
+          .filter((u): u is typeof v.pic_vendor[0]['users'] => Boolean(u));
+
+        approachingVendors.push({
+          vendorId: v.id,
+          vendorName: v.company_name,
+          quarter: q,
+          year: y,
+          currentPoints: totalPoints,
+          activeSpLevel: activeSP?.sp_level ?? null,
+          targetSpLevel: evaluation.targetSpLevel!,
+          threshold: evaluation.threshold!,
+          warningThreshold: evaluation.warningThreshold!,
+          toleranceRemaining: evaluation.toleranceRemaining!,
+          violationCount: violations.length,
+          violationSummary: Object.values(summaryMap),
+          picUsers,
+        });
+      }
+    }
+
+    return approachingVendors;
+  }
+
+  /**
+   * [POIN 7] Eksekusi pengiriman notifikasi warning mingguan ke vendor yang mendekati threshold SP.
+   * Mencatat notifikasi ke tabel notifications (PIC Vendor) dan audit log ke tabel logs.
+   *
+   * @param issuerId User ID yang men-trigger (null jika via cron scheduler)
+   * @param checkDate Tanggal acuan (default: new Date())
+   */
+  async sendWeeklyWarningNotifications(issuerId?: number, checkDate: Date = new Date()) {
+    const { week: isoWeek, year: isoYear } = getIsoWeekAndYear(checkDate);
+    const vendors = await this.getVendorsApproachingThreshold(undefined, undefined, checkDate);
+
+    const notifiedVendors = [];
+
+    for (const v of vendors) {
+      const title = `Peringatan: Poin Penalti Mendekati SP${v.targetSpLevel}`;
+      const message = `Vendor "${v.vendorName}" telah mencapai ${v.currentPoints} poin penalti pada Q${v.quarter}/${v.year} (mendekati threshold SP${v.targetSpLevel}: ${v.threshold} poin). Sisa toleransi: ${v.toleranceRemaining} poin sebelum sanksi SP${v.targetSpLevel} diterbitkan.`;
+
+      const payload = {
+        title,
+        message,
+        vendor_id: v.vendorId,
+        vendor_name: v.vendorName,
+        quarter: v.quarter,
+        year: v.year,
+        iso_week: isoWeek,
+        total_points: v.currentPoints,
+        target_sp: v.targetSpLevel,
+        threshold: v.threshold,
+        warning_threshold: v.warningThreshold,
+        tolerance_remaining: v.toleranceRemaining,
+        violation_count: v.violationCount,
+        violation_summary: v.violationSummary,
+      };
+
+      // 1. Simpan notifikasi ke tabel notifications untuk setiap PIC Vendor
+      if (v.picUsers.length > 0) {
+        const notifData = v.picUsers.map((user) => ({
+          data: JSON.stringify(payload),
+          module_id: v.vendorId,
+          action: 'VENDOR_SP_WARNING',
+          created_by: issuerId ?? null,
+          module_type: 'VENDOR_SP',
+          status: 1,
+          user_id: user.id,
+        }));
+
+        await this.dbService.notifications.createMany({
+          data: notifData,
+        });
+      }
+
+      // 2. Simpan audit log ke tabel logs (idempotency anchor & traceability)
+      await this.dbService.logs.create({
+        data: {
+          module_type: 'VENDOR_SP_WARNING',
+          module_id: v.vendorId,
+          issuer_type: issuerId ? 'USER' : 'SYSTEM',
+          issuer_id: issuerId ?? null,
+          properties: JSON.stringify({
+            vendor_id: v.vendorId,
+            vendor_name: v.vendorName,
+            quarter: v.quarter,
+            year: v.year,
+            iso_week: isoWeek,
+            current_points: v.currentPoints,
+            target_sp: v.targetSpLevel,
+            threshold: v.threshold,
+            tolerance_remaining: v.toleranceRemaining,
+            notified_user_ids: v.picUsers.map((u) => u.id),
+            sent_at: checkDate.toISOString(),
+          }),
+        },
+      });
+
+      notifiedVendors.push({
+        vendorId: v.vendorId,
+        vendorName: v.vendorName,
+        currentPoints: v.currentPoints,
+        targetSpLevel: v.targetSpLevel,
+        threshold: v.threshold,
+        toleranceRemaining: v.toleranceRemaining,
+        notifiedUsersCount: v.picUsers.length,
+      });
+    }
+
+    return {
+      success: true,
+      message: `Berhasil memproses peringatan mingguan SP vendor. ${notifiedVendors.length} vendor mendekati threshold.`,
+      isoWeek,
+      isoYear,
+      totalApproaching: vendors.length,
+      notifiedVendors,
+    };
   }
 }

@@ -1,11 +1,14 @@
 import {
   IsString,
   IsOptional,
+  IsNotEmpty,
   IsEmail,
   IsInt,
   IsArray,
   IsBoolean,
+  IsIn,
   MinLength,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -84,10 +87,10 @@ export class RegisterVendorDto {
   @IsString()
   pic_phone: string;
 
-  @ApiPropertyOptional({ description: 'KTP number of PIC', example: '3201234567890001' })
-  @IsOptional()
+  @ApiProperty({ description: 'KTP number of PIC', example: '3201234567890001' })
+  @IsNotEmpty({ message: 'Nomor KTP PIC wajib diisi' })
   @IsString()
-  ktp_number?: string;
+  ktp_number: string;
 
   @ApiPropertyOptional({ description: 'NPWP number of company', example: '012345678901234' })
   @IsOptional()
@@ -259,4 +262,37 @@ export class CreateUserFromTokenDto {
   @IsString()
   @MinLength(6, { message: 'Password harus memiliki minimal 6 karakter' })
   password: string;
+}
+
+export class UpdateTermsAndConditionsDto {
+  @ApiProperty({
+    description: 'Judul dokumen Syarat & Ketentuan (5-200 karakter)',
+    example: 'Syarat dan Ketentuan Pendaftaran Vendor Mitra10',
+    minLength: 5,
+    maxLength: 200,
+  })
+  @IsString()
+  @MinLength(5, { message: 'Judul minimal 5 karakter' })
+  @MaxLength(200, { message: 'Judul maksimal 200 karakter' })
+  title: string;
+
+  @ApiPropertyOptional({
+    description: 'Konten T&C dalam format HTML dari editor Quill (tipe HTML)',
+    example: '<h2>Syarat dan Ketentuan</h2><p>...</p>',
+  })
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tipe dokumen: HTML (editor Quill) atau PDF (file upload)',
+    enum: ['HTML', 'PDF'],
+    default: 'HTML',
+    example: 'HTML',
+  })
+  @IsOptional()
+  @IsIn(['HTML', 'PDF'], {
+    message: 'document_type harus bernilai "HTML" atau "PDF"',
+  })
+  document_type?: 'HTML' | 'PDF';
 }

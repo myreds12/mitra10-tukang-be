@@ -57,11 +57,13 @@ import { VendorViolationModule } from './vendor-violation/vendor-violation.modul
 import { VendorSpModule } from './vendor-sp/vendor-sp.module';
 import { VendorRegistrationModule } from './vendor-registration/vendor-registration.module';
 import { AiAgentModule } from './ai-agent/ai-agent.module';
+import { VendorPortalModule } from './vendor-portal/vendor-portal.module';
+import { RedisModule } from './common/redis/redis.module';
+import { HomeContentModule } from './home-content/home-content.module';
 import { ChatProxyModule } from './chat-proxy/chat-proxy.module';
 import { VendorViolationScheduler } from './scheduler/vendor-violation.scheduler';
 import { ViolationDetectorService } from './common/services/violation-detector.service';
 
-const isVendorSpEnabled = process.env.VENDOR_SP_ENABLED === 'true';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
@@ -123,6 +125,11 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
             // privateKey: configService.get<string>('SPREADSHEETS.PRIVATE_KEY'),
             pass: configService.get<string>('MAIL_PASSWORD'),
           },
+          tls: {
+            rejectUnauthorized: false,
+          },
+          debug: true,
+          logger: true,
         },
         defaults: {
           from: configService.get<string>('MAIL_DEFAULTS'),
@@ -176,15 +183,18 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
     //manager
     ManagerModule,
     // Vendor SP & Violation System
-    ...(isVendorSpEnabled ? [VendorViolationModule, VendorSpModule] : []),
+    VendorViolationModule,
+    VendorSpModule,
     VendorRegistrationModule,
+    HomeContentModule,
     ChatProxyModule,
+    VendorPortalModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     ViolationDetectorService,
-    ...(isVendorSpEnabled ? [VendorViolationScheduler] : []),
   ],
   // Uncomment This
   // exports: [CaslAbilityFactory, PermissionsGuard],
