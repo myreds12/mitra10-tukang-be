@@ -72,5 +72,12 @@ export const datasets = {
       "jumlah_jawaban": "jumlah jawaban survei",
       "template": "nama template survei"
     }
+  },
+  "vendors": {
+    "desc": "Data vendor bisnis. Nama perusahaan dapat berupa nama perorangan.",
+    "fields": {
+      "vendor_id": "ID internal vendor",
+      "status_aktif": "status aktif vendor"
+    }
   }
 };

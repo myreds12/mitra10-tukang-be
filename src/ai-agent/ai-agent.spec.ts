@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AiAgentService, buildSystemPrompt, normalizePeriodForQuestion, resolveOrderRankingIntent } from './ai-agent.service';
+import { AiAgentService, buildSystemPrompt, normalizePeriodForQuestion, resolveOrderRankingIntent, resolveOrderItemsIntent, resolveItemListIntent, resolveDatasetListIntent } from './ai-agent.service';
 import { DataAggregatorService } from './data-aggregator.service';
 import { PRIVACY_FIELDS, permittedTools } from './privacy-policy';
 import { AiAgentGuard } from './ai-agent.controller';
@@ -34,6 +34,75 @@ describe('AI Agent', () => {
     expect(resolveOrderRankingIntent('Order paling banyak bulan ini?', now)).toEqual({ from: '2026-11-01', to: '2026-11-13' });
     expect(resolveOrderRankingIntent('Toko dengan order paling banyak bulan ini?', now)).toBeNull();
     expect(resolveOrderRankingIntent('Order paling banyak bulan lalu?', now)).toBeNull();
+  });
+
+  it('finds items for a specific order without relying on an AI response', async () => {
+    expect(resolveOrderItemsIntent('tampilakn item di Order ID 6911')).toBe(6911);
+    expect(resolveOrderItemsIntent('hapus item Order ID 6911')).toBeNull();
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: { create: jest.fn().mockResolvedValue({ id: 7 }) }, ai_agent_tool_log: { create: jest.fn() } };
+    const catalog = { orderItems: jest.fn().mockResolvedValue({ fields: ['item_name', 'quantity'], data: [{ item_name: 'Keramik', quantity: 2 }], more: false }) };
+    const result = await new AiAgentService(db, {} as any, undefined, catalog as any).chat(5, 'tampilakn item di Order ID 6911', undefined, PRIVACY_FIELDS);
+    expect(result.answer).toContain('| Keramik | 2 |');
+    expect(catalog.orderItems).toHaveBeenCalledWith(6911, PRIVACY_FIELDS);
+    expect(http.post).not.toHaveBeenCalled();
+  });
+
+  it('lists permitted master items with an explicit next page', async () => {
+    expect(resolveItemListIntent('tampilakn item yang ada di aplikasi sekarang')).toBe(1);
+    expect(resolveItemListIntent('tampilkan semua item di aplikasi halaman 2')).toBe(2);
+    expect(resolveItemListIntent('tampilkan item aplikasi berdasarkan kategori')).toBeNull();
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: { create: jest.fn().mockResolvedValue({ id: 7 }) }, ai_agent_tool_log: { create: jest.fn() } };
+    const catalog = { listItems: jest.fn().mockResolvedValue({ fields: ['item_name'], data: [{ item_name: 'Keramik' }], more: true }) };
+    const result = await new AiAgentService(db, {} as any, undefined, catalog as any).chat(5, 'tampilakn item yang ada di aplikasi sekarang', undefined, PRIVACY_FIELDS);
+    expect(result.answer).toContain('| Keramik |');
+    expect(result.answer).toContain('halaman 2');
+    expect(http.post).not.toHaveBeenCalled();
+  });
+
+  it('lists any explicitly named permitted dataset without requiring the provider', async () => {
+    expect(resolveDatasetListIntent('tampilkan data complaints halaman 2')).toEqual({ dataset: 'complaints', page: 2 });
+    expect(resolveDatasetListIntent('tampilkan data ai_agent_message')).toBeNull();
+    expect(resolveDatasetListIntent('tampilkan data complaints status selesai')).toBeNull();
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: { create: jest.fn().mockResolvedValue({ id: 7 }) }, ai_agent_tool_log: { create: jest.fn() } };
+    const catalog = { search: jest.fn().mockResolvedValue({ data: [{ id: 7, status: 2 }], masih_ada_data: true }) };
+    const allowed = ['db.invoices.id', 'db.invoices.status'];
+    const result = await new AiAgentService(db, {} as any, undefined, catalog as any).chat(5, 'tampilkan data invoices', undefined, allowed);
+    expect(result.answer).toContain('| 7 | 2 |');
+    expect(result.answer).toContain('tampilkan data invoices halaman 2');
+    expect(catalog.search).toHaveBeenCalledWith({ dataset: 'invoices', fields: ['id', 'status'], page: 1, limit: 10 }, allowed);
+    expect(http.post).not.toHaveBeenCalled();
+  });
+
+  it('retries an empty response and accepts the next response', async () => {
+    const message = { create: jest.fn().mockResolvedValue({ id: 7 }), aggregate: jest.fn().mockResolvedValue({ _sum: { input_tokens: 0, output_tokens: 0 } }), update: jest.fn() };
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: message, ai_agent_tool_log: { create: jest.fn() } };
+    db.$transaction = jest.fn(async callback => callback(db));
+    http.post.mockResolvedValueOnce({ data: { input_tokens: 10 } } as any)
+      .mockResolvedValueOnce({ data: { content: [] } } as any)
+      .mockResolvedValueOnce({ data: { input_tokens: 10 } } as any)
+      .mockResolvedValueOnce({ data: { choices: [{ message: { content: 'Tidak ada data.' } }] } } as any);
+    const response = await new AiAgentService(db, {} as any).chat(5, 'Pertanyaan umum', undefined, PRIVACY_FIELDS);
+    expect(response.answer).toContain('belum mendapatkan data');
+    expect(http.post).toHaveBeenCalledTimes(4);
+  });
+
+  it('uses a compatible tool-calling protocol after a thinking-only response and reads another dataset', async () => {
+    const message = { create: jest.fn().mockResolvedValue({ id: 7 }), aggregate: jest.fn().mockResolvedValue({ _sum: { input_tokens: 0, output_tokens: 0 } }), update: jest.fn() };
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: message, ai_agent_tool_log: { create: jest.fn() } };
+    db.$transaction = jest.fn(async callback => callback(db));
+    const catalog = { search: jest.fn().mockResolvedValue({ dataset: 'items', data: [{ item_name: 'Keramik' }] }) };
+    http.post.mockResolvedValueOnce({ data: { input_tokens: 10 } } as any)
+      .mockResolvedValueOnce({ data: { content: [{ type: 'thinking', thinking: 'SECRET_REASONING_TEST_8741' }] } } as any)
+      .mockResolvedValueOnce({ data: { input_tokens: 10 } } as any)
+      .mockResolvedValueOnce({ data: { choices: [{ message: { content: null, tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'search_data', arguments: JSON.stringify({ dataset: 'items', fields: ['item_name'] }) } }] } }] } } as any)
+      .mockResolvedValueOnce({ data: { input_tokens: 10 } } as any)
+      .mockResolvedValueOnce({ data: { choices: [{ message: { content: 'Ada item Keramik.' } }] } } as any);
+    const response = await new AiAgentService(db, {} as any, undefined, catalog as any).chat(5, 'Cari item di katalog', undefined, PRIVACY_FIELDS);
+    expect(response.answer).toBe('Ada item Keramik.');
+    expect(catalog.search).toHaveBeenCalledWith({ dataset: 'items', fields: ['item_name'] }, PRIVACY_FIELDS);
+    const lastBody: any = http.post.mock.calls[5][1];
+    expect(lastBody.messages.some((m: any) => m.role === 'tool' && m.tool_call_id === 'call-1')).toBe(true);
+    expect(JSON.stringify(lastBody)).not.toContain('SECRET_REASONING_TEST_8741');
   });
 
   it('answers a ranking request from aggregated data and audits it without calling the model', async () => {
@@ -152,6 +221,22 @@ describe('AI Agent', () => {
     expect((http.post.mock.calls[0][1] as any).system).toContain('Gunakan from dan to yang eksplisit');
     expect(data.run).toHaveBeenCalledWith('get_transaction_summary', {});
     expect(db.ai_agent_tool_log.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ tool_name: 'get_transaction_summary', result_digest: 'Agregasi selesai; hasil tidak disimpan' }) }));
+  });
+
+  it('routes detail search with the allowed fields and does not log filter values', async () => {
+    const message = { create: jest.fn().mockResolvedValue({ id: 7 }), aggregate: jest.fn().mockResolvedValue({ _sum: { input_tokens: 0, output_tokens: 0 } }), update: jest.fn().mockResolvedValue({}) };
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: message, ai_agent_tool_log: { create: jest.fn() } };
+    db.$transaction = jest.fn(async callback => callback(db));
+    const detail = { run: jest.fn().mockResolvedValue({ data: [{ order_id: 1, vendor: 'CV Contoh Rahasia' }], masih_ada_data: false }) };
+    http.post.mockResolvedValueOnce({ data: { input_tokens: 100 } } as any)
+      .mockResolvedValueOnce({ data: { usage: { input_tokens: 100, output_tokens: 20 }, content: [{ type: 'tool_use', id: 'detail-1', name: 'search_orders', input: { vendor: 'CV Contoh Rahasia', fields: ['order_id', 'vendor'] } }] } } as any)
+      .mockResolvedValueOnce({ data: { input_tokens: 150 } } as any)
+      .mockResolvedValueOnce({ data: { usage: { input_tokens: 150, output_tokens: 20 }, content: [{ type: 'text', text: 'Order 1.' }] } } as any);
+    const response = await new AiAgentService(db, {} as any, detail as any).chat(5, 'Tampilkan order vendor CV Contoh Rahasia bulan ini', undefined, PRIVACY_FIELDS);
+    expect(response.answer).toBe('Order 1.');
+    expect(detail.run).toHaveBeenCalledWith('search_orders', expect.objectContaining({ vendor: 'CV Contoh Rahasia', fields: ['order_id', 'vendor'], from: expect.any(String), to: expect.any(String) }), PRIVACY_FIELDS);
+    expect(JSON.stringify(db.ai_agent_tool_log.create.mock.calls)).not.toContain('CV Contoh Rahasia');
+    expect(JSON.stringify(db.ai_agent_tool_log.create.mock.calls)).toContain('filter_names');
   });
 
   it('blocks a tool when one of its fields is disabled', async () => {

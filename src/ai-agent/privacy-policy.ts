@@ -1,9 +1,12 @@
+import { catalogKeys } from './data-catalog';
 import { datasets } from './privacy-fields';
 
-export const PRIVACY_FIELDS: string[] = Object.entries(datasets).flatMap(([dataset, value]: [string, any]) => Object.keys(value.fields).map(field => `${dataset}.${field}`));
+export const PRIVACY_FIELDS: string[] = Object.entries(datasets).flatMap(([dataset, value]: [string, any]) => Object.keys(value.fields).map(field => `${dataset}.${field}`)).concat(catalogKeys);
 // A tool is enabled only when every field it uses is allowed. Other tools are
 // unavailable until all of their inputs have an explicit policy mapping.
 export const TOOL_FIELD_REQUIREMENTS: Record<string, string[]> = {
+  search_orders: ['orders.order_id'],
+  search_vendors: ['orders.vendor'],
   get_transaction_summary: ['orders.tanggal_order', 'orders.bulan', 'orders.kuartal', 'orders.tahun', 'orders.status', 'orders.status_grup', 'orders.grand_total'],
   get_top_order_categories: ['orders.order_id', 'orders.tanggal_order', 'orders.bulan', 'orders.kuartal', 'orders.tahun', 'orders.kategori', 'orders.jml_item'],
   get_csi_summary: ['csi.tanggal', 'csi.bulan', 'csi.tahun', 'csi.jumlah_jawaban'],
@@ -22,5 +25,7 @@ export const TOOL_FIELD_REQUIREMENTS: Record<string, string[]> = {
 };
 export function permittedTools(fields: string[]): string[] {
   const selected = new Set(fields);
-  return Object.entries(TOOL_FIELD_REQUIREMENTS).filter(([, required]) => required.every(field => selected.has(field))).map(([name]) => name);
+  const tools = Object.entries(TOOL_FIELD_REQUIREMENTS).filter(([, required]) => required.every(field => selected.has(field))).map(([name]) => name);
+  if (fields.some(field => field.startsWith('db.'))) tools.push('describe_data', 'search_data');
+  return tools;
 }

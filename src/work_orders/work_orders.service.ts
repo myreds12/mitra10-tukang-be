@@ -43,7 +43,6 @@ export class WorkOrdersService {
       this.logger.error(`WA order completed notification failed for order_id=${orderId}:`, err?.message);
     }
   }
->>>> origin/vendor-sp-registration
   async create(
     dataDto: CreateWorkOrderDto,
     user: users,
@@ -1119,12 +1118,6 @@ export class WorkOrdersService {
       if (work_order?.order?.vendor_id) {
         await this.checkDocumentationViolation(workOrder, updateData, NEW_STATUS, files);
         await this.checkStatusUpdateViolation(workOrder, NEW_STATUS);
-      }
-
-      const isWorkEndStatus = NEW_STATUS?.category?.startsWith('WORKEND');
-      const wasWorkEndStatus = workOrder.status?.category?.startsWith('WORKEND');
-      if (isWorkEndStatus && !wasWorkEndStatus) {
-        await this.sendOrderCompletedWhatsApp(work_order.order_id, work_order.id);
       }
 
       return work_order;
