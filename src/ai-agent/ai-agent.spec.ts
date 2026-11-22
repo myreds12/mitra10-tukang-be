@@ -47,6 +47,21 @@ describe('AI Agent', () => {
     expect(http.post).not.toHaveBeenCalled();
   });
 
+  it('routes the complete-order request to all permitted fields without allowing the model to summarize it', async () => {
+    const db: any = { ai_agent_conversation: { create: jest.fn().mockResolvedValue({ id: 2 }) }, ai_agent_message: { create: jest.fn().mockResolvedValue({ id: 7 }) }, ai_agent_tool_log: { create: jest.fn() } };
+    const orderDetail = { read: jest.fn().mockResolvedValue({ sections: [{ dataset: 'orders', title: 'Order', fields: ['id', 'receipt_number', 'project_number'], data: [{ id: 6911, receipt_number: 'RECEIPT_TEST', project_number: 'CONTACT_TEST' }], more: false }], limitations: [] }) };
+    const result = await new AiAgentService(db, {} as any, undefined, undefined, orderDetail as any).chat(5, 'tampilkan data lengkap untuk order id 6911', undefined, PRIVACY_FIELDS);
+    expect(orderDetail.read).toHaveBeenCalledWith(6911, PRIVACY_FIELDS);
+    expect(result.answer).toContain('RECEIPT_TEST');
+    expect(result.answer).toContain('CONTACT_TEST');
+    expect(http.post).not.toHaveBeenCalled();
+    const audit = db.ai_agent_tool_log.create.mock.calls[0][0].data;
+    expect(audit.tool_name).toBe('get_order_detail');
+    expect(audit.arguments).not.toContain('6911');
+    expect(audit.arguments).not.toContain('CONTACT_TEST');
+    expect(db.ai_agent_message.create).toHaveBeenLastCalledWith({ data: { conversation_id: 2, role: 'ASSISTANT', content: result.answer } });
+  });
+
   it('lists permitted master items with an explicit next page', async () => {
     expect(resolveItemListIntent('tampilakn item yang ada di aplikasi sekarang')).toBe(1);
     expect(resolveItemListIntent('tampilkan semua item di aplikasi halaman 2')).toBe(2);
