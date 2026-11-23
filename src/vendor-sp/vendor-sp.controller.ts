@@ -22,12 +22,10 @@ import {
   QueryVendorSpDto,
   CreateVendorSpDto,
   UpdateVendorSpDto,
-  ReactivateVendorDto,
 } from './dto/vendor-sp.dto';
 import { PenaltyReceiptDto } from './dto/penalty-receipt.dto';
 import { NoViolationCertificateDto } from './dto/no-violation-certificate.dto';
 import { CleanVendorRecapDto } from './dto/clean-vendor-recap.dto';
-import { QueryReactivationLogDto } from './dto/query-reactivation-log.dto';
 import { RequestWithUser } from 'src/common/interface/request-with-user.interface';
 import { User } from 'src/common/decorator/user.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
@@ -109,49 +107,6 @@ export class VendorSpController {
       ? vendorIds.split(',').map((id) => parseInt(id.trim(), 10))
       : undefined;
     return this.service.getVendorsWithSpStatus(ids);
-  }
-
-  @Get('reactivation/candidates')
-  @ApiOperation({
-    summary: 'Get SP3 / Inactive Vendors Eligible for Reactivation',
-    description:
-      'Retrieve vendors currently deactivated due to SP3 or holding an active SP3 record.',
-  })
-  @ApiResponse({ status: 200, description: 'Returns list of SP3 reactivation candidate vendors' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getReactivationCandidates(@User() user: any) {
-    const userRole = await this.service.getRoleName(user?.id);
-    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
-      throw new ForbiddenException(
-        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
-      );
-    }
-    return this.service.getReactivationCandidates();
-  }
-
-  @Get('reactivation')
-  @ApiOperation({
-    summary: 'Get Vendor Reactivation Logs',
-    description:
-      'Retrieve history of vendor reactivation after SP3 deactivation. ' +
-      'Supports filter by vendor name/PIC (search), status, ' +
-      'reactivation request date range, dan pagination. ' +
-      'Proteksi: JWT-only + role-check (Admin HO / Super User).',
-  })
-  @ApiResponse({ status: 200, description: 'Returns reactivation log history' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden: Admin HO / Super User only' })
-  async getReactivationLogs(
-    @Query() query: QueryReactivationLogDto,
-    @User() user: any,
-  ) {
-    const userRole = await this.service.getRoleName(user?.id);
-    if (userRole !== 'Admin HO' && userRole !== 'Super User') {
-      throw new ForbiddenException(
-        `Akses hanya untuk role Admin HO / Super User. Role Anda: ${userRole ?? 'tidak diketahui'}.`,
-      );
-    }
-    return this.service.findReactivationLogs(query);
   }
 
   @Get(':id')
@@ -249,26 +204,6 @@ export class VendorSpController {
   ) {
     return this.service.updateSpNotes(id, dto.notes ?? '', user?.id);
   }
-
-  @Post('reactivate')
-  @ApiOperation({
-    summary: 'Reactivate Vendor after SP3',
-    description: 'Reactivate a vendor that was deactivated due to SP3. Only HO (Head Office) can perform this action. Vendor will be set to active again after SP3 expires naturally.',
-  })
-  @ApiResponse({ status: 201, description: 'Vendor reactivated successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Vendor not found' })
-  async reactivateVendor(
-    @Body() dto: ReactivateVendorDto,
-    @User() user: any,
-  ) {
-    return this.service.reactivateVendor(dto, user?.id);
-  }
-
-  // ================================
-  // POIN 3: PDF REKAP PENALTY (Bukti SP)
-  // ================================
 
   @Post('penalty-receipt/export')
   @ApiOperation({

@@ -56,7 +56,6 @@ import { CrmModule } from './crm/crm.module';
 import { VendorViolationModule } from './vendor-violation/vendor-violation.module';
 import { VendorSpModule } from './vendor-sp/vendor-sp.module';
 import { VendorRegistrationModule } from './vendor-registration/vendor-registration.module';
-import { AiAgentModule } from './ai-agent/ai-agent.module';
 import { VendorPortalModule } from './vendor-portal/vendor-portal.module';
 import { RedisModule } from './common/redis/redis.module';
 import { HomeContentModule } from './home-content/home-content.module';
@@ -69,7 +68,6 @@ import { WhatsAppModule } from './whatsapp/whatsapp.module';
 @Module({
   imports: [
     PrismaModule,
-    AiAgentModule,
     AuthModule,
     CommonModule,
     StoreModule,

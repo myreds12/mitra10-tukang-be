@@ -145,49 +145,8 @@ describe('VendorSpService', () => {
     });
 
     it('should throw BadRequestException when SP is inactive', async () => {
-      prisma.vendor_sp.findFirst.mockResolvedValue({ id: 1, status: 0 }); // Inactive
+      prisma.vendor_sp.findFirst.mockResolvedValue({ id: 1, status: 0 });
       await expect(service.completeSp(1, 99)).rejects.toThrow(BadRequestException);
-    });
-  });
-
-  describe('reactivateVendor()', () => {
-    const dto = { vendor_id: 1, previous_sp_id: 1, reason: 'Reactivation request' };
-
-    it('should reactivate vendor successfully', async () => {
-      const mockVendor = { id: 1, is_active: false };
-      prisma.vendor.findFirst
-        .mockResolvedValueOnce(mockVendor)
-        .mockResolvedValueOnce({ ...mockVendor, is_active: true });
-      prisma.vendor_reactivation_log.create.mockResolvedValue({ id: 1 });
-      prisma.vendor.update.mockResolvedValue({ ...mockVendor, is_active: true });
-
-      const result = await service.reactivateVendor(dto as any, 99);
-      expect(prisma.$transaction).toHaveBeenCalled();
-      expect(prisma.vendor.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: { is_active: true }
-      }));
-      expect(result).toBeDefined();
-    });
-
-    it('should throw BadRequestException when vendor already active', async () => {
-      prisma.vendor.findFirst.mockResolvedValue({ id: 1, is_active: true });
-      await expect(service.reactivateVendor(dto as any, 99)).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw NotFoundException when vendor not found', async () => {
-      prisma.vendor.findFirst.mockResolvedValue(null);
-      await expect(service.reactivateVendor(dto as any, 99)).rejects.toThrow(NotFoundException);
-    });
-
-    it('should create reactivation log entry', async () => {
-      const mockVendor = { id: 1, is_active: false };
-      prisma.vendor.findFirst.mockResolvedValue(mockVendor);
-      prisma.vendor_reactivation_log.create.mockResolvedValue({ id: 1 });
-
-      await service.reactivateVendor(dto as any, 99);
-      expect(prisma.vendor_reactivation_log.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ reason: 'Reactivation request', approved_by: 99 })
-      }));
     });
   });
 
