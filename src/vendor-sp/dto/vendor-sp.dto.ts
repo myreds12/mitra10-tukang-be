@@ -131,21 +131,6 @@ export class UpdateVendorSpDto {
   notes?: string;
 }
 
-export class ReactivateVendorDto {
-  @ApiProperty({ description: 'Vendor ID to reactivate', type: Number, example: 1 })
-  @IsInt()
-  vendor_id: number;
-
-  @ApiPropertyOptional({ description: 'Previous SP ID that was active before reactivation', type: Number })
-  @IsOptional()
-  @IsInt()
-  previous_sp_id?: number;
-
-  @ApiProperty({ description: 'Reason for reactivation', example: 'Vendor has shown improvement after SP3 period' })
-  @IsString()
-  reason: string;
-}
-
 export class CheckVendorSpDto {
   @ApiProperty({ description: 'Vendor ID to check SP status', type: Number, example: 1 })
   @IsInt()

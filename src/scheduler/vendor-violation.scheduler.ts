@@ -172,19 +172,12 @@ export class VendorViolationScheduler implements OnModuleInit {
     const startTime = Date.now();
 
     try {
-      // 1. Complete SP yang expired (>90 hari)
       const completedSPs = await this.violationDetector.completeExpiredSPs();
-
-      // 2. Reaktivasi vendor SP3 yang expired
-      const reactivatedVendors = await this.violationDetector.reactivateExpiredSP3Vendors();
-
-      // 3. Cek quarterly reset jika belum tercatat untuk quarter berjalan
+      const reactivatedVendors = 0;
       const quarterlyResetExecuted = await this.checkQuarterlyReset();
 
-      if (completedSPs > 0 || reactivatedVendors > 0) {
-        this.logger.log(
-          `SP Status Check: ${completedSPs} SPs completed, ${reactivatedVendors} vendors reactivated`,
-        );
+      if (completedSPs > 0) {
+        this.logger.log(`SP Status Check: ${completedSPs} SPs completed`);
       }
 
       const duration = Date.now() - startTime;
@@ -215,15 +208,9 @@ export class VendorViolationScheduler implements OnModuleInit {
     const startTime = Date.now();
 
     try {
-      // 1. Complete SP yang expired
       const completedSPs = await this.violationDetector.completeExpiredSPs();
       this.logger.log(`Completed ${completedSPs} expired SPs`);
 
-      // 2. Reaktivasi vendor SP3 yang expired
-      const reactivatedVendors = await this.violationDetector.reactivateExpiredSP3Vendors();
-      this.logger.log(`Reactivated ${reactivatedVendors} SP3 vendors`);
-
-      // 3. Log quarterly reset
       await this.logQuarterlyReset();
 
       const duration = Date.now() - startTime;
