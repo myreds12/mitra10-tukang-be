@@ -960,6 +960,103 @@ export class OrderService {
     }
   }
 
+  // Performance: minimal SELECT + count, tanpa load seluruh row ke memory untuk agregasi.
+  async findAllPerformance(queryParams: any) {
+    try {
+      const {
+        store_id,
+        date_from,
+        date_to,
+        search,
+        order_by,
+        sort_by,
+        take: rawTake,
+        page: rawPage,
+      } = queryParams;
+
+      const take = Math.min(Math.max(Number(rawTake) || 10, 1), 200);
+      const page = Math.max(Number(rawPage) || 1, 1);
+      const skip = (page - 1) * take;
+
+      const storeIds = store_id
+        ? (Array.isArray(store_id) ? store_id : String(store_id).split(','))
+          .map((id) => Number(id))
+          .filter((id) => !isNaN(id))
+        : null;
+
+      const where: Prisma.ordersWhereInput = {
+        deleted_at: null,
+        ...(storeIds && storeIds.length ? { store_id: { in: storeIds } } : {}),
+        ...(date_from && date_to
+          ? {
+            created_at: {
+              gte: new Date(date_from),
+              lte: new Date(`${date_to}T23:59:59.000Z`),
+            },
+          }
+          : {}),
+        ...(search
+          ? {
+            OR: [
+              { receipt_number: { contains: search } },
+              { id: !isNaN(+search) ? +search : undefined },
+              { project_number: { contains: search } },
+              { members: { full_name: { contains: search } } },
+            ],
+          }
+          : {}),
+      };
+
+      const sortField = sort_by === 'id' ? 'id' : 'created_at';
+      const sortOrder: Prisma.SortOrder = order_by === 'asc' ? 'asc' : 'desc';
+
+      const [total, orders] = await Promise.all([
+        this.dbService.orders.count({ where }),
+        this.dbService.orders.findMany({
+          where,
+          skip,
+          take,
+          orderBy: sortField === 'id' ? { id: sortOrder } : { created_at: sortOrder },
+          select: {
+            id: true,
+            created_at: true,
+            project_number: true,
+            project_address: true,
+            payment_type: true,
+            grand_total: true,
+            members: {
+              where: { deleted_at: null, deleted_by: null },
+              select: { full_name: true, email: true },
+            },
+            sales: {
+              where: { deleted_at: null, deleted_by: null },
+              select: { full_name: true },
+            },
+            status: {
+              select: { description: true },
+            },
+            quotation: {
+              where: { deleted_at: null, deleted_by: null },
+              select: { quotation_grand_total: true },
+              orderBy: { created_at: 'desc' },
+              take: 1,
+            },
+          },
+        }),
+      ]);
+
+      return {
+        data: orders,
+        total,
+        page,
+        take,
+      };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async findOne(id: number) {
     try {
       const order = await this.dbService.orders.findFirst({

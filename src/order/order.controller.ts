@@ -391,6 +391,23 @@ export class OrderController {
     }
   }
 
+  @Get('/performance')
+  @ApiOperation({
+    summary: 'Get Orders for Report Performance (lightweight)',
+    description: 'Paginated, minimal-field order list for the Report Performance page. Filters: store_id, date_from, date_to, search, sort_by (id|created_at), order_by (asc|desc).',
+  })
+  @ApiResponse({ status: 200, description: 'Successfully retrieved orders' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UseGuards(JwtAuthGuard)
+  async findAllPerformance(@Query() query: QueryParamsDto) {
+    try {
+      return await this.orderService.findAllPerformance(query);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Get Order by ID',
